@@ -179,10 +179,10 @@ const Index = () => {
             </div>
           </div>
         ) : (
-          <div className="flex flex-col">
+          <div className="flex flex-col h-[calc(100vh-140px)]">
             {/* Settings Panel (horizontal) */}
-            <div className="mb-6">
-              <div className="flex items-center gap-2 mb-4 text-muted-foreground">
+            <div className="mb-4 flex-shrink-0">
+              <div className="flex items-center gap-2 mb-3 text-muted-foreground">
                 <Settings className="w-4 h-4" />
                 <span className="font-display text-sm uppercase tracking-wider">设置</span>
               </div>
@@ -190,10 +190,10 @@ const Index = () => {
             </div>
 
             {/* Preview + Batch Import Row */}
-            <div className="flex gap-6">
+            <div className="flex gap-4 flex-1 min-h-0">
               {/* Preview Area */}
-              <div className="flex-1 min-w-0">
-                <div className="mb-4 flex items-center justify-between">
+              <div className="flex-1 min-w-0 flex flex-col">
+                <div className="mb-3 flex items-center justify-between flex-shrink-0">
                   <div className="text-sm text-muted-foreground">
                     共 {session.messages.length} 条消息
                     {markers.length > 0 && (
@@ -207,13 +207,12 @@ const Index = () => {
                   )}
                 </div>
                 
-                <ScrollArea className="h-[calc(100vh-280px)]">
+                <ScrollArea className="flex-1">
                   <div 
-                    className="flex justify-center pb-8"
-                    style={{ padding: '1rem' }}
+                    className="flex justify-center pb-8 px-4"
                   >
                     <div 
-                      style={{ width: settings.paperWidth }}
+                      style={{ width: Math.min(settings.paperWidth, batchImportOpen ? 500 : settings.paperWidth) }}
                       className="shadow-warm rounded-lg overflow-hidden animate-fade-in"
                     >
                       <ChatPreview
