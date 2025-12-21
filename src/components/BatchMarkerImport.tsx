@@ -264,7 +264,8 @@ export function BatchMarkerImport({
     <aside 
       ref={sidebarRef}
       style={{ width: sidebarWidth }}
-      className="flex-shrink-0 border border-border rounded-lg bg-card flex flex-col h-full relative overflow-hidden"
+      className="flex-shrink-0 border border-border rounded-lg bg-card flex flex-col h-full relative overflow-hidden overscroll-contain"
+      onWheelCapture={(e) => e.stopPropagation()}
     >
       {/* 拖拽手柄 */}
       <div 
