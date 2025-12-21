@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
-import { ScrollText, Settings, RefreshCw, BookmarkPlus, FileUp } from 'lucide-react';
+import { ScrollText, Settings, RefreshCw, BookmarkPlus, FileUp, Pencil } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { ChatImporter } from '@/components/ChatImporter';
@@ -11,7 +11,8 @@ import { JsonlExportButton } from '@/components/JsonlExportButton';
 import { DemoData } from '@/components/DemoData';
 import { BatchMarkerImport } from '@/components/BatchMarkerImport';
 import { ChapterMarkerDialog } from '@/components/ChapterMarkerDialog';
-import type { ChatSession, ExportSettings, ChapterMarker } from '@/types/chat';
+import { MessageEditDialog } from '@/components/MessageEditDialog';
+import type { ChatSession, ExportSettings, ChapterMarker, ChatMessage } from '@/types/chat';
 import { DEFAULT_REGEX_RULES } from '@/types/chat';
 
 const defaultSettings: ExportSettings = {
@@ -29,7 +30,9 @@ const Index = () => {
   const [settings, setSettings] = useState<ExportSettings>(defaultSettings);
   const [markers, setMarkers] = useState<ChapterMarker[]>([]);
   const [editMode, setEditMode] = useState(false);
+  const [contentEditMode, setContentEditMode] = useState(false);
   const [markerDialogOpen, setMarkerDialogOpen] = useState(false);
+  const [messageEditDialogOpen, setMessageEditDialogOpen] = useState(false);
   const [selectedMessage, setSelectedMessage] = useState<{ id: string; index: number } | null>(null);
   const [batchImportOpen, setBatchImportOpen] = useState(false);
   const [selectedFloor, setSelectedFloor] = useState<number | null>(null);
@@ -40,6 +43,7 @@ const Index = () => {
     setSession(null);
     setMarkers([]);
     setEditMode(false);
+    setContentEditMode(false);
     setBatchImportOpen(false);
   };
 
@@ -47,11 +51,35 @@ const Index = () => {
     if (batchImportOpen && activeChapterIndex !== null) {
       // 批量导入模式下，选择楼层
       setSelectedFloor(messageIndex + 1); // 楼层从1开始
+    } else if (contentEditMode) {
+      // 内容编辑模式
+      setSelectedMessage({ id: messageId, index: messageIndex });
+      setMessageEditDialogOpen(true);
     } else if (editMode) {
       // 单个标记模式
       setSelectedMessage({ id: messageId, index: messageIndex });
       setMarkerDialogOpen(true);
     }
+  };
+
+  const handleSaveMessage = (updatedMessage: ChatMessage) => {
+    if (!session) return;
+    setSession({
+      ...session,
+      messages: session.messages.map(msg => 
+        msg.id === updatedMessage.id ? updatedMessage : msg
+      ),
+    });
+  };
+
+  const handleDeleteMessage = () => {
+    if (!session || !selectedMessage) return;
+    setSession({
+      ...session,
+      messages: session.messages.filter(msg => msg.id !== selectedMessage.id),
+    });
+    // 同时删除关联的章节标记
+    setMarkers(prev => prev.filter(m => m.messageId !== selectedMessage.id));
   };
 
   // 重置 selectedFloor
@@ -132,9 +160,30 @@ const Index = () => {
                   重新导入
                 </Button>
                 <Button 
+                  variant={contentEditMode ? "default" : "outline"} 
+                  size="sm" 
+                  onClick={() => {
+                    setContentEditMode(!contentEditMode);
+                    if (!contentEditMode) {
+                      setEditMode(false);
+                      setBatchImportOpen(false);
+                    }
+                  }}
+                  className={contentEditMode ? 'gold-gradient text-primary-foreground' : ''}
+                >
+                  <Pencil className="w-4 h-4 mr-2" />
+                  {contentEditMode ? '退出编辑' : '编辑内容'}
+                </Button>
+                <Button 
                   variant={editMode ? "default" : "outline"} 
                   size="sm" 
-                  onClick={() => setEditMode(!editMode)}
+                  onClick={() => {
+                    setEditMode(!editMode);
+                    if (!editMode) {
+                      setContentEditMode(false);
+                      setBatchImportOpen(false);
+                    }
+                  }}
                   className={editMode ? 'gold-gradient text-primary-foreground' : ''}
                 >
                   <BookmarkPlus className="w-4 h-4 mr-2" />
@@ -143,7 +192,13 @@ const Index = () => {
                 <Button 
                   variant={batchImportOpen ? "default" : "outline"} 
                   size="sm" 
-                  onClick={() => setBatchImportOpen(!batchImportOpen)}
+                  onClick={() => {
+                    setBatchImportOpen(!batchImportOpen);
+                    if (!batchImportOpen) {
+                      setContentEditMode(false);
+                      setEditMode(false);
+                    }
+                  }}
                   className={batchImportOpen ? 'gold-gradient text-primary-foreground' : ''}
                 >
                   <FileUp className="w-4 h-4 mr-2" />
@@ -206,9 +261,13 @@ const Index = () => {
                       <span className="ml-2 text-primary">· {markers.length} 个章节标记</span>
                     )}
                   </div>
-                  {(editMode || batchImportOpen) && (
+                  {(editMode || batchImportOpen || contentEditMode) && (
                     <div className="text-sm text-primary animate-pulse">
-                      {batchImportOpen ? '点击消息选择楼层' : '点击消息添加章节标记'}
+                      {batchImportOpen 
+                        ? '点击消息选择楼层' 
+                        : contentEditMode 
+                          ? '点击消息编辑内容'
+                          : '点击消息添加章节标记'}
                     </div>
                   )}
                 </div>
@@ -229,7 +288,7 @@ const Index = () => {
                         regexRules={settings.regexRules}
                         markers={markers}
                         onMessageClick={handleMessageClick}
-                        editMode={editMode || batchImportOpen}
+                        editMode={editMode || batchImportOpen || contentEditMode}
                       />
                     </div>
                   </div>
@@ -263,6 +322,17 @@ const Index = () => {
           existingMarker={selectedMarker}
           onSave={handleSaveMarker}
           onDelete={selectedMarker ? handleDeleteMarker : undefined}
+        />
+      )}
+
+      {/* Message Edit Dialog */}
+      {selectedMessage && session && (
+        <MessageEditDialog
+          open={messageEditDialogOpen}
+          onOpenChange={setMessageEditDialogOpen}
+          message={session.messages.find(m => m.id === selectedMessage.id) || null}
+          onSave={handleSaveMessage}
+          onDelete={handleDeleteMessage}
         />
       )}
 
