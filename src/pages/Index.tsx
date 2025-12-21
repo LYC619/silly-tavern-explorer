@@ -153,7 +153,7 @@ const Index = () => {
       </header>
 
       {/* Main Content */}
-      <main className="container mx-auto px-4 py-6 flex-1 flex flex-col min-h-0">
+      <main className="container mx-auto px-4 py-6 flex-1 flex flex-col min-h-0 overflow-hidden">
         {!session ? (
           <div className="max-w-xl mx-auto animate-fade-in">
             <div className="text-center mb-8">
@@ -179,7 +179,7 @@ const Index = () => {
             </div>
           </div>
         ) : (
-          <div className="flex flex-col flex-1 min-h-0">
+          <div className="flex flex-col flex-1 min-h-0 overflow-hidden">
             {/* Settings Panel (horizontal) */}
             <div className="mb-4 flex-shrink-0">
               <div className="flex items-center gap-2 mb-3 text-muted-foreground">
