@@ -7,6 +7,7 @@ import { ChatPreview } from '@/components/ChatPreview';
 import { SettingsPanel } from '@/components/SettingsPanel';
 import { ExportButton } from '@/components/ExportButton';
 import { TxtExportButton } from '@/components/TxtExportButton';
+import { JsonlExportButton } from '@/components/JsonlExportButton';
 import { DemoData } from '@/components/DemoData';
 import { BatchMarkerImport } from '@/components/BatchMarkerImport';
 import { ChapterMarkerDialog } from '@/components/ChapterMarkerDialog';
@@ -148,6 +149,7 @@ const Index = () => {
                   <FileUp className="w-4 h-4 mr-2" />
                   批量导入
                 </Button>
+                <JsonlExportButton session={session} regexRules={settings.regexRules} />
                 <TxtExportButton session={session} settings={settings} markers={markers} />
                 <ExportButton previewRef={previewRef} filename={session.title} />
               </>

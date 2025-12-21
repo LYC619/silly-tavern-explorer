@@ -2,7 +2,7 @@ import { useState, useCallback } from 'react';
 import { Upload, FileText, AlertCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
-import type { ChatMessage, ChatSession, CharacterInfo } from '@/types/chat';
+import type { ChatMessage, ChatSession, CharacterInfo, STMetadata, STRawMessage } from '@/types/chat';
 
 interface ChatImporterProps {
   onImport: (session: ChatSession) => void;
@@ -12,62 +12,86 @@ export function ChatImporter({ onImport }: ChatImporterProps) {
   const [isDragging, setIsDragging] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const parseJsonl = (content: string): ChatMessage[] => {
+  const parseJsonl = (content: string): { messages: ChatMessage[]; metadata?: STMetadata } => {
     const lines = content.trim().split('\n');
     const messages: ChatMessage[] = [];
+    let metadata: STMetadata | undefined;
 
-    for (const line of lines) {
+    for (let i = 0; i < lines.length; i++) {
+      const line = lines[i];
       if (!line.trim()) continue;
       try {
-        const parsed = JSON.parse(line);
-        // SillyTavern JSONL format adaptation
+        const parsed = JSON.parse(line) as STRawMessage;
+        
+        // 第一行通常是元数据（包含 user_name, character_name 等）
+        if (i === 0 && ('user_name' in parsed || 'character_name' in parsed || 'chat_metadata' in parsed)) {
+          metadata = parsed as STMetadata;
+          continue;
+        }
+        
+        // 跳过系统消息
+        if (parsed.is_system) continue;
+        
+        // 跳过没有实际内容的消息
+        const messageContent = parsed.mes || parsed.content || parsed.message || '';
+        if (!messageContent) continue;
+        
         const message: ChatMessage = {
           id: crypto.randomUUID(),
           role: parsed.is_user ? 'user' : 'assistant',
-          content: parsed.mes || parsed.content || parsed.message || '',
+          content: messageContent,
           name: parsed.name || (parsed.is_user ? 'User' : 'Character'),
           timestamp: parsed.send_date 
             ? (typeof parsed.send_date === 'number' ? parsed.send_date : new Date(parsed.send_date).getTime()) 
             : undefined,
+          rawData: parsed, // 保留原始数据
         };
-        if (message.content) {
-          messages.push(message);
-        }
+        messages.push(message);
       } catch (e) {
         console.warn('Failed to parse line:', line);
       }
     }
-    return messages;
+    return { messages, metadata };
   };
 
-  const parseJson = (content: string): ChatMessage[] => {
+  const parseJson = (content: string): { messages: ChatMessage[]; metadata?: STMetadata } => {
     const data = JSON.parse(content);
     
     // Handle array format
     if (Array.isArray(data)) {
-      return data.map((item, index) => ({
-        id: crypto.randomUUID(),
-        role: (item.is_user || item.role === 'user' ? 'user' : 'assistant') as 'user' | 'assistant',
-        content: item.mes || item.content || item.message || '',
-        name: item.name || (item.is_user ? 'User' : 'Character'),
-        timestamp: item.send_date 
-          ? (typeof item.send_date === 'number' ? item.send_date : new Date(item.send_date).getTime()) 
-          : undefined,
-      })).filter(m => m.content);
+      const messages = data
+        .filter((item: any) => !item.is_system)
+        .map((item: any) => ({
+          id: crypto.randomUUID(),
+          role: (item.is_user || item.role === 'user' ? 'user' : 'assistant') as 'user' | 'assistant',
+          content: item.mes || item.content || item.message || '',
+          name: item.name || (item.is_user ? 'User' : 'Character'),
+          timestamp: item.send_date 
+            ? (typeof item.send_date === 'number' ? item.send_date : new Date(item.send_date).getTime()) 
+            : undefined,
+          rawData: item as STRawMessage,
+        }))
+        .filter((m: ChatMessage) => m.content);
+      return { messages };
     }
 
     // Handle object with messages array
     if (data.messages || data.chat) {
       const msgs = data.messages || data.chat;
-      return msgs.map((item: any, index: number) => ({
-        id: crypto.randomUUID(),
-        role: (item.is_user || item.role === 'user' ? 'user' : 'assistant') as 'user' | 'assistant',
-        content: item.mes || item.content || item.message || '',
-        name: item.name,
-        timestamp: item.send_date 
-          ? (typeof item.send_date === 'number' ? item.send_date : new Date(item.send_date).getTime()) 
-          : undefined,
-      })).filter((m: ChatMessage) => m.content);
+      const messages = msgs
+        .filter((item: any) => !item.is_system)
+        .map((item: any) => ({
+          id: crypto.randomUUID(),
+          role: (item.is_user || item.role === 'user' ? 'user' : 'assistant') as 'user' | 'assistant',
+          content: item.mes || item.content || item.message || '',
+          name: item.name,
+          timestamp: item.send_date 
+            ? (typeof item.send_date === 'number' ? item.send_date : new Date(item.send_date).getTime()) 
+            : undefined,
+          rawData: item as STRawMessage,
+        }))
+        .filter((m: ChatMessage) => m.content);
+      return { messages };
     }
 
     throw new Error('Unsupported JSON format');
@@ -79,17 +103,26 @@ export function ChatImporter({ onImport }: ChatImporterProps) {
     try {
       const content = await file.text();
       let messages: ChatMessage[] = [];
+      let metadata: STMetadata | undefined;
 
       if (file.name.endsWith('.jsonl')) {
-        messages = parseJsonl(content);
+        const result = parseJsonl(content);
+        messages = result.messages;
+        metadata = result.metadata;
       } else if (file.name.endsWith('.json')) {
-        messages = parseJson(content);
+        const result = parseJson(content);
+        messages = result.messages;
+        metadata = result.metadata;
       } else {
         // Try to auto-detect format
         if (content.trim().startsWith('[') || content.trim().startsWith('{')) {
-          messages = parseJson(content);
+          const result = parseJson(content);
+          messages = result.messages;
+          metadata = result.metadata;
         } else {
-          messages = parseJsonl(content);
+          const result = parseJsonl(content);
+          messages = result.messages;
+          metadata = result.metadata;
         }
       }
 
@@ -102,12 +135,12 @@ export function ChatImporter({ onImport }: ChatImporterProps) {
       const userMessages = messages.filter(m => m.role === 'user');
       
       const character: CharacterInfo = {
-        name: charMessages[0]?.name || 'Character',
+        name: metadata?.character_name || charMessages[0]?.name || 'Character',
         color: '#8B5A2B',
       };
 
       const user: CharacterInfo = {
-        name: userMessages[0]?.name || 'User',
+        name: metadata?.user_name || userMessages[0]?.name || 'User',
         color: '#4A90A4',
       };
 
@@ -118,6 +151,7 @@ export function ChatImporter({ onImport }: ChatImporterProps) {
         character,
         user,
         createdAt: Date.now(),
+        rawMetadata: metadata,
       };
 
       onImport(session);
