@@ -26,7 +26,9 @@ export function ChatImporter({ onImport }: ChatImporterProps) {
           role: parsed.is_user ? 'user' : 'assistant',
           content: parsed.mes || parsed.content || parsed.message || '',
           name: parsed.name || (parsed.is_user ? 'User' : 'Character'),
-          timestamp: parsed.send_date ? new Date(parsed.send_date).getTime() : Date.now(),
+          timestamp: parsed.send_date 
+            ? (typeof parsed.send_date === 'number' ? parsed.send_date : new Date(parsed.send_date).getTime()) 
+            : undefined,
         };
         if (message.content) {
           messages.push(message);
@@ -48,7 +50,9 @@ export function ChatImporter({ onImport }: ChatImporterProps) {
         role: (item.is_user || item.role === 'user' ? 'user' : 'assistant') as 'user' | 'assistant',
         content: item.mes || item.content || item.message || '',
         name: item.name || (item.is_user ? 'User' : 'Character'),
-        timestamp: item.send_date ? new Date(item.send_date).getTime() : Date.now() + index,
+        timestamp: item.send_date 
+          ? (typeof item.send_date === 'number' ? item.send_date : new Date(item.send_date).getTime()) 
+          : undefined,
       })).filter(m => m.content);
     }
 
@@ -60,7 +64,9 @@ export function ChatImporter({ onImport }: ChatImporterProps) {
         role: (item.is_user || item.role === 'user' ? 'user' : 'assistant') as 'user' | 'assistant',
         content: item.mes || item.content || item.message || '',
         name: item.name,
-        timestamp: item.send_date ? new Date(item.send_date).getTime() : Date.now() + index,
+        timestamp: item.send_date 
+          ? (typeof item.send_date === 'number' ? item.send_date : new Date(item.send_date).getTime()) 
+          : undefined,
       })).filter((m: ChatMessage) => m.content);
     }
 

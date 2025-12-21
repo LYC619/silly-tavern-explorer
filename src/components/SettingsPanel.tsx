@@ -102,20 +102,14 @@ export function SettingsPanel({ settings, onSettingsChange }: SettingsPanelProps
         </h3>
         
         <div className="flex items-center justify-between">
-          <Label htmlFor="show-timestamp">显示时间戳</Label>
+          <div>
+            <Label htmlFor="show-timestamp">显示时间戳</Label>
+            <p className="text-xs text-muted-foreground mt-0.5">仅当 JSON 包含时间信息时有效</p>
+          </div>
           <Switch
             id="show-timestamp"
             checked={settings.showTimestamp}
             onCheckedChange={(checked) => updateSetting('showTimestamp', checked)}
-          />
-        </div>
-
-        <div className="flex items-center justify-between">
-          <Label htmlFor="show-avatar">显示头像</Label>
-          <Switch
-            id="show-avatar"
-            checked={settings.showAvatar}
-            onCheckedChange={(checked) => updateSetting('showAvatar', checked)}
           />
         </div>
       </Card>
