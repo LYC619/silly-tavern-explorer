@@ -303,8 +303,8 @@ export function BatchMarkerImport({
           </Button>
         </div>
       ) : (
-        <div className="flex-1 flex flex-col overflow-hidden">
-          <div className="p-4 border-b border-border bg-muted/30">
+        <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
+          <div className="p-4 border-b border-border bg-muted/30 flex-shrink-0">
             <div className="flex items-center justify-between mb-2">
               <span className="text-sm font-medium">
                 解析到 <span className="text-primary font-semibold">{chapters.length}</span> 个章节
@@ -319,7 +319,7 @@ export function BatchMarkerImport({
             </p>
           </div>
           
-          <ScrollArea className="flex-1">
+          <div className="flex-1 min-h-0 overflow-y-auto">
             <div className="p-3 space-y-2">
               {chapters.map((chapter, index) => (
                 <div 
@@ -374,9 +374,9 @@ export function BatchMarkerImport({
                 </div>
               ))}
             </div>
-          </ScrollArea>
+          </div>
 
-          <div className="p-4 border-t border-border space-y-3 bg-card">
+          <div className="p-4 border-t border-border space-y-3 bg-card flex-shrink-0">
             <div className="flex items-center justify-between text-sm">
               <span className="text-muted-foreground">
                 已填写楼层: <span className="font-medium text-foreground">{validCount}/{chapters.length}</span>
