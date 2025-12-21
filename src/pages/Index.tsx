@@ -179,72 +179,73 @@ const Index = () => {
             </div>
           </div>
         ) : (
-          <div className="flex gap-0">
-            {/* Settings Sidebar */}
-            <aside className="w-72 flex-shrink-0 p-4">
-              <div className="sticky top-24">
-                <div className="flex items-center gap-2 mb-4 text-muted-foreground">
-                  <Settings className="w-4 h-4" />
-                  <span className="font-display text-sm uppercase tracking-wider">设置</span>
-                </div>
-                <SettingsPanel settings={settings} onSettingsChange={setSettings} />
+          <div className="flex flex-col">
+            {/* Settings Panel (horizontal) */}
+            <div className="mb-6">
+              <div className="flex items-center gap-2 mb-4 text-muted-foreground">
+                <Settings className="w-4 h-4" />
+                <span className="font-display text-sm uppercase tracking-wider">设置</span>
               </div>
-            </aside>
-
-            {/* Preview Area */}
-            <div className="flex-1 min-w-0 p-4">
-              <div className="mb-4 flex items-center justify-between">
-                <div className="text-sm text-muted-foreground">
-                  共 {session.messages.length} 条消息
-                  {markers.length > 0 && (
-                    <span className="ml-2 text-primary">· {markers.length} 个章节标记</span>
-                  )}
-                </div>
-                {(editMode || batchImportOpen) && (
-                  <div className="text-sm text-primary animate-pulse">
-                    {batchImportOpen ? '点击消息选择楼层' : '点击消息添加章节标记'}
-                  </div>
-                )}
-              </div>
-              
-              <ScrollArea className="h-[calc(100vh-220px)]">
-                <div 
-                  className="flex justify-center pb-8"
-                  style={{ padding: '1rem' }}
-                >
-                  <div 
-                    style={{ width: settings.paperWidth }}
-                    className="shadow-warm rounded-lg overflow-hidden animate-fade-in"
-                  >
-                    <ChatPreview
-                      ref={previewRef}
-                      session={session}
-                      theme={settings.theme}
-                      showTimestamp={settings.showTimestamp}
-                      showAvatar={settings.showAvatar}
-                      fontSize={settings.fontSize}
-                      regexRules={settings.regexRules}
-                      markers={markers}
-                      onMessageClick={handleMessageClick}
-                      editMode={editMode || batchImportOpen}
-                    />
-                  </div>
-                </div>
-              </ScrollArea>
+              <SettingsPanel settings={settings} onSettingsChange={setSettings} />
             </div>
 
-            {/* Batch Import Sidebar */}
-            {session && (
-              <BatchMarkerImport
-                totalMessages={session.messages.length}
-                onImport={handleBatchImport}
-                isOpen={batchImportOpen}
-                onClose={() => setBatchImportOpen(false)}
-                selectedFloor={selectedFloor}
-                activeChapterIndex={activeChapterIndex}
-                onSetActiveChapter={setActiveChapterIndex}
-              />
-            )}
+            {/* Preview + Batch Import Row */}
+            <div className="flex gap-4">
+              {/* Preview Area */}
+              <div className="flex-1 min-w-0">
+                <div className="mb-4 flex items-center justify-between">
+                  <div className="text-sm text-muted-foreground">
+                    共 {session.messages.length} 条消息
+                    {markers.length > 0 && (
+                      <span className="ml-2 text-primary">· {markers.length} 个章节标记</span>
+                    )}
+                  </div>
+                  {(editMode || batchImportOpen) && (
+                    <div className="text-sm text-primary animate-pulse">
+                      {batchImportOpen ? '点击消息选择楼层' : '点击消息添加章节标记'}
+                    </div>
+                  )}
+                </div>
+                
+                <ScrollArea className="h-[calc(100vh-380px)]">
+                  <div 
+                    className="flex justify-center pb-8"
+                    style={{ padding: '1rem' }}
+                  >
+                    <div 
+                      style={{ width: settings.paperWidth }}
+                      className="shadow-warm rounded-lg overflow-hidden animate-fade-in"
+                    >
+                      <ChatPreview
+                        ref={previewRef}
+                        session={session}
+                        theme={settings.theme}
+                        showTimestamp={settings.showTimestamp}
+                        showAvatar={settings.showAvatar}
+                        fontSize={settings.fontSize}
+                        regexRules={settings.regexRules}
+                        markers={markers}
+                        onMessageClick={handleMessageClick}
+                        editMode={editMode || batchImportOpen}
+                      />
+                    </div>
+                  </div>
+                </ScrollArea>
+              </div>
+
+              {/* Batch Import Sidebar */}
+              {batchImportOpen && session && (
+                <BatchMarkerImport
+                  totalMessages={session.messages.length}
+                  onImport={handleBatchImport}
+                  isOpen={batchImportOpen}
+                  onClose={() => setBatchImportOpen(false)}
+                  selectedFloor={selectedFloor}
+                  activeChapterIndex={activeChapterIndex}
+                  onSetActiveChapter={setActiveChapterIndex}
+                />
+              )}
+            </div>
           </div>
         )}
       </main>
