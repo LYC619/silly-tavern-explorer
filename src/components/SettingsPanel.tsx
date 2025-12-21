@@ -3,7 +3,9 @@ import { Card } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { Slider } from '@/components/ui/slider';
-import type { ThemeStyle, ExportSettings } from '@/types/chat';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { RegexManager } from '@/components/RegexManager';
+import type { ThemeStyle, ExportSettings, PrefixMode } from '@/types/chat';
 
 interface SettingsPanelProps {
   settings: ExportSettings;
@@ -15,6 +17,13 @@ const themes: { id: ThemeStyle; name: string; icon: React.ReactNode; desc: strin
   { id: 'novel', name: '小说', icon: <BookOpen className="w-4 h-4" />, desc: '经典小说对话格式' },
   { id: 'social', name: '社交', icon: <MessageCircle className="w-4 h-4" />, desc: '聊天气泡样式' },
   { id: 'minimal', name: '简约', icon: <Minus className="w-4 h-4" />, desc: '简洁左侧边框' },
+];
+
+const prefixModes: { id: PrefixMode; name: string; desc: string }[] = [
+  { id: 'name', name: '角色名', desc: '使用对话中的角色名称' },
+  { id: 'human-assistant', name: 'Human/Assistant', desc: '标准对话格式' },
+  { id: 'user-model', name: 'user/model', desc: 'API 风格格式' },
+  { id: 'none', name: '无前缀', desc: '仅显示内容' },
 ];
 
 export function SettingsPanel({ settings, onSettingsChange }: SettingsPanelProps) {
@@ -50,6 +59,41 @@ export function SettingsPanel({ settings, onSettingsChange }: SettingsPanelProps
           ))}
         </div>
       </div>
+
+      {/* Prefix Mode for TXT Export */}
+      <Card className="p-4 space-y-4">
+        <h3 className="font-display text-sm font-medium text-muted-foreground uppercase tracking-wider">
+          TXT 导出格式
+        </h3>
+        
+        <div className="space-y-2">
+          <Label htmlFor="prefix-mode">前缀模式</Label>
+          <Select
+            value={settings.prefixMode}
+            onValueChange={(value: PrefixMode) => updateSetting('prefixMode', value)}
+          >
+            <SelectTrigger id="prefix-mode">
+              <SelectValue placeholder="选择前缀模式" />
+            </SelectTrigger>
+            <SelectContent>
+              {prefixModes.map((mode) => (
+                <SelectItem key={mode.id} value={mode.id}>
+                  <div>
+                    <div className="font-medium">{mode.name}</div>
+                    <div className="text-xs text-muted-foreground">{mode.desc}</div>
+                  </div>
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+      </Card>
+
+      {/* Regex Manager */}
+      <RegexManager
+        rules={settings.regexRules}
+        onRulesChange={(rules) => updateSetting('regexRules', rules)}
+      />
 
       {/* Display Options */}
       <Card className="p-4 space-y-4">

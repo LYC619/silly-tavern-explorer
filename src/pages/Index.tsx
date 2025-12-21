@@ -6,8 +6,10 @@ import { ChatImporter } from '@/components/ChatImporter';
 import { ChatPreview } from '@/components/ChatPreview';
 import { SettingsPanel } from '@/components/SettingsPanel';
 import { ExportButton } from '@/components/ExportButton';
+import { TxtExportButton } from '@/components/TxtExportButton';
 import { DemoData } from '@/components/DemoData';
 import type { ChatSession, ExportSettings } from '@/types/chat';
+import { DEFAULT_REGEX_RULES } from '@/types/chat';
 
 const defaultSettings: ExportSettings = {
   theme: 'elegant',
@@ -15,6 +17,8 @@ const defaultSettings: ExportSettings = {
   showAvatar: true,
   paperWidth: 600,
   fontSize: 15,
+  prefixMode: 'name',
+  regexRules: [...DEFAULT_REGEX_RULES],
 };
 
 const Index = () => {
@@ -49,6 +53,7 @@ const Index = () => {
                   <RefreshCw className="w-4 h-4 mr-2" />
                   重新导入
                 </Button>
+                <TxtExportButton session={session} settings={settings} />
                 <ExportButton previewRef={previewRef} filename={session.title} />
               </>
             )}
