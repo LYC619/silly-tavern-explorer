@@ -1,73 +1,85 @@
-# Welcome to your Lovable project
+# ST 对话美化器 v0.1
 
-## Project info
+SillyTavern Chat Beautifier - 将 SillyTavern 的聊天记录转换为精美的图片或文本。
 
-**URL**: https://lovable.dev/projects/REPLACE_WITH_PROJECT_ID
+## ✨ 功能特性
 
-## How can I edit this code?
+### 导入与解析
+- 支持导入 SillyTavern 导出的 JSON/JSONL 聊天记录
+- 自动识别角色名称和用户名称
+- 内置正则规则，自动移除思维链、状态栏等元数据
 
-There are several ways of editing your application.
+### 主题风格
+- **典雅书籍** - 装饰边框，古典排版
+- **小说排版** - 经典引号，文学风格
+- **社交气泡** - 现代聊天界面
+- **极简主义** - 清爽干净
 
-**Use Lovable**
+### 章节标记
+- 单条消息点击添加章节标记
+- 批量导入章节（支持【存档节点】格式）
+- 自动解析卷名、章节编号、概要和事件
+- 章节编号自动转换为"第一章"格式
 
-Simply visit the [Lovable Project](https://lovable.dev/projects/REPLACE_WITH_PROJECT_ID) and start prompting.
+### 导出选项
+- 导出为 PNG/JPEG 图片
+- 导出为 TXT 纯文本（适配 Markdown 处理器）
+- 可调节纸张宽度和字体大小
 
-Changes made via Lovable will be committed automatically to this repo.
+### 正则处理
+- 内置常用清理规则（思维链、Theatre标签、状态栏等）
+- 支持自定义正则规则
+- 可按用户/助手消息分别应用
 
-**Use your preferred IDE**
+## 🚀 快速开始
 
-If you want to work locally using your own IDE, you can clone this repo and push changes. Pushed changes will also be reflected in Lovable.
+1. 打开应用
+2. 导入 SillyTavern 聊天记录（JSON/JSONL）
+3. 调整主题和设置
+4. （可选）添加章节标记
+5. 导出为图片或文本
 
-The only requirement is having Node.js & npm installed - [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating)
+## 📝 批量导入章节格式
 
-Follow these steps:
+支持以下格式的章节总结文本：
+
+```markdown
+### 存档节点：第一卷 - 初遇
+
+#### 【本卷概要】
+
+描述本卷的主要剧情...
+
+#### 【关键事件索引】
+
+- **初次相遇**: 描述事件的起因、经过和结果...
+- **命运转折**: 另一个重要事件的描述...
+```
+
+## 🛠️ 技术栈
+
+- React 18 + TypeScript
+- Vite
+- Tailwind CSS
+- shadcn/ui
+- html2canvas
+
+## 🔧 本地开发
 
 ```sh
-# Step 1: Clone the repository using the project's Git URL.
+# 克隆仓库
 git clone <YOUR_GIT_URL>
 
-# Step 2: Navigate to the project directory.
+# 进入项目目录
 cd <YOUR_PROJECT_NAME>
 
-# Step 3: Install the necessary dependencies.
-npm i
+# 安装依赖
+npm install
 
-# Step 4: Start the development server with auto-reloading and an instant preview.
+# 启动开发服务器
 npm run dev
 ```
 
-**Edit a file directly in GitHub**
+## 📄 License
 
-- Navigate to the desired file(s).
-- Click the "Edit" button (pencil icon) at the top right of the file view.
-- Make your changes and commit the changes.
-
-**Use GitHub Codespaces**
-
-- Navigate to the main page of your repository.
-- Click on the "Code" button (green button) near the top right.
-- Select the "Codespaces" tab.
-- Click on "New codespace" to launch a new Codespace environment.
-- Edit files directly within the Codespace and commit and push your changes once you're done.
-
-## What technologies are used for this project?
-
-This project is built with:
-
-- Vite
-- TypeScript
-- React
-- shadcn-ui
-- Tailwind CSS
-
-## How can I deploy this project?
-
-Simply open [Lovable](https://lovable.dev/projects/REPLACE_WITH_PROJECT_ID) and click on Share -> Publish.
-
-## Can I connect a custom domain to my Lovable project?
-
-Yes, you can!
-
-To connect a domain, navigate to Project > Settings > Domains and click Connect Domain.
-
-Read more here: [Setting up a custom domain](https://docs.lovable.dev/features/custom-domain#custom-domain)
+MIT
