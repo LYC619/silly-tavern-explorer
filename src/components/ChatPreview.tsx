@@ -167,26 +167,31 @@ export const ChatPreview = forwardRef<HTMLDivElement, ChatPreviewProps>(
                     }`}
                     onClick={() => editMode && onMessageClick?.(message.id, index)}
                   >
-                    {/* Edit mode indicator */}
+                    {/* Floor number & edit mode indicator */}
                     {editMode && (
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          <div className={`absolute -left-8 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity ${
-                            hasMarker ? 'text-primary' : 'text-muted-foreground'
-                          }`}>
-                            {hasMarker ? (
-                              <Bookmark className="w-5 h-5 fill-primary" />
-                            ) : (
-                              <BookmarkPlus className="w-5 h-5" />
-                            )}
-                          </div>
-                        </TooltipTrigger>
-                        <TooltipContent side="left">
-                          {hasMarker ? '编辑章节标记' : '添加章节标记'}
-                        </TooltipContent>
-                      </Tooltip>
+                      <div className="absolute -left-12 top-1/2 -translate-y-1/2 flex items-center gap-1">
+                        <span className="text-xs text-muted-foreground font-mono opacity-50 group-hover:opacity-100">
+                          #{index + 1}
+                        </span>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <div className={`opacity-0 group-hover:opacity-100 transition-opacity ${
+                              hasMarker ? 'text-primary' : 'text-muted-foreground'
+                            }`}>
+                              {hasMarker ? (
+                                <Bookmark className="w-4 h-4 fill-primary" />
+                              ) : (
+                                <BookmarkPlus className="w-4 h-4" />
+                              )}
+                            </div>
+                          </TooltipTrigger>
+                          <TooltipContent side="left">
+                            {hasMarker ? '编辑章节标记' : '添加章节标记'}
+                          </TooltipContent>
+                        </Tooltip>
+                      </div>
                     )}
-                  {theme === 'social' ? (
+                    {theme === 'social' ? (
                     <>
                       {showAvatar && (
                         <div className={`w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 ${

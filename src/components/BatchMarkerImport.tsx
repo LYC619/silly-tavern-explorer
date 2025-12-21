@@ -1,17 +1,11 @@
-import { useState } from 'react';
-import { FileUp, Plus, Trash2, Check } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { FileUp, Plus, Trash2, Check, Target } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from '@/components/ui/dialog';
+import { cn } from '@/lib/utils';
 import type { ChapterMarker } from '@/types/chat';
 
 interface ParsedChapter {
@@ -24,13 +18,41 @@ interface ParsedChapter {
 interface BatchMarkerImportProps {
   totalMessages: number;
   onImport: (markers: ChapterMarker[]) => void;
+  isOpen: boolean;
+  onClose: () => void;
+  selectedFloor: number | null;
+  activeChapterIndex: number | null;
+  onSetActiveChapter: (index: number | null) => void;
 }
 
-export function BatchMarkerImport({ totalMessages, onImport }: BatchMarkerImportProps) {
-  const [open, setOpen] = useState(false);
+export function BatchMarkerImport({ 
+  totalMessages, 
+  onImport, 
+  isOpen, 
+  onClose,
+  selectedFloor,
+  activeChapterIndex,
+  onSetActiveChapter,
+}: BatchMarkerImportProps) {
   const [rawText, setRawText] = useState('');
   const [chapters, setChapters] = useState<ParsedChapter[]>([]);
   const [step, setStep] = useState<'input' | 'edit'>('input');
+
+  // 监听 selectedFloor 变化
+  useEffect(() => {
+    if (selectedFloor !== null && activeChapterIndex !== null && step === 'edit') {
+      setChapters(prev => {
+        const updated = [...prev];
+        if (activeChapterIndex < updated.length) {
+          updated[activeChapterIndex] = { ...updated[activeChapterIndex], floorNumber: selectedFloor };
+        }
+        return updated;
+      });
+      // 自动跳到下一个未填写的章节
+      const nextEmpty = chapters.findIndex((ch, i) => i > activeChapterIndex && !ch.floorNumber);
+      onSetActiveChapter(nextEmpty >= 0 ? nextEmpty : null);
+    }
+  }, [selectedFloor]);
 
   const parseText = () => {
     const lines = rawText.split('\n');
@@ -39,49 +61,96 @@ export function BatchMarkerImport({ totalMessages, onImport }: BatchMarkerImport
     let currentVolume = '';
     let currentTitle = '';
     let currentSummary: string[] = [];
+    let inSummarySection = false;
+    let inEventsSection = false;
     
     const saveCurrentChapter = () => {
-      if (currentTitle) {
+      if (currentTitle || currentVolume) {
         parsed.push({
           volume: currentVolume || undefined,
-          title: currentTitle,
+          title: currentTitle || '本卷概要',
           summary: currentSummary.join('\n').trim() || undefined,
         });
         currentTitle = '';
         currentSummary = [];
+        inSummarySection = false;
+        inEventsSection = false;
       }
     };
     
     for (const line of lines) {
       const trimmed = line.trim();
       
-      // 检测卷名 (### 开头)
-      if (trimmed.startsWith('### ') && !trimmed.startsWith('#### ')) {
+      // 检测卷名: ### 存档节点：第X卷 - {卷名}
+      const volumeMatch = trimmed.match(/^###\s*存档节点[：:]\s*(.+)$/);
+      if (volumeMatch) {
         saveCurrentChapter();
-        currentVolume = trimmed.replace(/^###\s*/, '').replace(/存档节点[：:]\s*/, '');
+        currentVolume = volumeMatch[1];
+        continue;
       }
-      // 检测章节名 (#### 开头)
-      else if (trimmed.startsWith('#### ')) {
+      
+      // 检测普通卷名: ### 第X卷 - {卷名}
+      const simpleVolumeMatch = trimmed.match(/^###\s*(第.+卷.*)$/);
+      if (simpleVolumeMatch && !trimmed.includes('角色图鉴')) {
         saveCurrentChapter();
-        currentTitle = trimmed.replace(/^####\s*/, '').replace(/【|】/g, '');
+        currentVolume = simpleVolumeMatch[1];
+        continue;
       }
-      // 检测概要内容
-      else if (trimmed && currentTitle) {
-        // 跳过一些格式标记
-        if (trimmed === '---' || trimmed === '***') continue;
+      
+      // 跳过角色图鉴部分
+      if (trimmed.includes('角色图鉴')) {
+        saveCurrentChapter();
+        currentVolume = '';
+        continue;
+      }
+      
+      // 检测【本卷概要】
+      if (trimmed.match(/^####\s*【本卷概要】/)) {
+        inSummarySection = true;
+        inEventsSection = false;
+        currentTitle = '本卷概要';
+        continue;
+      }
+      
+      // 检测【关键事件索引】
+      if (trimmed.match(/^####\s*【关键事件索引】/)) {
+        // 保存之前的概要
+        if (currentTitle === '本卷概要' && currentSummary.length > 0) {
+          saveCurrentChapter();
+        }
+        inEventsSection = true;
+        inSummarySection = false;
+        continue;
+      }
+      
+      // 检测事件项: - **{事件标题}**: {描述}
+      const eventMatch = trimmed.match(/^-\s*\*\*(.+?)\*\*[：:]\s*(.+)$/);
+      if (eventMatch && inEventsSection && currentVolume) {
+        saveCurrentChapter();
+        parsed.push({
+          volume: currentVolume,
+          title: eventMatch[1],
+          summary: eventMatch[2],
+        });
+        continue;
+      }
+      
+      // 收集概要内容
+      if (inSummarySection && trimmed && !trimmed.startsWith('#') && !trimmed.startsWith('---') && !trimmed.startsWith('***')) {
         currentSummary.push(trimmed);
       }
     }
     
     saveCurrentChapter();
     
+    // 如果解析失败，尝试简单分段
     if (parsed.length === 0) {
-      // 如果解析失败，尝试简单分段
       const sections = rawText.split(/\n{2,}/);
       for (const section of sections) {
         if (section.trim()) {
+          const firstLine = section.trim().split('\n')[0];
           parsed.push({
-            title: section.trim().slice(0, 50) + (section.length > 50 ? '...' : ''),
+            title: firstLine.slice(0, 50) + (firstLine.length > 50 ? '...' : ''),
             summary: section.trim(),
           });
         }
@@ -96,7 +165,7 @@ export function BatchMarkerImport({ totalMessages, onImport }: BatchMarkerImport
     setChapters(prev => {
       const updated = [...prev];
       if (field === 'floorNumber') {
-        updated[index] = { ...updated[index], [field]: parseInt(value as string) || undefined };
+        updated[index] = { ...updated[index], [field]: typeof value === 'number' ? value : (parseInt(value as string) || undefined) };
       } else {
         updated[index] = { ...updated[index], [field]: value };
       }
@@ -106,6 +175,9 @@ export function BatchMarkerImport({ totalMessages, onImport }: BatchMarkerImport
 
   const removeChapter = (index: number) => {
     setChapters(prev => prev.filter((_, i) => i !== index));
+    if (activeChapterIndex === index) {
+      onSetActiveChapter(null);
+    }
   };
 
   const addChapter = () => {
@@ -125,142 +197,144 @@ export function BatchMarkerImport({ totalMessages, onImport }: BatchMarkerImport
       }));
     
     onImport(markers);
-    setOpen(false);
     resetState();
+    onClose();
   };
 
   const resetState = () => {
     setRawText('');
     setChapters([]);
     setStep('input');
+    onSetActiveChapter(null);
   };
 
   const validCount = chapters.filter(
     ch => ch.floorNumber && ch.floorNumber > 0 && ch.floorNumber <= totalMessages
   ).length;
 
-  return (
-    <Dialog open={open} onOpenChange={(v) => { setOpen(v); if (!v) resetState(); }}>
-      <DialogTrigger asChild>
-        <Button variant="outline" size="sm">
-          <FileUp className="w-4 h-4 mr-2" />
-          批量导入
-        </Button>
-      </DialogTrigger>
-      <DialogContent className="max-w-2xl max-h-[85vh]">
-        <DialogHeader>
-          <DialogTitle>批量导入章节标记</DialogTitle>
-        </DialogHeader>
+  if (!isOpen) return null;
 
-        {step === 'input' ? (
-          <div className="space-y-4">
-            <div>
-              <Label>粘贴AI生成的章节总结</Label>
-              <p className="text-xs text-muted-foreground mb-2">
-                支持 Markdown 格式：### 卷名、#### 章节名
-              </p>
-              <Textarea
-                value={rawText}
-                onChange={(e) => setRawText(e.target.value)}
-                placeholder={`### 第一卷 - 初遇\n\n#### 【本卷概要】\n\n描述本卷的主要剧情...\n\n#### 【关键事件索引】\n\n- 事件1: 描述...\n- 事件2: 描述...`}
-                className="min-h-[300px] font-mono text-sm"
-              />
-            </div>
-            <div className="flex justify-end gap-2">
-              <Button variant="outline" onClick={() => setOpen(false)}>
-                取消
-              </Button>
-              <Button onClick={parseText} disabled={!rawText.trim()}>
-                解析内容
-              </Button>
-            </div>
+  return (
+    <div className="w-80 border-l border-border bg-card flex flex-col h-full">
+      <div className="p-4 border-b border-border flex items-center justify-between">
+        <h3 className="font-semibold flex items-center gap-2">
+          <FileUp className="w-4 h-4" />
+          批量导入章节
+        </h3>
+        <Button variant="ghost" size="sm" onClick={() => { resetState(); onClose(); }}>
+          关闭
+        </Button>
+      </div>
+
+      {step === 'input' ? (
+        <div className="flex-1 p-4 flex flex-col">
+          <div className="flex-1 flex flex-col">
+            <Label className="mb-1">粘贴AI生成的章节总结</Label>
+            <p className="text-xs text-muted-foreground mb-2">
+              支持【存档节点】格式
+            </p>
+            <Textarea
+              value={rawText}
+              onChange={(e) => setRawText(e.target.value)}
+              placeholder={`### 存档节点：第一卷 - 初遇\n\n#### 【本卷概要】\n\n描述本卷的主要剧情...\n\n#### 【关键事件索引】\n\n- **初次相遇**: 描述...`}
+              className="flex-1 min-h-[200px] font-mono text-xs resize-none"
+            />
           </div>
-        ) : (
-          <div className="space-y-4">
-            <div className="flex items-center justify-between">
-              <p className="text-sm text-muted-foreground">
-                解析到 {chapters.length} 个章节，请填写对应楼层数 (1-{totalMessages})
-              </p>
-              <Button variant="ghost" size="sm" onClick={addChapter}>
-                <Plus className="w-4 h-4 mr-1" />
+          <Button onClick={parseText} disabled={!rawText.trim()} className="mt-4 w-full">
+            解析内容
+          </Button>
+        </div>
+      ) : (
+        <div className="flex-1 flex flex-col overflow-hidden">
+          <div className="p-3 border-b border-border bg-muted/30">
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-sm">
+                解析到 <span className="font-semibold">{chapters.length}</span> 个章节
+              </span>
+              <Button variant="ghost" size="sm" className="h-7" onClick={addChapter}>
+                <Plus className="w-3 h-3 mr-1" />
                 添加
               </Button>
             </div>
-            
-            <ScrollArea className="h-[400px] pr-4">
-              <div className="space-y-4">
-                {chapters.map((chapter, index) => (
-                  <div key={index} className="p-3 border rounded-lg space-y-2 bg-muted/30">
-                    <div className="flex items-start gap-2">
-                      <div className="flex-1 space-y-2">
-                        <div className="flex gap-2">
-                          <div className="w-20">
-                            <Label className="text-xs">楼层</Label>
-                            <Input
-                              type="number"
-                              min={1}
-                              max={totalMessages}
-                              value={chapter.floorNumber || ''}
-                              onChange={(e) => updateChapter(index, 'floorNumber', e.target.value)}
-                              placeholder="楼层"
-                              className="h-8"
-                            />
-                          </div>
-                          <div className="flex-1">
-                            <Label className="text-xs">卷名</Label>
-                            <Input
-                              value={chapter.volume || ''}
-                              onChange={(e) => updateChapter(index, 'volume', e.target.value)}
-                              placeholder="可选"
-                              className="h-8"
-                            />
-                          </div>
+            <p className="text-xs text-muted-foreground">
+              点击章节后，再点击左侧文档选择楼层
+            </p>
+          </div>
+          
+          <ScrollArea className="flex-1">
+            <div className="p-2 space-y-2">
+              {chapters.map((chapter, index) => (
+                <div 
+                  key={index} 
+                  className={cn(
+                    "p-2 border rounded-lg cursor-pointer transition-colors",
+                    activeChapterIndex === index 
+                      ? "border-primary bg-primary/5 ring-1 ring-primary" 
+                      : "border-border hover:border-muted-foreground/50"
+                  )}
+                  onClick={() => onSetActiveChapter(activeChapterIndex === index ? null : index)}
+                >
+                  <div className="flex items-start gap-2">
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 mb-1">
+                        <div 
+                          className={cn(
+                            "w-12 h-6 rounded text-xs flex items-center justify-center font-mono",
+                            chapter.floorNumber 
+                              ? "bg-primary/20 text-primary" 
+                              : "bg-muted text-muted-foreground"
+                          )}
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          {chapter.floorNumber ? `#${chapter.floorNumber}` : (
+                            activeChapterIndex === index ? (
+                              <Target className="w-3 h-3 animate-pulse" />
+                            ) : '?'
+                          )}
                         </div>
-                        <div>
-                          <Label className="text-xs">章节名</Label>
-                          <Input
-                            value={chapter.title}
-                            onChange={(e) => updateChapter(index, 'title', e.target.value)}
-                            className="h-8"
-                          />
-                        </div>
-                        {chapter.summary && (
-                          <p className="text-xs text-muted-foreground line-clamp-2">
-                            {chapter.summary}
-                          </p>
+                        {chapter.volume && (
+                          <span className="text-xs text-muted-foreground truncate">
+                            {chapter.volume}
+                          </span>
                         )}
                       </div>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-8 w-8 text-destructive"
-                        onClick={() => removeChapter(index)}
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </Button>
+                      <p className="text-sm font-medium truncate">{chapter.title}</p>
+                      {chapter.summary && (
+                        <p className="text-xs text-muted-foreground line-clamp-1 mt-0.5">
+                          {chapter.summary}
+                        </p>
+                      )}
                     </div>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-6 w-6 text-destructive shrink-0"
+                      onClick={(e) => { e.stopPropagation(); removeChapter(index); }}
+                    >
+                      <Trash2 className="w-3 h-3" />
+                    </Button>
                   </div>
-                ))}
-              </div>
-            </ScrollArea>
+                </div>
+              ))}
+            </div>
+          </ScrollArea>
 
-            <div className="flex justify-between items-center">
-              <Button variant="ghost" onClick={() => setStep('input')}>
+          <div className="p-3 border-t border-border space-y-2">
+            <div className="flex items-center justify-between text-sm">
+              <span className="text-muted-foreground">
+                已填写 {validCount}/{chapters.length}
+              </span>
+              <Button variant="ghost" size="sm" className="h-7" onClick={() => setStep('input')}>
                 返回修改
               </Button>
-              <div className="flex gap-2 items-center">
-                <span className="text-sm text-muted-foreground">
-                  {validCount} 个有效标记
-                </span>
-                <Button onClick={handleImport} disabled={validCount === 0}>
-                  <Check className="w-4 h-4 mr-2" />
-                  确认导入
-                </Button>
-              </div>
             </div>
+            <Button onClick={handleImport} disabled={validCount === 0} className="w-full">
+              <Check className="w-4 h-4 mr-2" />
+              确认导入 ({validCount})
+            </Button>
           </div>
-        )}
-      </DialogContent>
-    </Dialog>
+        </div>
+      )}
+    </div>
   );
 }
