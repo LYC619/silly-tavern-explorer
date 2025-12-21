@@ -1,5 +1,5 @@
-import { useState, useRef } from 'react';
-import { ScrollText, Settings, RefreshCw, BookmarkPlus } from 'lucide-react';
+import { useState, useRef, useEffect } from 'react';
+import { ScrollText, Settings, RefreshCw, BookmarkPlus, FileUp } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { ChatImporter } from '@/components/ChatImporter';
@@ -30,18 +30,36 @@ const Index = () => {
   const [editMode, setEditMode] = useState(false);
   const [markerDialogOpen, setMarkerDialogOpen] = useState(false);
   const [selectedMessage, setSelectedMessage] = useState<{ id: string; index: number } | null>(null);
+  const [batchImportOpen, setBatchImportOpen] = useState(false);
+  const [selectedFloor, setSelectedFloor] = useState<number | null>(null);
+  const [activeChapterIndex, setActiveChapterIndex] = useState<number | null>(null);
   const previewRef = useRef<HTMLDivElement>(null);
 
   const handleReset = () => {
     setSession(null);
     setMarkers([]);
     setEditMode(false);
+    setBatchImportOpen(false);
   };
 
   const handleMessageClick = (messageId: string, messageIndex: number) => {
-    setSelectedMessage({ id: messageId, index: messageIndex });
-    setMarkerDialogOpen(true);
+    if (batchImportOpen && activeChapterIndex !== null) {
+      // 批量导入模式下，选择楼层
+      setSelectedFloor(messageIndex + 1); // 楼层从1开始
+    } else if (editMode) {
+      // 单个标记模式
+      setSelectedMessage({ id: messageId, index: messageIndex });
+      setMarkerDialogOpen(true);
+    }
   };
+
+  // 重置 selectedFloor
+  useEffect(() => {
+    if (selectedFloor !== null) {
+      const timer = setTimeout(() => setSelectedFloor(null), 100);
+      return () => clearTimeout(timer);
+    }
+  }, [selectedFloor]);
 
   const handleSaveMarker = (marker: ChapterMarker) => {
     setMarkers(prev => {
@@ -56,7 +74,6 @@ const Index = () => {
   };
 
   const handleBatchImport = (newMarkers: ChapterMarker[]) => {
-    // 用消息ID匹配实际消息
     if (!session) return;
     const correctedMarkers = newMarkers.map(m => ({
       ...m,
@@ -118,10 +135,15 @@ const Index = () => {
                   <BookmarkPlus className="w-4 h-4 mr-2" />
                   {editMode ? '退出标记' : '章节标记'}
                 </Button>
-                <BatchMarkerImport 
-                  totalMessages={session.messages.length} 
-                  onImport={handleBatchImport} 
-                />
+                <Button 
+                  variant={batchImportOpen ? "default" : "outline"} 
+                  size="sm" 
+                  onClick={() => setBatchImportOpen(!batchImportOpen)}
+                  className={batchImportOpen ? 'gold-gradient text-primary-foreground' : ''}
+                >
+                  <FileUp className="w-4 h-4 mr-2" />
+                  批量导入
+                </Button>
                 <TxtExportButton session={session} settings={settings} markers={markers} />
                 <ExportButton previewRef={previewRef} filename={session.title} />
               </>
@@ -157,10 +179,10 @@ const Index = () => {
             </div>
           </div>
         ) : (
-          <div className="flex flex-col lg:flex-row gap-8">
+          <div className="flex gap-0">
             {/* Settings Sidebar */}
-            <aside className="lg:w-72 flex-shrink-0">
-              <div className="lg:sticky lg:top-24">
+            <aside className="w-72 flex-shrink-0 p-4">
+              <div className="sticky top-24">
                 <div className="flex items-center gap-2 mb-4 text-muted-foreground">
                   <Settings className="w-4 h-4" />
                   <span className="font-display text-sm uppercase tracking-wider">设置</span>
@@ -170,7 +192,7 @@ const Index = () => {
             </aside>
 
             {/* Preview Area */}
-            <div className="flex-1 min-w-0">
+            <div className="flex-1 min-w-0 p-4">
               <div className="mb-4 flex items-center justify-between">
                 <div className="text-sm text-muted-foreground">
                   共 {session.messages.length} 条消息
@@ -178,9 +200,9 @@ const Index = () => {
                     <span className="ml-2 text-primary">· {markers.length} 个章节标记</span>
                   )}
                 </div>
-                {editMode && (
+                {(editMode || batchImportOpen) && (
                   <div className="text-sm text-primary animate-pulse">
-                    点击消息添加章节标记
+                    {batchImportOpen ? '点击消息选择楼层' : '点击消息添加章节标记'}
                   </div>
                 )}
               </div>
@@ -204,12 +226,25 @@ const Index = () => {
                       regexRules={settings.regexRules}
                       markers={markers}
                       onMessageClick={handleMessageClick}
-                      editMode={editMode}
+                      editMode={editMode || batchImportOpen}
                     />
                   </div>
                 </div>
               </ScrollArea>
             </div>
+
+            {/* Batch Import Sidebar */}
+            {session && (
+              <BatchMarkerImport
+                totalMessages={session.messages.length}
+                onImport={handleBatchImport}
+                isOpen={batchImportOpen}
+                onClose={() => setBatchImportOpen(false)}
+                selectedFloor={selectedFloor}
+                activeChapterIndex={activeChapterIndex}
+                onSetActiveChapter={setActiveChapterIndex}
+              />
+            )}
           </div>
         )}
       </main>
