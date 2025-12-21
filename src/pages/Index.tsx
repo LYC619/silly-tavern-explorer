@@ -91,6 +91,10 @@ const Index = () => {
       }
       return merged.sort((a, b) => a.messageIndex - b.messageIndex);
     });
+
+    // 导入完成后，自动切到“章节标记”编辑模式，方便继续微调
+    setBatchImportOpen(false);
+    setEditMode(true);
   };
 
   const handleDeleteMarker = () => {

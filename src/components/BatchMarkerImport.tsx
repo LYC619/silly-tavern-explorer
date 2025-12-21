@@ -236,12 +236,14 @@ export function BatchMarkerImport({
       .map(ch => ({
         messageId: `msg-${ch.floorNumber! - 1}`,
         messageIndex: ch.floorNumber! - 1,
-        title: ch.title,
-        volume: ch.volume,
+        // ChapterMarker 没有 chapterNumber 字段，因此把“第一章”并入 title
+        title: ch.chapterNumber ? `${ch.chapterNumber} ${ch.title}` : ch.title,
+        // 允许卷名留空
+        volume: ch.volume?.trim() ? ch.volume : undefined,
         summary: ch.summary,
         createdAt: Date.now(),
       }));
-    
+
     onImport(markers);
     resetState();
     onClose();
