@@ -1,7 +1,8 @@
 import { forwardRef, useMemo } from 'react';
-import { User, Bot } from 'lucide-react';
-import type { ChatSession, ThemeStyle, RegexRule } from '@/types/chat';
+import { User, Bot, Bookmark, BookmarkPlus } from 'lucide-react';
+import type { ChatSession, ThemeStyle, RegexRule, ChapterMarker } from '@/types/chat';
 import { applyRegexRules } from '@/lib/regex-processor';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 
 interface ChatPreviewProps {
   session: ChatSession;
@@ -10,10 +11,18 @@ interface ChatPreviewProps {
   showAvatar: boolean;
   fontSize: number;
   regexRules: RegexRule[];
+  markers?: ChapterMarker[];
+  onMessageClick?: (messageId: string, messageIndex: number) => void;
+  editMode?: boolean;
 }
 
 export const ChatPreview = forwardRef<HTMLDivElement, ChatPreviewProps>(
-  ({ session, theme, showTimestamp, showAvatar, fontSize, regexRules }, ref) => {
+  ({ session, theme, showTimestamp, showAvatar, fontSize, regexRules, markers = [], onMessageClick, editMode = false }, ref) => {
+    const markerMap = useMemo(() => {
+      const map = new Map<string, ChapterMarker>();
+      markers.forEach(m => map.set(m.messageId, m));
+      return map;
+    }, [markers]);
     // 预处理消息，应用正则规则
     const processedMessages = useMemo(() => {
       return session.messages.map(msg => {
@@ -108,29 +117,75 @@ export const ChatPreview = forwardRef<HTMLDivElement, ChatPreviewProps>(
         </div>
 
         {/* Messages */}
-        <div className="space-y-1">
-          {processedMessages.map((message, index) => {
-            const isUser = message.role === 'user';
-            const isNewSpeaker = index === 0 || 
-              processedMessages[index - 1].role !== message.role;
+        <TooltipProvider>
+          <div className="space-y-1">
+            {processedMessages.map((message, index) => {
+              const isUser = message.role === 'user';
+              const isNewSpeaker = index === 0 || 
+                processedMessages[index - 1].role !== message.role;
+              const marker = markerMap.get(message.id);
+              const hasMarker = !!marker;
 
-            return (
-              <div key={message.id}>
-                {theme === 'novel' && isNewSpeaker && index > 0 && (
-                  <div className={classes.separator}>
-                    <span className="text-2xl">❧</span>
-                  </div>
-                )}
-                
-                {theme === 'elegant' && isNewSpeaker && index > 0 && (
-                  <div className={classes.separator}>
-                    <div className="w-16 h-px bg-border" />
-                    <span className="text-muted-foreground">✦</span>
-                    <div className="w-16 h-px bg-border" />
-                  </div>
-                )}
+              return (
+                <div key={message.id}>
+                  {/* Chapter marker display */}
+                  {hasMarker && (
+                    <div className="my-6 py-4 border-y border-primary/30 bg-primary/5 text-center">
+                      {marker.volume && (
+                        <div className="text-xs text-muted-foreground tracking-widest uppercase mb-1">
+                          {marker.volume}
+                        </div>
+                      )}
+                      <div className="font-display text-lg text-primary">
+                        {marker.title}
+                      </div>
+                      {marker.summary && (
+                        <div className="text-sm text-muted-foreground mt-2 max-w-md mx-auto">
+                          {marker.summary}
+                        </div>
+                      )}
+                    </div>
+                  )}
 
-                <div className={`${classes.message} ${isUser ? classes.userBubble : classes.charBubble} animate-fade-in`}>
+                  {theme === 'novel' && isNewSpeaker && index > 0 && !hasMarker && (
+                    <div className={classes.separator}>
+                      <span className="text-2xl">❧</span>
+                    </div>
+                  )}
+                  
+                  {theme === 'elegant' && isNewSpeaker && index > 0 && !hasMarker && (
+                    <div className={classes.separator}>
+                      <div className="w-16 h-px bg-border" />
+                      <span className="text-muted-foreground">✦</span>
+                      <div className="w-16 h-px bg-border" />
+                    </div>
+                  )}
+
+                  <div 
+                    className={`${classes.message} ${isUser ? classes.userBubble : classes.charBubble} animate-fade-in group relative ${
+                      editMode ? 'cursor-pointer hover:bg-primary/5 rounded-lg transition-colors' : ''
+                    }`}
+                    onClick={() => editMode && onMessageClick?.(message.id, index)}
+                  >
+                    {/* Edit mode indicator */}
+                    {editMode && (
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <div className={`absolute -left-8 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity ${
+                            hasMarker ? 'text-primary' : 'text-muted-foreground'
+                          }`}>
+                            {hasMarker ? (
+                              <Bookmark className="w-5 h-5 fill-primary" />
+                            ) : (
+                              <BookmarkPlus className="w-5 h-5" />
+                            )}
+                          </div>
+                        </TooltipTrigger>
+                        <TooltipContent side="left">
+                          {hasMarker ? '编辑章节标记' : '添加章节标记'}
+                        </TooltipContent>
+                      </Tooltip>
+                    )}
                   {theme === 'social' ? (
                     <>
                       {showAvatar && (
@@ -185,7 +240,8 @@ export const ChatPreview = forwardRef<HTMLDivElement, ChatPreviewProps>(
               </div>
             );
           })}
-        </div>
+          </div>
+        </TooltipProvider>
 
         {/* Footer for elegant theme */}
         {theme === 'elegant' && (

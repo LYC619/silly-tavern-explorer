@@ -1,5 +1,5 @@
 import { useState, useRef } from 'react';
-import { ScrollText, Settings, RefreshCw } from 'lucide-react';
+import { ScrollText, Settings, RefreshCw, BookmarkPlus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { ChatImporter } from '@/components/ChatImporter';
@@ -8,7 +8,8 @@ import { SettingsPanel } from '@/components/SettingsPanel';
 import { ExportButton } from '@/components/ExportButton';
 import { TxtExportButton } from '@/components/TxtExportButton';
 import { DemoData } from '@/components/DemoData';
-import type { ChatSession, ExportSettings } from '@/types/chat';
+import { ChapterMarkerDialog } from '@/components/ChapterMarkerDialog';
+import type { ChatSession, ExportSettings, ChapterMarker } from '@/types/chat';
 import { DEFAULT_REGEX_RULES } from '@/types/chat';
 
 const defaultSettings: ExportSettings = {
@@ -24,11 +25,44 @@ const defaultSettings: ExportSettings = {
 const Index = () => {
   const [session, setSession] = useState<ChatSession | null>(null);
   const [settings, setSettings] = useState<ExportSettings>(defaultSettings);
+  const [markers, setMarkers] = useState<ChapterMarker[]>([]);
+  const [editMode, setEditMode] = useState(false);
+  const [markerDialogOpen, setMarkerDialogOpen] = useState(false);
+  const [selectedMessage, setSelectedMessage] = useState<{ id: string; index: number } | null>(null);
   const previewRef = useRef<HTMLDivElement>(null);
 
   const handleReset = () => {
     setSession(null);
+    setMarkers([]);
+    setEditMode(false);
   };
+
+  const handleMessageClick = (messageId: string, messageIndex: number) => {
+    setSelectedMessage({ id: messageId, index: messageIndex });
+    setMarkerDialogOpen(true);
+  };
+
+  const handleSaveMarker = (marker: ChapterMarker) => {
+    setMarkers(prev => {
+      const existing = prev.findIndex(m => m.messageId === marker.messageId);
+      if (existing >= 0) {
+        const updated = [...prev];
+        updated[existing] = marker;
+        return updated;
+      }
+      return [...prev, marker].sort((a, b) => a.messageIndex - b.messageIndex);
+    });
+  };
+
+  const handleDeleteMarker = () => {
+    if (selectedMessage) {
+      setMarkers(prev => prev.filter(m => m.messageId !== selectedMessage.id));
+    }
+  };
+
+  const selectedMarker = selectedMessage 
+    ? markers.find(m => m.messageId === selectedMessage.id)
+    : undefined;
 
   return (
     <div className="min-h-screen paper-bg">
@@ -53,7 +87,17 @@ const Index = () => {
                   <RefreshCw className="w-4 h-4 mr-2" />
                   重新导入
                 </Button>
+                <Button 
+                  variant={editMode ? "default" : "outline"} 
+                  size="sm" 
+                  onClick={() => setEditMode(!editMode)}
+                  className={editMode ? 'gold-gradient text-primary-foreground' : ''}
+                >
+                  <BookmarkPlus className="w-4 h-4 mr-2" />
+                  {editMode ? '退出标记' : '章节标记'}
+                </Button>
                 <TxtExportButton session={session} settings={settings} />
+                <ExportButton previewRef={previewRef} filename={session.title} />
                 <ExportButton previewRef={previewRef} filename={session.title} />
               </>
             )}
@@ -105,7 +149,15 @@ const Index = () => {
               <div className="mb-4 flex items-center justify-between">
                 <div className="text-sm text-muted-foreground">
                   共 {session.messages.length} 条消息
+                  {markers.length > 0 && (
+                    <span className="ml-2 text-primary">· {markers.length} 个章节标记</span>
+                  )}
                 </div>
+                {editMode && (
+                  <div className="text-sm text-primary animate-pulse">
+                    点击消息添加章节标记
+                  </div>
+                )}
               </div>
               
               <ScrollArea className="h-[calc(100vh-220px)]">
@@ -125,6 +177,9 @@ const Index = () => {
                       showAvatar={settings.showAvatar}
                       fontSize={settings.fontSize}
                       regexRules={settings.regexRules}
+                      markers={markers}
+                      onMessageClick={handleMessageClick}
+                      editMode={editMode}
                     />
                   </div>
                 </div>
@@ -133,6 +188,19 @@ const Index = () => {
           </div>
         )}
       </main>
+
+      {/* Chapter Marker Dialog */}
+      {selectedMessage && (
+        <ChapterMarkerDialog
+          open={markerDialogOpen}
+          onOpenChange={setMarkerDialogOpen}
+          messageId={selectedMessage.id}
+          messageIndex={selectedMessage.index}
+          existingMarker={selectedMarker}
+          onSave={handleSaveMarker}
+          onDelete={selectedMarker ? handleDeleteMarker : undefined}
+        />
+      )}
 
       {/* Footer */}
       <footer className="border-t border-border mt-auto py-6 text-center text-sm text-muted-foreground">
