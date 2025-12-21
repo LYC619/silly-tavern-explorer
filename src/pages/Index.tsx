@@ -104,7 +104,7 @@ const Index = () => {
     : undefined;
 
   return (
-    <div className="min-h-screen paper-bg flex flex-col">
+    <div className={`${session ? 'h-screen overflow-hidden' : 'min-h-screen'} paper-bg flex flex-col`}>
       {/* Header */}
       <header className="border-b border-border bg-card/80 backdrop-blur-sm sticky top-0 z-50">
         <div className="container mx-auto px-4 py-4 flex items-center justify-between">
@@ -153,7 +153,7 @@ const Index = () => {
       </header>
 
       {/* Main Content */}
-      <main className="container mx-auto px-4 py-6 flex-1 flex flex-col min-h-0 overflow-hidden">
+      <main className={`container mx-auto px-4 py-6 flex-1 flex flex-col min-h-0 ${session ? 'overflow-hidden' : 'overflow-y-auto'}`}>
         {!session ? (
           <div className="max-w-xl mx-auto animate-fade-in">
             <div className="text-center mb-8">
@@ -207,7 +207,12 @@ const Index = () => {
                   )}
                 </div>
                 
-                <div className="flex-1 overflow-y-auto rounded-lg">
+                <div
+                  className="flex-1 overflow-y-auto overscroll-contain rounded-lg"
+                  onWheelCapture={(e) => {
+                    if (batchImportOpen) e.stopPropagation();
+                  }}
+                >
                   <div className="flex justify-center pb-8 px-4">
                     <div 
                       style={{ width: Math.min(settings.paperWidth, batchImportOpen ? 520 : settings.paperWidth) }}
