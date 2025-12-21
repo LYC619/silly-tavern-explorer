@@ -1,6 +1,7 @@
-import { forwardRef } from 'react';
+import { forwardRef, useMemo } from 'react';
 import { User, Bot } from 'lucide-react';
-import type { ChatSession, ThemeStyle } from '@/types/chat';
+import type { ChatSession, ThemeStyle, RegexRule } from '@/types/chat';
+import { applyRegexRules } from '@/lib/regex-processor';
 
 interface ChatPreviewProps {
   session: ChatSession;
@@ -8,10 +9,19 @@ interface ChatPreviewProps {
   showTimestamp: boolean;
   showAvatar: boolean;
   fontSize: number;
+  regexRules: RegexRule[];
 }
 
 export const ChatPreview = forwardRef<HTMLDivElement, ChatPreviewProps>(
-  ({ session, theme, showTimestamp, showAvatar, fontSize }, ref) => {
+  ({ session, theme, showTimestamp, showAvatar, fontSize, regexRules }, ref) => {
+    // 预处理消息，应用正则规则
+    const processedMessages = useMemo(() => {
+      return session.messages.map(msg => {
+        const isUser = msg.role === 'user';
+        const processedContent = applyRegexRules(msg.content, regexRules, isUser);
+        return { ...msg, content: processedContent };
+      }).filter(msg => msg.content.trim()); // 过滤掉空消息
+    }, [session.messages, regexRules]);
     const formatTime = (timestamp?: number) => {
       if (!timestamp) return '';
       return new Date(timestamp).toLocaleString('zh-CN', {
@@ -99,10 +109,10 @@ export const ChatPreview = forwardRef<HTMLDivElement, ChatPreviewProps>(
 
         {/* Messages */}
         <div className="space-y-1">
-          {session.messages.map((message, index) => {
+          {processedMessages.map((message, index) => {
             const isUser = message.role === 'user';
             const isNewSpeaker = index === 0 || 
-              session.messages[index - 1].role !== message.role;
+              processedMessages[index - 1].role !== message.role;
 
             return (
               <div key={message.id}>
@@ -182,7 +192,7 @@ export const ChatPreview = forwardRef<HTMLDivElement, ChatPreviewProps>(
           <div className="mt-12 pt-6 border-t border-border text-center text-sm text-muted-foreground">
             <div className="mb-2">— 完 —</div>
             <div className="text-xs">
-              共 {session.messages.length} 条消息
+              共 {processedMessages.length} 条消息
             </div>
           </div>
         )}
