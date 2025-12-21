@@ -96,7 +96,7 @@ const Index = () => {
                   <BookmarkPlus className="w-4 h-4 mr-2" />
                   {editMode ? '退出标记' : '章节标记'}
                 </Button>
-                <TxtExportButton session={session} settings={settings} />
+                <TxtExportButton session={session} settings={settings} markers={markers} />
                 <ExportButton previewRef={previewRef} filename={session.title} />
                 <ExportButton previewRef={previewRef} filename={session.title} />
               </>

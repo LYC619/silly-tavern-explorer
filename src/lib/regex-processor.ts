@@ -1,4 +1,4 @@
-import type { RegexRule, ChatMessage, PrefixMode } from '@/types/chat';
+import type { RegexRule, ChatMessage, PrefixMode, ChapterMarker } from '@/types/chat';
 
 /**
  * 解析正则表达式字符串为 RegExp 对象
@@ -96,17 +96,59 @@ export function getMessagePrefix(
 }
 
 /**
+ * 格式化章节标记为 Markdown 格式
+ */
+function formatChapterMarker(marker: ChapterMarker): string {
+  const lines: string[] = [];
+  
+  // 卷名作为三级标题
+  if (marker.volume) {
+    lines.push(`### ${marker.volume}`);
+    lines.push('');
+  }
+  
+  // 章节名作为四级标题
+  lines.push(`#### ${marker.title}`);
+  lines.push('');
+  
+  // 章节概要用引用格式
+  if (marker.summary) {
+    const summaryLines = marker.summary.split('\n');
+    for (const line of summaryLines) {
+      lines.push(`> ${line}`);
+    }
+    lines.push('');
+  }
+  
+  return lines.join('\n');
+}
+
+/**
  * 将消息转换为 TXT 格式
  */
 export function convertMessagesToTxt(
   messages: ChatMessage[],
   rules: RegexRule[],
-  prefixMode: PrefixMode
+  prefixMode: PrefixMode,
+  markers: ChapterMarker[] = []
 ): string {
   const lines: string[] = [];
+  
+  // 创建消息索引到标记的映射
+  const markerMap = new Map<number, ChapterMarker>();
+  for (const marker of markers) {
+    markerMap.set(marker.messageIndex, marker);
+  }
 
-  for (const message of messages) {
+  for (let i = 0; i < messages.length; i++) {
+    const message = messages[i];
     const isUser = message.role === 'user' || message.is_user;
+    
+    // 检查是否有章节标记
+    const marker = markerMap.get(i);
+    if (marker) {
+      lines.push(formatChapterMarker(marker));
+    }
     
     // 应用正则规则
     let content = applyRegexRules(message.content, rules, isUser);
