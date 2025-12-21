@@ -148,7 +148,7 @@ export const ChatPreview = forwardRef<HTMLDivElement, ChatPreviewProps>(
                         )}
                         <div className={`inline-block ${classes.content} ${
                           isUser ? 'bubble-user' : 'bubble-char'
-                        }`}>
+                        } whitespace-pre-wrap`}>
                           {message.content}
                         </div>
                         {showTimestamp && (
@@ -170,7 +170,7 @@ export const ChatPreview = forwardRef<HTMLDivElement, ChatPreviewProps>(
                           )}
                         </div>
                       )}
-                      <div className={classes.content}>
+                      <div className={`${classes.content} whitespace-pre-wrap`}>
                         {theme === 'novel' || theme === 'elegant' ? (
                           <span className="text-muted-foreground mr-2">"</span>
                         ) : null}
