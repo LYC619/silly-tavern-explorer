@@ -207,12 +207,7 @@ const Index = () => {
                   )}
                 </div>
                 
-                <div
-                  className="flex-1 min-h-0 overflow-y-auto rounded-lg"
-                  onWheelCapture={(e) => {
-                    if (batchImportOpen) e.stopPropagation();
-                  }}
-                >
+                <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain rounded-lg">
                   <div className="flex justify-center pb-8 px-4">
                     <div 
                       style={{ width: Math.min(settings.paperWidth, batchImportOpen ? 520 : settings.paperWidth) }}
