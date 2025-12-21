@@ -8,6 +8,7 @@ import { SettingsPanel } from '@/components/SettingsPanel';
 import { ExportButton } from '@/components/ExportButton';
 import { TxtExportButton } from '@/components/TxtExportButton';
 import { DemoData } from '@/components/DemoData';
+import { BatchMarkerImport } from '@/components/BatchMarkerImport';
 import { ChapterMarkerDialog } from '@/components/ChapterMarkerDialog';
 import type { ChatSession, ExportSettings, ChapterMarker } from '@/types/chat';
 import { DEFAULT_REGEX_RULES } from '@/types/chat';
@@ -54,6 +55,27 @@ const Index = () => {
     });
   };
 
+  const handleBatchImport = (newMarkers: ChapterMarker[]) => {
+    // 用消息ID匹配实际消息
+    if (!session) return;
+    const correctedMarkers = newMarkers.map(m => ({
+      ...m,
+      messageId: session.messages[m.messageIndex]?.id || m.messageId,
+    }));
+    setMarkers(prev => {
+      const merged = [...prev];
+      for (const marker of correctedMarkers) {
+        const existing = merged.findIndex(m => m.messageIndex === marker.messageIndex);
+        if (existing >= 0) {
+          merged[existing] = marker;
+        } else {
+          merged.push(marker);
+        }
+      }
+      return merged.sort((a, b) => a.messageIndex - b.messageIndex);
+    });
+  };
+
   const handleDeleteMarker = () => {
     if (selectedMessage) {
       setMarkers(prev => prev.filter(m => m.messageId !== selectedMessage.id));
@@ -96,8 +118,11 @@ const Index = () => {
                   <BookmarkPlus className="w-4 h-4 mr-2" />
                   {editMode ? '退出标记' : '章节标记'}
                 </Button>
+                <BatchMarkerImport 
+                  totalMessages={session.messages.length} 
+                  onImport={handleBatchImport} 
+                />
                 <TxtExportButton session={session} settings={settings} markers={markers} />
-                <ExportButton previewRef={previewRef} filename={session.title} />
                 <ExportButton previewRef={previewRef} filename={session.title} />
               </>
             )}
