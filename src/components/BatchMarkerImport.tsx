@@ -59,65 +59,69 @@ export function BatchMarkerImport({
     const parsed: ParsedChapter[] = [];
     
     let currentVolume = '';
-    let currentTitle = '';
-    let currentSummary: string[] = [];
+    let summaryLines: string[] = [];
     let inSummarySection = false;
     let inEventsSection = false;
+    let skipUntilNextVolume = false;
     
-    const saveCurrentChapter = () => {
-      if (currentTitle || currentVolume) {
+    const saveSummaryAsChapter = () => {
+      if (currentVolume && summaryLines.length > 0) {
         parsed.push({
-          volume: currentVolume || undefined,
-          title: currentTitle || '本卷概要',
-          summary: currentSummary.join('\n').trim() || undefined,
+          volume: currentVolume,
+          title: '本卷概要',
+          summary: summaryLines.join('\n').trim(),
         });
-        currentTitle = '';
-        currentSummary = [];
-        inSummarySection = false;
-        inEventsSection = false;
+        summaryLines = [];
       }
     };
     
     for (const line of lines) {
       const trimmed = line.trim();
       
+      // 跳过角色图鉴部分
+      if (trimmed.match(/^###\s*【角色图鉴/)) {
+        saveSummaryAsChapter();
+        skipUntilNextVolume = true;
+        inSummarySection = false;
+        inEventsSection = false;
+        continue;
+      }
+      
       // 检测卷名: ### 存档节点：第X卷 - {卷名}
       const volumeMatch = trimmed.match(/^###\s*存档节点[：:]\s*(.+)$/);
       if (volumeMatch) {
-        saveCurrentChapter();
+        saveSummaryAsChapter();
         currentVolume = volumeMatch[1];
+        skipUntilNextVolume = false;
+        inSummarySection = false;
+        inEventsSection = false;
         continue;
       }
       
       // 检测普通卷名: ### 第X卷 - {卷名}
       const simpleVolumeMatch = trimmed.match(/^###\s*(第.+卷.*)$/);
       if (simpleVolumeMatch && !trimmed.includes('角色图鉴')) {
-        saveCurrentChapter();
+        saveSummaryAsChapter();
         currentVolume = simpleVolumeMatch[1];
+        skipUntilNextVolume = false;
+        inSummarySection = false;
+        inEventsSection = false;
         continue;
       }
       
-      // 跳过角色图鉴部分
-      if (trimmed.includes('角色图鉴')) {
-        saveCurrentChapter();
-        currentVolume = '';
-        continue;
-      }
+      if (skipUntilNextVolume) continue;
       
       // 检测【本卷概要】
       if (trimmed.match(/^####\s*【本卷概要】/)) {
         inSummarySection = true;
         inEventsSection = false;
-        currentTitle = '本卷概要';
         continue;
       }
       
       // 检测【关键事件索引】
       if (trimmed.match(/^####\s*【关键事件索引】/)) {
-        // 保存之前的概要
-        if (currentTitle === '本卷概要' && currentSummary.length > 0) {
-          saveCurrentChapter();
-        }
+        // 保存之前的概要作为一个章节项
+        saveSummaryAsChapter();
         inEventsSection = true;
         inSummarySection = false;
         continue;
@@ -126,7 +130,6 @@ export function BatchMarkerImport({
       // 检测事件项: - **{事件标题}**: {描述}
       const eventMatch = trimmed.match(/^-\s*\*\*(.+?)\*\*[：:]\s*(.+)$/);
       if (eventMatch && inEventsSection && currentVolume) {
-        saveCurrentChapter();
         parsed.push({
           volume: currentVolume,
           title: eventMatch[1],
@@ -137,11 +140,12 @@ export function BatchMarkerImport({
       
       // 收集概要内容
       if (inSummarySection && trimmed && !trimmed.startsWith('#') && !trimmed.startsWith('---') && !trimmed.startsWith('***')) {
-        currentSummary.push(trimmed);
+        summaryLines.push(trimmed);
       }
     }
     
-    saveCurrentChapter();
+    // 保存最后一个概要
+    saveSummaryAsChapter();
     
     // 如果解析失败，尝试简单分段
     if (parsed.length === 0) {
@@ -215,7 +219,7 @@ export function BatchMarkerImport({
   if (!isOpen) return null;
 
   return (
-    <div className="w-80 border-l border-border bg-card flex flex-col h-full">
+    <aside className="w-80 flex-shrink-0 border border-border rounded-lg bg-card flex flex-col h-[calc(100vh-380px)]">
       <div className="p-4 border-b border-border flex items-center justify-between">
         <h3 className="font-semibold flex items-center gap-2">
           <FileUp className="w-4 h-4" />
@@ -227,8 +231,8 @@ export function BatchMarkerImport({
       </div>
 
       {step === 'input' ? (
-        <div className="flex-1 p-4 flex flex-col">
-          <div className="flex-1 flex flex-col">
+        <div className="flex-1 p-4 flex flex-col overflow-hidden">
+          <div className="flex-1 flex flex-col min-h-0">
             <Label className="mb-1">粘贴AI生成的章节总结</Label>
             <p className="text-xs text-muted-foreground mb-2">
               支持【存档节点】格式
@@ -335,6 +339,6 @@ export function BatchMarkerImport({
           </div>
         </div>
       )}
-    </div>
+    </aside>
   );
 }
