@@ -124,6 +124,7 @@ const Index = () => {
                       showTimestamp={settings.showTimestamp}
                       showAvatar={settings.showAvatar}
                       fontSize={settings.fontSize}
+                      regexRules={settings.regexRules}
                     />
                   </div>
                 </div>
