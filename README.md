@@ -2,6 +2,8 @@
 
 SillyTavern Chat Beautifier - 将 SillyTavern 的聊天记录转换为精美的图片或文本。
 
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https://github.com/YOUR_USERNAME/YOUR_REPO_NAME)
+
 ## ✨ 功能特性
 
 ### 导入与解析
