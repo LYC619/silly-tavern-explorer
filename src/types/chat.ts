@@ -1,3 +1,30 @@
+// SillyTavern 原始消息格式
+export interface STRawMessage {
+  name?: string;
+  is_user?: boolean;
+  is_system?: boolean;
+  send_date?: string | number;
+  mes?: string;
+  extra?: Record<string, any>;
+  title?: string;
+  gen_started?: string;
+  gen_finished?: string;
+  swipe_id?: number;
+  swipes?: string[];
+  swipe_info?: any[];
+  force_avatar?: string;
+  [key: string]: any; // 保留其他未知字段
+}
+
+// SillyTavern JSONL 第一行的元数据
+export interface STMetadata {
+  user_name?: string;
+  character_name?: string;
+  create_date?: string;
+  chat_metadata?: Record<string, any>;
+  [key: string]: any;
+}
+
 export interface ChatMessage {
   id: string;
   role: 'user' | 'assistant' | 'system';
@@ -5,6 +32,7 @@ export interface ChatMessage {
   name?: string;
   timestamp?: number;
   is_user?: boolean;
+  rawData?: STRawMessage; // 保留原始数据用于导出
 }
 
 export interface ChapterMarker {
@@ -29,6 +57,7 @@ export interface ChatSession {
   character: CharacterInfo;
   user: CharacterInfo;
   createdAt: number;
+  rawMetadata?: STMetadata; // 保留原始元数据用于导出
 }
 
 export type ThemeStyle = 'novel' | 'social' | 'minimal' | 'elegant';
