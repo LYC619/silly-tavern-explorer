@@ -6,20 +6,22 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import type { ChatSession, ExportSettings } from '@/types/chat';
+import type { ChatSession, ExportSettings, ChapterMarker } from '@/types/chat';
 import { convertMessagesToTxt } from '@/lib/regex-processor';
 
 interface TxtExportButtonProps {
   session: ChatSession;
   settings: ExportSettings;
+  markers?: ChapterMarker[];
 }
 
-export function TxtExportButton({ session, settings }: TxtExportButtonProps) {
+export function TxtExportButton({ session, settings, markers = [] }: TxtExportButtonProps) {
   const handleExport = () => {
     const txtContent = convertMessagesToTxt(
       session.messages,
       settings.regexRules,
-      settings.prefixMode
+      settings.prefixMode,
+      markers
     );
 
     const blob = new Blob([txtContent], { type: 'text/plain;charset=utf-8' });
