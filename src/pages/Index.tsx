@@ -1,13 +1,10 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { ScrollText, Settings, RefreshCw, BookmarkPlus, FileUp, Pencil } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { ScrollArea } from '@/components/ui/scroll-area';
 import { ChatImporter } from '@/components/ChatImporter';
 import { ChatPreview } from '@/components/ChatPreview';
 import { SettingsPanel } from '@/components/SettingsPanel';
 import { ExportButton } from '@/components/ExportButton';
-import { TxtExportButton } from '@/components/TxtExportButton';
-import { JsonlExportButton } from '@/components/JsonlExportButton';
 import { DemoData } from '@/components/DemoData';
 import { BatchMarkerImport } from '@/components/BatchMarkerImport';
 import { ChapterMarkerDialog } from '@/components/ChapterMarkerDialog';
@@ -37,7 +34,6 @@ const Index = () => {
   const [batchImportOpen, setBatchImportOpen] = useState(false);
   const [selectedFloor, setSelectedFloor] = useState<number | null>(null);
   const [activeChapterIndex, setActiveChapterIndex] = useState<number | null>(null);
-  const previewRef = useRef<HTMLDivElement>(null);
 
   const handleReset = () => {
     setSession(null);
@@ -202,11 +198,9 @@ const Index = () => {
                   className={batchImportOpen ? 'gold-gradient text-primary-foreground' : ''}
                 >
                   <FileUp className="w-4 h-4 mr-2" />
-                  批量导入
+                  导入总结
                 </Button>
-                <JsonlExportButton session={session} regexRules={settings.regexRules} />
-                <TxtExportButton session={session} settings={settings} markers={markers} />
-                <ExportButton previewRef={previewRef} filename={session.title} />
+                <ExportButton session={session} settings={settings} markers={markers} />
               </>
             )}
           </div>
@@ -279,7 +273,6 @@ const Index = () => {
                       className="shadow-warm rounded-lg overflow-hidden animate-fade-in"
                     >
                       <ChatPreview
-                        ref={previewRef}
                         session={session}
                         theme={settings.theme}
                         showTimestamp={settings.showTimestamp}
