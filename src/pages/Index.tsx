@@ -104,7 +104,7 @@ const Index = () => {
     : undefined;
 
   return (
-    <div className="min-h-screen paper-bg">
+    <div className="min-h-screen paper-bg flex flex-col">
       {/* Header */}
       <header className="border-b border-border bg-card/80 backdrop-blur-sm sticky top-0 z-50">
         <div className="container mx-auto px-4 py-4 flex items-center justify-between">
@@ -153,7 +153,7 @@ const Index = () => {
       </header>
 
       {/* Main Content */}
-      <main className="container mx-auto px-4 py-8">
+      <main className="container mx-auto px-4 py-6 flex-1 flex flex-col min-h-0">
         {!session ? (
           <div className="max-w-xl mx-auto animate-fade-in">
             <div className="text-center mb-8">
@@ -179,7 +179,7 @@ const Index = () => {
             </div>
           </div>
         ) : (
-          <div className="flex flex-col h-[calc(100vh-140px)]">
+          <div className="flex flex-col flex-1 min-h-0">
             {/* Settings Panel (horizontal) */}
             <div className="mb-4 flex-shrink-0">
               <div className="flex items-center gap-2 mb-3 text-muted-foreground">
@@ -207,12 +207,10 @@ const Index = () => {
                   )}
                 </div>
                 
-                <ScrollArea className="flex-1">
-                  <div 
-                    className="flex justify-center pb-8 px-4"
-                  >
+                <div className="flex-1 overflow-auto rounded-lg">
+                  <div className="flex justify-center pb-8 px-4">
                     <div 
-                      style={{ width: Math.min(settings.paperWidth, batchImportOpen ? 500 : settings.paperWidth) }}
+                      style={{ width: Math.min(settings.paperWidth, batchImportOpen ? 520 : settings.paperWidth) }}
                       className="shadow-warm rounded-lg overflow-hidden animate-fade-in"
                     >
                       <ChatPreview
@@ -229,7 +227,7 @@ const Index = () => {
                       />
                     </div>
                   </div>
-                </ScrollArea>
+                </div>
               </div>
 
               {/* Batch Import Sidebar */}
@@ -263,7 +261,7 @@ const Index = () => {
       )}
 
       {/* Footer */}
-      <footer className="border-t border-border mt-auto py-6 text-center text-sm text-muted-foreground">
+      <footer className="border-t border-border py-6 text-center text-sm text-muted-foreground flex-shrink-0">
         <p>SillyTavern 对话美化工具 · 让每一段对话都成为艺术</p>
       </footer>
     </div>
