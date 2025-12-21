@@ -238,8 +238,8 @@ export function BatchMarkerImport({
         messageIndex: ch.floorNumber! - 1,
         // ChapterMarker 没有 chapterNumber 字段，因此把“第一章”并入 title
         title: ch.chapterNumber ? `${ch.chapterNumber} ${ch.title}` : ch.title,
-        // 允许卷名留空
-        volume: ch.volume?.trim() ? ch.volume : undefined,
+        // 有章节编号时不带卷名，避免目录重复显示"第一卷"
+        volume: ch.chapterNumber ? undefined : (ch.volume?.trim() || undefined),
         summary: ch.summary,
         createdAt: Date.now(),
       }));
