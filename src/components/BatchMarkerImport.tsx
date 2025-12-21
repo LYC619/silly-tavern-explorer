@@ -349,12 +349,12 @@ export function BatchMarkerImport({
                     </div>
                     <div className="flex-1 min-w-0">
                       {chapter.volume && (
-                        <span className="text-xs text-muted-foreground block mb-1">
+                        <span className="text-xs text-primary/70 font-medium block mb-0.5">
                           {chapter.volume}
                         </span>
                       )}
                       <p className="text-sm font-medium leading-tight">
-                        {(chapter.chapterNumber ? `${chapter.chapterNumber} ` : '') + chapter.title}
+                        {chapter.chapterNumber ? `${chapter.chapterNumber} ${chapter.title}` : chapter.title}
                       </p>
                       {chapter.summary && (
                         <p className="text-xs text-muted-foreground line-clamp-2 mt-1 leading-relaxed">
