@@ -1,0 +1,194 @@
+import { forwardRef } from 'react';
+import { User, Bot } from 'lucide-react';
+import type { ChatSession, ThemeStyle } from '@/types/chat';
+
+interface ChatPreviewProps {
+  session: ChatSession;
+  theme: ThemeStyle;
+  showTimestamp: boolean;
+  showAvatar: boolean;
+  fontSize: number;
+}
+
+export const ChatPreview = forwardRef<HTMLDivElement, ChatPreviewProps>(
+  ({ session, theme, showTimestamp, showAvatar, fontSize }, ref) => {
+    const formatTime = (timestamp?: number) => {
+      if (!timestamp) return '';
+      return new Date(timestamp).toLocaleString('zh-CN', {
+        month: 'short',
+        day: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+      });
+    };
+
+    const getThemeClasses = () => {
+      switch (theme) {
+        case 'novel':
+          return {
+            container: 'paper-bg p-8 font-serif',
+            title: 'text-center mb-8 pb-4 border-b-2 border-primary/30',
+            message: 'mb-6',
+            userBubble: 'text-right',
+            charBubble: 'text-left',
+            content: 'leading-relaxed',
+            name: 'font-display text-primary mb-1',
+            separator: 'my-8 flex items-center justify-center gap-4 text-muted-foreground',
+          };
+        case 'social':
+          return {
+            container: 'bg-background p-6',
+            title: 'text-left mb-6 pb-3 border-b border-border',
+            message: 'mb-4 flex gap-3',
+            userBubble: 'flex-row-reverse',
+            charBubble: 'flex-row',
+            content: 'rounded-2xl px-4 py-2.5 max-w-[80%]',
+            name: 'text-xs text-muted-foreground mb-1',
+            separator: 'hidden',
+          };
+        case 'minimal':
+          return {
+            container: 'bg-background p-8',
+            title: 'mb-8 pb-2 border-b border-border',
+            message: 'mb-4 py-2',
+            userBubble: 'border-l-2 border-primary pl-4',
+            charBubble: 'border-l-2 border-muted-foreground/30 pl-4',
+            content: '',
+            name: 'font-medium text-sm mb-1',
+            separator: 'hidden',
+          };
+        case 'elegant':
+        default:
+          return {
+            container: 'paper-bg p-10 decorative-border',
+            title: 'text-center mb-10 space-y-2',
+            message: 'mb-8',
+            userBubble: 'text-right',
+            charBubble: 'text-left',
+            content: 'leading-loose tracking-wide',
+            name: 'font-display text-lg text-primary/80 mb-2',
+            separator: 'my-10 flex items-center justify-center',
+          };
+      }
+    };
+
+    const classes = getThemeClasses();
+
+    return (
+      <div
+        ref={ref}
+        className={`min-h-[400px] ${classes.container}`}
+        style={{ fontSize: `${fontSize}px` }}
+      >
+        {/* Title */}
+        <div className={classes.title}>
+          {theme === 'elegant' ? (
+            <>
+              <div className="text-xs text-muted-foreground tracking-widest uppercase">
+                对话记录
+              </div>
+              <h2 className="font-display text-2xl text-gradient">{session.title}</h2>
+              <div className="text-sm text-muted-foreground">
+                {session.character.name} & {session.user.name}
+              </div>
+            </>
+          ) : (
+            <h2 className="font-display text-xl">{session.title}</h2>
+          )}
+        </div>
+
+        {/* Messages */}
+        <div className="space-y-1">
+          {session.messages.map((message, index) => {
+            const isUser = message.role === 'user';
+            const isNewSpeaker = index === 0 || 
+              session.messages[index - 1].role !== message.role;
+
+            return (
+              <div key={message.id}>
+                {theme === 'novel' && isNewSpeaker && index > 0 && (
+                  <div className={classes.separator}>
+                    <span className="text-2xl">❧</span>
+                  </div>
+                )}
+                
+                {theme === 'elegant' && isNewSpeaker && index > 0 && (
+                  <div className={classes.separator}>
+                    <div className="w-16 h-px bg-border" />
+                    <span className="text-muted-foreground">✦</span>
+                    <div className="w-16 h-px bg-border" />
+                  </div>
+                )}
+
+                <div className={`${classes.message} ${isUser ? classes.userBubble : classes.charBubble} animate-fade-in`}>
+                  {theme === 'social' ? (
+                    <>
+                      {showAvatar && (
+                        <div className={`w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 ${
+                          isUser ? 'bubble-user' : 'bubble-char'
+                        }`}>
+                          {isUser ? <User className="w-5 h-5" /> : <Bot className="w-5 h-5" />}
+                        </div>
+                      )}
+                      <div className={isUser ? 'text-right' : 'text-left'}>
+                        {isNewSpeaker && (
+                          <div className={classes.name}>
+                            {message.name || (isUser ? session.user.name : session.character.name)}
+                          </div>
+                        )}
+                        <div className={`inline-block ${classes.content} ${
+                          isUser ? 'bubble-user' : 'bubble-char'
+                        }`}>
+                          {message.content}
+                        </div>
+                        {showTimestamp && (
+                          <div className="text-xs text-muted-foreground mt-1">
+                            {formatTime(message.timestamp)}
+                          </div>
+                        )}
+                      </div>
+                    </>
+                  ) : (
+                    <div>
+                      {isNewSpeaker && (
+                        <div className={classes.name}>
+                          {message.name || (isUser ? session.user.name : session.character.name)}
+                          {showTimestamp && theme === 'minimal' && (
+                            <span className="text-muted-foreground font-normal ml-2">
+                              {formatTime(message.timestamp)}
+                            </span>
+                          )}
+                        </div>
+                      )}
+                      <div className={classes.content}>
+                        {theme === 'novel' || theme === 'elegant' ? (
+                          <span className="text-muted-foreground mr-2">"</span>
+                        ) : null}
+                        {message.content}
+                        {theme === 'novel' || theme === 'elegant' ? (
+                          <span className="text-muted-foreground ml-1">"</span>
+                        ) : null}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+
+        {/* Footer for elegant theme */}
+        {theme === 'elegant' && (
+          <div className="mt-12 pt-6 border-t border-border text-center text-sm text-muted-foreground">
+            <div className="mb-2">— 完 —</div>
+            <div className="text-xs">
+              共 {session.messages.length} 条消息
+            </div>
+          </div>
+        )}
+      </div>
+    );
+  }
+);
+
+ChatPreview.displayName = 'ChatPreview';
