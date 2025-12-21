@@ -219,7 +219,7 @@ export function BatchMarkerImport({
   if (!isOpen) return null;
 
   return (
-    <aside className="w-80 flex-shrink-0 border border-border rounded-lg bg-card flex flex-col h-[calc(100vh-380px)]">
+    <aside className="w-96 flex-shrink-0 border border-border rounded-lg bg-card flex flex-col h-[calc(100vh-380px)]">
       <div className="p-4 border-b border-border flex items-center justify-between">
         <h3 className="font-semibold flex items-center gap-2">
           <FileUp className="w-4 h-4" />
