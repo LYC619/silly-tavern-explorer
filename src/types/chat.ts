@@ -50,7 +50,7 @@ export const DEFAULT_REGEX_RULES: RegexRule[] = [
   {
     id: 'builtin-thinking',
     name: '移除思维链',
-    findRegex: '/<think(ing)?>[\\s\\S]*?<\\/think(ing)?>(\\n)?/gi',
+    findRegex: '<think(ing)?>[\\s\\S]*?</think(ing)?>(\\n)?',
     replaceString: '',
     placement: ['all'],
     disabled: false,
@@ -58,7 +58,7 @@ export const DEFAULT_REGEX_RULES: RegexRule[] = [
   {
     id: 'builtin-theatre',
     name: '移除Theatre标签',
-    findRegex: '/<theatre>[\\s\\S]*?<\\/theatre>(\\n)?/gi',
+    findRegex: '<theatre>[\\s\\S]*?</theatre>(\\n)?',
     replaceString: '',
     placement: ['all'],
     disabled: false,
@@ -66,7 +66,7 @@ export const DEFAULT_REGEX_RULES: RegexRule[] = [
   {
     id: 'builtin-status',
     name: '移除状态栏',
-    findRegex: '/<status(blocks?)?>[\\s\\S]*?<\\/status(blocks?)?>/gi',
+    findRegex: '<status(blocks?)?>[\\s\\S]*?</status(blocks?)?>',
     replaceString: '',
     placement: ['all'],
     disabled: false,
@@ -74,7 +74,7 @@ export const DEFAULT_REGEX_RULES: RegexRule[] = [
   {
     id: 'builtin-summary',
     name: '移除摘要/总结',
-    findRegex: '/(<details><summary>[\\s\\S]*?<\\/details>)|(<This_round_events>[\\s\\S]*?<\\/This_round_events>)|(<[Aa]bstract>[\\s\\S]*?<\\/[Aa]bstract>)/gi',
+    findRegex: '(<details><summary>[\\s\\S]*?</details>)|(<This_round_events>[\\s\\S]*?</This_round_events>)|(<[Aa]bstract>[\\s\\S]*?</[Aa]bstract>)',
     replaceString: '',
     placement: ['all'],
     disabled: false,
@@ -82,7 +82,7 @@ export const DEFAULT_REGEX_RULES: RegexRule[] = [
   {
     id: 'builtin-disclaimer',
     name: '移除免责声明',
-    findRegex: '/<disclaimer>[\\s\\S]*?<\\/disclaimer>/gi',
+    findRegex: '<disclaimer>[\\s\\S]*?</disclaimer>',
     replaceString: '',
     placement: ['all'],
     disabled: false,
@@ -90,7 +90,7 @@ export const DEFAULT_REGEX_RULES: RegexRule[] = [
   {
     id: 'builtin-comments',
     name: '移除HTML注释',
-    findRegex: '/<!-- [\\s\\S]*? -->(\\n)?/gi',
+    findRegex: '<!-- [\\s\\S]*? -->(\\n)?',
     replaceString: '',
     placement: ['all'],
     disabled: true,
