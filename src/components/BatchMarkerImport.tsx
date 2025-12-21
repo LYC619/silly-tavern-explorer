@@ -1,7 +1,6 @@
-import { useState, useEffect } from 'react';
-import { FileUp, Plus, Trash2, Check, Target } from 'lucide-react';
+import { useState, useEffect, useRef } from 'react';
+import { FileUp, Plus, Trash2, Check, Target, GripVertical } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -37,6 +36,29 @@ export function BatchMarkerImport({
   const [rawText, setRawText] = useState('');
   const [chapters, setChapters] = useState<ParsedChapter[]>([]);
   const [step, setStep] = useState<'input' | 'edit'>('input');
+  const [sidebarWidth, setSidebarWidth] = useState(480);
+  const isResizing = useRef(false);
+  const sidebarRef = useRef<HTMLDivElement>(null);
+
+  // 拖拽调整宽度
+  const handleMouseDown = (e: React.MouseEvent) => {
+    e.preventDefault();
+    isResizing.current = true;
+    document.addEventListener('mousemove', handleMouseMove);
+    document.addEventListener('mouseup', handleMouseUp);
+  };
+
+  const handleMouseMove = (e: MouseEvent) => {
+    if (!isResizing.current) return;
+    const newWidth = window.innerWidth - e.clientX - 32; // 32px for padding
+    setSidebarWidth(Math.max(360, Math.min(800, newWidth)));
+  };
+
+  const handleMouseUp = () => {
+    isResizing.current = false;
+    document.removeEventListener('mousemove', handleMouseMove);
+    document.removeEventListener('mouseup', handleMouseUp);
+  };
 
   // 监听 selectedFloor 变化
   useEffect(() => {
@@ -219,7 +241,19 @@ export function BatchMarkerImport({
   if (!isOpen) return null;
 
   return (
-    <aside className="w-[420px] flex-shrink-0 border border-border rounded-lg bg-card flex flex-col h-[calc(100vh-280px)]">
+    <aside 
+      ref={sidebarRef}
+      style={{ width: sidebarWidth }}
+      className="flex-shrink-0 border border-border rounded-lg bg-card flex flex-col h-full relative"
+    >
+      {/* 拖拽手柄 */}
+      <div 
+        className="absolute left-0 top-0 bottom-0 w-2 cursor-ew-resize hover:bg-primary/20 flex items-center justify-center group"
+        onMouseDown={handleMouseDown}
+      >
+        <GripVertical className="w-3 h-3 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
+      </div>
+
       <div className="p-4 border-b border-border flex items-center justify-between">
         <h3 className="font-semibold flex items-center gap-2">
           <FileUp className="w-4 h-4" />
@@ -250,61 +284,58 @@ export function BatchMarkerImport({
         </div>
       ) : (
         <div className="flex-1 flex flex-col overflow-hidden">
-          <div className="p-3 border-b border-border bg-muted/30">
+          <div className="p-4 border-b border-border bg-muted/30">
             <div className="flex items-center justify-between mb-2">
-              <span className="text-sm">
-                解析到 <span className="font-semibold">{chapters.length}</span> 个章节
+              <span className="text-sm font-medium">
+                解析到 <span className="text-primary font-semibold">{chapters.length}</span> 个章节
               </span>
-              <Button variant="ghost" size="sm" className="h-7" onClick={addChapter}>
+              <Button variant="outline" size="sm" onClick={addChapter}>
                 <Plus className="w-3 h-3 mr-1" />
                 添加
               </Button>
             </div>
-            <p className="text-xs text-muted-foreground">
-              点击章节后，再点击左侧文档选择楼层
+            <p className="text-sm text-muted-foreground">
+              点击章节卡片激活，然后点击左侧文档中的消息来选择楼层
             </p>
           </div>
           
           <ScrollArea className="flex-1">
-            <div className="p-2 space-y-2">
+            <div className="p-3 space-y-2">
               {chapters.map((chapter, index) => (
                 <div 
                   key={index} 
                   className={cn(
-                    "p-2 border rounded-lg cursor-pointer transition-colors",
+                    "p-3 border rounded-lg cursor-pointer transition-all",
                     activeChapterIndex === index 
-                      ? "border-primary bg-primary/5 ring-1 ring-primary" 
-                      : "border-border hover:border-muted-foreground/50"
+                      ? "border-primary bg-primary/5 ring-2 ring-primary/30 shadow-sm" 
+                      : "border-border hover:border-muted-foreground/50 hover:bg-muted/30"
                   )}
                   onClick={() => onSetActiveChapter(activeChapterIndex === index ? null : index)}
                 >
-                  <div className="flex items-start gap-2">
+                  <div className="flex items-start gap-3">
+                    <div 
+                      className={cn(
+                        "w-14 h-8 rounded flex items-center justify-center font-mono text-sm font-medium shrink-0",
+                        chapter.floorNumber 
+                          ? "bg-primary/20 text-primary" 
+                          : "bg-muted text-muted-foreground"
+                      )}
+                    >
+                      {chapter.floorNumber ? `#${chapter.floorNumber}` : (
+                        activeChapterIndex === index ? (
+                          <Target className="w-4 h-4 animate-pulse" />
+                        ) : '?'
+                      )}
+                    </div>
                     <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2 mb-1">
-                        <div 
-                          className={cn(
-                            "w-12 h-6 rounded text-xs flex items-center justify-center font-mono",
-                            chapter.floorNumber 
-                              ? "bg-primary/20 text-primary" 
-                              : "bg-muted text-muted-foreground"
-                          )}
-                          onClick={(e) => e.stopPropagation()}
-                        >
-                          {chapter.floorNumber ? `#${chapter.floorNumber}` : (
-                            activeChapterIndex === index ? (
-                              <Target className="w-3 h-3 animate-pulse" />
-                            ) : '?'
-                          )}
-                        </div>
-                        {chapter.volume && (
-                          <span className="text-xs text-muted-foreground truncate">
-                            {chapter.volume}
-                          </span>
-                        )}
-                      </div>
-                      <p className="text-sm font-medium truncate">{chapter.title}</p>
+                      {chapter.volume && (
+                        <span className="text-xs text-muted-foreground block mb-1">
+                          {chapter.volume}
+                        </span>
+                      )}
+                      <p className="text-sm font-medium leading-tight">{chapter.title}</p>
                       {chapter.summary && (
-                        <p className="text-xs text-muted-foreground line-clamp-1 mt-0.5">
+                        <p className="text-xs text-muted-foreground line-clamp-2 mt-1 leading-relaxed">
                           {chapter.summary}
                         </p>
                       )}
@@ -312,10 +343,10 @@ export function BatchMarkerImport({
                     <Button
                       variant="ghost"
                       size="icon"
-                      className="h-6 w-6 text-destructive shrink-0"
+                      className="h-7 w-7 text-destructive/70 hover:text-destructive shrink-0"
                       onClick={(e) => { e.stopPropagation(); removeChapter(index); }}
                     >
-                      <Trash2 className="w-3 h-3" />
+                      <Trash2 className="w-3.5 h-3.5" />
                     </Button>
                   </div>
                 </div>
@@ -323,18 +354,18 @@ export function BatchMarkerImport({
             </div>
           </ScrollArea>
 
-          <div className="p-3 border-t border-border space-y-2">
+          <div className="p-4 border-t border-border space-y-3 bg-card">
             <div className="flex items-center justify-between text-sm">
               <span className="text-muted-foreground">
-                已填写 {validCount}/{chapters.length}
+                已填写楼层: <span className="font-medium text-foreground">{validCount}/{chapters.length}</span>
               </span>
-              <Button variant="ghost" size="sm" className="h-7" onClick={() => setStep('input')}>
+              <Button variant="ghost" size="sm" onClick={() => setStep('input')}>
                 返回修改
               </Button>
             </div>
             <Button onClick={handleImport} disabled={validCount === 0} className="w-full">
               <Check className="w-4 h-4 mr-2" />
-              确认导入 ({validCount})
+              确认导入 ({validCount} 个章节)
             </Button>
           </div>
         </div>
