@@ -7,6 +7,15 @@ export interface ChatMessage {
   is_user?: boolean;
 }
 
+export interface ChapterMarker {
+  messageId: string;
+  messageIndex: number;
+  title: string;
+  volume?: string;
+  summary?: string;
+  createdAt: number;
+}
+
 export interface CharacterInfo {
   name: string;
   avatar?: string;
