@@ -104,7 +104,7 @@ const Index = () => {
     : undefined;
 
   return (
-    <div className={`${session ? 'h-screen overflow-hidden' : 'min-h-screen'} paper-bg flex flex-col`}>
+    <div className="min-h-screen paper-bg flex flex-col">
       {/* Header */}
       <header className="border-b border-border bg-card/80 backdrop-blur-sm sticky top-0 z-50">
         <div className="container mx-auto px-4 py-4 flex items-center justify-between">
@@ -153,7 +153,7 @@ const Index = () => {
       </header>
 
       {/* Main Content */}
-      <main className={`container mx-auto px-4 py-6 flex-1 flex flex-col min-h-0 ${session ? 'overflow-hidden' : 'overflow-y-auto'}`}>
+      <main className="container mx-auto px-4 py-6 flex-1">
         {!session ? (
           <div className="max-w-xl mx-auto animate-fade-in">
             <div className="text-center mb-8">
@@ -179,7 +179,7 @@ const Index = () => {
             </div>
           </div>
         ) : (
-          <div className="flex flex-col flex-1 min-h-0 overflow-hidden">
+          <div className="flex flex-col">
             {/* Settings Panel (horizontal) */}
             <div className="mb-4 flex-shrink-0">
               <div className="flex items-center gap-2 mb-3 text-muted-foreground">
@@ -190,10 +190,10 @@ const Index = () => {
             </div>
 
             {/* Preview + Batch Import Row */}
-            <div className="flex gap-4 flex-1 min-h-0 overflow-hidden">
+            <div className="flex gap-4 items-start">
               {/* Preview Area */}
-              <div className="flex-1 min-w-0 min-h-0 flex flex-col overflow-hidden">
-                <div className="mb-3 flex items-center justify-between flex-shrink-0">
+              <div className="flex-1 min-w-0">
+                <div className="mb-3 flex items-center justify-between">
                   <div className="text-sm text-muted-foreground">
                     共 {session.messages.length} 条消息
                     {markers.length > 0 && (
@@ -206,9 +206,9 @@ const Index = () => {
                     </div>
                   )}
                 </div>
-                
-                <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain rounded-lg">
-                  <div className="flex justify-center pb-8 px-4">
+
+                <div className="rounded-lg border border-border bg-card/50">
+                  <div className="flex justify-center py-6 px-4">
                     <div 
                       style={{ width: Math.min(settings.paperWidth, batchImportOpen ? 520 : settings.paperWidth) }}
                       className="shadow-warm rounded-lg overflow-hidden animate-fade-in"
