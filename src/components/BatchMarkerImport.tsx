@@ -219,7 +219,7 @@ export function BatchMarkerImport({
   if (!isOpen) return null;
 
   return (
-    <aside className="w-96 flex-shrink-0 border border-border rounded-lg bg-card flex flex-col h-[calc(100vh-380px)]">
+    <aside className="w-[420px] flex-shrink-0 border border-border rounded-lg bg-card flex flex-col h-[calc(100vh-280px)]">
       <div className="p-4 border-b border-border flex items-center justify-between">
         <h3 className="font-semibold flex items-center gap-2">
           <FileUp className="w-4 h-4" />
@@ -233,15 +233,15 @@ export function BatchMarkerImport({
       {step === 'input' ? (
         <div className="flex-1 p-4 flex flex-col overflow-hidden">
           <div className="flex-1 flex flex-col min-h-0">
-            <Label className="mb-1">粘贴AI生成的章节总结</Label>
-            <p className="text-xs text-muted-foreground mb-2">
-              支持【存档节点】格式
+            <Label className="mb-2 text-base">粘贴AI生成的章节总结</Label>
+            <p className="text-sm text-muted-foreground mb-3">
+              支持【存档节点】格式，自动解析卷名、概要和事件
             </p>
             <Textarea
               value={rawText}
               onChange={(e) => setRawText(e.target.value)}
-              placeholder={`### 存档节点：第一卷 - 初遇\n\n#### 【本卷概要】\n\n描述本卷的主要剧情...\n\n#### 【关键事件索引】\n\n- **初次相遇**: 描述...`}
-              className="flex-1 min-h-[200px] font-mono text-xs resize-none"
+              placeholder={`### 存档节点：第一卷 - 初遇\n\n#### 【本卷概要】\n\n描述本卷的主要剧情...\n\n#### 【关键事件索引】\n\n- **初次相遇**: 描述事件的起因、经过和结果...`}
+              className="flex-1 min-h-0 font-mono text-sm resize-none"
             />
           </div>
           <Button onClick={parseText} disabled={!rawText.trim()} className="mt-4 w-full">

@@ -190,7 +190,7 @@ const Index = () => {
             </div>
 
             {/* Preview + Batch Import Row */}
-            <div className="flex gap-4">
+            <div className="flex gap-6">
               {/* Preview Area */}
               <div className="flex-1 min-w-0">
                 <div className="mb-4 flex items-center justify-between">
@@ -207,7 +207,7 @@ const Index = () => {
                   )}
                 </div>
                 
-                <ScrollArea className="h-[calc(100vh-380px)]">
+                <ScrollArea className="h-[calc(100vh-280px)]">
                   <div 
                     className="flex justify-center pb-8"
                     style={{ padding: '1rem' }}
