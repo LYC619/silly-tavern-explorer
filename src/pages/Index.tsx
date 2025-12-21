@@ -190,9 +190,9 @@ const Index = () => {
             </div>
 
             {/* Preview + Batch Import Row */}
-            <div className="flex gap-4 flex-1 min-h-0">
+            <div className="flex gap-4 flex-1 min-h-0 overflow-hidden">
               {/* Preview Area */}
-              <div className="flex-1 min-w-0 flex flex-col">
+              <div className="flex-1 min-w-0 flex flex-col overflow-hidden">
                 <div className="mb-3 flex items-center justify-between flex-shrink-0">
                   <div className="text-sm text-muted-foreground">
                     共 {session.messages.length} 条消息
@@ -207,7 +207,7 @@ const Index = () => {
                   )}
                 </div>
                 
-                <div className="flex-1 overflow-auto rounded-lg">
+                <div className="flex-1 overflow-y-auto rounded-lg">
                   <div className="flex justify-center pb-8 px-4">
                     <div 
                       style={{ width: Math.min(settings.paperWidth, batchImportOpen ? 520 : settings.paperWidth) }}

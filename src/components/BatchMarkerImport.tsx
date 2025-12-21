@@ -9,6 +9,7 @@ import type { ChapterMarker } from '@/types/chat';
 
 interface ParsedChapter {
   volume?: string;
+  chapterNumber?: string; // 章节编号，如 "第一章"、"摘要"
   title: string;
   summary?: string;
   floorNumber?: number;
@@ -85,16 +86,31 @@ export function BatchMarkerImport({
     let inSummarySection = false;
     let inEventsSection = false;
     let skipUntilNextVolume = false;
+    let eventCountInVolume = 0; // 用于生成章节编号
     
     const saveSummaryAsChapter = () => {
       if (currentVolume && summaryLines.length > 0) {
         parsed.push({
           volume: currentVolume,
+          chapterNumber: '摘要',
           title: '本卷概要',
           summary: summaryLines.join('\n').trim(),
         });
         summaryLines = [];
       }
+    };
+    
+    // 数字转中文
+    const toChineseNumber = (num: number): string => {
+      const chineseNumbers = ['零', '一', '二', '三', '四', '五', '六', '七', '八', '九', '十'];
+      if (num <= 10) return chineseNumbers[num];
+      if (num < 20) return '十' + (num === 10 ? '' : chineseNumbers[num - 10]);
+      if (num < 100) {
+        const tens = Math.floor(num / 10);
+        const ones = num % 10;
+        return chineseNumbers[tens] + '十' + (ones === 0 ? '' : chineseNumbers[ones]);
+      }
+      return num.toString();
     };
     
     for (const line of lines) {
@@ -117,6 +133,7 @@ export function BatchMarkerImport({
         skipUntilNextVolume = false;
         inSummarySection = false;
         inEventsSection = false;
+        eventCountInVolume = 0; // 重置章节计数
         continue;
       }
       
@@ -128,6 +145,7 @@ export function BatchMarkerImport({
         skipUntilNextVolume = false;
         inSummarySection = false;
         inEventsSection = false;
+        eventCountInVolume = 0; // 重置章节计数
         continue;
       }
       
@@ -152,8 +170,10 @@ export function BatchMarkerImport({
       // 检测事件项: - **{事件标题}**: {描述}
       const eventMatch = trimmed.match(/^-\s*\*\*(.+?)\*\*[：:]\s*(.+)$/);
       if (eventMatch && inEventsSection && currentVolume) {
+        eventCountInVolume++;
         parsed.push({
           volume: currentVolume,
+          chapterNumber: `第${toChineseNumber(eventCountInVolume)}章`,
           title: eventMatch[1],
           summary: eventMatch[2],
         });
@@ -244,7 +264,7 @@ export function BatchMarkerImport({
     <aside 
       ref={sidebarRef}
       style={{ width: sidebarWidth }}
-      className="flex-shrink-0 border border-border rounded-lg bg-card flex flex-col h-full relative"
+      className="flex-shrink-0 border border-border rounded-lg bg-card flex flex-col h-full relative overflow-hidden"
     >
       {/* 拖拽手柄 */}
       <div 
@@ -328,11 +348,18 @@ export function BatchMarkerImport({
                       )}
                     </div>
                     <div className="flex-1 min-w-0">
-                      {chapter.volume && (
-                        <span className="text-xs text-muted-foreground block mb-1">
-                          {chapter.volume}
-                        </span>
-                      )}
+                      <div className="flex items-center gap-2 mb-1">
+                        {chapter.volume && (
+                          <span className="text-xs text-muted-foreground">
+                            {chapter.volume}
+                          </span>
+                        )}
+                        {chapter.chapterNumber && (
+                          <span className="text-xs bg-primary/10 text-primary px-1.5 py-0.5 rounded">
+                            {chapter.chapterNumber}
+                          </span>
+                        )}
+                      </div>
                       <p className="text-sm font-medium leading-tight">{chapter.title}</p>
                       {chapter.summary && (
                         <p className="text-xs text-muted-foreground line-clamp-2 mt-1 leading-relaxed">
