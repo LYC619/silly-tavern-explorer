@@ -1,4 +1,13 @@
 @echo off
+setlocal EnableExtensions
+
+:: Prefer PowerShell launcher (handles UTF-8 output more reliably)
+where powershell >nul 2>nul
+if %errorlevel% equ 0 (
+  powershell -NoProfile -ExecutionPolicy Bypass -File "%~dp0start.ps1"
+  exit /b %errorlevel%
+)
+
 chcp 65001 >nul
 echo ========================================
 echo   ST 对话美化器 v0.2
