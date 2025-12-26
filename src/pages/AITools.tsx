@@ -10,13 +10,23 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useToast } from '@/hooks/use-toast';
 
 const API_KEY_STORAGE_KEY = 'st-beautifier-openai-key';
+const API_URL_STORAGE_KEY = 'st-beautifier-api-url';
+const API_MODEL_STORAGE_KEY = 'st-beautifier-api-model';
+
+const DEFAULT_API_URL = 'https://api.openai.com/v1/chat/completions';
+const DEFAULT_MODEL = 'gpt-4o-mini';
 
 const AITools = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
   const [apiKey, setApiKey] = useState('');
   const [savedApiKey, setSavedApiKey] = useState('');
+  const [apiUrl, setApiUrl] = useState(DEFAULT_API_URL);
+  const [savedApiUrl, setSavedApiUrl] = useState(DEFAULT_API_URL);
+  const [model, setModel] = useState(DEFAULT_MODEL);
+  const [savedModel, setSavedModel] = useState(DEFAULT_MODEL);
   const [isKeyVisible, setIsKeyVisible] = useState(false);
+  const [showAdvanced, setShowAdvanced] = useState(false);
 
   // Regex generator state
   const [regexInput, setRegexInput] = useState('');
@@ -36,29 +46,50 @@ const AITools = () => {
   const [copied, setCopied] = useState<string | null>(null);
 
   useEffect(() => {
-    const stored = localStorage.getItem(API_KEY_STORAGE_KEY);
-    if (stored) {
-      setSavedApiKey(stored);
-      setApiKey(stored);
+    const storedKey = localStorage.getItem(API_KEY_STORAGE_KEY);
+    const storedUrl = localStorage.getItem(API_URL_STORAGE_KEY);
+    const storedModel = localStorage.getItem(API_MODEL_STORAGE_KEY);
+    if (storedKey) {
+      setSavedApiKey(storedKey);
+      setApiKey(storedKey);
+    }
+    if (storedUrl) {
+      setSavedApiUrl(storedUrl);
+      setApiUrl(storedUrl);
+    }
+    if (storedModel) {
+      setSavedModel(storedModel);
+      setModel(storedModel);
     }
   }, []);
 
-  const handleSaveApiKey = () => {
+  const handleSaveConfig = () => {
     if (!apiKey.trim()) {
       toast({ title: '请输入 API Key', variant: 'destructive' });
       return;
     }
     localStorage.setItem(API_KEY_STORAGE_KEY, apiKey.trim());
+    localStorage.setItem(API_URL_STORAGE_KEY, apiUrl.trim() || DEFAULT_API_URL);
+    localStorage.setItem(API_MODEL_STORAGE_KEY, model.trim() || DEFAULT_MODEL);
     setSavedApiKey(apiKey.trim());
-    toast({ title: 'API Key 已保存' });
+    setSavedApiUrl(apiUrl.trim() || DEFAULT_API_URL);
+    setSavedModel(model.trim() || DEFAULT_MODEL);
+    toast({ title: '配置已保存' });
   };
 
-  const handleClearApiKey = () => {
+  const handleClearConfig = () => {
     localStorage.removeItem(API_KEY_STORAGE_KEY);
+    localStorage.removeItem(API_URL_STORAGE_KEY);
+    localStorage.removeItem(API_MODEL_STORAGE_KEY);
     setApiKey('');
+    setApiUrl(DEFAULT_API_URL);
+    setModel(DEFAULT_MODEL);
     setSavedApiKey('');
-    toast({ title: 'API Key 已清除' });
+    setSavedApiUrl(DEFAULT_API_URL);
+    setSavedModel(DEFAULT_MODEL);
+    toast({ title: '配置已清除' });
   };
+
 
   const handleCopy = async (text: string, id: string) => {
     await navigator.clipboard.writeText(text);
@@ -69,17 +100,17 @@ const AITools = () => {
 
   const callOpenAI = async (prompt: string, systemPrompt: string): Promise<string> => {
     if (!savedApiKey) {
-      throw new Error('请先配置 OpenAI API Key');
+      throw new Error('请先配置 API Key');
     }
 
-    const response = await fetch('https://api.openai.com/v1/chat/completions', {
+    const response = await fetch(savedApiUrl, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
         'Authorization': `Bearer ${savedApiKey}`,
       },
       body: JSON.stringify({
-        model: 'gpt-4o-mini',
+        model: savedModel,
         messages: [
           { role: 'system', content: systemPrompt },
           { role: 'user', content: prompt },
@@ -219,37 +250,85 @@ const AITools = () => {
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <Key className="w-5 h-5" />
-                API Key 配置
+                API 配置
               </CardTitle>
               <CardDescription>
-                配置 OpenAI API Key 以使用 AI 功能（密钥仅保存在本地浏览器）
+                配置 AI 服务接口（支持 OpenAI 兼容格式，密钥仅保存在本地浏览器）
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
-              <div className="flex gap-2">
-                <div className="flex-1 relative">
-                  <Input
-                    type={isKeyVisible ? 'text' : 'password'}
-                    value={apiKey}
-                    onChange={(e) => setApiKey(e.target.value)}
-                    placeholder="sk-..."
-                  />
+              <div className="space-y-2">
+                <Label>API Key</Label>
+                <div className="flex gap-2">
+                  <div className="flex-1 relative">
+                    <Input
+                      type={isKeyVisible ? 'text' : 'password'}
+                      value={apiKey}
+                      onChange={(e) => setApiKey(e.target.value)}
+                      placeholder="sk-..."
+                    />
+                  </div>
+                  <Button
+                    variant="outline"
+                    onClick={() => setIsKeyVisible(!isKeyVisible)}
+                  >
+                    {isKeyVisible ? '隐藏' : '显示'}
+                  </Button>
                 </div>
-                <Button
-                  variant="outline"
-                  onClick={() => setIsKeyVisible(!isKeyVisible)}
-                >
-                  {isKeyVisible ? '隐藏' : '显示'}
-                </Button>
-                <Button onClick={handleSaveApiKey}>保存</Button>
               </div>
+
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setShowAdvanced(!showAdvanced)}
+                className="text-muted-foreground"
+              >
+                {showAdvanced ? '▼ 收起高级设置' : '▶ 展开高级设置（自定义接口地址/模型）'}
+              </Button>
+
+              {showAdvanced && (
+                <div className="space-y-4 pl-4 border-l-2 border-border">
+                  <div className="space-y-2">
+                    <Label>API 接口地址</Label>
+                    <Input
+                      value={apiUrl}
+                      onChange={(e) => setApiUrl(e.target.value)}
+                      placeholder={DEFAULT_API_URL}
+                    />
+                    <p className="text-xs text-muted-foreground">
+                      支持 OpenAI 兼容格式的接口，如中转站、本地部署的模型等
+                    </p>
+                  </div>
+                  <div className="space-y-2">
+                    <Label>模型名称</Label>
+                    <Input
+                      value={model}
+                      onChange={(e) => setModel(e.target.value)}
+                      placeholder={DEFAULT_MODEL}
+                    />
+                    <p className="text-xs text-muted-foreground">
+                      例如：gpt-4o-mini, gpt-4o, claude-3-haiku, deepseek-chat 等
+                    </p>
+                  </div>
+                </div>
+              )}
+
+              <div className="flex gap-2 pt-2">
+                <Button onClick={handleSaveConfig}>保存配置</Button>
+                {savedApiKey && (
+                  <Button variant="ghost" onClick={handleClearConfig}>
+                    清除配置
+                  </Button>
+                )}
+              </div>
+
               {savedApiKey && (
                 <div className="flex items-center gap-2 text-sm text-muted-foreground">
                   <Check className="w-4 h-4 text-green-500" />
-                  API Key 已配置
-                  <Button variant="ghost" size="sm" onClick={handleClearApiKey}>
-                    清除
-                  </Button>
+                  已配置 · 模型: {savedModel}
+                  {savedApiUrl !== DEFAULT_API_URL && (
+                    <span className="text-xs">· 自定义接口</span>
+                  )}
                 </div>
               )}
               {!savedApiKey && (
