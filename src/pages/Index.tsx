@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
-import { ScrollText, Settings, RefreshCw, BookmarkPlus, FileUp, Pencil } from 'lucide-react';
+import { useLocation, useNavigate } from 'react-router-dom';
+import { ScrollText, Settings, RefreshCw, BookmarkPlus, FileUp, Pencil, Library, Sparkles, Save } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { ChatImporter } from '@/components/ChatImporter';
 import { ChatPreview } from '@/components/ChatPreview';
@@ -11,6 +12,8 @@ import { ChapterMarkerDialog } from '@/components/ChapterMarkerDialog';
 import { MessageEditDialog } from '@/components/MessageEditDialog';
 import type { ChatSession, ExportSettings, ChapterMarker, ChatMessage } from '@/types/chat';
 import { DEFAULT_REGEX_RULES } from '@/types/chat';
+import { saveBook, generateBookId, type BookItem } from '@/lib/bookshelf-db';
+import { useToast } from '@/hooks/use-toast';
 
 const defaultSettings: ExportSettings = {
   theme: 'elegant',
@@ -23,6 +26,9 @@ const defaultSettings: ExportSettings = {
 };
 
 const Index = () => {
+  const location = useLocation();
+  const navigate = useNavigate();
+  const { toast } = useToast();
   const [session, setSession] = useState<ChatSession | null>(null);
   const [settings, setSettings] = useState<ExportSettings>(defaultSettings);
   const [markers, setMarkers] = useState<ChapterMarker[]>([]);
@@ -34,6 +40,22 @@ const Index = () => {
   const [batchImportOpen, setBatchImportOpen] = useState(false);
   const [selectedFloor, setSelectedFloor] = useState<number | null>(null);
   const [activeChapterIndex, setActiveChapterIndex] = useState<number | null>(null);
+  const [currentBookId, setCurrentBookId] = useState<string | null>(null);
+
+  // Load book from navigation state (from bookshelf)
+  useEffect(() => {
+    const state = location.state as { book?: BookItem } | null;
+    if (state?.book) {
+      setSession(state.book.session);
+      setMarkers(state.book.markers);
+      setCurrentBookId(state.book.id);
+      if (state.book.settings) {
+        setSettings(state.book.settings);
+      }
+      // Clear the state to prevent reloading on refresh
+      window.history.replaceState({}, document.title);
+    }
+  }, [location.state]);
 
   const handleReset = () => {
     setSession(null);
@@ -41,6 +63,27 @@ const Index = () => {
     setEditMode(false);
     setContentEditMode(false);
     setBatchImportOpen(false);
+    setCurrentBookId(null);
+  };
+
+  const handleSaveToBookshelf = async () => {
+    if (!session) return;
+    try {
+      const book: BookItem = {
+        id: currentBookId || generateBookId(),
+        title: session.title || session.character?.name || '未命名作品',
+        session,
+        markers,
+        settings,
+        createdAt: currentBookId ? Date.now() : Date.now(),
+        updatedAt: Date.now(),
+      };
+      await saveBook(book);
+      setCurrentBookId(book.id);
+      toast({ title: '已保存到书架' });
+    } catch (error) {
+      toast({ title: '保存失败', variant: 'destructive' });
+    }
   };
 
   const handleMessageClick = (messageId: string, messageIndex: number) => {
@@ -148,12 +191,28 @@ const Index = () => {
           </div>
 
           <div className="flex items-center gap-2">
+            {/* Navigation Buttons */}
+            <Button variant="ghost" size="sm" onClick={() => navigate('/bookshelf')}>
+              <Library className="w-4 h-4 mr-2" />
+              书架
+            </Button>
+            <Button variant="ghost" size="sm" onClick={() => navigate('/ai-tools')}>
+              <Sparkles className="w-4 h-4 mr-2" />
+              AI工具
+            </Button>
+
+            <div className="w-px h-6 bg-border mx-1" />
+
             {!session && <DemoData onLoad={setSession} />}
             {session && (
               <>
                 <Button variant="ghost" size="sm" onClick={handleReset}>
                   <RefreshCw className="w-4 h-4 mr-2" />
                   重新导入
+                </Button>
+                <Button variant="outline" size="sm" onClick={handleSaveToBookshelf}>
+                  <Save className="w-4 h-4 mr-2" />
+                  保存到书架
                 </Button>
                 <Button 
                   variant={contentEditMode ? "default" : "outline"} 
