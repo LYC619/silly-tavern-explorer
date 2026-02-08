@@ -1,12 +1,10 @@
 import { useState, useEffect } from 'react';
-import { useLocation, useNavigate } from 'react-router-dom';
-import { ScrollText, Settings, RefreshCw, BookmarkPlus, FileUp, Pencil, Library, Sparkles, Save } from 'lucide-react';
-import { Button } from '@/components/ui/button';
+import { useLocation } from 'react-router-dom';
+import { ScrollText, Settings } from 'lucide-react';
 import { ChatImporter } from '@/components/ChatImporter';
 import { ChatPreview } from '@/components/ChatPreview';
 import { SettingsPanel } from '@/components/SettingsPanel';
-import { ExportButton } from '@/components/ExportButton';
-import { DemoData } from '@/components/DemoData';
+import { EditorToolbar } from '@/components/EditorToolbar';
 import { BatchMarkerImport } from '@/components/BatchMarkerImport';
 import { ChapterMarkerDialog } from '@/components/ChapterMarkerDialog';
 import { MessageEditDialog } from '@/components/MessageEditDialog';
@@ -27,7 +25,6 @@ const defaultSettings: ExportSettings = {
 
 const Index = () => {
   const location = useLocation();
-  const navigate = useNavigate();
   const { toast } = useToast();
   const [session, setSession] = useState<ChatSession | null>(null);
   const [settings, setSettings] = useState<ExportSettings>(defaultSettings);
@@ -171,6 +168,30 @@ const Index = () => {
     }
   };
 
+  const handleToggleContentEdit = () => {
+    setContentEditMode(!contentEditMode);
+    if (!contentEditMode) {
+      setEditMode(false);
+      setBatchImportOpen(false);
+    }
+  };
+
+  const handleToggleEditMode = () => {
+    setEditMode(!editMode);
+    if (!editMode) {
+      setContentEditMode(false);
+      setBatchImportOpen(false);
+    }
+  };
+
+  const handleToggleBatchImport = () => {
+    setBatchImportOpen(!batchImportOpen);
+    if (!batchImportOpen) {
+      setContentEditMode(false);
+      setEditMode(false);
+    }
+  };
+
   const selectedMarker = selectedMessage 
     ? markers.find(m => m.messageId === selectedMessage.id)
     : undefined;
@@ -190,79 +211,20 @@ const Index = () => {
             </div>
           </div>
 
-          <div className="flex items-center gap-2">
-            {/* Navigation Buttons */}
-            <Button variant="ghost" size="sm" onClick={() => navigate('/bookshelf')}>
-              <Library className="w-4 h-4 mr-2" />
-              书架
-            </Button>
-            <Button variant="ghost" size="sm" onClick={() => navigate('/ai-tools')}>
-              <Sparkles className="w-4 h-4 mr-2" />
-              AI工具
-            </Button>
-
-            <div className="w-px h-6 bg-border mx-1" />
-
-            {!session && <DemoData onLoad={setSession} />}
-            {session && (
-              <>
-                <Button variant="ghost" size="sm" onClick={handleReset}>
-                  <RefreshCw className="w-4 h-4 mr-2" />
-                  重新导入
-                </Button>
-                <Button variant="outline" size="sm" onClick={handleSaveToBookshelf}>
-                  <Save className="w-4 h-4 mr-2" />
-                  保存到书架
-                </Button>
-                <Button 
-                  variant={contentEditMode ? "default" : "outline"} 
-                  size="sm" 
-                  onClick={() => {
-                    setContentEditMode(!contentEditMode);
-                    if (!contentEditMode) {
-                      setEditMode(false);
-                      setBatchImportOpen(false);
-                    }
-                  }}
-                  className={contentEditMode ? 'gold-gradient text-primary-foreground' : ''}
-                >
-                  <Pencil className="w-4 h-4 mr-2" />
-                  {contentEditMode ? '退出编辑' : '编辑内容'}
-                </Button>
-                <Button 
-                  variant={editMode ? "default" : "outline"} 
-                  size="sm" 
-                  onClick={() => {
-                    setEditMode(!editMode);
-                    if (!editMode) {
-                      setContentEditMode(false);
-                      setBatchImportOpen(false);
-                    }
-                  }}
-                  className={editMode ? 'gold-gradient text-primary-foreground' : ''}
-                >
-                  <BookmarkPlus className="w-4 h-4 mr-2" />
-                  {editMode ? '退出标记' : '章节标记'}
-                </Button>
-                <Button 
-                  variant={batchImportOpen ? "default" : "outline"} 
-                  size="sm" 
-                  onClick={() => {
-                    setBatchImportOpen(!batchImportOpen);
-                    if (!batchImportOpen) {
-                      setContentEditMode(false);
-                      setEditMode(false);
-                    }
-                  }}
-                  className={batchImportOpen ? 'gold-gradient text-primary-foreground' : ''}
-                >
-                  <FileUp className="w-4 h-4 mr-2" />
-                  导入总结
-                </Button>
-                <ExportButton session={session} settings={settings} markers={markers} />
-              </>
-            )}
-          </div>
+          <EditorToolbar
+            session={session}
+            settings={settings}
+            markers={markers}
+            editMode={editMode}
+            contentEditMode={contentEditMode}
+            batchImportOpen={batchImportOpen}
+            onLoadSession={setSession}
+            onReset={handleReset}
+            onSaveToBookshelf={handleSaveToBookshelf}
+            onToggleContentEdit={handleToggleContentEdit}
+            onToggleEditMode={handleToggleEditMode}
+            onToggleBatchImport={handleToggleBatchImport}
+          />
         </div>
       </header>
 
