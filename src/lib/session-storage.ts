@@ -5,11 +5,13 @@ const SESSION_KEY = 'st-beautifier-session';
 const SETTINGS_KEY = 'st-beautifier-settings';
 const MARKERS_KEY = 'st-beautifier-markers';
 const CUSTOM_REGEX_KEY = 'st-beautifier-custom-regex';
+const BUILTIN_STATES_KEY = 'st-beautifier-builtin-states';
 
 export interface StoredState {
   session: ChatSession | null;
   markers: ChapterMarker[];
   currentBookId: string | null;
+  settings?: ExportSettings;
 }
 
 // Session storage (临时，页面间导航)
@@ -66,9 +68,6 @@ export function getMergedRegexRules(): RegexRule[] {
   return [...DEFAULT_REGEX_RULES, ...customRules];
 }
 
-// 保存内置规则的启用状态
-const BUILTIN_STATES_KEY = 'st-beautifier-builtin-states';
-
 export function saveBuiltinRuleStates(rules: RegexRule[]): void {
   try {
     const states: Record<string, boolean> = {};
@@ -106,4 +105,26 @@ export function getInitialRegexRules(): RegexRule[] {
   }));
   
   return [...builtinRules, ...customRules];
+}
+
+// 保存设置到 localStorage
+export function saveSettings(settings: ExportSettings): void {
+  try {
+    localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings));
+  } catch (e) {
+    console.error('Failed to save settings:', e);
+  }
+}
+
+// 加载设置
+export function loadSettings(): ExportSettings | null {
+  try {
+    const data = localStorage.getItem(SETTINGS_KEY);
+    if (data) {
+      return JSON.parse(data);
+    }
+  } catch (e) {
+    console.error('Failed to load settings:', e);
+  }
+  return null;
 }
