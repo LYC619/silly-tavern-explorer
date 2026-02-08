@@ -101,7 +101,7 @@ export function RegexSidebar({ rules, onRulesChange, isOpen, onClose }: RegexSid
   const enabledCount = rules.filter(r => !r.disabled).length;
 
   return (
-    <aside className="w-80 flex-shrink-0 border border-border rounded-lg bg-card flex flex-col max-h-[calc(100vh-200px)] sticky top-24 animate-fade-in">
+    <aside className="w-80 flex-shrink-0 border border-border rounded-lg bg-card flex flex-col h-[calc(100vh-200px)] sticky top-24 animate-fade-in overflow-hidden">
       {/* Header */}
       <div className="p-4 border-b border-border flex items-center justify-between">
         <div className="flex items-center gap-2">
@@ -122,7 +122,7 @@ export function RegexSidebar({ rules, onRulesChange, isOpen, onClose }: RegexSid
       </div>
 
       {/* Rules List */}
-      <ScrollArea className="flex-1">
+      <ScrollArea className="flex-1 min-h-0">
         <div className="p-4 space-y-2">
           {rules.map((rule) => (
             <div

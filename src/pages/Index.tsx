@@ -248,8 +248,8 @@ const Index = () => {
               <ScrollText className="w-5 h-5 text-primary-foreground" />
             </div>
             <div>
-              <h1 className="font-display text-xl font-semibold">ST 对话美化器</h1>
-              <p className="text-xs text-muted-foreground">SillyTavern Chat Beautifier</p>
+              <h1 className="font-display text-xl font-semibold">ST 聊天记录处理器</h1>
+              <p className="text-xs text-muted-foreground">SillyTavern Chat Processor</p>
             </div>
           </div>
 
