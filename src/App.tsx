@@ -7,6 +7,7 @@ import { ThemeProvider } from "next-themes";
 import Index from "./pages/Index";
 import Bookshelf from "./pages/Bookshelf";
 import AITools from "./pages/AITools";
+import Reader from "./pages/Reader";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -22,6 +23,7 @@ const App = () => (
             <Route path="/" element={<Index />} />
             <Route path="/bookshelf" element={<Bookshelf />} />
             <Route path="/ai-tools" element={<AITools />} />
+            <Route path="/reader/:id" element={<Reader />} />
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
             <Route path="*" element={<NotFound />} />
           </Routes>
