@@ -1,5 +1,6 @@
-import { RefreshCw, Save, Pencil, BookmarkPlus, FileUp, Library, Sparkles } from 'lucide-react';
+import { RefreshCw, Save, Pencil, BookmarkPlus, FileUp, Library, Sparkles, Moon, Sun } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import { useTheme } from 'next-themes';
 import { Button } from '@/components/ui/button';
 import { DemoData } from '@/components/DemoData';
 import { ExportButton } from '@/components/ExportButton';
@@ -35,9 +36,25 @@ export function EditorToolbar({
   onToggleBatchImport,
 }: EditorToolbarProps) {
   const navigate = useNavigate();
+  const { theme, setTheme } = useTheme();
 
   return (
     <div className="flex items-center gap-2">
+      {/* Dark mode toggle - always visible */}
+      <Button
+        variant="ghost"
+        size="icon"
+        onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
+        className="h-8 w-8"
+        title={theme === 'dark' ? '切换到日间模式' : '切换到夜间模式'}
+      >
+        {theme === 'dark' ? (
+          <Sun className="w-4 h-4" />
+        ) : (
+          <Moon className="w-4 h-4" />
+        )}
+      </Button>
+
       {/* Navigation Buttons */}
       <Button variant="ghost" size="sm" onClick={() => navigate('/bookshelf')}>
         <Library className="w-4 h-4 mr-2" />

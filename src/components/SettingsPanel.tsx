@@ -1,6 +1,5 @@
 import { useState } from 'react';
-import { useTheme } from 'next-themes';
-import { BookOpen, MessageCircle, Minus, Sparkles, ChevronDown, ChevronUp, Moon, Sun } from 'lucide-react';
+import { BookOpen, MessageCircle, Minus, Sparkles, ChevronDown, ChevronUp } from 'lucide-react';
 import { Card } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
@@ -31,7 +30,6 @@ const prefixModes: { id: PrefixMode; name: string; desc: string }[] = [
 
 export function SettingsPanel({ settings, onSettingsChange }: SettingsPanelProps) {
   const [isOpen, setIsOpen] = useState(false);
-  const { theme: appTheme, setTheme: setAppTheme } = useTheme();
 
   const updateSetting = <K extends keyof ExportSettings>(
     key: K,
@@ -106,21 +104,6 @@ export function SettingsPanel({ settings, onSettingsChange }: SettingsPanelProps
               />
             </div>
           </div>
-
-          {/* Dark mode toggle - always visible outside collapsible */}
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={() => setAppTheme(appTheme === 'dark' ? 'light' : 'dark')}
-            className="h-8 w-8 flex-shrink-0"
-            title={appTheme === 'dark' ? '切换到日间模式' : '切换到夜间模式'}
-          >
-            {appTheme === 'dark' ? (
-              <Sun className="w-4 h-4" />
-            ) : (
-              <Moon className="w-4 h-4" />
-            )}
-          </Button>
 
           <CollapsibleTrigger asChild>
             <Button variant="ghost" size="sm" className="flex-shrink-0">
