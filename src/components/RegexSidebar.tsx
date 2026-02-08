@@ -101,7 +101,7 @@ export function RegexSidebar({ rules, onRulesChange, isOpen, onClose }: RegexSid
   const enabledCount = rules.filter(r => !r.disabled).length;
 
   return (
-    <div className="w-80 flex-shrink-0 border-l border-border bg-card/50 flex flex-col h-full animate-fade-in">
+    <aside className="w-80 flex-shrink-0 border border-border rounded-lg bg-card flex flex-col max-h-[calc(100vh-200px)] sticky top-24 animate-fade-in">
       {/* Header */}
       <div className="p-4 border-b border-border flex items-center justify-between">
         <div className="flex items-center gap-2">
@@ -276,9 +276,9 @@ export function RegexSidebar({ rules, onRulesChange, isOpen, onClose }: RegexSid
           className="w-full gap-1"
         >
           <RotateCcw className="w-3 h-3" />
-          重置为默认
+        重置为默认
         </Button>
       </div>
-    </div>
+    </aside>
   );
 }
