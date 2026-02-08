@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import { BookOpen, MessageCircle, Minus, Sparkles, ChevronDown, ChevronUp } from 'lucide-react';
+import { useTheme } from 'next-themes';
+import { BookOpen, MessageCircle, Minus, Sparkles, ChevronDown, ChevronUp, Moon, Sun } from 'lucide-react';
 import { Card } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
@@ -30,6 +31,7 @@ const prefixModes: { id: PrefixMode; name: string; desc: string }[] = [
 
 export function SettingsPanel({ settings, onSettingsChange }: SettingsPanelProps) {
   const [isOpen, setIsOpen] = useState(false);
+  const { theme: appTheme, setTheme: setAppTheme } = useTheme();
 
   const updateSetting = <K extends keyof ExportSettings>(
     key: K,
@@ -102,6 +104,23 @@ export function SettingsPanel({ settings, onSettingsChange }: SettingsPanelProps
                 checked={settings.showTimestamp}
                 onCheckedChange={(checked) => updateSetting('showTimestamp', checked)}
               />
+            </div>
+
+            {/* Dark mode toggle */}
+            <div className="flex items-center gap-2">
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => setAppTheme(appTheme === 'dark' ? 'light' : 'dark')}
+                className="h-8 w-8"
+                title={appTheme === 'dark' ? '切换到日间模式' : '切换到夜间模式'}
+              >
+                {appTheme === 'dark' ? (
+                  <Sun className="w-4 h-4" />
+                ) : (
+                  <Moon className="w-4 h-4" />
+                )}
+              </Button>
             </div>
           </div>
 
