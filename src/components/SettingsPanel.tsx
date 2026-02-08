@@ -105,24 +105,22 @@ export function SettingsPanel({ settings, onSettingsChange }: SettingsPanelProps
                 onCheckedChange={(checked) => updateSetting('showTimestamp', checked)}
               />
             </div>
-
-            {/* Dark mode toggle */}
-            <div className="flex items-center gap-2">
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={() => setAppTheme(appTheme === 'dark' ? 'light' : 'dark')}
-                className="h-8 w-8"
-                title={appTheme === 'dark' ? '切换到日间模式' : '切换到夜间模式'}
-              >
-                {appTheme === 'dark' ? (
-                  <Sun className="w-4 h-4" />
-                ) : (
-                  <Moon className="w-4 h-4" />
-                )}
-              </Button>
-            </div>
           </div>
+
+          {/* Dark mode toggle - always visible outside collapsible */}
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => setAppTheme(appTheme === 'dark' ? 'light' : 'dark')}
+            className="h-8 w-8 flex-shrink-0"
+            title={appTheme === 'dark' ? '切换到日间模式' : '切换到夜间模式'}
+          >
+            {appTheme === 'dark' ? (
+              <Sun className="w-4 h-4" />
+            ) : (
+              <Moon className="w-4 h-4" />
+            )}
+          </Button>
 
           <CollapsibleTrigger asChild>
             <Button variant="ghost" size="sm" className="flex-shrink-0">
