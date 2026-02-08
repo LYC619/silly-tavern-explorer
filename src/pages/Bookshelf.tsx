@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Library, Plus, Trash2, Clock, MessageSquare, BookOpen, ArrowLeft, Upload } from 'lucide-react';
+import { Library, Plus, Trash2, Clock, MessageSquare, BookOpen, ArrowLeft, Upload, Edit3, Play } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -11,6 +11,7 @@ import {
   DialogHeader,
   DialogTitle,
   DialogFooter,
+  DialogDescription,
 } from '@/components/ui/dialog';
 import {
   AlertDialog,
@@ -36,6 +37,10 @@ const Bookshelf = () => {
   const [bookToDelete, setBookToDelete] = useState<string | null>(null);
   const [editTitle, setEditTitle] = useState('');
   const [editCover, setEditCover] = useState<string | undefined>();
+  
+  // New: Action selection dialog
+  const [selectedBook, setSelectedBook] = useState<BookItem | null>(null);
+  const [actionDialogOpen, setActionDialogOpen] = useState(false);
 
   useEffect(() => {
     loadBooks();
@@ -56,9 +61,24 @@ const Bookshelf = () => {
     }
   };
 
-  const handleOpenBook = (book: BookItem) => {
-    // Navigate to main page with book data
-    navigate('/', { state: { book } });
+  // Click on book card opens action selection
+  const handleBookClick = (book: BookItem) => {
+    setSelectedBook(book);
+    setActionDialogOpen(true);
+  };
+
+  // Edit mode: go to main page with book data
+  const handleEditMode = () => {
+    if (!selectedBook) return;
+    setActionDialogOpen(false);
+    navigate('/', { state: { book: selectedBook } });
+  };
+
+  // Read mode: go to reader page
+  const handleReadMode = () => {
+    if (!selectedBook) return;
+    setActionDialogOpen(false);
+    navigate(`/reader/${selectedBook.id}`);
   };
 
   const handleEditBook = (book: BookItem, e: React.MouseEvent) => {
@@ -178,7 +198,7 @@ const Bookshelf = () => {
               <Card
                 key={book.id}
                 className="group cursor-pointer hover:shadow-warm transition-all duration-300 overflow-hidden"
-                onClick={() => handleOpenBook(book)}
+                onClick={() => handleBookClick(book)}
               >
                 {/* Cover */}
                 <div className="aspect-[3/4] bg-gradient-to-br from-primary/20 to-accent/20 relative overflow-hidden">
@@ -309,6 +329,36 @@ const Bookshelf = () => {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Action Selection Dialog */}
+      <Dialog open={actionDialogOpen} onOpenChange={setActionDialogOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="text-center">{selectedBook?.title}</DialogTitle>
+            <DialogDescription className="text-center">
+              选择你想要进行的操作
+            </DialogDescription>
+          </DialogHeader>
+          <div className="grid grid-cols-2 gap-4 py-6">
+            <Button
+              variant="outline"
+              className="h-24 flex flex-col gap-2 hover:border-primary hover:bg-primary/5"
+              onClick={handleReadMode}
+            >
+              <Play className="w-8 h-8 text-primary" />
+              <span className="font-medium">沉浸阅读</span>
+            </Button>
+            <Button
+              variant="outline"
+              className="h-24 flex flex-col gap-2 hover:border-primary hover:bg-primary/5"
+              onClick={handleEditMode}
+            >
+              <Edit3 className="w-8 h-8 text-primary" />
+              <span className="font-medium">编辑处理</span>
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
 
       {/* Footer */}
       <footer className="border-t border-border py-6 text-center text-sm text-muted-foreground flex-shrink-0">
