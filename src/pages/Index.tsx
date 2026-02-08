@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useLocation } from 'react-router-dom';
-import { ScrollText, Settings } from 'lucide-react';
+import { ScrollText, Settings, Regex } from 'lucide-react';
+import { Button } from '@/components/ui/button';
 import { ChatImporter } from '@/components/ChatImporter';
 import { ChatPreview } from '@/components/ChatPreview';
 import { SettingsPanel } from '@/components/SettingsPanel';
@@ -8,9 +9,15 @@ import { EditorToolbar } from '@/components/EditorToolbar';
 import { BatchMarkerImport } from '@/components/BatchMarkerImport';
 import { ChapterMarkerDialog } from '@/components/ChapterMarkerDialog';
 import { MessageEditDialog } from '@/components/MessageEditDialog';
+import { RegexSidebar } from '@/components/RegexSidebar';
 import type { ChatSession, ExportSettings, ChapterMarker, ChatMessage } from '@/types/chat';
-import { DEFAULT_REGEX_RULES } from '@/types/chat';
 import { saveBook, generateBookId, type BookItem } from '@/lib/bookshelf-db';
+import { 
+  saveSessionState, 
+  loadSessionState, 
+  clearSessionState,
+  getInitialRegexRules,
+} from '@/lib/session-storage';
 import { useToast } from '@/hooks/use-toast';
 
 const defaultSettings: ExportSettings = {
@@ -20,7 +27,7 @@ const defaultSettings: ExportSettings = {
   paperWidth: 600,
   fontSize: 15,
   prefixMode: 'name',
-  regexRules: [...DEFAULT_REGEX_RULES],
+  regexRules: getInitialRegexRules(),
 };
 
 const Index = () => {
@@ -38,8 +45,9 @@ const Index = () => {
   const [selectedFloor, setSelectedFloor] = useState<number | null>(null);
   const [activeChapterIndex, setActiveChapterIndex] = useState<number | null>(null);
   const [currentBookId, setCurrentBookId] = useState<string | null>(null);
+  const [regexSidebarOpen, setRegexSidebarOpen] = useState(false);
 
-  // Load book from navigation state (from bookshelf)
+  // Load book from navigation state (from bookshelf) or session storage
   useEffect(() => {
     const state = location.state as { book?: BookItem } | null;
     if (state?.book) {
@@ -51,8 +59,23 @@ const Index = () => {
       }
       // Clear the state to prevent reloading on refresh
       window.history.replaceState({}, document.title);
+    } else {
+      // 从 sessionStorage 恢复状态（子页面返回时）
+      const savedState = loadSessionState();
+      if (savedState?.session) {
+        setSession(savedState.session);
+        setMarkers(savedState.markers);
+        setCurrentBookId(savedState.currentBookId);
+      }
     }
   }, [location.state]);
+
+  // 保存状态到 sessionStorage（用于子页面返回时恢复）
+  useEffect(() => {
+    if (session) {
+      saveSessionState({ session, markers, currentBookId });
+    }
+  }, [session, markers, currentBookId]);
 
   const handleReset = () => {
     setSession(null);
@@ -61,6 +84,8 @@ const Index = () => {
     setContentEditMode(false);
     setBatchImportOpen(false);
     setCurrentBookId(null);
+    setRegexSidebarOpen(false);
+    clearSessionState();
   };
 
   const handleSaveToBookshelf = async () => {
@@ -255,18 +280,32 @@ const Index = () => {
             </div>
           </div>
         ) : (
-          <div className="flex flex-col">
+          <div className="flex flex-col h-full">
             {/* Settings Panel (horizontal) */}
             <div className="mb-4 flex-shrink-0">
-              <div className="flex items-center gap-2 mb-3 text-muted-foreground">
-                <Settings className="w-4 h-4" />
-                <span className="font-display text-sm uppercase tracking-wider">设置</span>
+              <div className="flex items-center justify-between mb-3">
+                <div className="flex items-center gap-2 text-muted-foreground">
+                  <Settings className="w-4 h-4" />
+                  <span className="font-display text-sm uppercase tracking-wider">设置</span>
+                </div>
+                <Button
+                  variant={regexSidebarOpen ? 'secondary' : 'outline'}
+                  size="sm"
+                  onClick={() => setRegexSidebarOpen(!regexSidebarOpen)}
+                  className="gap-2"
+                >
+                  <Regex className="w-4 h-4" />
+                  正则规则
+                  <span className="text-xs text-muted-foreground">
+                    ({settings.regexRules.filter(r => !r.disabled).length})
+                  </span>
+                </Button>
               </div>
               <SettingsPanel settings={settings} onSettingsChange={setSettings} />
             </div>
 
-            {/* Preview + Batch Import Row */}
-            <div className="flex gap-4 items-start">
+            {/* Preview + Sidebars Row */}
+            <div className="flex gap-4 items-start flex-1 min-h-0">
               {/* Preview Area */}
               <div className="flex-1 min-w-0">
                 <div className="mb-3 flex items-center justify-between">
@@ -290,7 +329,7 @@ const Index = () => {
                 <div className="rounded-lg border border-border bg-card/50">
                   <div className="flex justify-center py-6 px-4">
                     <div 
-                      style={{ width: Math.min(settings.paperWidth, batchImportOpen ? 520 : settings.paperWidth) }}
+                      style={{ width: Math.min(settings.paperWidth, (batchImportOpen || regexSidebarOpen) ? 520 : settings.paperWidth) }}
                       className="shadow-warm rounded-lg overflow-hidden animate-fade-in"
                     >
                       <ChatPreview
@@ -321,6 +360,14 @@ const Index = () => {
                   onSetActiveChapter={setActiveChapterIndex}
                 />
               )}
+
+              {/* Regex Sidebar */}
+              <RegexSidebar
+                rules={settings.regexRules}
+                onRulesChange={(rules) => setSettings({ ...settings, regexRules: rules })}
+                isOpen={regexSidebarOpen}
+                onClose={() => setRegexSidebarOpen(false)}
+              />
             </div>
           </div>
         )}

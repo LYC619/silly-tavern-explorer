@@ -7,7 +7,6 @@ import { Slider } from '@/components/ui/slider';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { Button } from '@/components/ui/button';
-import { RegexManager } from '@/components/RegexManager';
 import type { ThemeStyle, ExportSettings, PrefixMode } from '@/types/chat';
 
 interface SettingsPanelProps {
@@ -169,12 +168,6 @@ export function SettingsPanel({ settings, onSettingsChange }: SettingsPanelProps
               </SelectContent>
             </Select>
           </div>
-
-          {/* Regex Manager */}
-          <RegexManager
-            rules={settings.regexRules}
-            onRulesChange={(rules) => updateSetting('regexRules', rules)}
-          />
         </CollapsibleContent>
       </Card>
     </Collapsible>
