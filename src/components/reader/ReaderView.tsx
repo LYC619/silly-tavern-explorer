@@ -235,29 +235,29 @@ const ReaderView = ({
       </div>
 
       {/* Main content */}
-      <div className="absolute inset-0 flex items-center justify-center overflow-hidden">
+      <div className="absolute inset-0 flex items-center justify-center overflow-hidden safe-area-inset">
         <div 
           className={cn(
-            "w-full h-full max-w-3xl px-6 py-20 md:px-12 overflow-y-auto transition-transform duration-200 ease-out",
+            "w-full h-full max-w-3xl px-4 sm:px-6 md:px-12 py-16 sm:py-20 overflow-y-auto transition-transform duration-200 ease-out",
             slideDirection === 'left' && "translate-x-[-100%]",
             slideDirection === 'right' && "translate-x-[100%]"
           )}
         >
           {/* Chapter title */}
           {currentContent?.chapterTitle && (
-            <div className="text-center mb-8">
-              <h2 className="font-display text-xl md:text-2xl text-primary/80 dark:text-primary-foreground/80 font-semibold">
+            <div className="text-center mb-6 sm:mb-8">
+              <h2 className="font-display text-lg sm:text-xl md:text-2xl text-primary/80 dark:text-primary-foreground/80 font-semibold">
                 {currentContent.chapterTitle}
               </h2>
-              <div className="w-20 h-0.5 bg-primary/30 mx-auto mt-3" />
+              <div className="w-16 sm:w-20 h-0.5 bg-primary/30 mx-auto mt-2 sm:mt-3" />
             </div>
           )}
 
           {/* Speaker */}
-          <div className="mb-4">
+          <div className="mb-3 sm:mb-4">
             <span 
               className={cn(
-                "inline-block px-3 py-1 rounded-full text-sm font-medium",
+                "inline-block px-2 sm:px-3 py-0.5 sm:py-1 rounded-full text-xs sm:text-sm font-medium",
                 currentContent?.isUser 
                   ? "bg-blue-100 text-blue-800 dark:bg-blue-900/50 dark:text-blue-200"
                   : "bg-rose-100 text-rose-800 dark:bg-rose-900/50 dark:text-rose-200"
@@ -269,7 +269,7 @@ const ReaderView = ({
 
           {/* Message content */}
           <div 
-            className="text-foreground/90 leading-relaxed whitespace-pre-wrap"
+            className="text-foreground/90 leading-relaxed whitespace-pre-wrap pb-8"
             style={{ fontSize: `${fontSize}px`, lineHeight: 1.8 }}
           >
             {currentContent?.content}
@@ -277,32 +277,32 @@ const ReaderView = ({
         </div>
       </div>
 
-      {/* Navigation hints */}
+      {/* Navigation hints - hidden on mobile for cleaner look */}
       <div 
         className={cn(
-          "absolute left-4 top-1/2 -translate-y-1/2 transition-opacity duration-300",
+          "absolute left-2 sm:left-4 top-1/2 -translate-y-1/2 transition-opacity duration-300 hidden sm:block",
           showControls ? "opacity-50" : "opacity-0"
         )}
       >
-        <ChevronLeft className="w-8 h-8 text-muted-foreground" />
+        <ChevronLeft className="w-6 sm:w-8 h-6 sm:h-8 text-muted-foreground" />
       </div>
       <div 
         className={cn(
-          "absolute right-4 top-1/2 -translate-y-1/2 transition-opacity duration-300",
+          "absolute right-2 sm:right-4 top-1/2 -translate-y-1/2 transition-opacity duration-300 hidden sm:block",
           showControls ? "opacity-50" : "opacity-0"
         )}
       >
-        <ChevronRight className="w-8 h-8 text-muted-foreground" />
+        <ChevronRight className="w-6 sm:w-8 h-6 sm:h-8 text-muted-foreground" />
       </div>
 
       {/* Bottom progress */}
       <div 
         className={cn(
-          "absolute bottom-0 left-0 right-0 z-10 bg-gradient-to-t from-black/30 to-transparent transition-opacity duration-300",
+          "absolute bottom-0 left-0 right-0 z-10 bg-gradient-to-t from-black/30 to-transparent transition-opacity duration-300 pb-safe",
           showControls ? "opacity-100" : "opacity-0 pointer-events-none"
         )}
       >
-        <div className="p-4 pt-8">
+        <div className="p-3 sm:p-4 pt-6 sm:pt-8">
           {/* Progress bar */}
           <div className="h-1 bg-white/20 rounded-full overflow-hidden mb-2">
             <div 
@@ -310,8 +310,9 @@ const ReaderView = ({
               style={{ width: `${progress}%` }}
             />
           </div>
-          <div className="text-center text-white/60 text-xs">
-            点击屏幕左右两侧翻页，中间区域显示/隐藏控制栏
+          <div className="text-center text-white/60 text-[10px] sm:text-xs">
+            <span className="hidden sm:inline">点击屏幕左右两侧翻页，中间区域显示/隐藏控制栏</span>
+            <span className="sm:hidden">左右滑动或点击翻页</span>
           </div>
         </div>
       </div>
