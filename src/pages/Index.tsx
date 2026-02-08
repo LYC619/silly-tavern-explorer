@@ -17,24 +17,36 @@ import {
   loadSessionState, 
   clearSessionState,
   getInitialRegexRules,
+  saveSettings,
+  loadSettings,
 } from '@/lib/session-storage';
 import { useToast } from '@/hooks/use-toast';
 
-const defaultSettings: ExportSettings = {
-  theme: 'elegant',
-  showTimestamp: false,
-  showAvatar: true,
-  paperWidth: 600,
-  fontSize: 15,
-  prefixMode: 'name',
-  regexRules: getInitialRegexRules(),
+const getDefaultSettings = (): ExportSettings => {
+  const saved = loadSettings();
+  if (saved) {
+    // 确保正则规则是最新的（合并已保存的自定义规则）
+    return {
+      ...saved,
+      regexRules: getInitialRegexRules(),
+    };
+  }
+  return {
+    theme: 'elegant',
+    showTimestamp: false,
+    showAvatar: true,
+    paperWidth: 600,
+    fontSize: 15,
+    prefixMode: 'name',
+    regexRules: getInitialRegexRules(),
+  };
 };
 
 const Index = () => {
   const location = useLocation();
   const { toast } = useToast();
   const [session, setSession] = useState<ChatSession | null>(null);
-  const [settings, setSettings] = useState<ExportSettings>(defaultSettings);
+  const [settings, setSettings] = useState<ExportSettings>(getDefaultSettings);
   const [markers, setMarkers] = useState<ChapterMarker[]>([]);
   const [editMode, setEditMode] = useState(false);
   const [contentEditMode, setContentEditMode] = useState(false);
@@ -73,9 +85,14 @@ const Index = () => {
   // 保存状态到 sessionStorage（用于子页面返回时恢复）
   useEffect(() => {
     if (session) {
-      saveSessionState({ session, markers, currentBookId });
+      saveSessionState({ session, markers, currentBookId, settings });
     }
-  }, [session, markers, currentBookId]);
+  }, [session, markers, currentBookId, settings]);
+
+  // 保存设置变更到 localStorage（持久化）
+  useEffect(() => {
+    saveSettings(settings);
+  }, [settings]);
 
   const handleReset = () => {
     setSession(null);
