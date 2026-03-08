@@ -286,6 +286,7 @@ const Index = () => {
                   size="sm"
                   onClick={() => setRegexSidebarOpen(!regexSidebarOpen)}
                   className="gap-2"
+                  data-tour="regex-toggle"
                 >
                   <Regex className="w-4 h-4" />
                   正则规则
