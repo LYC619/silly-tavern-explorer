@@ -279,8 +279,12 @@ const Bookshelf = () => {
                       className="w-full h-full object-cover"
                     />
                   ) : (
-                    <div className={`w-full h-full bg-gradient-to-br ${COVER_GRADIENTS[hashTitle(book.title) % COVER_GRADIENTS.length]} flex items-center justify-center p-4`}>
-                      <p className="text-primary-foreground font-display font-semibold text-center text-sm leading-snug line-clamp-2 drop-shadow-sm">
+                    <div className={`w-full h-full bg-gradient-to-br ${COVER_GRADIENTS[hashTitle(book.title) % COVER_GRADIENTS.length]} relative flex items-end`}>
+                      <div className="absolute inset-x-0 bottom-0 h-1/2 bg-gradient-to-t from-black/30 to-transparent" />
+                      <p
+                        className={`relative z-10 w-full text-white font-display font-bold text-center px-3 pb-4 leading-snug line-clamp-2 ${book.title.length > 12 ? 'text-base' : book.title.length > 6 ? 'text-lg' : 'text-xl'}`}
+                        style={{ textShadow: '0 2px 4px rgba(0,0,0,0.3)' }}
+                      >
                         {book.title}
                       </p>
                     </div>

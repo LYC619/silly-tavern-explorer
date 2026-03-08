@@ -3,6 +3,13 @@ import { ChevronLeft, ChevronRight, X, Settings, BookOpen } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Slider } from '@/components/ui/slider';
 import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import {
   Popover,
   PopoverContent,
   PopoverTrigger,
@@ -10,6 +17,16 @@ import {
 import { cn } from '@/lib/utils';
 import type { ChatMessage, ChapterMarker, RegexRule } from '@/types/chat';
 import { applyRegexRules } from '@/lib/regex-processor';
+
+const FONT_OPTIONS = [
+  { value: 'sans-serif', label: '系统默认' },
+  { value: '"Noto Serif SC", "Source Han Serif SC", serif', label: '宋体' },
+  { value: '"LXGW WenKai", "KaiTi", cursive', label: '楷体' },
+  { value: '"Noto Sans SC", "Source Han Sans SC", sans-serif', label: '黑体' },
+  { value: '"JetBrains Mono", "Fira Code", monospace', label: '等宽' },
+] as const;
+
+const FONT_STORAGE_KEY = 'reader-font-family';
 
 interface ReaderViewProps {
   messages: ChatMessage[];
