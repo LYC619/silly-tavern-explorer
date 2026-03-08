@@ -119,6 +119,29 @@ export default function WorldBookPage() {
     setActiveTab('edit');
   }, []);
 
+  const handleAppend = useCallback((wb: WorldBook) => {
+    setWorldbook(prev => {
+      if (!prev) return wb;
+      const maxKey = Math.max(-1, ...Object.keys(prev.entries).map(Number).filter(n => !isNaN(n)));
+      const maxUid = Object.values(prev.entries).reduce((max, e) => Math.max(max, e.uid), -1);
+      const updated = { ...prev.entries };
+      const newEntries = Object.values(wb.entries);
+      newEntries.forEach((e, i) => {
+        updated[String(maxKey + 1 + i)] = { ...e, uid: maxUid + 1 + i };
+      });
+      return { ...prev, entries: updated };
+    });
+    const newCount = Object.keys(wb.entries).length;
+    setActiveTab('edit');
+    // Toast after state update
+    setTimeout(() => {
+      toast({
+        title: '追加成功',
+        description: `已追加 ${newCount} 个条目`,
+      });
+    }, 0);
+  }, [toast]);
+
   const updateEntry = useCallback((key: string, updated: WorldBookEntry) => {
     setWorldbook(prev => {
       if (!prev) return prev;
