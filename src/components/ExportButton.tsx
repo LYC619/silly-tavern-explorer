@@ -13,6 +13,7 @@ import {
   DialogTrigger,
   DialogDescription,
 } from '@/components/ui/dialog';
+import { HelpCard } from '@/components/HelpCard';
 import { useToast } from '@/hooks/use-toast';
 import { applyRegexRules, convertMessagesToTxt } from '@/lib/regex-processor';
 import type { ChatSession, ExportSettings, ChapterMarker, STRawMessage, STMetadata } from '@/types/chat';
