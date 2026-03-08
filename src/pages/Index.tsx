@@ -10,6 +10,7 @@ import { BatchMarkerImport } from '@/components/BatchMarkerImport';
 import { ChapterMarkerDialog } from '@/components/ChapterMarkerDialog';
 import { MessageEditDialog } from '@/components/MessageEditDialog';
 import { RegexSidebar } from '@/components/RegexSidebar';
+import { OnboardingGuide, useOnboardingVisible } from '@/components/OnboardingGuide';
 import type { ChatSession, ExportSettings, ChapterMarker, ChatMessage } from '@/types/chat';
 import { saveBook, generateBookId, type BookItem } from '@/lib/bookshelf-db';
 import { 
