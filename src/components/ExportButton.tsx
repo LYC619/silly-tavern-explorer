@@ -55,7 +55,7 @@ function getMessagesInRange(
   return messages;
 }
 
-export function ExportButton({ session, settings, markers = [], onSettingsChange }: ExportButtonProps) {
+export function ExportButton({ session, settings, markers = [], onSettingsChange }: ExportButtonProps & { 'data-tour'?: string }) {
   const { toast } = useToast();
   const [open, setOpen] = useState(false);
 

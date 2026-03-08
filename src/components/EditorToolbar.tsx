@@ -38,7 +38,7 @@ export function EditorToolbar({
   return (
     <div className="flex items-center gap-2">
       {/* Global Settings */}
-      <GlobalSettings />
+      <GlobalSettings data-tour="global-settings" />
 
       {/* Dark mode toggle */}
       <Button
