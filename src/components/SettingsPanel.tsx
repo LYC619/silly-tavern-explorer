@@ -177,6 +177,25 @@ export function SettingsPanel({ settings, onSettingsChange }: SettingsPanelProps
             </Select>
           </div>
 
+          {/* Font Family */}
+          <div className="space-y-2">
+            <Label className="text-base font-display">预览字体</Label>
+            <Select
+              value={settings.fontFamily || 'sans-serif'}
+              onValueChange={(value) => updateSetting('fontFamily', value)}
+            >
+              <SelectTrigger className="w-64">
+                <SelectValue placeholder="选择字体" />
+              </SelectTrigger>
+              <SelectContent>
+                {FONT_OPTIONS.map((f) => (
+                  <SelectItem key={f.value} value={f.value}>
+                    <span style={{ fontFamily: f.value }}>{f.label}</span>
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
           {/* Reset Onboarding */}
           <div className="pt-2 border-t border-border">
             <Button
