@@ -160,7 +160,7 @@ export function parseWorldBook(json: Record<string, unknown>): WorldBook {
   } else if (rawEntries && typeof rawEntries === 'object') {
     Object.entries(rawEntries as Record<string, unknown>).forEach(([key, entry]) => {
       const raw = entry as Record<string, unknown>;
-      const uid = (raw.uid as number) ?? parseInt(key) || 0;
+      const uid = (raw.uid as number) ?? (parseInt(key) || 0);
       entries[key] = normalizeEntry(raw, uid);
     });
   }
