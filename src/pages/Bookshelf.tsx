@@ -176,7 +176,6 @@ const Bookshelf = () => {
           </div>
 
           <div className="flex items-center gap-2">
-            <StorageManager onDataChanged={loadBooks} />
             <Button onClick={() => navigate('/')}>
               <Plus className="w-4 h-4 mr-2" />
               导入新作品
