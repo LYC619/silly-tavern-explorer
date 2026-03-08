@@ -6,7 +6,7 @@ interface DemoDataProps {
   onLoad: (session: ChatSession) => void;
 }
 
-const demoSession: ChatSession = {
+export const demoSession: ChatSession = {
   id: 'demo-1',
   title: '月下花园的邂逅',
   messages: [

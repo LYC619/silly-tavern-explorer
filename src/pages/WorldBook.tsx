@@ -2,6 +2,8 @@ import { useState, useCallback, useMemo, useEffect } from 'react';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { useNavigate } from 'react-router-dom';
 import { Globe, LayoutGrid, List, Library, Moon, Sun, Plus, Trash2, Save, Search, X, CheckSquare, Clock, FolderOpen, Archive } from 'lucide-react';
+import { GuidedTour } from '@/components/GuidedTour';
+import { WORLDBOOK_TOUR_STEPS, isTourCompleted, setTourCompleted } from '@/lib/tour-steps';
 import { PrefixCategorize } from '@/components/worldbook/PrefixCategorize';
 import { BatchOperations } from '@/components/worldbook/BatchOperations';
 import { useTheme } from 'next-themes';
@@ -57,6 +59,7 @@ export default function WorldBookPage() {
   const [filterDisabled, setFilterDisabled] = useState(false);
   const [filterPosition, setFilterPosition] = useState<string>('all');
   const [sortMode, setSortMode] = useState<SortMode>('order-asc');
+  const [showTour, setShowTour] = useState(false);
 
   const allEntries = worldbook ? Object.entries(worldbook.entries) : [];
   const selectedEntry = selectedUid && worldbook ? worldbook.entries[selectedUid] : null;
@@ -89,6 +92,9 @@ export default function WorldBookPage() {
         setCurrentItemId(latest.id);
       }
     }).catch(() => {});
+    if (!isTourCompleted('worldbook')) {
+      setTimeout(() => setShowTour(true), 500);
+    }
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
   const filteredEntries = useMemo(() => {
     let result = allEntries;
@@ -454,11 +460,13 @@ export default function WorldBookPage() {
 
           <div className="flex-1" />
 
-          <WorldBookImporter onImport={handleImport} onAppend={handleAppend} hasExisting={!!worldbook} />
+          <div data-tour="wb-import">
+            <WorldBookImporter onImport={handleImport} onAppend={handleAppend} hasExisting={!!worldbook} />
+          </div>
 
           <Dialog open={stagedDialogOpen} onOpenChange={setStagedDialogOpen}>
             <DialogTrigger asChild>
-              <Button variant="outline" size="sm" onClick={() => {
+              <Button variant="outline" size="sm" data-tour="wb-staged" onClick={() => {
                 getAllWorldBooks().then(items => setSavedItems(items));
               }}>
                 <Archive className="w-4 h-4 mr-1" /> <span className="hidden sm:inline">已暂存</span>
@@ -529,9 +537,9 @@ export default function WorldBookPage() {
                 <Save className="w-4 h-4 mr-1" /> 暂存
               </Button>
               <WorldBookExporter worldbook={worldbook} filename={filename} />
-              <PrefixCategorize entries={worldbook.entries} onApply={handlePrefixCategorize} />
+              <div data-tour="wb-prefix"><PrefixCategorize entries={worldbook.entries} onApply={handlePrefixCategorize} /></div>
               <Button variant={batchMode ? 'default' : 'outline'} size="sm" className="hidden sm:inline-flex"
-                onClick={() => batchMode ? exitBatchMode() : setBatchMode(true)}>
+                onClick={() => batchMode ? exitBatchMode() : setBatchMode(true)} data-tour="wb-batch">
                 <CheckSquare className="w-4 h-4 mr-1" /> 批量
               </Button>
               <Button variant={batchMode ? 'default' : 'outline'} size="icon" className="h-8 w-8 sm:hidden"
@@ -540,14 +548,16 @@ export default function WorldBookPage() {
               </Button>
               <div className="w-px h-6 bg-border mx-1 hidden sm:block" />
 
-              <Button variant={viewMode === 'card' ? 'default' : 'ghost'} size="icon" className="h-8 w-8 hidden sm:inline-flex"
-                onClick={() => setViewMode('card')}>
-                <LayoutGrid className="w-4 h-4" />
-              </Button>
-              <Button variant={viewMode === 'list' ? 'default' : 'ghost'} size="icon" className="h-8 w-8 hidden sm:inline-flex"
-                onClick={() => setViewMode('list')}>
-                <List className="w-4 h-4" />
-              </Button>
+              <div data-tour="wb-view-toggle" className="hidden sm:flex items-center gap-0">
+                <Button variant={viewMode === 'card' ? 'default' : 'ghost'} size="icon" className="h-8 w-8"
+                  onClick={() => setViewMode('card')}>
+                  <LayoutGrid className="w-4 h-4" />
+                </Button>
+                <Button variant={viewMode === 'list' ? 'default' : 'ghost'} size="icon" className="h-8 w-8"
+                  onClick={() => setViewMode('list')}>
+                  <List className="w-4 h-4" />
+                </Button>
+              </div>
             </>
           )}
         </div>
@@ -818,6 +828,15 @@ export default function WorldBookPage() {
             </>
           )}
         </div>
+      )}
+      {/* Guided Tour */}
+      {showTour && (
+        <GuidedTour
+          steps={WORLDBOOK_TOUR_STEPS}
+          module="worldbook"
+          onComplete={() => { setTourCompleted('worldbook'); setShowTour(false); }}
+          onSkip={() => { setTourCompleted('worldbook'); setShowTour(false); }}
+        />
       )}
     </div>
   );

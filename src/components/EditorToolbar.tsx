@@ -38,7 +38,7 @@ export function EditorToolbar({
   return (
     <div className="flex items-center gap-2">
       {/* Global Settings */}
-      <GlobalSettings />
+      <GlobalSettings data-tour="global-settings" />
 
       {/* Dark mode toggle */}
       <Button
@@ -87,6 +87,7 @@ export function EditorToolbar({
             size="sm" 
             onClick={onToggleContentEdit}
             className={contentEditMode ? 'gold-gradient text-primary-foreground' : ''}
+            data-tour="content-edit-btn"
           >
             <Pencil className="w-4 h-4 mr-2" />
             {contentEditMode ? '退出编辑' : '编辑内容'}
@@ -96,6 +97,7 @@ export function EditorToolbar({
             size="sm" 
             onClick={onToggleEditMode}
             className={editMode ? 'gold-gradient text-primary-foreground' : ''}
+            data-tour="chapter-mark-btn"
           >
             <BookmarkPlus className="w-4 h-4 mr-2" />
             {editMode ? '退出标记' : '章节标记'}

@@ -27,6 +27,8 @@ import {
 import { useToast } from '@/hooks/use-toast';
 import { GlobalSettings } from '@/components/GlobalSettings';
 import { getAllBooks, deleteBook, saveBook, generateBookId, type BookItem } from '@/lib/bookshelf-db';
+import { GuidedTour } from '@/components/GuidedTour';
+import { BOOKSHELF_TOUR_STEPS, isTourCompleted, setTourCompleted } from '@/lib/tour-steps';
 
 const Bookshelf = () => {
   const navigate = useNavigate();
@@ -43,9 +45,13 @@ const Bookshelf = () => {
   // New: Action selection dialog
   const [selectedBook, setSelectedBook] = useState<BookItem | null>(null);
   const [actionDialogOpen, setActionDialogOpen] = useState(false);
+  const [showTour, setShowTour] = useState(false);
 
   useEffect(() => {
     loadBooks();
+    if (!isTourCompleted('bookshelf')) {
+      setTimeout(() => setShowTour(true), 500);
+    }
   }, []);
 
   const loadBooks = async () => {
@@ -177,7 +183,7 @@ const Bookshelf = () => {
           </div>
 
           <div className="flex items-center gap-2">
-            <GlobalSettings />
+            <GlobalSettings data-tour="global-settings" />
             <Button onClick={() => navigate('/')}>
               <Plus className="w-4 h-4 mr-2" />
               导入新作品
@@ -203,7 +209,7 @@ const Bookshelf = () => {
             </Button>
           </div>
         ) : (
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4" data-tour="bookshelf-cards">
             {books.map((book) => (
               <Card
                 key={book.id}
@@ -354,6 +360,7 @@ const Bookshelf = () => {
               variant="outline"
               className="h-24 flex flex-col gap-2 hover:border-primary hover:bg-primary/5"
               onClick={handleReadMode}
+              data-tour="bookshelf-read-btn"
             >
               <Play className="w-8 h-8 text-primary" />
               <span className="font-medium">沉浸阅读</span>
@@ -370,9 +377,19 @@ const Bookshelf = () => {
         </DialogContent>
       </Dialog>
 
+      {/* Guided Tour */}
+      {showTour && (
+        <GuidedTour
+          steps={BOOKSHELF_TOUR_STEPS}
+          module="bookshelf"
+          onComplete={() => { setTourCompleted('bookshelf'); setShowTour(false); }}
+          onSkip={() => { setTourCompleted('bookshelf'); setShowTour(false); }}
+        />
+      )}
+
       {/* Footer */}
       <footer className="border-t border-border py-6 text-center text-sm text-muted-foreground flex-shrink-0">
-        <p>ST 聊天记录处理器 v0.8</p>
+        <p>ST 聊天记录处理器 v0.9</p>
         <p className="mt-1">
           <a href="https://github.com/LYC619/silly-tavern-explorer" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">GitHub</a>
           {' · MIT License'}

@@ -260,7 +260,7 @@ export function RegexSidebar({ rules, onRulesChange, isOpen, onClose }: RegexSid
       </ScrollArea>
 
       {/* Footer Actions */}
-      <div className="p-4 border-t border-border space-y-2">
+      <div className="p-4 border-t border-border space-y-2" data-tour="regex-quickadd">
         <div className="flex items-center gap-2">
           <RegexQuickAdd onAddRule={handleAddRule} />
           <Button

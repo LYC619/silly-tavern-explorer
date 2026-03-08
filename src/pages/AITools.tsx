@@ -1,6 +1,8 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Sparkles, ArrowLeft, AlertCircle } from 'lucide-react';
+import { GuidedTour } from '@/components/GuidedTour';
+import { AITOOLS_TOUR_STEPS, isTourCompleted, setTourCompleted } from '@/lib/tour-steps';
 import { Button } from '@/components/ui/button';
 import { HelpCard } from '@/components/HelpCard';
 import {
@@ -35,6 +37,7 @@ const AITools = () => {
   const [session, setSession] = useState<ChatSession | null>(null);
   const [selectedIndices, setSelectedIndices] = useState<Set<number>>(new Set());
   const [activeTab, setActiveTab] = useState('summarize');
+  const [showTour, setShowTour] = useState(false);
 
   useEffect(() => {
     setConfig(loadAPIConfig());
@@ -42,6 +45,9 @@ const AITools = () => {
     if (state?.session) {
       setSession(state.session);
       setSelectedIndices(new Set(state.session.messages.map((_, i) => i)));
+    }
+    if (!isTourCompleted('aitools')) {
+      setTimeout(() => setShowTour(true), 500);
     }
   }, []);
 
@@ -94,7 +100,9 @@ const AITools = () => {
 
       <main className="container mx-auto px-4 py-6 flex-1">
         <div className="max-w-3xl mx-auto space-y-6">
-          <APIConfigCard savedConfig={config} onConfigSave={handleConfigSave} onConfigClear={handleConfigClear} />
+          <div data-tour="ai-config">
+            <APIConfigCard savedConfig={config} onConfigSave={handleConfigSave} onConfigClear={handleConfigClear} />
+          </div>
 
           {!session ? (
             <div className="p-8 text-center border-2 border-dashed border-border rounded-lg">
@@ -115,33 +123,49 @@ const AITools = () => {
                 <span>· {session.character?.name} & {session.user?.name}</span>
               </div>
 
-              <FloorSelector
-                messages={session.messages}
-                characterName={session.character?.name}
-                userName={session.user?.name}
-                selectedIndices={selectedIndices}
-                onSelectionChange={setSelectedIndices}
-              />
+              <div data-tour="ai-floor-selector">
+                <FloorSelector
+                  messages={session.messages}
+                  characterName={session.character?.name}
+                  userName={session.user?.name}
+                  selectedIndices={selectedIndices}
+                  onSelectionChange={setSelectedIndices}
+                />
+              </div>
 
-              <BatchProcessor
-                config={config}
-                selectedContent={selectedContent}
-                selectedCount={selectedIndices.size}
-                systemPrompt={batchSystemPrompt}
-              />
+              <div data-tour="ai-batch">
+                <BatchProcessor
+                  config={config}
+                  selectedContent={selectedContent}
+                  selectedCount={selectedIndices.size}
+                  systemPrompt={batchSystemPrompt}
+                />
+              </div>
 
-              <PromptTemplates
-                config={config}
-                selectedContent={selectedContent}
-                selectedCount={selectedIndices.size}
-              />
+              <div data-tour="ai-templates">
+                <PromptTemplates
+                  config={config}
+                  selectedContent={selectedContent}
+                  selectedCount={selectedIndices.size}
+                />
+              </div>
             </>
           )}
         </div>
       </main>
 
+      {/* Guided Tour */}
+      {showTour && (
+        <GuidedTour
+          steps={AITOOLS_TOUR_STEPS}
+          module="aitools"
+          onComplete={() => { setTourCompleted('aitools'); setShowTour(false); }}
+          onSkip={() => { setTourCompleted('aitools'); setShowTour(false); }}
+        />
+      )}
+
       <footer className="border-t border-border py-6 text-center text-sm text-muted-foreground flex-shrink-0">
-        <p>ST 聊天记录处理器 v0.8</p>
+        <p>ST 聊天记录处理器 v0.9</p>
         <p className="mt-1">
           <a href="https://github.com/LYC619/silly-tavern-explorer" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">GitHub</a>
           {' · MIT License'}

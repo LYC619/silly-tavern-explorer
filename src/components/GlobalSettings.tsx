@@ -24,9 +24,9 @@ import {
 } from '@/lib/storage-utils';
 import { getAllBooks } from '@/lib/bookshelf-db';
 import { getAllWorldBooks } from '@/lib/worldbook-db';
+import { resetAllTours } from '@/lib/tour-steps';
 
-const APP_VERSION = 'v0.8';
-const ONBOARDING_KEY = 'st-explorer-onboarding-dismissed';
+const APP_VERSION = 'v0.9';
 
 interface StorageDetail {
   label: string;
@@ -37,9 +37,10 @@ interface StorageDetail {
 
 interface GlobalSettingsProps {
   onDataChanged?: () => void;
+  'data-tour'?: string;
 }
 
-export function GlobalSettings({ onDataChanged }: GlobalSettingsProps) {
+export function GlobalSettings({ onDataChanged, ...props }: GlobalSettingsProps) {
   const { toast } = useToast();
   const [open, setOpen] = useState(false);
   const [clearDialogOpen, setClearDialogOpen] = useState(false);
@@ -157,15 +158,16 @@ export function GlobalSettings({ onDataChanged }: GlobalSettingsProps) {
   };
 
   const handleResetOnboarding = () => {
-    localStorage.removeItem(ONBOARDING_KEY);
-    toast({ title: '已重置', description: '下次访问主页时将显示新手引导' });
+    resetAllTours();
+    localStorage.removeItem('st-explorer-onboarding-dismissed');
+    toast({ title: '已重置', description: '下次访问各页面时将重新显示引导' });
   };
 
   return (
     <>
       <Sheet open={open} onOpenChange={setOpen}>
         <SheetTrigger asChild>
-          <Button variant="ghost" size="icon" className="h-8 w-8" title="设置">
+          <Button variant="ghost" size="icon" className="h-8 w-8" title="设置" data-tour={props['data-tour'] || 'global-settings'}>
             <Settings className="w-4 h-4" />
           </Button>
         </SheetTrigger>

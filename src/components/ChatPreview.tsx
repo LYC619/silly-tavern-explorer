@@ -166,6 +166,7 @@ export const ChatPreview = forwardRef<HTMLDivElement, ChatPreviewProps>(
                       editMode ? 'cursor-pointer hover:bg-primary/5 rounded-lg transition-colors' : ''
                     }`}
                     onClick={() => editMode && onMessageClick?.(message.id, index)}
+                    data-tour-message={index}
                   >
                     {/* Floor number & edit mode indicator */}
                     {editMode && (

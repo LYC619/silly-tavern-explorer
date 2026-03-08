@@ -9,7 +9,9 @@ import { EditorToolbar } from '@/components/EditorToolbar';
 import { ChapterMarkerDialog } from '@/components/ChapterMarkerDialog';
 import { MessageEditDialog } from '@/components/MessageEditDialog';
 import { RegexSidebar } from '@/components/RegexSidebar';
-import { OnboardingGuide, useOnboardingVisible } from '@/components/OnboardingGuide';
+import { GuidedTour } from '@/components/GuidedTour';
+import { HOME_TOUR_STEPS, isTourCompleted, setTourCompleted } from '@/lib/tour-steps';
+import { demoSession } from '@/components/DemoData';
 import type { ChatSession, ExportSettings, ChapterMarker, ChatMessage } from '@/types/chat';
 import { saveBook, generateBookId, type BookItem } from '@/lib/bookshelf-db';
 import { 
@@ -49,7 +51,7 @@ const getDefaultSettings = (): ExportSettings => {
 const Index = () => {
   const location = useLocation();
   const { toast } = useToast();
-  const { visible: showOnboarding, dismiss: dismissOnboarding } = useOnboardingVisible();
+  const [showTour, setShowTour] = useState(false);
   const [session, setSession] = useState<ChatSession | null>(null);
   const [settings, setSettings] = useState<ExportSettings>(getDefaultSettings);
   const [markers, setMarkers] = useState<ChapterMarker[]>([]);
@@ -61,8 +63,19 @@ const Index = () => {
   const [currentBookId, setCurrentBookId] = useState<string | null>(null);
   const [regexSidebarOpen, setRegexSidebarOpen] = useState(false);
 
+  // Auto-start tour for first-time visitors
+  useEffect(() => {
+    if (!isTourCompleted('home')) {
+      // Load demo data and start tour
+      setSession(demoSession);
+      // Delay tour start to let DOM render
+      setTimeout(() => setShowTour(true), 600);
+    }
+  }, []);
+
   // Load book from navigation state (from bookshelf) or session storage
   useEffect(() => {
+    if (showTour) return; // Don't override demo data during tour
     const state = location.state as { book?: BookItem } | null;
     if (state?.book) {
       setSession(state.book.session);
@@ -80,7 +93,7 @@ const Index = () => {
         setCurrentBookId(savedState.currentBookId);
       }
     }
-  }, [location.state]);
+  }, [location.state, showTour]);
 
   // 检测 AI 生成的章节标记
   useEffect(() => {
@@ -249,7 +262,7 @@ const Index = () => {
       <main className="container mx-auto px-4 py-6 flex-1">
         {!session ? (
           <div className="max-w-xl mx-auto animate-fade-in">
-            {showOnboarding && <OnboardingGuide onDismiss={dismissOnboarding} />}
+            {/* Tour replaces old onboarding */}
             <div className="text-center mb-8">
               <h2 className="font-display text-3xl mb-3 text-gradient">处理你的对话记录</h2>
               <p className="text-muted-foreground">
@@ -286,6 +299,7 @@ const Index = () => {
                   size="sm"
                   onClick={() => setRegexSidebarOpen(!regexSidebarOpen)}
                   className="gap-2"
+                  data-tour="regex-toggle"
                 >
                   <Regex className="w-4 h-4" />
                   正则规则
@@ -317,7 +331,7 @@ const Index = () => {
                   )}
                 </div>
 
-                <div className="rounded-lg border border-border bg-card/50">
+                <div className="rounded-lg border border-border bg-card/50" data-tour="chat-preview">
                   <div className="flex justify-center py-6 px-4">
                     <div 
                       style={{ width: Math.min(settings.paperWidth, regexSidebarOpen ? 520 : settings.paperWidth) }}
@@ -375,9 +389,26 @@ const Index = () => {
         />
       )}
 
+      {/* Guided Tour */}
+      {showTour && (
+        <GuidedTour
+          steps={HOME_TOUR_STEPS}
+          module="home"
+          onComplete={() => {
+            setTourCompleted('home');
+            setShowTour(false);
+            toast({ title: '引导完成！', description: '您可以清除示例数据并导入自己的文件。' });
+          }}
+          onSkip={() => {
+            setTourCompleted('home');
+            setShowTour(false);
+          }}
+        />
+      )}
+
       {/* Footer */}
       <footer className="border-t border-border py-6 text-center text-sm text-muted-foreground flex-shrink-0">
-        <p>ST 聊天记录处理器 v0.8</p>
+        <p>ST 聊天记录处理器 v0.9</p>
         <p className="mt-1">
           <a href="https://github.com/LYC619/silly-tavern-explorer" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">GitHub</a>
           {' · MIT License'}
