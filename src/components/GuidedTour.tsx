@@ -264,7 +264,7 @@ export function GuidedTour({ steps, module, onComplete, onSkip }: GuidedTourProp
       {/* Bubble */}
       <div
         ref={bubbleRef}
-        className="absolute bg-card border border-border rounded-xl shadow-2xl p-4 w-80 max-h-[70vh] overflow-y-auto animate-fade-in"
+        className="absolute bg-card border border-border rounded-xl shadow-2xl p-4 w-80 max-h-[70vh] overflow-y-auto animate-fade-in pointer-events-auto"
         style={{ ...bubbleStyle, zIndex: 10001 }}
       >
         <button
