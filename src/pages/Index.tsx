@@ -89,6 +89,32 @@ const Index = () => {
     }
   }, [location.state]);
 
+  // 检测 AI 生成的章节标记
+  useEffect(() => {
+    const aiMarkers = sessionStorage.getItem('ai-chapter-markers');
+    if (aiMarkers) {
+      sessionStorage.removeItem('ai-chapter-markers');
+      try {
+        const parsed = JSON.parse(aiMarkers) as ChapterMarker[];
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          setMarkers(prev => {
+            const merged = [...prev];
+            for (const marker of parsed) {
+              const existing = merged.findIndex(m => m.messageIndex === marker.messageIndex);
+              if (existing >= 0) {
+                merged[existing] = marker;
+              } else {
+                merged.push(marker);
+              }
+            }
+            return merged.sort((a, b) => a.messageIndex - b.messageIndex);
+          });
+          toast({ title: `已导入 ${parsed.length} 个 AI 生成的章节标记` });
+        }
+      } catch { /* ignore */ }
+    }
+  }, []);
+
   // 保存状态到 sessionStorage（用于子页面返回时恢复）
   useEffect(() => {
     if (session) {
