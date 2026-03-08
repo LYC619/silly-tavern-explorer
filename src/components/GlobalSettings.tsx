@@ -158,8 +158,9 @@ export function GlobalSettings({ onDataChanged, ...props }: GlobalSettingsProps)
   };
 
   const handleResetOnboarding = () => {
-    localStorage.removeItem(ONBOARDING_KEY);
-    toast({ title: '已重置', description: '下次访问主页时将显示新手引导' });
+    resetAllTours();
+    localStorage.removeItem('st-explorer-onboarding-dismissed');
+    toast({ title: '已重置', description: '下次访问各页面时将重新显示引导' });
   };
 
   return (
