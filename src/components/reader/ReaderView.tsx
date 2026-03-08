@@ -310,7 +310,7 @@ const ReaderView = ({
           {/* Message content */}
           <div 
             className="text-foreground/90 leading-relaxed whitespace-pre-wrap pb-8"
-            style={{ fontSize: `${fontSize}px`, lineHeight: 1.8 }}
+            style={{ fontSize: `${fontSize}px`, lineHeight: 1.8, fontFamily }}
           >
             {currentContent?.content}
           </div>
