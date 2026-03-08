@@ -157,8 +157,8 @@ export default function WorldBookPage() {
 
   const handleSelectEntry = useCallback((key: string) => {
     setSelectedUid(key);
-    setMobileEditorOpen(true);
-  }, []);
+    if (isMobile) setMobileEditorOpen(true);
+  }, [isMobile]);
 
   const handleSaveLocal = useCallback(async () => {
     if (!worldbook) return;
