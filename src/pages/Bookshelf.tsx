@@ -53,6 +53,7 @@ const Bookshelf = () => {
   const [selectedBook, setSelectedBook] = useState<BookItem | null>(null);
   const [actionDialogOpen, setActionDialogOpen] = useState(false);
   const [showTour, setShowTour] = useState(false);
+  const [sortBy, setSortBy] = useState<'updatedAt' | 'createdAt' | 'title'>('updatedAt');
 
   useEffect(() => {
     loadBooks();
