@@ -407,7 +407,7 @@ export default function WorldBookPage() {
     toast({ title: '已删除暂存' });
   }, [currentItemId, toast]);
 
-
+  const editorContent = selectedEntry && selectedUid ? (
     <>
       <EntryEditor
         entry={selectedEntry}
