@@ -1,8 +1,9 @@
-import { useState, useCallback, useMemo } from 'react';
+import { useState, useCallback, useMemo, useEffect } from 'react';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { useNavigate } from 'react-router-dom';
-import { Globe, LayoutGrid, List, Library, Moon, Sun, Plus, Trash2, Save, Search, X } from 'lucide-react';
+import { Globe, LayoutGrid, List, Library, Moon, Sun, Plus, Trash2, Save, Search, X, CheckSquare } from 'lucide-react';
 import { PrefixCategorize } from '@/components/worldbook/PrefixCategorize';
+import { BatchOperations } from '@/components/worldbook/BatchOperations';
 import { useTheme } from 'next-themes';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -37,7 +38,8 @@ export default function WorldBookPage() {
   const [viewMode, setViewMode] = useState<'card' | 'list'>('card');
   const [mobileEditorOpen, setMobileEditorOpen] = useState(false);
   const [activeTab, setActiveTab] = useState<'edit' | 'quick'>('edit');
-
+  const [batchMode, setBatchMode] = useState(false);
+  const [batchSelected, setBatchSelected] = useState<Set<string>>(new Set());
   // Filter state
   const [searchQuery, setSearchQuery] = useState('');
   const [filterConstant, setFilterConstant] = useState(false);
@@ -230,6 +232,109 @@ export default function WorldBookPage() {
     toast({ title: '归类完成', description: `已更新 ${Object.keys(updates).length} 个条目的标签、前缀和 Order` });
   }, [toast]);
 
+  // Batch mode
+  const exitBatchMode = useCallback(() => {
+    setBatchMode(false);
+    setBatchSelected(new Set());
+  }, []);
+
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && batchMode) exitBatchMode();
+    };
+    window.addEventListener('keydown', handler);
+    return () => window.removeEventListener('keydown', handler);
+  }, [batchMode, exitBatchMode]);
+
+  const toggleBatchItem = useCallback((key: string, checked: boolean) => {
+    setBatchSelected(prev => {
+      const next = new Set(prev);
+      checked ? next.add(key) : next.delete(key);
+      return next;
+    });
+  }, []);
+
+  const handleBatchPrefix = useCallback((prefix: string) => {
+    setWorldbook(prev => {
+      if (!prev) return prev;
+      const updated = { ...prev.entries };
+      batchSelected.forEach(key => {
+        if (updated[key] && !updated[key].comment.startsWith(prefix)) {
+          updated[key] = { ...updated[key], comment: prefix + updated[key].comment };
+        }
+      });
+      return { ...prev, entries: updated };
+    });
+    toast({ title: '前缀已添加', description: `已为 ${batchSelected.size} 个条目添加前缀` });
+  }, [batchSelected, toast]);
+
+  const handleBatchDelete = useCallback(() => {
+    const count = batchSelected.size;
+    setWorldbook(prev => {
+      if (!prev) return prev;
+      const updated = { ...prev.entries };
+      batchSelected.forEach(key => { delete updated[key]; });
+      return { ...prev, entries: updated };
+    });
+    if (selectedUid && batchSelected.has(selectedUid)) {
+      setSelectedUid(null);
+      setMobileEditorOpen(false);
+    }
+    setBatchSelected(new Set());
+    toast({ title: '已删除', description: `已删除 ${count} 个条目` });
+  }, [batchSelected, selectedUid, toast]);
+
+  const handleBatchPosition = useCallback((position: number, depth?: number, role?: number) => {
+    setWorldbook(prev => {
+      if (!prev) return prev;
+      const updated = { ...prev.entries };
+      batchSelected.forEach(key => {
+        if (updated[key]) {
+          updated[key] = {
+            ...updated[key],
+            position,
+            ...(depth !== undefined ? { depth } : {}),
+            ...(role !== undefined ? { role } : {}),
+          };
+        }
+      });
+      return { ...prev, entries: updated };
+    });
+    toast({ title: '位置已修改', description: `已修改 ${batchSelected.size} 个条目的插入位置` });
+  }, [batchSelected, toast]);
+
+  const handleBatchStrategy = useCallback((strategy: 'keyword' | 'constant' | 'vectorized') => {
+    setWorldbook(prev => {
+      if (!prev) return prev;
+      const updated = { ...prev.entries };
+      batchSelected.forEach(key => {
+        if (updated[key]) {
+          updated[key] = {
+            ...updated[key],
+            constant: strategy === 'constant',
+            vectorized: strategy === 'vectorized',
+          };
+        }
+      });
+      return { ...prev, entries: updated };
+    });
+    toast({ title: '策略已修改', description: `已修改 ${batchSelected.size} 个条目的触发策略` });
+  }, [batchSelected, toast]);
+
+  const handleBatchEnable = useCallback((enabled: boolean) => {
+    setWorldbook(prev => {
+      if (!prev) return prev;
+      const updated = { ...prev.entries };
+      batchSelected.forEach(key => {
+        if (updated[key]) {
+          updated[key] = { ...updated[key], enabled };
+        }
+      });
+      return { ...prev, entries: updated };
+    });
+    toast({ title: enabled ? '已启用' : '已停用', description: `已${enabled ? '启用' : '停用'} ${batchSelected.size} 个条目` });
+  }, [batchSelected, toast]);
+
   const editorContent = selectedEntry && selectedUid ? (
     <>
       <EntryEditor
@@ -290,7 +395,14 @@ export default function WorldBookPage() {
               </Button>
               <WorldBookExporter worldbook={worldbook} filename={filename} />
               <PrefixCategorize entries={worldbook.entries} onApply={handlePrefixCategorize} />
-
+              <Button variant={batchMode ? 'default' : 'outline'} size="sm" className="hidden sm:inline-flex"
+                onClick={() => batchMode ? exitBatchMode() : setBatchMode(true)}>
+                <CheckSquare className="w-4 h-4 mr-1" /> 批量
+              </Button>
+              <Button variant={batchMode ? 'default' : 'outline'} size="icon" className="h-8 w-8 sm:hidden"
+                onClick={() => batchMode ? exitBatchMode() : setBatchMode(true)}>
+                <CheckSquare className="w-4 h-4" />
+              </Button>
               <div className="w-px h-6 bg-border mx-1 hidden sm:block" />
 
               <Button variant={viewMode === 'card' ? 'default' : 'ghost'} size="icon" className="h-8 w-8 hidden sm:inline-flex"
@@ -372,47 +484,62 @@ export default function WorldBookPage() {
                       </Select>
                     </div>
 
-                    {/* Filters row */}
-                    <div className="flex flex-wrap gap-1.5 items-center">
-                      <Toggle size="sm" pressed={filterConstant} onPressedChange={setFilterConstant}
-                        className="h-7 text-xs px-2 data-[state=on]:bg-blue-500/20 data-[state=on]:text-blue-700">
-                        🔵 常驻
-                      </Toggle>
-                      <Toggle size="sm" pressed={filterKeyword} onPressedChange={setFilterKeyword}
-                        className="h-7 text-xs px-2 data-[state=on]:bg-green-500/20 data-[state=on]:text-green-700">
-                        🟢 关键词
-                      </Toggle>
-                      <Toggle size="sm" pressed={filterVector} onPressedChange={setFilterVector}
-                        className="h-7 text-xs px-2 data-[state=on]:bg-purple-500/20 data-[state=on]:text-purple-700">
-                        🔗 向量
-                      </Toggle>
-                      <div className="w-px h-5 bg-border" />
-                      <Toggle size="sm" pressed={filterEnabled} onPressedChange={setFilterEnabled}
-                        className="h-7 text-xs px-2">
-                        已启用
-                      </Toggle>
-                      <Toggle size="sm" pressed={filterDisabled} onPressedChange={setFilterDisabled}
-                        className="h-7 text-xs px-2">
-                        已禁用
-                      </Toggle>
-                      <div className="w-px h-5 bg-border" />
-                      <Select value={filterPosition} onValueChange={setFilterPosition}>
-                        <SelectTrigger className="h-7 w-28 text-xs">
-                          <SelectValue placeholder="位置" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="all">全部位置</SelectItem>
-                          {Object.entries(POSITION_LABELS).map(([k, v]) => (
-                            <SelectItem key={k} value={k}>{v}</SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                      {hasFilters && (
-                        <Button variant="ghost" size="sm" className="h-7 text-xs" onClick={clearFilters}>
-                          <X className="w-3 h-3 mr-1" /> 清除
-                        </Button>
-                      )}
-                    </div>
+                    {/* Filters / Batch toolbar */}
+                    {batchMode ? (
+                      <BatchOperations
+                        selectedKeys={batchSelected}
+                        totalFiltered={filteredEntries.length}
+                        onSelectAll={() => setBatchSelected(new Set(filteredEntries.map(([k]) => k)))}
+                        onDeselectAll={() => setBatchSelected(new Set())}
+                        onExitBatch={exitBatchMode}
+                        onBatchPrefix={handleBatchPrefix}
+                        onBatchDelete={handleBatchDelete}
+                        onBatchPosition={handleBatchPosition}
+                        onBatchStrategy={handleBatchStrategy}
+                        onBatchEnable={handleBatchEnable}
+                      />
+                    ) : (
+                      <div className="flex flex-wrap gap-1.5 items-center">
+                        <Toggle size="sm" pressed={filterConstant} onPressedChange={setFilterConstant}
+                          className="h-7 text-xs px-2 data-[state=on]:bg-blue-500/20 data-[state=on]:text-blue-700">
+                          🔵 常驻
+                        </Toggle>
+                        <Toggle size="sm" pressed={filterKeyword} onPressedChange={setFilterKeyword}
+                          className="h-7 text-xs px-2 data-[state=on]:bg-green-500/20 data-[state=on]:text-green-700">
+                          🟢 关键词
+                        </Toggle>
+                        <Toggle size="sm" pressed={filterVector} onPressedChange={setFilterVector}
+                          className="h-7 text-xs px-2 data-[state=on]:bg-purple-500/20 data-[state=on]:text-purple-700">
+                          🔗 向量
+                        </Toggle>
+                        <div className="w-px h-5 bg-border" />
+                        <Toggle size="sm" pressed={filterEnabled} onPressedChange={setFilterEnabled}
+                          className="h-7 text-xs px-2">
+                          已启用
+                        </Toggle>
+                        <Toggle size="sm" pressed={filterDisabled} onPressedChange={setFilterDisabled}
+                          className="h-7 text-xs px-2">
+                          已禁用
+                        </Toggle>
+                        <div className="w-px h-5 bg-border" />
+                        <Select value={filterPosition} onValueChange={setFilterPosition}>
+                          <SelectTrigger className="h-7 w-28 text-xs">
+                            <SelectValue placeholder="位置" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="all">全部位置</SelectItem>
+                            {Object.entries(POSITION_LABELS).map(([k, v]) => (
+                              <SelectItem key={k} value={k}>{v}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        {hasFilters && (
+                          <Button variant="ghost" size="sm" className="h-7 text-xs" onClick={clearFilters}>
+                            <X className="w-3 h-3 mr-1" /> 清除
+                          </Button>
+                        )}
+                      </div>
+                    )}
 
                     {/* Count */}
                     <p className="text-sm text-muted-foreground">
@@ -430,6 +557,9 @@ export default function WorldBookPage() {
                             selected={selectedUid === key}
                             onClick={() => handleSelectEntry(key)}
                             onToggleEnabled={(v) => toggleEnabled(key, v)}
+                            batchMode={batchMode}
+                            batchChecked={batchSelected.has(key)}
+                            onBatchToggle={(v) => toggleBatchItem(key, v)}
                           />
                         ))}
                       </div>
@@ -438,6 +568,7 @@ export default function WorldBookPage() {
                         <table className="w-full text-left">
                           <thead>
                             <tr className="text-xs text-muted-foreground border-b">
+                              {batchMode && <th className="px-2 py-1.5 w-8">选</th>}
                               <th className="px-2 py-1.5">启用</th>
                               <th className="px-2 py-1.5">策略</th>
                               <th className="px-2 py-1.5">标题</th>
@@ -454,6 +585,9 @@ export default function WorldBookPage() {
                                 selected={selectedUid === key}
                                 onClick={() => handleSelectEntry(key)}
                                 onToggleEnabled={(v) => toggleEnabled(key, v)}
+                                batchMode={batchMode}
+                                batchChecked={batchSelected.has(key)}
+                                onBatchToggle={(v) => toggleBatchItem(key, v)}
                               />
                             ))}
                           </tbody>

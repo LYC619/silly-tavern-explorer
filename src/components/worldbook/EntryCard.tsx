@@ -1,4 +1,5 @@
 import { Switch } from '@/components/ui/switch';
+import { Checkbox } from '@/components/ui/checkbox';
 import { Badge } from '@/components/ui/badge';
 import type { WorldBookEntry } from '@/types/worldbook';
 import { POSITION_LABELS } from '@/types/worldbook';
@@ -9,6 +10,9 @@ interface Props {
   selected: boolean;
   onClick: () => void;
   onToggleEnabled: (enabled: boolean) => void;
+  batchMode?: boolean;
+  batchChecked?: boolean;
+  onBatchToggle?: (checked: boolean) => void;
 }
 
 function groupColor(group: string): string {
@@ -25,7 +29,7 @@ function strategyInfo(entry: WorldBookEntry) {
   return { dot: 'bg-green-500', label: '关键词' };
 }
 
-export function EntryCard({ entry, selected, onClick, onToggleEnabled }: Props) {
+export function EntryCard({ entry, selected, onClick, onToggleEnabled, batchMode, batchChecked, onBatchToggle }: Props) {
   const strategy = strategyInfo(entry);
   const posLabel = POSITION_LABELS[entry.position] ?? `位置 ${entry.position}`;
   const contentPreview = entry.content.split('\n').slice(0, 3).join('\n');
@@ -49,6 +53,14 @@ export function EntryCard({ entry, selected, onClick, onToggleEnabled }: Props) 
         {/* Header */}
         <div className="flex items-center justify-between gap-2">
           <div className="flex items-center gap-2 min-w-0 flex-1">
+            {batchMode && (
+              <Checkbox
+                checked={batchChecked}
+                onCheckedChange={(v) => onBatchToggle?.(!!v)}
+                onClick={(e) => e.stopPropagation()}
+                className="shrink-0"
+              />
+            )}
             <span className={cn('w-2.5 h-2.5 rounded-full shrink-0', strategy.dot)} />
             <span className="font-semibold text-sm truncate text-foreground">
               {entry.comment || '(无标题)'}
