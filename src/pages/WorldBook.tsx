@@ -204,16 +204,22 @@ export default function WorldBookPage() {
 
   const handleSaveLocal = useCallback(async () => {
     if (!worldbook) return;
+    const id = currentItemId || generateWorldBookId();
+    const now = Date.now();
     const item: WorldBookItem = {
-      id: generateWorldBookId(),
+      id,
       title: filename,
       worldbook,
-      createdAt: Date.now(),
-      updatedAt: Date.now(),
+      createdAt: currentItemId ? (savedItems.find(s => s.id === id)?.createdAt ?? now) : now,
+      updatedAt: now,
     };
     await saveWorldBook(item);
-    toast({ title: '已保存', description: `世界书「${filename}」已保存到本地` });
-  }, [worldbook, filename, toast]);
+    setCurrentItemId(id);
+    // Refresh saved items list
+    const updated = await getAllWorldBooks();
+    setSavedItems(updated);
+    toast({ title: '已暂存', description: '已暂存到浏览器，刷新页面后可恢复' });
+  }, [worldbook, filename, currentItemId, savedItems, toast]);
 
   const handleQuickAddEntries = useCallback((newEntries: WorldBookEntry[]) => {
     setWorldbook(prev => {
