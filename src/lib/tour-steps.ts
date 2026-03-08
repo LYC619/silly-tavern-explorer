@@ -8,34 +8,23 @@ export const HOME_TOUR_STEPS: TourStep[] = [
   },
   {
     targetSelector: '[data-tour="content-edit-btn"]',
-    content: '点击进入内容编辑模式，可以直接修改任何一条消息文本。',
-    action: 'click',
-  },
-  {
-    targetSelector: '[data-tour="chat-preview"] [data-tour-message]',
-    content: '点击消息即可打开编辑对话框。试试修改这条消息的内容。',
-    action: 'interact',
-    interactDoneSelector: '[role="dialog"]',
+    content: '点击「编辑内容」进入编辑模式后，点击任意消息可打开编辑对话框，修改说话人和内容。',
+    action: 'next',
   },
   {
     targetSelector: '[data-tour="regex-toggle"]',
     content: '正则工具可以批量清理格式（去除 OOC、清理 HTML 标签等）。点击打开侧边栏。',
-    action: 'click',
-  },
-  {
-    targetSelector: '[data-tour="regex-quickadd"]',
-    content: '这里是快速添加区域，提供了常用的正则预设规则。选择后点击添加即可应用到聊天记录中。',
     action: 'next',
   },
   {
     targetSelector: '[data-tour="chapter-mark-btn"]',
-    content: '章节标记可以为长对话划分章节。您也可以用 AI 工具自动生成。',
+    content: '章节标记可以为长对话划分章节。您也可以用 AI 工具自动生成智能分章。',
     action: 'next',
   },
   {
     targetSelector: '[data-tour="export-button"]',
-    content: '最后，导出为 JSONL 或 TXT 文件。点击导出试试。',
-    action: 'click',
+    content: '点击这里导出为 JSONL 或 TXT 文件，支持选择导出范围和清理选项。',
+    action: 'next',
   },
 ];
 
