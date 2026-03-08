@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Copy, Check, BookOpen, GitBranch, FileText, MessageSquare, Loader2, Import, RotateCcw, ChevronDown } from 'lucide-react';
+import { Copy, Check, BookOpen, GitBranch, FileText, MessageSquare, Loader2, Import, RotateCcw, ChevronDown, BookmarkPlus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
@@ -10,6 +10,8 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/component
 import { useToast } from '@/hooks/use-toast';
 import { callOpenAI } from './useOpenAI';
 import type { APIConfig } from './APIConfigCard';
+import type { ChapterMarker } from '@/types/chat';
+import { loadSessionState } from '@/lib/session-storage';
 
 interface PromptTemplatesProps {
   config: APIConfig;
