@@ -22,6 +22,7 @@
       ]
     },
     "skipLibCheck": true,
+    "types": ["vitest/globals"],
     "strict": false,
     "target": "ES2020",
     "useDefineForClassFields": true
