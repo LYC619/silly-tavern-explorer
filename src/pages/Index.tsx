@@ -280,9 +280,9 @@ const Index = () => {
         {!session ? (
           <div className="max-w-xl mx-auto animate-fade-in">
             <div className="text-center mb-8">
-              <h2 className="font-display text-3xl mb-3 text-gradient">美化你的对话记录</h2>
+              <h2 className="font-display text-3xl mb-3 text-gradient">处理你的对话记录</h2>
               <p className="text-muted-foreground">
-                将 SillyTavern 的聊天记录转换为精美的图片，支持多种主题风格
+                导入 SillyTavern 聊天记录，支持正则清理、章节标记、范围导出和多种阅读主题
               </p>
             </div>
             <ChatImporter onImport={setSession} />
@@ -421,7 +421,11 @@ const Index = () => {
 
       {/* Footer */}
       <footer className="border-t border-border py-6 text-center text-sm text-muted-foreground flex-shrink-0">
-        <p>SillyTavern 对话美化工具 · 让每一段对话都成为艺术</p>
+        <p>ST 聊天记录处理器 v0.6</p>
+        <p className="mt-1">
+          <a href="https://github.com/LYC619/silly-tavern-explorer" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">GitHub</a>
+          {' · MIT License'}
+        </p>
       </footer>
     </div>
   );
