@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { BookOpen, MessageCircle, Minus, Sparkles, ChevronDown, ChevronUp } from 'lucide-react';
+import { BookOpen, MessageCircle, Minus, Sparkles, ChevronDown, ChevronUp, RotateCcw } from 'lucide-react';
 import { Card } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
