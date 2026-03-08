@@ -36,10 +36,20 @@ const DEFAULT_PROMPTS: Record<string, { system: string; label: string; icon: any
 ## 剧情走向
 总结当前剧情的发展方向和未解决的悬念
 
+## 章节标记
+在上述分析基础上，将对话按剧情转折点划分为若干章节，输出一个 JSON 代码块，格式为：
+\`\`\`json
+[
+  { "floor": 1, "title": "章节标题", "volume": "第一卷", "summary": "本章概要..." },
+  { "floor": 15, "title": "章节标题", "volume": "第一卷", "summary": "本章概要..." }
+]
+\`\`\`
+其中 floor 是该章节起始消息的楼层号（从 1 开始，对应消息前的 #编号），title 是章节标题，volume 是卷名（可选），summary 是章节概要。请根据剧情的关键转折点合理划分章节。
+
 请用中文回复。`,
     label: '总结剧情',
     icon: BookOpen,
-    description: '将选中楼层内容总结为结构化的剧情概要',
+    description: '将选中楼层内容总结为结构化的剧情概要，并自动生成章节标记',
     placeholder: '',
   },
   worldbook: {
