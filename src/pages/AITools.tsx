@@ -46,6 +46,9 @@ const AITools = () => {
       setSession(state.session);
       setSelectedIndices(new Set(state.session.messages.map((_, i) => i)));
     }
+    if (!isTourCompleted('aitools')) {
+      setTimeout(() => setShowTour(true), 500);
+    }
   }, []);
 
   const handleConfigSave = (newConfig: APIConfig) => setConfig(newConfig);
