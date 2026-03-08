@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Sparkles, ArrowLeft, Wand2, BookMarked, Type } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { HelpCard } from '@/components/HelpCard';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
   APIConfigCard,
@@ -51,7 +52,12 @@ const AITools = () => {
               <Sparkles className="w-5 h-5 text-primary-foreground" />
             </div>
             <div>
-              <h1 className="font-display text-xl font-semibold">AI 工具箱</h1>
+              <div className="flex items-center gap-1">
+                <h1 className="font-display text-xl font-semibold">AI 工具箱</h1>
+                <HelpCard>
+                  需要 OpenAI 兼容的 API Key（支持官方 API、各类中转站、本地 Ollama）。在「高级设置」中配置接口地址和模型名称。API Key 仅保存在本地浏览器，不会发送到除 AI 接口外的任何地方。三个工具：「生成正则」根据文本示例自动创建匹配规则；「智能分卷」分析内容建议章节分割点；「生成标题」根据摘要生成标题。
+                </HelpCard>
+              </div>
               <p className="text-xs text-muted-foreground">智能辅助功能</p>
             </div>
           </div>
@@ -102,7 +108,11 @@ const AITools = () => {
 
       {/* Footer */}
       <footer className="border-t border-border py-6 text-center text-sm text-muted-foreground flex-shrink-0">
-        <p>SillyTavern 对话美化工具 · 让每一段对话都成为艺术</p>
+        <p>ST 聊天记录处理器 v0.8</p>
+        <p className="mt-1">
+          <a href="https://github.com/LYC619/silly-tavern-explorer" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">GitHub</a>
+          {' · MIT License'}
+        </p>
       </footer>
     </div>
   );

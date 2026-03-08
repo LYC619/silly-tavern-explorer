@@ -8,6 +8,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Textarea } from '@/components/ui/textarea';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { RegexQuickAdd } from '@/components/RegexQuickAdd';
+import { HelpCard } from '@/components/HelpCard';
 import type { RegexRule } from '@/types/chat';
 import { DEFAULT_REGEX_RULES } from '@/types/chat';
 import { saveCustomRegexRules, saveBuiltinRuleStates } from '@/lib/session-storage';
@@ -107,6 +108,9 @@ export function RegexSidebar({ rules, onRulesChange, isOpen, onClose }: RegexSid
         <div className="flex items-center gap-2">
           <Regex className="w-4 h-4 text-primary" />
           <h3 className="font-display font-medium">正则清理规则</h3>
+          <HelpCard>
+            正则规则用于自动清理 AI 输出中的杂项内容（如思维链 &lt;thought&gt;、状态栏标签等）。内置规则已覆盖常见场景，也可通过「快速添加」输入开始/结束标签自动生成。规则按用户消息和助手消息分别应用，处理后导出的文件会更干净。
+          </HelpCard>
           <span className="text-xs text-muted-foreground">
             ({enabledCount}/{rules.length} 启用)
           </span>
