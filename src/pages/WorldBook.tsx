@@ -484,47 +484,62 @@ export default function WorldBookPage() {
                       </Select>
                     </div>
 
-                    {/* Filters row */}
-                    <div className="flex flex-wrap gap-1.5 items-center">
-                      <Toggle size="sm" pressed={filterConstant} onPressedChange={setFilterConstant}
-                        className="h-7 text-xs px-2 data-[state=on]:bg-blue-500/20 data-[state=on]:text-blue-700">
-                        🔵 常驻
-                      </Toggle>
-                      <Toggle size="sm" pressed={filterKeyword} onPressedChange={setFilterKeyword}
-                        className="h-7 text-xs px-2 data-[state=on]:bg-green-500/20 data-[state=on]:text-green-700">
-                        🟢 关键词
-                      </Toggle>
-                      <Toggle size="sm" pressed={filterVector} onPressedChange={setFilterVector}
-                        className="h-7 text-xs px-2 data-[state=on]:bg-purple-500/20 data-[state=on]:text-purple-700">
-                        🔗 向量
-                      </Toggle>
-                      <div className="w-px h-5 bg-border" />
-                      <Toggle size="sm" pressed={filterEnabled} onPressedChange={setFilterEnabled}
-                        className="h-7 text-xs px-2">
-                        已启用
-                      </Toggle>
-                      <Toggle size="sm" pressed={filterDisabled} onPressedChange={setFilterDisabled}
-                        className="h-7 text-xs px-2">
-                        已禁用
-                      </Toggle>
-                      <div className="w-px h-5 bg-border" />
-                      <Select value={filterPosition} onValueChange={setFilterPosition}>
-                        <SelectTrigger className="h-7 w-28 text-xs">
-                          <SelectValue placeholder="位置" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="all">全部位置</SelectItem>
-                          {Object.entries(POSITION_LABELS).map(([k, v]) => (
-                            <SelectItem key={k} value={k}>{v}</SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                      {hasFilters && (
-                        <Button variant="ghost" size="sm" className="h-7 text-xs" onClick={clearFilters}>
-                          <X className="w-3 h-3 mr-1" /> 清除
-                        </Button>
-                      )}
-                    </div>
+                    {/* Filters / Batch toolbar */}
+                    {batchMode ? (
+                      <BatchOperations
+                        selectedKeys={batchSelected}
+                        totalFiltered={filteredEntries.length}
+                        onSelectAll={() => setBatchSelected(new Set(filteredEntries.map(([k]) => k)))}
+                        onDeselectAll={() => setBatchSelected(new Set())}
+                        onExitBatch={exitBatchMode}
+                        onBatchPrefix={handleBatchPrefix}
+                        onBatchDelete={handleBatchDelete}
+                        onBatchPosition={handleBatchPosition}
+                        onBatchStrategy={handleBatchStrategy}
+                        onBatchEnable={handleBatchEnable}
+                      />
+                    ) : (
+                      <div className="flex flex-wrap gap-1.5 items-center">
+                        <Toggle size="sm" pressed={filterConstant} onPressedChange={setFilterConstant}
+                          className="h-7 text-xs px-2 data-[state=on]:bg-blue-500/20 data-[state=on]:text-blue-700">
+                          🔵 常驻
+                        </Toggle>
+                        <Toggle size="sm" pressed={filterKeyword} onPressedChange={setFilterKeyword}
+                          className="h-7 text-xs px-2 data-[state=on]:bg-green-500/20 data-[state=on]:text-green-700">
+                          🟢 关键词
+                        </Toggle>
+                        <Toggle size="sm" pressed={filterVector} onPressedChange={setFilterVector}
+                          className="h-7 text-xs px-2 data-[state=on]:bg-purple-500/20 data-[state=on]:text-purple-700">
+                          🔗 向量
+                        </Toggle>
+                        <div className="w-px h-5 bg-border" />
+                        <Toggle size="sm" pressed={filterEnabled} onPressedChange={setFilterEnabled}
+                          className="h-7 text-xs px-2">
+                          已启用
+                        </Toggle>
+                        <Toggle size="sm" pressed={filterDisabled} onPressedChange={setFilterDisabled}
+                          className="h-7 text-xs px-2">
+                          已禁用
+                        </Toggle>
+                        <div className="w-px h-5 bg-border" />
+                        <Select value={filterPosition} onValueChange={setFilterPosition}>
+                          <SelectTrigger className="h-7 w-28 text-xs">
+                            <SelectValue placeholder="位置" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="all">全部位置</SelectItem>
+                            {Object.entries(POSITION_LABELS).map(([k, v]) => (
+                              <SelectItem key={k} value={k}>{v}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        {hasFilters && (
+                          <Button variant="ghost" size="sm" className="h-7 text-xs" onClick={clearFilters}>
+                            <X className="w-3 h-3 mr-1" /> 清除
+                          </Button>
+                        )}
+                      </div>
+                    )}
 
                     {/* Count */}
                     <p className="text-sm text-muted-foreground">
