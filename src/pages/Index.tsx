@@ -63,8 +63,19 @@ const Index = () => {
   const [currentBookId, setCurrentBookId] = useState<string | null>(null);
   const [regexSidebarOpen, setRegexSidebarOpen] = useState(false);
 
+  // Auto-start tour for first-time visitors
+  useEffect(() => {
+    if (!isTourCompleted('home')) {
+      // Load demo data and start tour
+      setSession(demoSession);
+      // Delay tour start to let DOM render
+      setTimeout(() => setShowTour(true), 600);
+    }
+  }, []);
+
   // Load book from navigation state (from bookshelf) or session storage
   useEffect(() => {
+    if (showTour) return; // Don't override demo data during tour
     const state = location.state as { book?: BookItem } | null;
     if (state?.book) {
       setSession(state.book.session);
@@ -82,7 +93,7 @@ const Index = () => {
         setCurrentBookId(savedState.currentBookId);
       }
     }
-  }, [location.state]);
+  }, [location.state, showTour]);
 
   // 检测 AI 生成的章节标记
   useEffect(() => {
