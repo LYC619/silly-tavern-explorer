@@ -59,6 +59,7 @@ export default function WorldBookPage() {
   const [filterDisabled, setFilterDisabled] = useState(false);
   const [filterPosition, setFilterPosition] = useState<string>('all');
   const [sortMode, setSortMode] = useState<SortMode>('order-asc');
+  const [showTour, setShowTour] = useState(false);
 
   const allEntries = worldbook ? Object.entries(worldbook.entries) : [];
   const selectedEntry = selectedUid && worldbook ? worldbook.entries[selectedUid] : null;
