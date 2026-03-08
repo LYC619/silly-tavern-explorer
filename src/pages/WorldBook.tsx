@@ -1,7 +1,7 @@
 import { useState, useCallback, useMemo, useEffect } from 'react';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { useNavigate } from 'react-router-dom';
-import { Globe, LayoutGrid, List, Library, Moon, Sun, Plus, Trash2, Save, Search, X, CheckSquare, Clock, FolderOpen } from 'lucide-react';
+import { Globe, LayoutGrid, List, Library, Moon, Sun, Plus, Trash2, Save, Search, X, CheckSquare, Clock, FolderOpen, Archive } from 'lucide-react';
 import { PrefixCategorize } from '@/components/worldbook/PrefixCategorize';
 import { BatchOperations } from '@/components/worldbook/BatchOperations';
 import { useTheme } from 'next-themes';
@@ -13,6 +13,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Toggle } from '@/components/ui/toggle';
 import { Card, CardContent } from '@/components/ui/card';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { WorldBookImporter } from '@/components/worldbook/WorldBookImporter';
 import { WorldBookExporter } from '@/components/worldbook/WorldBookExporter';
 import { EntryCard } from '@/components/worldbook/EntryCard';
@@ -37,6 +39,8 @@ export default function WorldBookPage() {
   const [worldbook, setWorldbook] = useState<WorldBook | null>(null);
   const [filename, setFilename] = useState('worldbook');
   const [currentItemId, setCurrentItemId] = useState<string | null>(null);
+  const [stagedDialogOpen, setStagedDialogOpen] = useState(false);
+  const [confirmLoadItem, setConfirmLoadItem] = useState<WorldBookItem | null>(null);
   const [savedItems, setSavedItems] = useState<WorldBookItem[]>([]);
   const [selectedUid, setSelectedUid] = useState<string | null>(null);
   const [viewMode, setViewMode] = useState<'card' | 'list'>('card');
@@ -373,6 +377,36 @@ export default function WorldBookPage() {
     toast({ title: enabled ? '已启用' : '已停用', description: `已${enabled ? '启用' : '停用'} ${batchSelected.size} 个条目` });
   }, [batchSelected, toast]);
 
+  const hasUnsavedChanges = !!worldbook;
+
+  const handleLoadStaged = useCallback((item: WorldBookItem) => {
+    if (hasUnsavedChanges) {
+      setConfirmLoadItem(item);
+    } else {
+      doLoadStaged(item);
+    }
+  }, [hasUnsavedChanges]);
+
+  const doLoadStaged = useCallback((item: WorldBookItem) => {
+    setWorldbook(item.worldbook);
+    setFilename(item.title);
+    setCurrentItemId(item.id);
+    setSelectedUid(null);
+    setStagedDialogOpen(false);
+    setConfirmLoadItem(null);
+    toast({ title: '已加载', description: `已加载「${item.title}」` });
+  }, [toast]);
+
+  const handleDeleteStaged = useCallback(async (id: string) => {
+    await deleteWorldBook(id);
+    const updated = await getAllWorldBooks();
+    setSavedItems(updated);
+    if (currentItemId === id) {
+      setCurrentItemId(null);
+    }
+    toast({ title: '已删除暂存' });
+  }, [currentItemId, toast]);
+
   const editorContent = selectedEntry && selectedUid ? (
     <>
       <EntryEditor
@@ -421,6 +455,67 @@ export default function WorldBookPage() {
           <div className="flex-1" />
 
           <WorldBookImporter onImport={handleImport} onAppend={handleAppend} hasExisting={!!worldbook} />
+
+          <Dialog open={stagedDialogOpen} onOpenChange={setStagedDialogOpen}>
+            <DialogTrigger asChild>
+              <Button variant="outline" size="sm" onClick={() => {
+                getAllWorldBooks().then(items => setSavedItems(items));
+              }}>
+                <Archive className="w-4 h-4 mr-1" /> <span className="hidden sm:inline">已暂存</span>
+              </Button>
+            </DialogTrigger>
+            <DialogContent className="max-w-lg max-h-[70vh] overflow-y-auto">
+              <DialogHeader>
+                <DialogTitle>已暂存的世界书</DialogTitle>
+              </DialogHeader>
+              {savedItems.length === 0 ? (
+                <p className="text-sm text-muted-foreground py-4 text-center">暂无暂存记录</p>
+              ) : (
+                <div className="space-y-2">
+                  {savedItems.map(item => (
+                    <div key={item.id} className="flex items-center justify-between p-3 rounded-lg border bg-card hover:bg-accent/50 transition-colors">
+                      <button
+                        className="flex-1 text-left"
+                        onClick={() => handleLoadStaged(item)}
+                      >
+                        <div className="font-medium text-sm text-foreground">{item.title}</div>
+                        <div className="text-xs text-muted-foreground flex items-center gap-2 mt-0.5">
+                          <span>{Object.keys(item.worldbook.entries).length} 条目</span>
+                          <span>·</span>
+                          <span>{new Date(item.updatedAt).toLocaleString()}</span>
+                        </div>
+                      </button>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-7 w-7 text-muted-foreground hover:text-destructive"
+                        onClick={(e) => { e.stopPropagation(); handleDeleteStaged(item.id); }}
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </Button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </DialogContent>
+          </Dialog>
+
+          <AlertDialog open={!!confirmLoadItem} onOpenChange={(open) => !open && setConfirmLoadItem(null)}>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>确认切换</AlertDialogTitle>
+                <AlertDialogDescription>
+                  当前编辑中的世界书将被替换为「{confirmLoadItem?.title}」，未暂存的修改将丢失。是否继续？
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel>取消</AlertDialogCancel>
+                <AlertDialogAction onClick={() => confirmLoadItem && doLoadStaged(confirmLoadItem)}>
+                  确认加载
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
 
           {worldbook && activeTab === 'edit' && (
             <>
