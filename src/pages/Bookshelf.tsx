@@ -167,6 +167,37 @@ const Bookshelf = () => {
     });
   };
 
+  const COVER_GRADIENTS = [
+    'from-rose-400/80 to-orange-300/80',
+    'from-violet-400/80 to-indigo-300/80',
+    'from-emerald-400/80 to-teal-300/80',
+    'from-amber-400/80 to-yellow-300/80',
+    'from-sky-400/80 to-cyan-300/80',
+    'from-pink-400/80 to-fuchsia-300/80',
+    'from-lime-400/80 to-green-300/80',
+    'from-orange-400/80 to-red-300/80',
+  ];
+
+  const hashTitle = (title: string) => {
+    let hash = 0;
+    for (let i = 0; i < title.length; i++) {
+      hash = ((hash << 5) - hash + title.charCodeAt(i)) | 0;
+    }
+    return Math.abs(hash);
+  };
+
+  const sortedBooks = useMemo(() => {
+    const sorted = [...books];
+    switch (sortBy) {
+      case 'createdAt':
+        return sorted.sort((a, b) => b.createdAt - a.createdAt);
+      case 'title':
+        return sorted.sort((a, b) => a.title.localeCompare(b.title, 'zh-CN'));
+      default:
+        return sorted.sort((a, b) => b.updatedAt - a.updatedAt);
+    }
+  }, [books, sortBy]);
+
   return (
     <div className="min-h-screen paper-bg flex flex-col">
       {/* Header */}
