@@ -187,11 +187,15 @@ export function ChatImporter({ onImport }: ChatImporterProps) {
         } catch {
           // It's a real TXT file, ask for format
           setPendingTxtFile(file);
+          // Pre-scan for speaker names
+          const speakers = preScanSpeakers(content);
+          setDialogueUserName(speakers.userName);
+          setDialogueCharName(speakers.charName);
           setTxtFormatDialog(true);
           return;
         }
       } else if (isTxt && forceTxtFormat) {
-        messages = forceTxtFormat === 'dialogue' ? parseTxtDialogue(content) : parseTxtNovel(content);
+        messages = forceTxtFormat === 'dialogue' ? parseTxtDialogue(content, dialogueUserName) : parseTxtNovel(content);
       } else if (file.name.endsWith('.jsonl')) {
         const result = parseJsonl(content);
         messages = result.messages;
