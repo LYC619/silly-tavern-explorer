@@ -413,7 +413,7 @@ export default function WorldBookPage() {
                 <Plus className="w-4 h-4" />
               </Button>
               <Button variant="outline" size="sm" onClick={handleSaveLocal} className="hidden sm:inline-flex">
-                <Save className="w-4 h-4 mr-1" /> 保存
+                <Save className="w-4 h-4 mr-1" /> 暂存
               </Button>
               <WorldBookExporter worldbook={worldbook} filename={filename} />
               <PrefixCategorize entries={worldbook.entries} onApply={handlePrefixCategorize} />
