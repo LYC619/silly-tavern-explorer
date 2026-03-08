@@ -239,21 +239,35 @@ export function GuidedTour({ steps, module, onComplete, onSkip }: GuidedTourProp
 
   return (
     <div className="fixed inset-0 z-[9999] pointer-events-none">
-      {/* Overlay with cutout - only opaque area blocks clicks */}
-      <svg className="absolute inset-0 w-full h-full pointer-events-none">
-        <defs>
-          <mask id="tour-mask">
-            <rect x="0" y="0" width="100%" height="100%" fill="white" />
-            <rect x={cutout.left} y={cutout.top} width={cutout.width} height={cutout.height} rx="8" fill="black" />
-          </mask>
-        </defs>
-        <rect
-          x="0" y="0" width="100%" height="100%"
-          fill="rgba(0,0,0,0.55)"
-          mask="url(#tour-mask)"
-          style={{ pointerEvents: 'auto' }}
-        />
-      </svg>
+      {/* Overlay: 4 divs around cutout, center is empty for click-through */}
+      {/* Top */}
+      <div
+        className="absolute left-0 right-0 top-0 bg-black/55 pointer-events-auto"
+        style={{ height: Math.max(0, cutout.top) }}
+      />
+      {/* Bottom */}
+      <div
+        className="absolute left-0 right-0 bottom-0 bg-black/55 pointer-events-auto"
+        style={{ top: cutout.top + cutout.height }}
+      />
+      {/* Left */}
+      <div
+        className="absolute left-0 bg-black/55 pointer-events-auto"
+        style={{
+          top: cutout.top,
+          width: Math.max(0, cutout.left),
+          height: cutout.height,
+        }}
+      />
+      {/* Right */}
+      <div
+        className="absolute right-0 bg-black/55 pointer-events-auto"
+        style={{
+          top: cutout.top,
+          left: cutout.left + cutout.width,
+          height: cutout.height,
+        }}
+      />
 
       {/* Highlight border */}
       <div
