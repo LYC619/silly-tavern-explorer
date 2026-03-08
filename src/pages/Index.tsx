@@ -51,7 +51,7 @@ const getDefaultSettings = (): ExportSettings => {
 const Index = () => {
   const location = useLocation();
   const { toast } = useToast();
-  const { visible: showOnboarding, dismiss: dismissOnboarding } = useOnboardingVisible();
+  const [showTour, setShowTour] = useState(false);
   const [session, setSession] = useState<ChatSession | null>(null);
   const [settings, setSettings] = useState<ExportSettings>(getDefaultSettings);
   const [markers, setMarkers] = useState<ChapterMarker[]>([]);
