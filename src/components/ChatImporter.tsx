@@ -131,6 +131,14 @@ export function ChatImporter({ onImport }: ChatImporterProps) {
       if (colonIdx > 0 && colonIdx < 30) {
         const name = line.slice(0, colonIdx).trim();
         const text = line.slice(colonIdx + 1).trim();
+        // Filter attribute lines: lowercase_only names are properties, not dialogue
+        if (name && text && /^[a-z_]+$/.test(name)) {
+          // Attribute line — append to last message
+          if (messages.length > 0) {
+            messages[messages.length - 1].content += '\n' + line.trim();
+          }
+          continue;
+        }
         if (name && text) {
           messages.push({
             id: crypto.randomUUID(),
