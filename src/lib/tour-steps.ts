@@ -24,7 +24,7 @@ export const HOME_TOUR_STEPS: TourStep[] = [
   },
   {
     targetSelector: '[data-tour="regex-quickadd"]',
-    content: '选择一个预设规则试试——比如「去除 OOC 标记」，然后点击应用。',
+    content: '这里是快速添加区域，提供了常用的正则预设规则。选择后点击添加即可应用到聊天记录中。',
     action: 'next',
   },
   {

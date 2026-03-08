@@ -69,7 +69,8 @@ const Index = () => {
       // Load demo data and start tour
       setSession(demoSession);
       // Delay tour start to let DOM render
-      setTimeout(() => setShowTour(true), 600);
+      const timer = setTimeout(() => setShowTour(true), 1000);
+      return () => clearTimeout(timer);
     }
   }, []);
 
