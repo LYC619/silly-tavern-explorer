@@ -557,6 +557,9 @@ export default function WorldBookPage() {
                             selected={selectedUid === key}
                             onClick={() => handleSelectEntry(key)}
                             onToggleEnabled={(v) => toggleEnabled(key, v)}
+                            batchMode={batchMode}
+                            batchChecked={batchSelected.has(key)}
+                            onBatchToggle={(v) => toggleBatchItem(key, v)}
                           />
                         ))}
                       </div>
@@ -565,6 +568,7 @@ export default function WorldBookPage() {
                         <table className="w-full text-left">
                           <thead>
                             <tr className="text-xs text-muted-foreground border-b">
+                              {batchMode && <th className="px-2 py-1.5 w-8">选</th>}
                               <th className="px-2 py-1.5">启用</th>
                               <th className="px-2 py-1.5">策略</th>
                               <th className="px-2 py-1.5">标题</th>
@@ -581,6 +585,9 @@ export default function WorldBookPage() {
                                 selected={selectedUid === key}
                                 onClick={() => handleSelectEntry(key)}
                                 onToggleEnabled={(v) => toggleEnabled(key, v)}
+                                batchMode={batchMode}
+                                batchChecked={batchSelected.has(key)}
+                                onBatchToggle={(v) => toggleBatchItem(key, v)}
                               />
                             ))}
                           </tbody>
