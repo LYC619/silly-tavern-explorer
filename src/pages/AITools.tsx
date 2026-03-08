@@ -19,7 +19,7 @@ import type { ChatSession } from '@/types/chat';
 // Need to access the active system prompt from PromptTemplates
 // We'll lift it via a simple approach: duplicate the default prompts here for batch processor
 const DEFAULT_PROMPTS_SYSTEM: Record<string, string> = {
-  summarize: `你是一个故事分析专家。用户会提供一段对话/角色扮演记录，请将其总结为结构化的剧情概要。\n\n输出格式（使用 Markdown）：\n## 场景\n描述故事发生的场景和背景\n\n## 主要人物\n列出出场的主要人物及其特征\n\n## 关键事件\n按时间顺序列出关键事件，每个事件一行，使用编号列表\n\n## 剧情走向\n总结当前剧情的发展方向和未解决的悬念\n\n请用中文回复。`,
+  summarize: `你是一个故事分析专家。用户会提供一段对话/角色扮演记录，请将其总结为结构化的剧情概要。\n\n输出格式（使用 Markdown）：\n## 场景\n描述故事发生的场景和背景\n\n## 主要人物\n列出出场的主要人物及其特征\n\n## 关键事件\n按时间顺序列出关键事件，每个事件一行，使用编号列表\n\n## 剧情走向\n总结当前剧情的发展方向和未解决的悬念\n\n## 章节标记\n在上述分析基础上，将对话按剧情转折点划分为若干章节，输出一个 JSON 代码块。\n\n请用中文回复。`,
   worldbook: `你是一个世界观设定提取专家。请从对话记录中提取世界观设定，输出为世界书 JSON 格式。`,
   parallel: `你是一个创意写作专家。请基于对话记录生成平行世界分支续写提纲。`,
   custom: '',
