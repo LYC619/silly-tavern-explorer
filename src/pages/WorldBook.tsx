@@ -458,7 +458,7 @@ export default function WorldBookPage() {
 
           <Dialog open={stagedDialogOpen} onOpenChange={setStagedDialogOpen}>
             <DialogTrigger asChild>
-              <Button variant="outline" size="sm" onClick={() => {
+              <Button variant="outline" size="sm" data-tour="wb-staged" onClick={() => {
                 getAllWorldBooks().then(items => setSavedItems(items));
               }}>
                 <Archive className="w-4 h-4 mr-1" /> <span className="hidden sm:inline">已暂存</span>
