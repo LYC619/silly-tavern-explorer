@@ -2,7 +2,7 @@ import { useState, useCallback, useMemo } from 'react';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { useNavigate } from 'react-router-dom';
 import { Globe, LayoutGrid, List, Library, Moon, Sun, Plus, Trash2, Save, Search, X } from 'lucide-react';
-import { RenumberButton } from '@/components/worldbook/RenumberDialog';
+import { PrefixCategorize } from '@/components/worldbook/PrefixCategorize';
 import { useTheme } from 'next-themes';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -215,29 +215,20 @@ export default function WorldBookPage() {
     toast({ title: '已添加', description: `${newEntries.length} 个条目已添加到世界书` });
   }, [toast]);
 
-  const sortLabel = useMemo(() => {
-    switch (sortMode) {
-      case 'order-asc': return 'Order 升序';
-      case 'order-desc': return 'Order 降序';
-      case 'title': return '标题排序';
-      case 'uid': return '创建顺序';
-    }
-  }, [sortMode]);
 
-  const handleRenumber = useCallback((start: number, step: number) => {
-    if (!worldbook) return;
-    // Use filteredEntries order (which respects current sort)
-    const keys = filteredEntries.map(([key]) => key);
+  const handlePrefixCategorize = useCallback((updates: Record<string, { group: string; comment: string; order: number }>) => {
     setWorldbook(prev => {
       if (!prev) return prev;
       const updated = { ...prev.entries };
-      keys.forEach((key, i) => {
-        updated[key] = { ...updated[key], order: start + i * step };
+      Object.entries(updates).forEach(([key, { group, comment, order }]) => {
+        if (updated[key]) {
+          updated[key] = { ...updated[key], group, comment, order };
+        }
       });
       return { ...prev, entries: updated };
     });
-    toast({ title: '已重新编号', description: `${keys.length} 个条目的 Order 已更新` });
-  }, [worldbook, filteredEntries, toast]);
+    toast({ title: '归类完成', description: `已更新 ${Object.keys(updates).length} 个条目的标签、前缀和 Order` });
+  }, [toast]);
 
   const editorContent = selectedEntry && selectedUid ? (
     <>
@@ -298,7 +289,7 @@ export default function WorldBookPage() {
                 <Save className="w-4 h-4 mr-1" /> 保存
               </Button>
               <WorldBookExporter worldbook={worldbook} filename={filename} />
-              <RenumberButton sortLabel={sortLabel} onRenumber={handleRenumber} />
+              <PrefixCategorize entries={worldbook.entries} onApply={handlePrefixCategorize} />
 
               <div className="w-px h-6 bg-border mx-1 hidden sm:block" />
 
