@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Library, Plus, Trash2, Clock, MessageSquare, BookOpen, ArrowLeft, Upload, Edit3, Play } from 'lucide-react';
+import { StorageManager } from '@/components/StorageManager';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -169,10 +170,13 @@ const Bookshelf = () => {
             </div>
           </div>
 
-          <Button onClick={() => navigate('/')}>
-            <Plus className="w-4 h-4 mr-2" />
-            导入新作品
-          </Button>
+          <div className="flex items-center gap-2">
+            <StorageManager onDataChanged={loadBooks} />
+            <Button onClick={() => navigate('/')}>
+              <Plus className="w-4 h-4 mr-2" />
+              导入新作品
+            </Button>
+          </div>
         </div>
       </header>
 
@@ -362,7 +366,11 @@ const Bookshelf = () => {
 
       {/* Footer */}
       <footer className="border-t border-border py-6 text-center text-sm text-muted-foreground flex-shrink-0">
-        <p>SillyTavern 对话美化工具 · 让每一段对话都成为艺术</p>
+        <p>ST 聊天记录处理器 v0.6</p>
+        <p className="mt-1">
+          <a href="https://github.com/LYC619/silly-tavern-explorer" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">GitHub</a>
+          {' · MIT License'}
+        </p>
       </footer>
     </div>
   );
