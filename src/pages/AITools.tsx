@@ -52,7 +52,12 @@ const AITools = () => {
               <Sparkles className="w-5 h-5 text-primary-foreground" />
             </div>
             <div>
-              <h1 className="font-display text-xl font-semibold">AI 工具箱</h1>
+              <div className="flex items-center gap-1">
+                <h1 className="font-display text-xl font-semibold">AI 工具箱</h1>
+                <HelpCard>
+                  需要 OpenAI 兼容的 API Key（支持官方 API、各类中转站、本地 Ollama）。在「高级设置」中配置接口地址和模型名称。API Key 仅保存在本地浏览器，不会发送到除 AI 接口外的任何地方。三个工具：「生成正则」根据文本示例自动创建匹配规则；「智能分卷」分析内容建议章节分割点；「生成标题」根据摘要生成标题。
+                </HelpCard>
+              </div>
               <p className="text-xs text-muted-foreground">智能辅助功能</p>
             </div>
           </div>
