@@ -54,7 +54,7 @@ export default function WorldBookPage() {
     const maxUid = Object.values(worldbook.entries).reduce((max, e) => Math.max(max, e.uid), -1);
     const newUid = maxUid + 1;
     const key = String(newUid);
-    const newEntry: WorldBookEntry = { ...DEFAULT_ENTRY, uid: newUid, comment: '新条目' };
+    const newEntry: WorldBookEntry = { ...DEFAULT_ENTRY, uid: newUid, comment: '新条目' } as WorldBookEntry;
     setWorldbook(prev => prev ? { ...prev, entries: { ...prev.entries, [key]: newEntry } } : prev);
     setSelectedUid(key);
   }, [worldbook]);

@@ -154,7 +154,7 @@ export function parseWorldBook(json: Record<string, unknown>): WorldBook {
   
   if (Array.isArray(rawEntries)) {
     rawEntries.forEach((entry, i) => {
-      const uid = (entry as Record<string, unknown>).uid as number ?? i;
+      const uid = ((entry as Record<string, unknown>).uid as number) ?? i;
       entries[String(uid)] = normalizeEntry(entry as Record<string, unknown>, uid);
     });
   } else if (rawEntries && typeof rawEntries === 'object') {
