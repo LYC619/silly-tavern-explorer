@@ -540,14 +540,16 @@ export default function WorldBookPage() {
               </Button>
               <div className="w-px h-6 bg-border mx-1 hidden sm:block" />
 
-              <Button variant={viewMode === 'card' ? 'default' : 'ghost'} size="icon" className="h-8 w-8 hidden sm:inline-flex"
-                onClick={() => setViewMode('card')}>
-                <LayoutGrid className="w-4 h-4" />
-              </Button>
-              <Button variant={viewMode === 'list' ? 'default' : 'ghost'} size="icon" className="h-8 w-8 hidden sm:inline-flex"
-                onClick={() => setViewMode('list')}>
-                <List className="w-4 h-4" />
-              </Button>
+              <div data-tour="wb-view-toggle" className="hidden sm:flex items-center gap-0">
+                <Button variant={viewMode === 'card' ? 'default' : 'ghost'} size="icon" className="h-8 w-8"
+                  onClick={() => setViewMode('card')}>
+                  <LayoutGrid className="w-4 h-4" />
+                </Button>
+                <Button variant={viewMode === 'list' ? 'default' : 'ghost'} size="icon" className="h-8 w-8"
+                  onClick={() => setViewMode('list')}>
+                  <List className="w-4 h-4" />
+                </Button>
+              </div>
             </>
           )}
         </div>
