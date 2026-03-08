@@ -24,6 +24,7 @@ import { DEFAULT_ENTRY, POSITION_LABELS, generateWorldBookId } from '@/types/wor
 import { saveWorldBook, getAllWorldBooks, deleteWorldBook } from '@/lib/worldbook-db';
 import type { WorldBookItem } from '@/types/worldbook';
 import { useToast } from '@/hooks/use-toast';
+import { GlobalSettings } from '@/components/GlobalSettings';
 
 type SortMode = 'order-asc' | 'order-desc' | 'title' | 'uid';
 
