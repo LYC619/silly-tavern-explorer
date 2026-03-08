@@ -18,7 +18,7 @@ interface ChatPreviewProps {
 }
 
 export const ChatPreview = forwardRef<HTMLDivElement, ChatPreviewProps>(
-  ({ session, theme, showTimestamp, showAvatar, fontSize, regexRules, markers = [], onMessageClick, editMode = false }, ref) => {
+  ({ session, theme, showTimestamp, showAvatar, fontSize, regexRules, markers = [], onMessageClick, editMode = false, fontFamily }, ref) => {
     const markerMap = useMemo(() => {
       const map = new Map<string, ChapterMarker>();
       markers.forEach(m => map.set(m.messageId, m));
