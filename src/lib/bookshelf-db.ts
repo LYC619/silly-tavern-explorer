@@ -31,10 +31,20 @@ function openDB(): Promise<IDBDatabase> {
 
     request.onupgradeneeded = (event) => {
       const db = (event.target as IDBOpenDBRequest).result;
-      if (!db.objectStoreNames.contains(STORE_NAME)) {
+      const oldVersion = event.oldVersion;
+
+      if (oldVersion < 1) {
         const store = db.createObjectStore(STORE_NAME, { keyPath: 'id' });
         store.createIndex('updatedAt', 'updatedAt', { unique: false });
         store.createIndex('title', 'title', { unique: false });
+      }
+
+      if (oldVersion < 2) {
+        if (!db.objectStoreNames.contains('worldbooks')) {
+          const wbStore = db.createObjectStore('worldbooks', { keyPath: 'id' });
+          wbStore.createIndex('updatedAt', 'updatedAt', { unique: false });
+          wbStore.createIndex('title', 'title', { unique: false });
+        }
       }
     };
   });
