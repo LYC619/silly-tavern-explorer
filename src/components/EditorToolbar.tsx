@@ -1,4 +1,4 @@
-import { RefreshCw, Save, Pencil, BookmarkPlus, FileUp, Library, Sparkles, Moon, Sun } from 'lucide-react';
+import { RefreshCw, Save, Pencil, BookmarkPlus, FileUp, Library, Sparkles, Moon, Sun, Globe } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useTheme } from 'next-themes';
 import { Button } from '@/components/ui/button';
