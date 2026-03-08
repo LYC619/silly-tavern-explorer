@@ -1,4 +1,4 @@
-import { RefreshCw, Save, Pencil, BookmarkPlus, FileUp, Library, Sparkles, Moon, Sun, Globe } from 'lucide-react';
+import { RefreshCw, Save, Pencil, BookmarkPlus, Library, Sparkles, Moon, Sun, Globe } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useTheme } from 'next-themes';
 import { Button } from '@/components/ui/button';
@@ -13,13 +13,11 @@ interface EditorToolbarProps {
   markers: ChapterMarker[];
   editMode: boolean;
   contentEditMode: boolean;
-  batchImportOpen: boolean;
   onLoadSession: (session: ChatSession) => void;
   onReset: () => void;
   onSaveToBookshelf: () => void;
   onToggleContentEdit: () => void;
   onToggleEditMode: () => void;
-  onToggleBatchImport: () => void;
 }
 
 export function EditorToolbar({
@@ -28,13 +26,11 @@ export function EditorToolbar({
   markers,
   editMode,
   contentEditMode,
-  batchImportOpen,
   onLoadSession,
   onReset,
   onSaveToBookshelf,
   onToggleContentEdit,
   onToggleEditMode,
-  onToggleBatchImport,
 }: EditorToolbarProps) {
   const navigate = useNavigate();
   const { theme, setTheme } = useTheme();
@@ -103,15 +99,6 @@ export function EditorToolbar({
           >
             <BookmarkPlus className="w-4 h-4 mr-2" />
             {editMode ? '退出标记' : '章节标记'}
-          </Button>
-          <Button 
-            variant={batchImportOpen ? "default" : "outline"} 
-            size="sm" 
-            onClick={onToggleBatchImport}
-            className={batchImportOpen ? 'gold-gradient text-primary-foreground' : ''}
-          >
-            <FileUp className="w-4 h-4 mr-2" />
-            导入总结
           </Button>
           <ExportButton session={session} settings={settings} markers={markers} />
         </>
