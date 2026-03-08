@@ -28,6 +28,7 @@ export default function WorldBookPage() {
   const navigate = useNavigate();
   const { theme, setTheme } = useTheme();
   const isMobile = useIsMobile();
+  const { toast } = useToast();
 
   const [worldbook, setWorldbook] = useState<WorldBook | null>(null);
   const [filename, setFilename] = useState('worldbook');
