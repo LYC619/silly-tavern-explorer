@@ -215,14 +215,6 @@ export default function WorldBookPage() {
     toast({ title: '已添加', description: `${newEntries.length} 个条目已添加到世界书` });
   }, [toast]);
 
-  const sortLabel = useMemo(() => {
-    switch (sortMode) {
-      case 'order-asc': return 'Order 升序';
-      case 'order-desc': return 'Order 降序';
-      case 'title': return '标题排序';
-      case 'uid': return '创建顺序';
-    }
-  }, [sortMode]);
 
   const handlePrefixCategorize = useCallback((updates: Record<string, { group: string; comment: string; order: number }>) => {
     setWorldbook(prev => {
