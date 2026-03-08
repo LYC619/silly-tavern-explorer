@@ -395,7 +395,14 @@ export default function WorldBookPage() {
               </Button>
               <WorldBookExporter worldbook={worldbook} filename={filename} />
               <PrefixCategorize entries={worldbook.entries} onApply={handlePrefixCategorize} />
-
+              <Button variant={batchMode ? 'default' : 'outline'} size="sm" className="hidden sm:inline-flex"
+                onClick={() => batchMode ? exitBatchMode() : setBatchMode(true)}>
+                <CheckSquare className="w-4 h-4 mr-1" /> 批量
+              </Button>
+              <Button variant={batchMode ? 'default' : 'outline'} size="icon" className="h-8 w-8 sm:hidden"
+                onClick={() => batchMode ? exitBatchMode() : setBatchMode(true)}>
+                <CheckSquare className="w-4 h-4" />
+              </Button>
               <div className="w-px h-6 bg-border mx-1 hidden sm:block" />
 
               <Button variant={viewMode === 'card' ? 'default' : 'ghost'} size="icon" className="h-8 w-8 hidden sm:inline-flex"
