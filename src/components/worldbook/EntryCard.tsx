@@ -29,7 +29,7 @@ function strategyInfo(entry: WorldBookEntry) {
   return { dot: 'bg-green-500', label: '关键词' };
 }
 
-export function EntryCard({ entry, selected, onClick, onToggleEnabled }: Props) {
+export function EntryCard({ entry, selected, onClick, onToggleEnabled, batchMode, batchChecked, onBatchToggle }: Props) {
   const strategy = strategyInfo(entry);
   const posLabel = POSITION_LABELS[entry.position] ?? `位置 ${entry.position}`;
   const contentPreview = entry.content.split('\n').slice(0, 3).join('\n');
