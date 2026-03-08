@@ -28,21 +28,22 @@ interface OnboardingGuideProps {
 export function OnboardingGuide({ onDismiss }: OnboardingGuideProps) {
   const [dontShow, setDontShow] = useState(false);
 
+  const circleNums = ['①', '②', '③'];
   const steps = [
     {
       icon: <Upload className="w-5 h-5 text-primary" />,
       title: '导入',
-      desc: '点击「导入聊天记录」，支持 SillyTavern 导出的 JSON 或 JSONL 文件',
+      desc: '点击「导入聊天记录」，支持酒馆导出的 JSON / JSONL 文件',
     },
     {
       icon: <Wand2 className="w-5 h-5 text-primary" />,
       title: '处理',
-      desc: '使用正则清理去除思维链等杂项，编辑消息内容，添加章节标记',
+      desc: '正则清理思维链等杂项，编辑消息，添加章节标记',
     },
     {
       icon: <Download className="w-5 h-5 text-primary" />,
       title: '导出或保存',
-      desc: '导出为 JSONL（导回酒馆继续用）或 TXT（阅读用），也可保存到书架随时阅读',
+      desc: '导出 JSONL（导回酒馆）或 TXT（阅读），也可保存到书架',
     },
   ];
 
@@ -61,16 +62,16 @@ export function OnboardingGuide({ onDismiss }: OnboardingGuideProps) {
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
         {steps.map((step, i) => (
-          <div key={i} className="flex items-start gap-3 p-3 rounded-md bg-card border border-border">
+          <div key={i} className="flex items-start gap-3 p-4 rounded-md bg-card border border-border">
             <div className="flex-shrink-0 w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center">
               {step.icon}
             </div>
             <div>
               <div className="text-sm font-medium">
-                <span className="text-primary mr-1">#{i + 1}</span>
+                <span className="text-primary mr-1">{circleNums[i]}</span>
                 {step.title}
               </div>
-              <p className="text-xs text-muted-foreground mt-0.5">{step.desc}</p>
+              <p className="text-xs text-muted-foreground mt-1">{step.desc}</p>
             </div>
           </div>
         ))}
