@@ -37,9 +37,10 @@ interface StorageDetail {
 
 interface GlobalSettingsProps {
   onDataChanged?: () => void;
+  'data-tour'?: string;
 }
 
-export function GlobalSettings({ onDataChanged }: GlobalSettingsProps) {
+export function GlobalSettings({ onDataChanged, ...props }: GlobalSettingsProps) {
   const { toast } = useToast();
   const [open, setOpen] = useState(false);
   const [clearDialogOpen, setClearDialogOpen] = useState(false);
