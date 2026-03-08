@@ -58,8 +58,23 @@ export default function WorldBookPage() {
 
   const hasFilters = searchQuery || filterConstant || filterKeyword || filterVector || filterEnabled || filterDisabled || filterPosition !== 'all';
 
-  // Auto-restore from IndexedDB on mount
+  // Auto-restore from IndexedDB on mount, or pick up AI-generated worldbook
   useEffect(() => {
+    // Check for AI-generated worldbook import
+    const aiImport = sessionStorage.getItem('ai-worldbook-import');
+    if (aiImport) {
+      sessionStorage.removeItem('ai-worldbook-import');
+      try {
+        const parsed = JSON.parse(aiImport);
+        if (parsed && parsed.entries) {
+          setWorldbook(parsed);
+          setFilename('AI 提取的世界书');
+          toast({ title: '已从 AI 工具导入世界书' });
+          return;
+        }
+      } catch { /* ignore */ }
+    }
+
     getAllWorldBooks().then(items => {
       setSavedItems(items);
       if (items.length > 0 && !worldbook) {
