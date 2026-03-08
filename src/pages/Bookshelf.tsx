@@ -354,6 +354,7 @@ const Bookshelf = () => {
               variant="outline"
               className="h-24 flex flex-col gap-2 hover:border-primary hover:bg-primary/5"
               onClick={handleReadMode}
+              data-tour="bookshelf-read-btn"
             >
               <Play className="w-8 h-8 text-primary" />
               <span className="font-medium">沉浸阅读</span>
