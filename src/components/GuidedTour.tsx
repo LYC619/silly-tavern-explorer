@@ -165,7 +165,7 @@ export function GuidedTour({ steps, module, onComplete, onSkip }: GuidedTourProp
 
   if (showCompletion) {
     return (
-      <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/60 animate-fade-in">
+      <div className="fixed inset-0 z-[10003] flex items-center justify-center bg-black/60 animate-fade-in">
         <div className="bg-card rounded-xl p-8 max-w-md mx-4 text-center shadow-2xl border border-border animate-scale-in">
           <div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center mx-auto mb-4">
             <PartyPopper className="w-8 h-8 text-primary" />
