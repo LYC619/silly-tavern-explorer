@@ -59,12 +59,17 @@ const ReaderView = ({
   const [showControls, setShowControls] = useState(true);
   const [isAnimating, setIsAnimating] = useState(false);
   const [slideDirection, setSlideDirection] = useState<'left' | 'right' | null>(null);
+  const [fontFamily, setFontFamily] = useState(() => {
+    return localStorage.getItem(FONT_STORAGE_KEY) || 'sans-serif';
+  });
   const containerRef = useRef<HTMLDivElement>(null);
   const touchStartX = useRef(0);
   const touchEndX = useRef(0);
 
-  // Build pages from messages
+  // Persist font choice
   useEffect(() => {
+    localStorage.setItem(FONT_STORAGE_KEY, fontFamily);
+  }, [fontFamily]);
     const processedPages: PageContent[] = [];
     
     messages.forEach((msg, idx) => {
