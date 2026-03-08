@@ -1,7 +1,7 @@
 import { useState, useCallback, useMemo, useEffect } from 'react';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { useNavigate } from 'react-router-dom';
-import { Globe, LayoutGrid, List, Library, Moon, Sun, Plus, Trash2, Save, Search, X, CheckSquare } from 'lucide-react';
+import { Globe, LayoutGrid, List, Library, Moon, Sun, Plus, Trash2, Save, Search, X, CheckSquare, Clock, FolderOpen } from 'lucide-react';
 import { PrefixCategorize } from '@/components/worldbook/PrefixCategorize';
 import { BatchOperations } from '@/components/worldbook/BatchOperations';
 import { useTheme } from 'next-themes';
@@ -12,6 +12,7 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sh
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Toggle } from '@/components/ui/toggle';
+import { Card, CardContent } from '@/components/ui/card';
 import { WorldBookImporter } from '@/components/worldbook/WorldBookImporter';
 import { WorldBookExporter } from '@/components/worldbook/WorldBookExporter';
 import { EntryCard } from '@/components/worldbook/EntryCard';
@@ -20,7 +21,7 @@ import { EntryEditor } from '@/components/worldbook/EntryEditor';
 import { QuickCreate } from '@/components/worldbook/QuickCreate';
 import type { WorldBook, WorldBookEntry } from '@/types/worldbook';
 import { DEFAULT_ENTRY, POSITION_LABELS, generateWorldBookId } from '@/types/worldbook';
-import { saveWorldBook } from '@/lib/worldbook-db';
+import { saveWorldBook, getAllWorldBooks, deleteWorldBook } from '@/lib/worldbook-db';
 import type { WorldBookItem } from '@/types/worldbook';
 import { useToast } from '@/hooks/use-toast';
 
@@ -34,6 +35,8 @@ export default function WorldBookPage() {
 
   const [worldbook, setWorldbook] = useState<WorldBook | null>(null);
   const [filename, setFilename] = useState('worldbook');
+  const [currentItemId, setCurrentItemId] = useState<string | null>(null);
+  const [savedItems, setSavedItems] = useState<WorldBookItem[]>([]);
   const [selectedUid, setSelectedUid] = useState<string | null>(null);
   const [viewMode, setViewMode] = useState<'card' | 'list'>('card');
   const [mobileEditorOpen, setMobileEditorOpen] = useState(false);
@@ -55,6 +58,18 @@ export default function WorldBookPage() {
 
   const hasFilters = searchQuery || filterConstant || filterKeyword || filterVector || filterEnabled || filterDisabled || filterPosition !== 'all';
 
+  // Auto-restore from IndexedDB on mount
+  useEffect(() => {
+    getAllWorldBooks().then(items => {
+      setSavedItems(items);
+      if (items.length > 0 && !worldbook) {
+        const latest = items[0]; // already sorted by updatedAt desc
+        setWorldbook(latest.worldbook);
+        setFilename(latest.title);
+        setCurrentItemId(latest.id);
+      }
+    }).catch(() => {});
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
   const filteredEntries = useMemo(() => {
     let result = allEntries;
 
@@ -118,6 +133,7 @@ export default function WorldBookPage() {
     setWorldbook(wb);
     setFilename(name);
     setSelectedUid(null);
+    setCurrentItemId(null);
     setActiveTab('edit');
   }, []);
 
@@ -189,16 +205,22 @@ export default function WorldBookPage() {
 
   const handleSaveLocal = useCallback(async () => {
     if (!worldbook) return;
+    const id = currentItemId || generateWorldBookId();
+    const now = Date.now();
     const item: WorldBookItem = {
-      id: generateWorldBookId(),
+      id,
       title: filename,
       worldbook,
-      createdAt: Date.now(),
-      updatedAt: Date.now(),
+      createdAt: currentItemId ? (savedItems.find(s => s.id === id)?.createdAt ?? now) : now,
+      updatedAt: now,
     };
     await saveWorldBook(item);
-    toast({ title: '已保存', description: `世界书「${filename}」已保存到本地` });
-  }, [worldbook, filename, toast]);
+    setCurrentItemId(id);
+    // Refresh saved items list
+    const updated = await getAllWorldBooks();
+    setSavedItems(updated);
+    toast({ title: '已暂存', description: '已暂存到浏览器，刷新页面后可恢复' });
+  }, [worldbook, filename, currentItemId, savedItems, toast]);
 
   const handleQuickAddEntries = useCallback((newEntries: WorldBookEntry[]) => {
     setWorldbook(prev => {
@@ -391,7 +413,7 @@ export default function WorldBookPage() {
                 <Plus className="w-4 h-4" />
               </Button>
               <Button variant="outline" size="sm" onClick={handleSaveLocal} className="hidden sm:inline-flex">
-                <Save className="w-4 h-4 mr-1" /> 保存
+                <Save className="w-4 h-4 mr-1" /> 暂存
               </Button>
               <WorldBookExporter worldbook={worldbook} filename={filename} />
               <PrefixCategorize entries={worldbook.entries} onApply={handlePrefixCategorize} />
@@ -440,13 +462,61 @@ export default function WorldBookPage() {
         <div className="flex-1 flex overflow-hidden">
           {!worldbook ? (
             <div className="flex-1 flex items-center justify-center">
-              <div className="text-center space-y-4 px-4">
+              <div className="text-center space-y-4 px-4 max-w-lg w-full">
                 <Globe className="w-16 h-16 mx-auto text-muted-foreground/40" />
                 <h2 className="text-xl font-semibold text-foreground">开始使用世界书编辑器</h2>
-                <p className="text-muted-foreground max-w-md">
+                <p className="text-muted-foreground max-w-md mx-auto">
                   导入 SillyTavern 的世界书 JSON 文件，可视化浏览和编辑所有条目，然后导出为兼容格式。
                 </p>
                 <WorldBookImporter onImport={handleImport} />
+
+                {savedItems.length > 0 && (
+                  <div className="mt-8 text-left space-y-3">
+                    <div className="flex items-center gap-2 text-sm font-medium text-foreground">
+                      <FolderOpen className="w-4 h-4" />
+                      从本地恢复
+                    </div>
+                    <div className="space-y-2">
+                      {savedItems.map(item => (
+                        <Card
+                          key={item.id}
+                          className="cursor-pointer hover:bg-accent/50 transition-colors"
+                          onClick={() => {
+                            setWorldbook(item.worldbook);
+                            setFilename(item.title);
+                            setCurrentItemId(item.id);
+                          }}
+                        >
+                          <CardContent className="p-3 flex items-center justify-between">
+                            <div className="min-w-0">
+                              <p className="font-medium text-sm truncate text-foreground">{item.title}</p>
+                              <p className="text-xs text-muted-foreground">
+                                {Object.keys(item.worldbook.entries).length} 个条目
+                                <span className="mx-1">·</span>
+                                <Clock className="w-3 h-3 inline -mt-0.5" />
+                                {' '}{new Date(item.updatedAt).toLocaleString()}
+                              </p>
+                            </div>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-7 w-7 shrink-0"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                deleteWorldBook(item.id).then(() => {
+                                  setSavedItems(prev => prev.filter(s => s.id !== item.id));
+                                  toast({ title: '已删除', description: `暂存「${item.title}」已删除` });
+                                });
+                              }}
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </Button>
+                          </CardContent>
+                        </Card>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
           ) : (
