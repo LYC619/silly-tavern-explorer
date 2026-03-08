@@ -443,18 +443,20 @@ export default function WorldBookPage() {
               </div>
 
               {/* Mobile: bottom sheet editor */}
-              <Sheet open={mobileEditorOpen && !!selectedEntry} onOpenChange={setMobileEditorOpen}>
-                <SheetContent side="bottom" className="h-[85vh] md:hidden p-0">
-                  <SheetHeader className="px-4 pt-4 pb-2">
-                    <SheetTitle className="text-base">
-                      编辑：{selectedEntry?.comment || '(无标题)'}
-                    </SheetTitle>
-                  </SheetHeader>
-                  <ScrollArea className="h-[calc(85vh-3.5rem)]">
-                    {editorContent}
-                  </ScrollArea>
-                </SheetContent>
-              </Sheet>
+              {isMobile && (
+                <Sheet open={mobileEditorOpen && !!selectedEntry} onOpenChange={setMobileEditorOpen}>
+                  <SheetContent side="bottom" className="h-[85vh] p-0">
+                    <SheetHeader className="px-4 pt-4 pb-2">
+                      <SheetTitle className="text-base">
+                        编辑：{selectedEntry?.comment || '(无标题)'}
+                      </SheetTitle>
+                    </SheetHeader>
+                    <ScrollArea className="h-[calc(85vh-3.5rem)]">
+                      {editorContent}
+                    </ScrollArea>
+                  </SheetContent>
+                </Sheet>
+              )}
             </>
           )}
         </div>
