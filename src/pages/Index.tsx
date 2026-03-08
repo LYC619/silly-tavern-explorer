@@ -318,7 +318,7 @@ const Index = () => {
                   )}
                 </div>
 
-                <div className="rounded-lg border border-border bg-card/50">
+                <div className="rounded-lg border border-border bg-card/50" data-tour="chat-preview">
                   <div className="flex justify-center py-6 px-4">
                     <div 
                       style={{ width: Math.min(settings.paperWidth, regexSidebarOpen ? 520 : settings.paperWidth) }}
