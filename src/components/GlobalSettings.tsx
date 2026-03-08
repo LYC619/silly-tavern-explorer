@@ -166,7 +166,7 @@ export function GlobalSettings({ onDataChanged, ...props }: GlobalSettingsProps)
     <>
       <Sheet open={open} onOpenChange={setOpen}>
         <SheetTrigger asChild>
-          <Button variant="ghost" size="icon" className="h-8 w-8" title="设置">
+          <Button variant="ghost" size="icon" className="h-8 w-8" title="设置" data-tour={props['data-tour'] || 'global-settings'}>
             <Settings className="w-4 h-4" />
           </Button>
         </SheetTrigger>
