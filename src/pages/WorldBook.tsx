@@ -92,6 +92,9 @@ export default function WorldBookPage() {
         setCurrentItemId(latest.id);
       }
     }).catch(() => {});
+    if (!isTourCompleted('worldbook')) {
+      setTimeout(() => setShowTour(true), 500);
+    }
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
   const filteredEntries = useMemo(() => {
     let result = allEntries;
