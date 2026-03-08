@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { BookOpen, MessageCircle, Minus, Sparkles, ChevronDown, ChevronUp } from 'lucide-react';
+import { BookOpen, MessageCircle, Minus, Sparkles, ChevronDown, ChevronUp, RotateCcw } from 'lucide-react';
 import { Card } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
@@ -167,6 +167,22 @@ export function SettingsPanel({ settings, onSettingsChange }: SettingsPanelProps
                 ))}
               </SelectContent>
             </Select>
+          </div>
+
+          {/* Reset Onboarding */}
+          <div className="pt-2 border-t border-border">
+            <Button
+              variant="ghost"
+              size="sm"
+              className="gap-1 text-xs"
+              onClick={() => {
+                localStorage.removeItem('st-explorer-onboarding-dismissed');
+                window.location.reload();
+              }}
+            >
+              <RotateCcw className="w-3 h-3" />
+              重新显示新手引导
+            </Button>
           </div>
         </CollapsibleContent>
       </Card>
