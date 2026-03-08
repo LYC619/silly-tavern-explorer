@@ -368,6 +368,12 @@ export function PromptTemplates({ config, selectedContent, selectedCount }: Prom
                           导入到世界书编辑器
                         </Button>
                       )}
+                      {extractChapterMarkers() && (
+                        <Button variant="outline" size="sm" onClick={handleImportChapterMarkers}>
+                          <BookmarkPlus className="w-4 h-4 mr-1" />
+                          导入为章节标记
+                        </Button>
+                      )}
                       <Button variant="ghost" size="sm" onClick={handleCopy}>
                         {copied ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
                       </Button>
