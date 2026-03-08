@@ -133,6 +133,7 @@ export default function WorldBookPage() {
     setWorldbook(wb);
     setFilename(name);
     setSelectedUid(null);
+    setCurrentItemId(null);
     setActiveTab('edit');
   }, []);
 
