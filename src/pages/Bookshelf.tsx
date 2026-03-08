@@ -25,6 +25,7 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 import { useToast } from '@/hooks/use-toast';
+import { GlobalSettings } from '@/components/GlobalSettings';
 import { getAllBooks, deleteBook, saveBook, generateBookId, type BookItem } from '@/lib/bookshelf-db';
 
 const Bookshelf = () => {
