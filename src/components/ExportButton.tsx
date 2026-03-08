@@ -220,7 +220,7 @@ export function ExportButton({ session, settings, markers = [], onSettingsChange
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button className="gold-gradient text-primary-foreground">
+        <Button className="gold-gradient text-primary-foreground" data-tour="export-button">
           <Download className="w-4 h-4 mr-2" />
           导出
         </Button>
