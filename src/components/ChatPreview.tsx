@@ -218,16 +218,14 @@ export const ChatPreview = forwardRef<HTMLDivElement, ChatPreviewProps>(
                     </>
                   ) : (
                     <div>
-                      {isNewSpeaker && (
-                        <div className={classes.name}>
-                          {message.name || (isUser ? session.user.name : session.character.name)}
-                          {showTimestamp && theme === 'minimal' && (
-                            <span className="text-muted-foreground font-normal ml-2">
-                              {formatTime(message.timestamp)}
-                            </span>
-                          )}
-                        </div>
-                      )}
+                      <div className={classes.name}>
+                        {message.name || (isUser ? session.user.name : session.character.name)}
+                        {showTimestamp && theme === 'minimal' && (
+                          <span className="text-muted-foreground font-normal ml-2">
+                            {formatTime(message.timestamp)}
+                          </span>
+                        )}
+                      </div>
                       <div className={`${classes.content} whitespace-pre-wrap`}>
                         {theme === 'novel' || theme === 'elegant' ? (
                           <span className="text-muted-foreground mr-2">"</span>
