@@ -38,7 +38,8 @@ export default function WorldBookPage() {
   const [viewMode, setViewMode] = useState<'card' | 'list'>('card');
   const [mobileEditorOpen, setMobileEditorOpen] = useState(false);
   const [activeTab, setActiveTab] = useState<'edit' | 'quick'>('edit');
-
+  const [batchMode, setBatchMode] = useState(false);
+  const [batchSelected, setBatchSelected] = useState<Set<string>>(new Set());
   // Filter state
   const [searchQuery, setSearchQuery] = useState('');
   const [filterConstant, setFilterConstant] = useState(false);
