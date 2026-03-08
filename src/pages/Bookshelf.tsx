@@ -1,11 +1,18 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Library, Plus, Trash2, Clock, MessageSquare, BookOpen, ArrowLeft, Upload, Edit3, Play } from 'lucide-react';
+import { Library, Plus, Trash2, Clock, MessageSquare, BookOpen, ArrowLeft, Upload, Edit3, Play, ArrowUpDown } from 'lucide-react';
 import { HelpCard } from '@/components/HelpCard';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import {
   Dialog,
   DialogContent,
@@ -46,6 +53,7 @@ const Bookshelf = () => {
   const [selectedBook, setSelectedBook] = useState<BookItem | null>(null);
   const [actionDialogOpen, setActionDialogOpen] = useState(false);
   const [showTour, setShowTour] = useState(false);
+  const [sortBy, setSortBy] = useState<'updatedAt' | 'createdAt' | 'title'>('updatedAt');
 
   useEffect(() => {
     loadBooks();
@@ -159,6 +167,37 @@ const Bookshelf = () => {
     });
   };
 
+  const COVER_GRADIENTS = [
+    'from-rose-400/80 to-orange-300/80',
+    'from-violet-400/80 to-indigo-300/80',
+    'from-emerald-400/80 to-teal-300/80',
+    'from-amber-400/80 to-yellow-300/80',
+    'from-sky-400/80 to-cyan-300/80',
+    'from-pink-400/80 to-fuchsia-300/80',
+    'from-lime-400/80 to-green-300/80',
+    'from-orange-400/80 to-red-300/80',
+  ];
+
+  const hashTitle = (title: string) => {
+    let hash = 0;
+    for (let i = 0; i < title.length; i++) {
+      hash = ((hash << 5) - hash + title.charCodeAt(i)) | 0;
+    }
+    return Math.abs(hash);
+  };
+
+  const sortedBooks = useMemo(() => {
+    const sorted = [...books];
+    switch (sortBy) {
+      case 'createdAt':
+        return sorted.sort((a, b) => b.createdAt - a.createdAt);
+      case 'title':
+        return sorted.sort((a, b) => a.title.localeCompare(b.title, 'zh-CN'));
+      default:
+        return sorted.sort((a, b) => b.updatedAt - a.updatedAt);
+    }
+  }, [books, sortBy]);
+
   return (
     <div className="min-h-screen paper-bg flex flex-col">
       {/* Header */}
@@ -178,7 +217,22 @@ const Bookshelf = () => {
                   书架将聊天记录保存在浏览器本地（IndexedDB），不上传服务器。可自定义封面、编辑标题。点击作品可选择「沉浸阅读」或「编辑处理」。注意：清除浏览器数据会丢失书架内容，建议定期使用「存储管理」中的备份功能。
                 </HelpCard>
               </div>
-              <p className="text-xs text-muted-foreground">共 {books.length} 本作品</p>
+              <div className="flex items-center gap-2">
+                <p className="text-xs text-muted-foreground">共 {books.length} 本作品</p>
+                {books.length > 1 && (
+                  <Select value={sortBy} onValueChange={(v) => setSortBy(v as typeof sortBy)}>
+                    <SelectTrigger className="h-6 w-auto gap-1 text-xs border-none bg-transparent px-1">
+                      <ArrowUpDown className="w-3 h-3" />
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="updatedAt">按更新时间</SelectItem>
+                      <SelectItem value="createdAt">按创建时间</SelectItem>
+                      <SelectItem value="title">按标题排序</SelectItem>
+                    </SelectContent>
+                  </Select>
+                )}
+              </div>
             </div>
           </div>
 
@@ -210,14 +264,14 @@ const Bookshelf = () => {
           </div>
         ) : (
           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4" data-tour="bookshelf-cards">
-            {books.map((book) => (
+            {sortedBooks.map((book) => (
               <Card
                 key={book.id}
                 className="group cursor-pointer hover:shadow-warm transition-all duration-300 overflow-hidden"
                 onClick={() => handleBookClick(book)}
               >
                 {/* Cover */}
-                <div className="aspect-[3/4] bg-gradient-to-br from-primary/20 to-accent/20 relative overflow-hidden">
+                <div className="aspect-[3/4] relative overflow-hidden">
                   {book.cover ? (
                     <img
                       src={book.cover}
@@ -225,8 +279,10 @@ const Bookshelf = () => {
                       className="w-full h-full object-cover"
                     />
                   ) : (
-                    <div className="w-full h-full flex items-center justify-center">
-                      <BookOpen className="w-12 h-12 text-primary/30" />
+                    <div className={`w-full h-full bg-gradient-to-br ${COVER_GRADIENTS[hashTitle(book.title) % COVER_GRADIENTS.length]} flex items-center justify-center p-4`}>
+                      <p className="text-primary-foreground font-display font-semibold text-center text-sm leading-snug line-clamp-2 drop-shadow-sm">
+                        {book.title}
+                      </p>
                     </div>
                   )}
                   {/* Hover overlay */}
