@@ -377,7 +377,37 @@ export default function WorldBookPage() {
     toast({ title: enabled ? '已启用' : '已停用', description: `已${enabled ? '启用' : '停用'} ${batchSelected.size} 个条目` });
   }, [batchSelected, toast]);
 
-  const editorContent = selectedEntry && selectedUid ? (
+  const hasUnsavedChanges = !!worldbook;
+
+  const handleLoadStaged = useCallback((item: WorldBookItem) => {
+    if (hasUnsavedChanges) {
+      setConfirmLoadItem(item);
+    } else {
+      doLoadStaged(item);
+    }
+  }, [hasUnsavedChanges]);
+
+  const doLoadStaged = useCallback((item: WorldBookItem) => {
+    setWorldbook(item.worldbook);
+    setFilename(item.title);
+    setCurrentItemId(item.id);
+    setSelectedUid(null);
+    setStagedDialogOpen(false);
+    setConfirmLoadItem(null);
+    toast({ title: '已加载', description: `已加载「${item.title}」` });
+  }, [toast]);
+
+  const handleDeleteStaged = useCallback(async (id: string) => {
+    await deleteWorldBook(id);
+    const updated = await getAllWorldBooks();
+    setSavedItems(updated);
+    if (currentItemId === id) {
+      setCurrentItemId(null);
+    }
+    toast({ title: '已删除暂存' });
+  }, [currentItemId, toast]);
+
+
     <>
       <EntryEditor
         entry={selectedEntry}
