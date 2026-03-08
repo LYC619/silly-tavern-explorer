@@ -1,6 +1,8 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Sparkles, ArrowLeft, AlertCircle } from 'lucide-react';
+import { GuidedTour } from '@/components/GuidedTour';
+import { AITOOLS_TOUR_STEPS, isTourCompleted, setTourCompleted } from '@/lib/tour-steps';
 import { Button } from '@/components/ui/button';
 import { HelpCard } from '@/components/HelpCard';
 import {
