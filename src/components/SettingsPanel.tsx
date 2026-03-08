@@ -9,6 +9,14 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/component
 import { Button } from '@/components/ui/button';
 import type { ThemeStyle, ExportSettings, PrefixMode } from '@/types/chat';
 
+const FONT_OPTIONS = [
+  { value: 'sans-serif', label: '系统默认' },
+  { value: '"Noto Serif SC", "Source Han Serif SC", serif', label: '宋体' },
+  { value: '"LXGW WenKai", "KaiTi", cursive', label: '楷体' },
+  { value: '"Noto Sans SC", "Source Han Sans SC", sans-serif', label: '黑体' },
+  { value: '"JetBrains Mono", "Fira Code", monospace', label: '等宽' },
+];
+
 interface SettingsPanelProps {
   settings: ExportSettings;
   onSettingsChange: (settings: ExportSettings) => void;
