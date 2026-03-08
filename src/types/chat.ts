@@ -81,6 +81,11 @@ export interface ExportSettings {
   fontSize: number;
   prefixMode: PrefixMode;
   regexRules: RegexRule[];
+  cleanPluginCache: boolean;
+  exportRange: 'all' | 'recent' | 'custom';
+  recentCount: number;
+  customStart: number;
+  customEnd: number;
 }
 
 // 内置正则规则

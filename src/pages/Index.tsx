@@ -39,6 +39,11 @@ const getDefaultSettings = (): ExportSettings => {
     fontSize: 15,
     prefixMode: 'name',
     regexRules: getInitialRegexRules(),
+    cleanPluginCache: true,
+    exportRange: 'all',
+    recentCount: 100,
+    customStart: 1,
+    customEnd: 100,
   };
 };
 
