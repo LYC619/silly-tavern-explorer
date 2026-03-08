@@ -1,4 +1,5 @@
 import { useState, useCallback, useMemo } from 'react';
+import { useIsMobile } from '@/hooks/use-mobile';
 import { useNavigate } from 'react-router-dom';
 import { Globe, LayoutGrid, List, Library, Moon, Sun, Plus, Trash2, Save, Search, X } from 'lucide-react';
 import { useTheme } from 'next-themes';
