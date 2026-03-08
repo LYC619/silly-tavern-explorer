@@ -1,7 +1,7 @@
 import { useState, useCallback, useMemo, useEffect } from 'react';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { useNavigate } from 'react-router-dom';
-import { Globe, LayoutGrid, List, Library, Moon, Sun, Plus, Trash2, Save, Search, X, CheckSquare, Clock, FolderOpen } from 'lucide-react';
+import { Globe, LayoutGrid, List, Library, Moon, Sun, Plus, Trash2, Save, Search, X, CheckSquare, Clock, FolderOpen, Archive } from 'lucide-react';
 import { PrefixCategorize } from '@/components/worldbook/PrefixCategorize';
 import { BatchOperations } from '@/components/worldbook/BatchOperations';
 import { useTheme } from 'next-themes';
