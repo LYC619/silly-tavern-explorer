@@ -98,7 +98,7 @@ export const ChatPreview = forwardRef<HTMLDivElement, ChatPreviewProps>(
       <div
         ref={ref}
         className={`min-h-[400px] ${classes.container}`}
-        style={{ fontSize: `${fontSize}px` }}
+        style={{ fontSize: `${fontSize}px`, fontFamily: fontFamily || undefined }}
       >
         {/* Title */}
         <div className={classes.title}>
