@@ -1,4 +1,5 @@
 import { Switch } from '@/components/ui/switch';
+import { Checkbox } from '@/components/ui/checkbox';
 import { Badge } from '@/components/ui/badge';
 import type { WorldBookEntry } from '@/types/worldbook';
 import { POSITION_LABELS } from '@/types/worldbook';
@@ -9,6 +10,9 @@ interface Props {
   selected: boolean;
   onClick: () => void;
   onToggleEnabled: (enabled: boolean) => void;
+  batchMode?: boolean;
+  batchChecked?: boolean;
+  onBatchToggle?: (checked: boolean) => void;
 }
 
 function groupColor(group: string): string {
