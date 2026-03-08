@@ -8,6 +8,7 @@ import Index from "./pages/Index";
 import Bookshelf from "./pages/Bookshelf";
 import AITools from "./pages/AITools";
 import Reader from "./pages/Reader";
+import WorldBook from "./pages/WorldBook";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
