@@ -217,7 +217,22 @@ const Bookshelf = () => {
                   书架将聊天记录保存在浏览器本地（IndexedDB），不上传服务器。可自定义封面、编辑标题。点击作品可选择「沉浸阅读」或「编辑处理」。注意：清除浏览器数据会丢失书架内容，建议定期使用「存储管理」中的备份功能。
                 </HelpCard>
               </div>
-              <p className="text-xs text-muted-foreground">共 {books.length} 本作品</p>
+              <div className="flex items-center gap-2">
+                <p className="text-xs text-muted-foreground">共 {books.length} 本作品</p>
+                {books.length > 1 && (
+                  <Select value={sortBy} onValueChange={(v) => setSortBy(v as typeof sortBy)}>
+                    <SelectTrigger className="h-6 w-auto gap-1 text-xs border-none bg-transparent px-1">
+                      <ArrowUpDown className="w-3 h-3" />
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="updatedAt">按更新时间</SelectItem>
+                      <SelectItem value="createdAt">按创建时间</SelectItem>
+                      <SelectItem value="title">按标题排序</SelectItem>
+                    </SelectContent>
+                  </Select>
+                )}
+              </div>
             </div>
           </div>
 
