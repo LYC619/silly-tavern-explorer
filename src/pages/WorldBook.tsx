@@ -39,6 +39,8 @@ export default function WorldBookPage() {
   const [worldbook, setWorldbook] = useState<WorldBook | null>(null);
   const [filename, setFilename] = useState('worldbook');
   const [currentItemId, setCurrentItemId] = useState<string | null>(null);
+  const [stagedDialogOpen, setStagedDialogOpen] = useState(false);
+  const [confirmLoadItem, setConfirmLoadItem] = useState<WorldBookItem | null>(null);
   const [savedItems, setSavedItems] = useState<WorldBookItem[]>([]);
   const [selectedUid, setSelectedUid] = useState<string | null>(null);
   const [viewMode, setViewMode] = useState<'card' | 'list'>('card');
