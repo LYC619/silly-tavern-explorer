@@ -201,11 +201,9 @@ export const ChatPreview = forwardRef<HTMLDivElement, ChatPreviewProps>(
                         </div>
                       )}
                       <div className={isUser ? 'text-right' : 'text-left'}>
-                        {isNewSpeaker && (
-                          <div className={classes.name}>
-                            {message.name || (isUser ? session.user.name : session.character.name)}
-                          </div>
-                        )}
+                        <div className={classes.name}>
+                          {message.name || (isUser ? session.user.name : session.character.name)}
+                        </div>
                         <div className={`inline-block ${classes.content} ${
                           isUser ? 'bubble-user' : 'bubble-char'
                         } whitespace-pre-wrap`}>
