@@ -1,19 +1,8 @@
-import type { ChatSession, ChapterMarker, ExportSettings } from '@/types/chat';
-
-export interface BookItem {
-  id: string;
-  title: string;
-  cover?: string; // base64 image
-  session: ChatSession;
-  markers: ChapterMarker[];
-  settings?: ExportSettings;
-  createdAt: number;
-  updatedAt: number;
-}
+import type { WorldBookItem } from '@/types/worldbook';
 
 const DB_NAME = 'st-chat-beautifier';
 const DB_VERSION = 2;
-const STORE_NAME = 'books';
+const STORE_NAME = 'worldbooks';
 
 let dbInstance: IDBDatabase | null = null;
 
@@ -34,75 +23,63 @@ function openDB(): Promise<IDBDatabase> {
       const oldVersion = event.oldVersion;
 
       if (oldVersion < 1) {
-        const store = db.createObjectStore(STORE_NAME, { keyPath: 'id' });
+        const store = db.createObjectStore('books', { keyPath: 'id' });
         store.createIndex('updatedAt', 'updatedAt', { unique: false });
         store.createIndex('title', 'title', { unique: false });
       }
 
       if (oldVersion < 2) {
-        if (!db.objectStoreNames.contains('worldbooks')) {
-          const wbStore = db.createObjectStore('worldbooks', { keyPath: 'id' });
-          wbStore.createIndex('updatedAt', 'updatedAt', { unique: false });
-          wbStore.createIndex('title', 'title', { unique: false });
-        }
+        const store = db.createObjectStore(STORE_NAME, { keyPath: 'id' });
+        store.createIndex('updatedAt', 'updatedAt', { unique: false });
+        store.createIndex('title', 'title', { unique: false });
       }
     };
   });
 }
 
-export async function getAllBooks(): Promise<BookItem[]> {
+export async function getAllWorldBooks(): Promise<WorldBookItem[]> {
   const db = await openDB();
   return new Promise((resolve, reject) => {
     const tx = db.transaction(STORE_NAME, 'readonly');
     const store = tx.objectStore(STORE_NAME);
-    const index = store.index('updatedAt');
-    const request = index.getAll();
-
+    const request = store.getAll();
     request.onsuccess = () => {
-      // Sort by updatedAt descending
-      const books = request.result.sort((a, b) => b.updatedAt - a.updatedAt);
-      resolve(books);
+      const items = request.result.sort((a: WorldBookItem, b: WorldBookItem) => b.updatedAt - a.updatedAt);
+      resolve(items);
     };
     request.onerror = () => reject(request.error);
   });
 }
 
-export async function getBook(id: string): Promise<BookItem | undefined> {
+export async function getWorldBook(id: string): Promise<WorldBookItem | undefined> {
   const db = await openDB();
   return new Promise((resolve, reject) => {
     const tx = db.transaction(STORE_NAME, 'readonly');
     const store = tx.objectStore(STORE_NAME);
     const request = store.get(id);
-
     request.onsuccess = () => resolve(request.result);
     request.onerror = () => reject(request.error);
   });
 }
 
-export async function saveBook(book: BookItem): Promise<void> {
+export async function saveWorldBook(item: WorldBookItem): Promise<void> {
   const db = await openDB();
   return new Promise((resolve, reject) => {
     const tx = db.transaction(STORE_NAME, 'readwrite');
     const store = tx.objectStore(STORE_NAME);
-    const request = store.put(book);
-
+    const request = store.put(item);
     request.onsuccess = () => resolve();
     request.onerror = () => reject(request.error);
   });
 }
 
-export async function deleteBook(id: string): Promise<void> {
+export async function deleteWorldBook(id: string): Promise<void> {
   const db = await openDB();
   return new Promise((resolve, reject) => {
     const tx = db.transaction(STORE_NAME, 'readwrite');
     const store = tx.objectStore(STORE_NAME);
     const request = store.delete(id);
-
     request.onsuccess = () => resolve();
     request.onerror = () => reject(request.error);
   });
-}
-
-export function generateBookId(): string {
-  return `book_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`;
 }
