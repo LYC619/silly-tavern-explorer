@@ -94,7 +94,7 @@ const AITools = () => {
 
       <main className="container mx-auto px-4 py-6 flex-1">
         <div className="max-w-3xl mx-auto space-y-6">
-          <APIConfigCard savedConfig={config} onConfigSave={handleConfigSave} onConfigClear={handleConfigClear} />
+          <APIConfigCard savedConfig={config} onConfigSave={handleConfigSave} onConfigClear={handleConfigClear} data-tour="ai-config" />
 
           {!session ? (
             <div className="p-8 text-center border-2 border-dashed border-border rounded-lg">
