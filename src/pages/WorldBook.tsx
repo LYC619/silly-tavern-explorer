@@ -823,6 +823,15 @@ export default function WorldBookPage() {
           )}
         </div>
       )}
+      {/* Guided Tour */}
+      {showTour && (
+        <GuidedTour
+          steps={WORLDBOOK_TOUR_STEPS}
+          module="worldbook"
+          onComplete={() => { setTourCompleted('worldbook'); setShowTour(false); }}
+          onSkip={() => { setTourCompleted('worldbook'); setShowTour(false); }}
+        />
+      )}
     </div>
   );
 }
