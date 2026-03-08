@@ -12,7 +12,7 @@ export interface BookItem {
 }
 
 const DB_NAME = 'st-chat-beautifier';
-const DB_VERSION = 1;
+const DB_VERSION = 2;
 const STORE_NAME = 'books';
 
 let dbInstance: IDBDatabase | null = null;
