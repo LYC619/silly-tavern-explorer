@@ -264,14 +264,14 @@ const Bookshelf = () => {
           </div>
         ) : (
           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4" data-tour="bookshelf-cards">
-            {books.map((book) => (
+            {sortedBooks.map((book) => (
               <Card
                 key={book.id}
                 className="group cursor-pointer hover:shadow-warm transition-all duration-300 overflow-hidden"
                 onClick={() => handleBookClick(book)}
               >
                 {/* Cover */}
-                <div className="aspect-[3/4] bg-gradient-to-br from-primary/20 to-accent/20 relative overflow-hidden">
+                <div className="aspect-[3/4] relative overflow-hidden">
                   {book.cover ? (
                     <img
                       src={book.cover}
@@ -279,8 +279,10 @@ const Bookshelf = () => {
                       className="w-full h-full object-cover"
                     />
                   ) : (
-                    <div className="w-full h-full flex items-center justify-center">
-                      <BookOpen className="w-12 h-12 text-primary/30" />
+                    <div className={`w-full h-full bg-gradient-to-br ${COVER_GRADIENTS[hashTitle(book.title) % COVER_GRADIENTS.length]} flex items-center justify-center p-4`}>
+                      <p className="text-primary-foreground font-display font-semibold text-center text-sm leading-snug line-clamp-2 drop-shadow-sm">
+                        {book.title}
+                      </p>
                     </div>
                   )}
                   {/* Hover overlay */}
