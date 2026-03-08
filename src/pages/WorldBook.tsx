@@ -27,7 +27,7 @@ type SortMode = 'order-asc' | 'order-desc' | 'title' | 'uid';
 export default function WorldBookPage() {
   const navigate = useNavigate();
   const { theme, setTheme } = useTheme();
-  const { toast } = useToast();
+  const isMobile = useIsMobile();
 
   const [worldbook, setWorldbook] = useState<WorldBook | null>(null);
   const [filename, setFilename] = useState('worldbook');
