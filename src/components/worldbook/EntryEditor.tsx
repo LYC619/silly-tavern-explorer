@@ -85,23 +85,23 @@ export function EntryEditor({ entry, onChange }: Props) {
         <Switch checked={entry.enabled} onCheckedChange={(v) => update('enabled', v)} />
       </div>
 
-      {/* Strategy */}
+      {/* Strategy — single atomic update */}
       <div className="space-y-1">
         <Label>策略</Label>
         <div className="flex gap-2">
           <label className="flex items-center gap-1 text-sm">
             <input type="radio" checked={!entry.constant && !entry.vectorized}
-              onChange={() => { update('constant', false); update('vectorized', false); }} />
+              onChange={() => onChange({ ...entry, constant: false, vectorized: false })} />
             🟢 关键词
           </label>
           <label className="flex items-center gap-1 text-sm">
             <input type="radio" checked={entry.constant}
-              onChange={() => { update('constant', true); update('vectorized', false); }} />
+              onChange={() => onChange({ ...entry, constant: true, vectorized: false })} />
             🔵 常驻
           </label>
           <label className="flex items-center gap-1 text-sm">
             <input type="radio" checked={entry.vectorized}
-              onChange={() => { update('vectorized', true); update('constant', false); }} />
+              onChange={() => onChange({ ...entry, vectorized: true, constant: false })} />
             🔗 向量
           </label>
         </div>
@@ -209,6 +209,28 @@ export function EntryEditor({ entry, onChange }: Props) {
           <div className="space-y-1">
             <Label>Delay (轮次)</Label>
             <Input type="number" value={entry.delay} onChange={(e) => update('delay', Number(e.target.value))} className="h-8" />
+          </div>
+        </CollapsibleContent>
+      </Collapsible>
+
+      {/* Advanced: Recursion */}
+      <Collapsible>
+        <CollapsibleTrigger className="flex items-center gap-1 text-sm font-medium text-muted-foreground hover:text-foreground">
+          <ChevronDown className="w-4 h-4" />
+          高级：递归设置
+        </CollapsibleTrigger>
+        <CollapsibleContent className="space-y-3 pt-2">
+          <div className="flex items-center justify-between">
+            <Label className="text-sm">排除递归 (Exclude Recursion)</Label>
+            <Switch checked={entry.excludeRecursion} onCheckedChange={(v) => update('excludeRecursion', v)} />
+          </div>
+          <div className="flex items-center justify-between">
+            <Label className="text-sm">阻止后续递归 (Prevent Recursion)</Label>
+            <Switch checked={entry.preventRecursion} onCheckedChange={(v) => update('preventRecursion', v)} />
+          </div>
+          <div className="flex items-center justify-between">
+            <Label className="text-sm">延迟到递归时激活 (Delay Until Recursion)</Label>
+            <Switch checked={entry.delayUntilRecursion} onCheckedChange={(v) => update('delayUntilRecursion', v)} />
           </div>
         </CollapsibleContent>
       </Collapsible>
