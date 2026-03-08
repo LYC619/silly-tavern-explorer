@@ -241,7 +241,7 @@ export function ExportButton({ session, settings, markers = [], onSettingsChange
             <span>
               预估导出: {formatSize(stats.estimatedSize)}
               {stats.savings > 0 && (
-                <span className="text-green-600 dark:text-green-400 ml-1">（节省 {stats.savings}%）</span>
+                <span className="text-primary ml-1">（节省 {stats.savings}%）</span>
               )}
             </span>
           </div>
