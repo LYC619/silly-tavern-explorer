@@ -8,6 +8,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Textarea } from '@/components/ui/textarea';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { RegexQuickAdd } from '@/components/RegexQuickAdd';
+import { HelpCard } from '@/components/HelpCard';
 import type { RegexRule } from '@/types/chat';
 import { DEFAULT_REGEX_RULES } from '@/types/chat';
 import { saveCustomRegexRules, saveBuiltinRuleStates } from '@/lib/session-storage';

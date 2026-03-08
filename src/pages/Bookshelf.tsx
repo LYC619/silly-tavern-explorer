@@ -372,7 +372,7 @@ const Bookshelf = () => {
 
       {/* Footer */}
       <footer className="border-t border-border py-6 text-center text-sm text-muted-foreground flex-shrink-0">
-        <p>ST 聊天记录处理器 v0.6</p>
+        <p>ST 聊天记录处理器 v0.8</p>
         <p className="mt-1">
           <a href="https://github.com/LYC619/silly-tavern-explorer" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">GitHub</a>
           {' · MIT License'}

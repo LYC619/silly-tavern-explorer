@@ -227,7 +227,12 @@ export function ExportButton({ session, settings, markers = [], onSettingsChange
       </DialogTrigger>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle>导出设置</DialogTitle>
+          <DialogTitle className="flex items-center gap-1">
+            导出设置
+            <HelpCard>
+              JSONL 格式可直接导入回 SillyTavern 继续使用，TXT 适合纯文本阅读。导出时可选择清理选项（去除 swipes 可减少 40-50% 体积）、消息范围、是否应用正则清理。
+            </HelpCard>
+          </DialogTitle>
           <DialogDescription>选择导出范围和清理选项</DialogDescription>
         </DialogHeader>
 
