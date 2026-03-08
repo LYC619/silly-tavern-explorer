@@ -12,8 +12,18 @@ import {
 } from '@/components/ai-tools';
 import { FloorSelector } from '@/components/ai-tools/FloorSelector';
 import { PromptTemplates } from '@/components/ai-tools/PromptTemplates';
+import { BatchProcessor } from '@/components/ai-tools/BatchProcessor';
 import { loadSessionState } from '@/lib/session-storage';
 import type { ChatSession } from '@/types/chat';
+
+// Need to access the active system prompt from PromptTemplates
+// We'll lift it via a simple approach: duplicate the default prompts here for batch processor
+const DEFAULT_PROMPTS_SYSTEM: Record<string, string> = {
+  summarize: `你是一个故事分析专家。用户会提供一段对话/角色扮演记录，请将其总结为结构化的剧情概要。\n\n输出格式（使用 Markdown）：\n## 场景\n描述故事发生的场景和背景\n\n## 主要人物\n列出出场的主要人物及其特征\n\n## 关键事件\n按时间顺序列出关键事件，每个事件一行，使用编号列表\n\n## 剧情走向\n总结当前剧情的发展方向和未解决的悬念\n\n请用中文回复。`,
+  worldbook: `你是一个世界观设定提取专家。请从对话记录中提取世界观设定，输出为世界书 JSON 格式。`,
+  parallel: `你是一个创意写作专家。请基于对话记录生成平行世界分支续写提纲。`,
+  custom: '',
+};
 
 const AITools = () => {
   const navigate = useNavigate();
@@ -24,14 +34,13 @@ const AITools = () => {
   });
   const [session, setSession] = useState<ChatSession | null>(null);
   const [selectedIndices, setSelectedIndices] = useState<Set<number>>(new Set());
+  const [activeTab, setActiveTab] = useState('summarize');
 
   useEffect(() => {
     setConfig(loadAPIConfig());
-    // Load chat session from sessionStorage
     const state = loadSessionState();
     if (state?.session) {
       setSession(state.session);
-      // Default: select all
       setSelectedIndices(new Set(state.session.messages.map((_, i) => i)));
     }
   }, []);
@@ -39,7 +48,6 @@ const AITools = () => {
   const handleConfigSave = (newConfig: APIConfig) => setConfig(newConfig);
   const handleConfigClear = () => setConfig({ apiKey: '', apiUrl: DEFAULT_API_URL, model: DEFAULT_MODEL });
 
-  // Build selected content string
   const selectedContent = useMemo(() => {
     if (!session) return '';
     const msgs = session.messages
@@ -52,6 +60,13 @@ const AITools = () => {
       });
     return msgs.join('\n\n');
   }, [session, selectedIndices]);
+
+  // Get active system prompt for batch processor
+  const batchSystemPrompt = useMemo(() => {
+    if (activeTab === 'custom') return '';
+    const stored = localStorage.getItem(`ai-prompt-${activeTab}`);
+    return stored || DEFAULT_PROMPTS_SYSTEM[activeTab] || '';
+  }, [activeTab]);
 
   return (
     <div className="min-h-screen paper-bg flex flex-col">
@@ -79,10 +94,8 @@ const AITools = () => {
 
       <main className="container mx-auto px-4 py-6 flex-1">
         <div className="max-w-3xl mx-auto space-y-6">
-          {/* API Config */}
           <APIConfigCard savedConfig={config} onConfigSave={handleConfigSave} onConfigClear={handleConfigClear} />
 
-          {/* Session / Floor Selector */}
           {!session ? (
             <div className="p-8 text-center border-2 border-dashed border-border rounded-lg">
               <AlertCircle className="w-8 h-8 mx-auto mb-3 text-muted-foreground" />
@@ -108,6 +121,13 @@ const AITools = () => {
                 userName={session.user?.name}
                 selectedIndices={selectedIndices}
                 onSelectionChange={setSelectedIndices}
+              />
+
+              <BatchProcessor
+                config={config}
+                selectedContent={selectedContent}
+                selectedCount={selectedIndices.size}
+                systemPrompt={batchSystemPrompt}
               />
 
               <PromptTemplates

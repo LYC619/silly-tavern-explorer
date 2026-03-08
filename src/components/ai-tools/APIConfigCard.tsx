@@ -1,14 +1,16 @@
-import { useState } from 'react';
-import { Key, Check, AlertCircle } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { Key, Check, AlertCircle, RefreshCw, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
+import { fetchModels } from './useOpenAI';
 
 const API_KEY_STORAGE_KEY = 'st-beautifier-openai-key';
 const API_URL_STORAGE_KEY = 'st-beautifier-api-url';
 const API_MODEL_STORAGE_KEY = 'st-beautifier-api-model';
+const MODEL_LIST_STORAGE_KEY = 'st-beautifier-model-list';
 
 export const DEFAULT_API_URL = 'https://api.openai.com/v1/chat/completions';
 export const DEFAULT_MODEL = 'gpt-4o-mini';
@@ -52,6 +54,43 @@ export function APIConfigCard({ savedConfig, onConfigSave, onConfigClear }: APIC
   const [model, setModel] = useState(savedConfig.model);
   const [isKeyVisible, setIsKeyVisible] = useState(false);
   const [showAdvanced, setShowAdvanced] = useState(false);
+  const [modelList, setModelList] = useState<string[]>([]);
+  const [fetchingModels, setFetchingModels] = useState(false);
+  const [showModelDropdown, setShowModelDropdown] = useState(false);
+  const [modelSearch, setModelSearch] = useState('');
+
+  // Load cached model list
+  useEffect(() => {
+    try {
+      const cached = localStorage.getItem(MODEL_LIST_STORAGE_KEY);
+      if (cached) setModelList(JSON.parse(cached));
+    } catch { /* ignore */ }
+  }, []);
+
+  const handleFetchModels = async () => {
+    const key = apiKey.trim() || savedConfig.apiKey;
+    const url = apiUrl.trim() || savedConfig.apiUrl || DEFAULT_API_URL;
+    if (!key) {
+      toast({ title: '请先输入 API Key', variant: 'destructive' });
+      return;
+    }
+    setFetchingModels(true);
+    try {
+      const models = await fetchModels(url, key);
+      setModelList(models);
+      localStorage.setItem(MODEL_LIST_STORAGE_KEY, JSON.stringify(models));
+      toast({ title: `已获取 ${models.length} 个模型` });
+      setShowModelDropdown(true);
+    } catch (e) {
+      toast({ title: '获取模型列表失败', description: e instanceof Error ? e.message : '请检查 API 配置', variant: 'destructive' });
+    } finally {
+      setFetchingModels(false);
+    }
+  };
+
+  const filteredModels = modelList.filter(m =>
+    m.toLowerCase().includes((modelSearch || model).toLowerCase())
+  );
 
   const handleSave = () => {
     if (!apiKey.trim()) {
@@ -73,6 +112,8 @@ export function APIConfigCard({ savedConfig, onConfigSave, onConfigClear }: APIC
     setApiKey('');
     setApiUrl(DEFAULT_API_URL);
     setModel(DEFAULT_MODEL);
+    setModelList([]);
+    localStorage.removeItem(MODEL_LIST_STORAGE_KEY);
     onConfigClear();
     toast({ title: '配置已清除' });
   };
@@ -133,13 +174,48 @@ export function APIConfigCard({ savedConfig, onConfigSave, onConfigClear }: APIC
             </div>
             <div className="space-y-2">
               <Label>模型名称</Label>
-              <Input
-                value={model}
-                onChange={(e) => setModel(e.target.value)}
-                placeholder={DEFAULT_MODEL}
-              />
+              <div className="flex gap-2">
+                <div className="flex-1 relative">
+                  <Input
+                    value={model}
+                    onChange={(e) => { setModel(e.target.value); setShowModelDropdown(true); }}
+                    onFocus={() => { if (modelList.length > 0) setShowModelDropdown(true); }}
+                    onBlur={() => setTimeout(() => setShowModelDropdown(false), 200)}
+                    placeholder={DEFAULT_MODEL}
+                  />
+                  {showModelDropdown && filteredModels.length > 0 && (
+                    <div className="absolute z-50 top-full left-0 right-0 mt-1 max-h-48 overflow-auto border rounded-md bg-popover shadow-md">
+                      {filteredModels.slice(0, 50).map((m) => (
+                        <button
+                          key={m}
+                          type="button"
+                          className="w-full text-left px-3 py-1.5 text-sm hover:bg-accent cursor-pointer truncate"
+                          onMouseDown={(e) => e.preventDefault()}
+                          onClick={() => { setModel(m); setShowModelDropdown(false); }}
+                        >
+                          {m}
+                        </button>
+                      ))}
+                      {modelList.length > 0 && (
+                        <div className="border-t px-3 py-1.5 text-xs text-muted-foreground">
+                          共 {modelList.length} 个模型，可直接输入自定义名称
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+                <Button
+                  variant="outline"
+                  size="icon"
+                  onClick={handleFetchModels}
+                  disabled={fetchingModels}
+                  title="从 API 获取模型列表"
+                >
+                  {fetchingModels ? <Loader2 className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-4 h-4" />}
+                </Button>
+              </div>
               <p className="text-xs text-muted-foreground">
-                例如：gpt-4o-mini, gpt-4o, claude-3-haiku, deepseek-chat 等
+                点击刷新按钮从 API 获取可用模型，或手动输入模型名称
               </p>
             </div>
           </div>

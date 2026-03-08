@@ -1,11 +1,12 @@
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Copy, Check, BookOpen, GitBranch, FileText, MessageSquare, Loader2, Import } from 'lucide-react';
+import { Copy, Check, BookOpen, GitBranch, FileText, MessageSquare, Loader2, Import, RotateCcw, ChevronDown } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { useToast } from '@/hooks/use-toast';
 import { callOpenAI } from './useOpenAI';
 import type { APIConfig } from './APIConfigCard';
@@ -16,7 +17,7 @@ interface PromptTemplatesProps {
   selectedCount: number;
 }
 
-const PROMPTS = {
+const DEFAULT_PROMPTS: Record<string, { system: string; label: string; icon: any; description: string; placeholder: string }> = {
   summarize: {
     system: `你是一个故事分析专家。用户会提供一段对话/角色扮演记录，请将其总结为结构化的剧情概要。
 
@@ -106,6 +107,18 @@ const PROMPTS = {
   },
 };
 
+function getStoredPrompt(key: string): string | null {
+  return localStorage.getItem(`ai-prompt-${key}`);
+}
+
+function setStoredPrompt(key: string, value: string) {
+  localStorage.setItem(`ai-prompt-${key}`, value);
+}
+
+function removeStoredPrompt(key: string) {
+  localStorage.removeItem(`ai-prompt-${key}`);
+}
+
 export function PromptTemplates({ config, selectedContent, selectedCount }: PromptTemplatesProps) {
   const { toast } = useToast();
   const navigate = useNavigate();
@@ -114,14 +127,47 @@ export function PromptTemplates({ config, selectedContent, selectedCount }: Prom
   const [output, setOutput] = useState('');
   const [loading, setLoading] = useState(false);
   const [copied, setCopied] = useState(false);
+  // Editable prompts state
+  const [editedPrompts, setEditedPrompts] = useState<Record<string, string>>({});
+  const outputRef = useRef('');
+
+  // Load custom prompts from localStorage on mount
+  useEffect(() => {
+    const loaded: Record<string, string> = {};
+    for (const key of ['summarize', 'worldbook', 'parallel']) {
+      const stored = getStoredPrompt(key);
+      if (stored !== null) loaded[key] = stored;
+    }
+    setEditedPrompts(loaded);
+  }, []);
+
+  const getActiveSystemPrompt = (key: string): string => {
+    if (key === 'custom') return customPrompt;
+    if (editedPrompts[key] !== undefined) return editedPrompts[key];
+    return DEFAULT_PROMPTS[key].system;
+  };
+
+  const handleEditPrompt = (key: string, value: string) => {
+    setEditedPrompts(prev => ({ ...prev, [key]: value }));
+    setStoredPrompt(key, value);
+  };
+
+  const handleResetPrompt = (key: string) => {
+    setEditedPrompts(prev => {
+      const next = { ...prev };
+      delete next[key];
+      return next;
+    });
+    removeStoredPrompt(key);
+    toast({ title: '已恢复默认提示词' });
+  };
 
   const handleGenerate = async () => {
     if (!selectedContent.trim()) {
       toast({ title: '请先选择聊天楼层', variant: 'destructive' });
       return;
     }
-    const template = PROMPTS[activeTab as keyof typeof PROMPTS];
-    const systemPrompt = activeTab === 'custom' ? customPrompt : template.system;
+    const systemPrompt = getActiveSystemPrompt(activeTab);
     if (!systemPrompt.trim()) {
       toast({ title: '请输入 System Prompt', variant: 'destructive' });
       return;
@@ -129,9 +175,12 @@ export function PromptTemplates({ config, selectedContent, selectedCount }: Prom
 
     setLoading(true);
     setOutput('');
+    outputRef.current = '';
     try {
-      const result = await callOpenAI(config, selectedContent, systemPrompt);
-      setOutput(result);
+      await callOpenAI(config, selectedContent, systemPrompt, (chunk) => {
+        outputRef.current += chunk;
+        setOutput(outputRef.current);
+      });
     } catch (error) {
       toast({
         title: '生成失败',
@@ -153,7 +202,6 @@ export function PromptTemplates({ config, selectedContent, selectedCount }: Prom
   const isWorldbookJson = (): boolean => {
     if (activeTab !== 'worldbook' || !output) return false;
     try {
-      // Try to extract JSON from markdown code blocks or raw text
       const jsonStr = output.replace(/^```json?\s*\n?/m, '').replace(/\n?```\s*$/m, '').trim();
       const parsed = JSON.parse(jsonStr);
       return parsed && typeof parsed === 'object' && parsed.entries;
@@ -166,7 +214,6 @@ export function PromptTemplates({ config, selectedContent, selectedCount }: Prom
     try {
       const jsonStr = output.replace(/^```json?\s*\n?/m, '').replace(/\n?```\s*$/m, '').trim();
       const parsed = JSON.parse(jsonStr);
-      // Store in sessionStorage for WorldBook page to pick up
       sessionStorage.setItem('ai-worldbook-import', JSON.stringify(parsed));
       navigate('/worldbook');
       toast({ title: '已跳转到世界书编辑器，正在导入...' });
@@ -178,7 +225,7 @@ export function PromptTemplates({ config, selectedContent, selectedCount }: Prom
   return (
     <Tabs value={activeTab} onValueChange={(v) => { setActiveTab(v); setOutput(''); }} className="w-full">
       <TabsList className="grid w-full grid-cols-4">
-        {Object.entries(PROMPTS).map(([key, { label, icon: Icon }]) => (
+        {Object.entries(DEFAULT_PROMPTS).map(([key, { label, icon: Icon }]) => (
           <TabsTrigger key={key} value={key} className="flex items-center gap-1.5 text-xs sm:text-sm">
             <Icon className="w-4 h-4 shrink-0" />
             <span className="hidden sm:inline">{label}</span>
@@ -187,7 +234,7 @@ export function PromptTemplates({ config, selectedContent, selectedCount }: Prom
         ))}
       </TabsList>
 
-      {Object.entries(PROMPTS).map(([key, template]) => (
+      {Object.entries(DEFAULT_PROMPTS).map(([key, template]) => (
         <TabsContent key={key} value={key}>
           <Card>
             <CardHeader>
@@ -195,6 +242,37 @@ export function PromptTemplates({ config, selectedContent, selectedCount }: Prom
               <CardDescription>{template.description}</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
+              {/* Editable prompt for preset templates */}
+              {key !== 'custom' && (
+                <Collapsible>
+                  <CollapsibleTrigger asChild>
+                    <Button variant="ghost" size="sm" className="text-muted-foreground gap-1">
+                      <ChevronDown className="w-3 h-3" />
+                      编辑提示词
+                    </Button>
+                  </CollapsibleTrigger>
+                  <CollapsibleContent className="space-y-2 pt-2">
+                    <Textarea
+                      value={editedPrompts[key] !== undefined ? editedPrompts[key] : template.system}
+                      onChange={(e) => handleEditPrompt(key, e.target.value)}
+                      rows={8}
+                      className="text-xs font-mono"
+                    />
+                    <div className="flex justify-end">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => handleResetPrompt(key)}
+                        disabled={editedPrompts[key] === undefined}
+                      >
+                        <RotateCcw className="w-3 h-3 mr-1" />
+                        恢复默认
+                      </Button>
+                    </div>
+                  </CollapsibleContent>
+                </Collapsible>
+              )}
+
               {key === 'custom' && (
                 <div className="space-y-2">
                   <Label>System Prompt</Label>
@@ -238,6 +316,7 @@ export function PromptTemplates({ config, selectedContent, selectedCount }: Prom
                   </div>
                   <div className="p-4 bg-muted rounded-lg text-sm whitespace-pre-wrap max-h-96 overflow-auto">
                     {output}
+                    {loading && <span className="inline-block w-1.5 h-4 bg-foreground/60 animate-pulse ml-0.5 align-text-bottom" />}
                   </div>
                 </div>
               )}
