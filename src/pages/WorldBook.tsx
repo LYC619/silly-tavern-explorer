@@ -460,7 +460,9 @@ export default function WorldBookPage() {
 
           <div className="flex-1" />
 
-          <WorldBookImporter onImport={handleImport} onAppend={handleAppend} hasExisting={!!worldbook} data-tour="wb-import" />
+          <div data-tour="wb-import">
+            <WorldBookImporter onImport={handleImport} onAppend={handleAppend} hasExisting={!!worldbook} />
+          </div>
 
           <Dialog open={stagedDialogOpen} onOpenChange={setStagedDialogOpen}>
             <DialogTrigger asChild>
