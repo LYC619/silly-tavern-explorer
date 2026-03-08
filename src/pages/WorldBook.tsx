@@ -140,7 +140,7 @@ export default function WorldBookPage() {
     const newEntry: WorldBookEntry = { ...DEFAULT_ENTRY, uid: newUid, comment: '新条目' } as WorldBookEntry;
     setWorldbook(prev => prev ? { ...prev, entries: { ...prev.entries, [key]: newEntry } } : prev);
     setSelectedUid(key);
-    setMobileEditorOpen(true);
+    if (isMobile) setMobileEditorOpen(true);
   }, [worldbook]);
 
   const deleteEntry = useCallback((key: string) => {
