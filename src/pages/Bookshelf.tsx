@@ -49,6 +49,9 @@ const Bookshelf = () => {
 
   useEffect(() => {
     loadBooks();
+    if (!isTourCompleted('bookshelf')) {
+      setTimeout(() => setShowTour(true), 500);
+    }
   }, []);
 
   const loadBooks = async () => {
