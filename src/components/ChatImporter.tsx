@@ -316,7 +316,7 @@ export function ChatImporter({ onImport }: ChatImporterProps) {
           <RadioGroup value={txtFormat} onValueChange={(v) => setTxtFormat(v as TxtFormat)} className="space-y-4">
             <div className="flex items-start gap-3 p-3 rounded-lg border border-border hover:bg-accent/50 cursor-pointer" onClick={() => setTxtFormat('dialogue')}>
               <RadioGroupItem value="dialogue" id="fmt-dialogue" className="mt-0.5" />
-              <div>
+              <div className="flex-1">
                 <Label htmlFor="fmt-dialogue" className="cursor-pointer font-medium">对话格式</Label>
                 <p className="text-xs text-muted-foreground mt-1">
                   每行为「角色名: 内容」格式，冒号前为说话人名称<br />
@@ -324,6 +324,31 @@ export function ChatImporter({ onImport }: ChatImporterProps) {
                 </p>
               </div>
             </div>
+            {txtFormat === 'dialogue' && (
+              <div className="space-y-3 pl-4 border-l-2 border-border ml-3">
+                <div className="space-y-1">
+                  <Label className="text-xs">用户名称（匹配此名称的行设为 user）</Label>
+                  <Input
+                    value={dialogueUserName}
+                    onChange={(e) => setDialogueUserName(e.target.value)}
+                    placeholder="User"
+                    className="h-8"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-xs">角色名称（其余行设为 assistant）</Label>
+                  <Input
+                    value={dialogueCharName}
+                    onChange={(e) => setDialogueCharName(e.target.value)}
+                    placeholder="Character"
+                    className="h-8"
+                  />
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  已从文件前 20 行预扫描提取，可手动修改
+                </p>
+              </div>
+            )}
             <div className="flex items-start gap-3 p-3 rounded-lg border border-border hover:bg-accent/50 cursor-pointer" onClick={() => setTxtFormat('novel')}>
               <RadioGroupItem value="novel" id="fmt-novel" className="mt-0.5" />
               <div>
