@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Sparkles, ArrowLeft, Wand2, BookMarked, Type } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { HelpCard } from '@/components/HelpCard';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
   APIConfigCard,
