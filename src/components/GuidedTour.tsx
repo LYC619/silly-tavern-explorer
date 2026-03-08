@@ -185,7 +185,47 @@ export function GuidedTour({ steps, module, onComplete, onSkip }: GuidedTourProp
     );
   }
 
-  if (!step || !targetRect) return null;
+  if (!step) return null;
+
+  // Fallback: target not found → show centered bubble without highlight
+  if (!targetRect) {
+    return (
+      <div className="fixed inset-0 z-[9999] pointer-events-none">
+        <div className="absolute inset-0 bg-black/55 pointer-events-auto" />
+        <div className="fixed inset-0 flex items-center justify-center pointer-events-none">
+          <div className="bg-card border border-border rounded-xl shadow-2xl p-4 w-80 pointer-events-auto animate-fade-in">
+            <button
+              className="absolute top-2 right-2 text-muted-foreground hover:text-foreground transition-colors"
+              onClick={handleSkipRequest}
+            >
+              <X className="w-4 h-4" />
+            </button>
+            <div className="text-xs text-muted-foreground mb-2">
+              {currentStep + 1} / {steps.length}
+            </div>
+            <p className="text-sm text-foreground leading-relaxed pr-4">{step.content}</p>
+            <div className="mt-3 flex justify-end">
+              <Button size="sm" onClick={advance} className="gap-1">
+                下一步
+                <ChevronRight className="w-3 h-3" />
+              </Button>
+            </div>
+          </div>
+        </div>
+        {showSkipConfirm && (
+          <div className="fixed inset-0 z-[10002] flex items-center justify-center bg-black/40 pointer-events-auto">
+            <div className="bg-card rounded-xl p-6 max-w-sm mx-4 shadow-2xl border border-border">
+              <p className="text-sm mb-4">确定要跳过新手引导吗？您可以在设置中随时重新开启。</p>
+              <div className="flex gap-2 justify-end">
+                <Button variant="outline" size="sm" onClick={() => setShowSkipConfirm(false)}>继续引导</Button>
+                <Button size="sm" onClick={onSkip}>跳过</Button>
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+    );
+  }
 
   const cutout = {
     top: targetRect.top - TOUR_PAD,
@@ -198,7 +238,7 @@ export function GuidedTour({ steps, module, onComplete, onSkip }: GuidedTourProp
   const bubbleStyle = ensureNoOverlap(rawStyle, cutout, bubbleSize.width, bubbleSize.height);
 
   return (
-    <div className="fixed inset-0 z-[9999]">
+    <div className="fixed inset-0 z-[9999] pointer-events-none">
       {/* Overlay with cutout - only opaque area blocks clicks */}
       <svg className="absolute inset-0 w-full h-full pointer-events-none">
         <defs>
