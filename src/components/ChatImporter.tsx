@@ -121,24 +121,10 @@ export function ChatImporter({ onImport }: ChatImporterProps) {
     throw new Error('Unsupported JSON format');
   };
 
-  const parseTxtDialogue = (content: string): ChatMessage[] => {
+  const parseTxtDialogue = (content: string, userNameOverride?: string): ChatMessage[] => {
     const lines = content.split('\n').filter(l => l.trim());
     const messages: ChatMessage[] = [];
-    const speakerCounts: Record<string, number> = {};
-
-    // First pass: collect all speakers
-    for (const line of lines) {
-      const colonIdx = line.indexOf(':');
-      if (colonIdx > 0 && colonIdx < 30) {
-        const name = line.slice(0, colonIdx).trim();
-        if (name) speakerCounts[name] = (speakerCounts[name] || 0) + 1;
-      }
-    }
-
-    // Determine user: the speaker with the most messages, or first speaker as user
-    const speakers = Object.keys(speakerCounts);
-    // If only 2 speakers, use first as user convention; otherwise heuristic
-    let userName = speakers[0] || 'User';
+    const targetUserName = userNameOverride || 'User';
     
     for (const line of lines) {
       const colonIdx = line.indexOf(':');
@@ -148,7 +134,7 @@ export function ChatImporter({ onImport }: ChatImporterProps) {
         if (name && text) {
           messages.push({
             id: crypto.randomUUID(),
-            role: name === userName ? 'user' : 'assistant',
+            role: name === targetUserName ? 'user' : 'assistant',
             content: text,
             name,
           });
