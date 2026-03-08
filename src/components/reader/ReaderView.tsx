@@ -70,6 +70,9 @@ const ReaderView = ({
   useEffect(() => {
     localStorage.setItem(FONT_STORAGE_KEY, fontFamily);
   }, [fontFamily]);
+
+  // Build pages from messages
+  useEffect(() => {
     const processedPages: PageContent[] = [];
     
     messages.forEach((msg, idx) => {
