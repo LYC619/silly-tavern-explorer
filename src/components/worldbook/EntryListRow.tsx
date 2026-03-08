@@ -1,4 +1,5 @@
 import { Switch } from '@/components/ui/switch';
+import { Checkbox } from '@/components/ui/checkbox';
 import type { WorldBookEntry } from '@/types/worldbook';
 import { POSITION_LABELS } from '@/types/worldbook';
 import { cn } from '@/lib/utils';
@@ -8,6 +9,9 @@ interface Props {
   selected: boolean;
   onClick: () => void;
   onToggleEnabled: (enabled: boolean) => void;
+  batchMode?: boolean;
+  batchChecked?: boolean;
+  onBatchToggle?: (checked: boolean) => void;
 }
 
 function strategyIcon(entry: WorldBookEntry) {
@@ -16,7 +20,7 @@ function strategyIcon(entry: WorldBookEntry) {
   return '🟢';
 }
 
-export function EntryListRow({ entry, selected, onClick, onToggleEnabled }: Props) {
+export function EntryListRow({ entry, selected, onClick, onToggleEnabled, batchMode, batchChecked, onBatchToggle }: Props) {
   return (
     <tr
       className={cn(
@@ -25,6 +29,11 @@ export function EntryListRow({ entry, selected, onClick, onToggleEnabled }: Prop
       )}
       onClick={onClick}
     >
+      {batchMode && (
+        <td className="px-2 py-1.5 w-8" onClick={(e) => e.stopPropagation()}>
+          <Checkbox checked={batchChecked} onCheckedChange={(v) => onBatchToggle?.(!!v)} className="scale-75" />
+        </td>
+      )}
       <td className="px-2 py-1.5 w-10" onClick={(e) => e.stopPropagation()}>
         <Switch checked={entry.enabled} onCheckedChange={onToggleEnabled} className="scale-75" />
       </td>
