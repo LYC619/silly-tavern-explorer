@@ -1,4 +1,4 @@
-import { RefreshCw, Save, Pencil, BookmarkPlus, FileUp, Library, Sparkles, Moon, Sun } from 'lucide-react';
+import { RefreshCw, Save, Pencil, BookmarkPlus, FileUp, Library, Sparkles, Moon, Sun, Globe } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useTheme } from 'next-themes';
 import { Button } from '@/components/ui/button';
@@ -63,6 +63,10 @@ export function EditorToolbar({
       <Button variant="ghost" size="sm" onClick={() => navigate('/ai-tools')}>
         <Sparkles className="w-4 h-4 mr-2" />
         AI工具
+      </Button>
+      <Button variant="ghost" size="sm" onClick={() => navigate('/worldbook')}>
+        <Globe className="w-4 h-4 mr-2" />
+        世界书
       </Button>
 
       <div className="w-px h-6 bg-border mx-1" />
