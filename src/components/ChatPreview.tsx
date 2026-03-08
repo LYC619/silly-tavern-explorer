@@ -14,10 +14,11 @@ interface ChatPreviewProps {
   markers?: ChapterMarker[];
   onMessageClick?: (messageId: string, messageIndex: number) => void;
   editMode?: boolean;
+  fontFamily?: string;
 }
 
 export const ChatPreview = forwardRef<HTMLDivElement, ChatPreviewProps>(
-  ({ session, theme, showTimestamp, showAvatar, fontSize, regexRules, markers = [], onMessageClick, editMode = false }, ref) => {
+  ({ session, theme, showTimestamp, showAvatar, fontSize, regexRules, markers = [], onMessageClick, editMode = false, fontFamily }, ref) => {
     const markerMap = useMemo(() => {
       const map = new Map<string, ChapterMarker>();
       markers.forEach(m => map.set(m.messageId, m));
@@ -97,7 +98,7 @@ export const ChatPreview = forwardRef<HTMLDivElement, ChatPreviewProps>(
       <div
         ref={ref}
         className={`min-h-[400px] ${classes.container}`}
-        style={{ fontSize: `${fontSize}px` }}
+        style={{ fontSize: `${fontSize}px`, fontFamily: fontFamily || undefined }}
       >
         {/* Title */}
         <div className={classes.title}>
