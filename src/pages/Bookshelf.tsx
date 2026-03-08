@@ -166,7 +166,12 @@ const Bookshelf = () => {
               <Library className="w-5 h-5 text-primary-foreground" />
             </div>
             <div>
-              <h1 className="font-display text-xl font-semibold">我的书架</h1>
+              <div className="flex items-center gap-1">
+                <h1 className="font-display text-xl font-semibold">我的书架</h1>
+                <HelpCard>
+                  书架将聊天记录保存在浏览器本地（IndexedDB），不上传服务器。可自定义封面、编辑标题。点击作品可选择「沉浸阅读」或「编辑处理」。注意：清除浏览器数据会丢失书架内容，建议定期使用「存储管理」中的备份功能。
+                </HelpCard>
+              </div>
               <p className="text-xs text-muted-foreground">共 {books.length} 本作品</p>
             </div>
           </div>
