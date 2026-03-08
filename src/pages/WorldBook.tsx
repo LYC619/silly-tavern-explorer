@@ -297,7 +297,7 @@ export default function WorldBookPage() {
                 <Save className="w-4 h-4 mr-1" /> 保存
               </Button>
               <WorldBookExporter worldbook={worldbook} filename={filename} />
-              <RenumberButton sortLabel={sortLabel} onRenumber={handleRenumber} />
+              <PrefixCategorize entries={worldbook.entries} onApply={handlePrefixCategorize} />
 
               <div className="w-px h-6 bg-border mx-1 hidden sm:block" />
 
