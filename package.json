@@ -37,7 +37,6 @@
     "date-fns": "^3.6.0",
     "embla-carousel-react": "^8.6.0",
     "html2canvas": "^1.4.1",
-    "input-otp": "^1.4.2",
     "jsdom": "^20.0.3",
     "lucide-react": "^0.462.0",
     "next-themes": "^0.3.0",
