@@ -125,18 +125,22 @@ const AITools = () => {
                 />
               </div>
 
-              <BatchProcessor
-                config={config}
-                selectedContent={selectedContent}
-                selectedCount={selectedIndices.size}
-                systemPrompt={batchSystemPrompt}
-              />
+              <div data-tour="ai-batch">
+                <BatchProcessor
+                  config={config}
+                  selectedContent={selectedContent}
+                  selectedCount={selectedIndices.size}
+                  systemPrompt={batchSystemPrompt}
+                />
+              </div>
 
-              <PromptTemplates
-                config={config}
-                selectedContent={selectedContent}
-                selectedCount={selectedIndices.size}
-              />
+              <div data-tour="ai-templates">
+                <PromptTemplates
+                  config={config}
+                  selectedContent={selectedContent}
+                  selectedCount={selectedIndices.size}
+                />
+              </div>
             </>
           )}
         </div>
