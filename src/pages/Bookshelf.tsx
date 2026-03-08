@@ -45,6 +45,7 @@ const Bookshelf = () => {
   // New: Action selection dialog
   const [selectedBook, setSelectedBook] = useState<BookItem | null>(null);
   const [actionDialogOpen, setActionDialogOpen] = useState(false);
+  const [showTour, setShowTour] = useState(false);
 
   useEffect(() => {
     loadBooks();
