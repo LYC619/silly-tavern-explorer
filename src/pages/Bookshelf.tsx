@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Library, Plus, Trash2, Clock, MessageSquare, BookOpen, ArrowLeft, Upload, Edit3, Play } from 'lucide-react';
 import { StorageManager } from '@/components/StorageManager';
+import { HelpCard } from '@/components/HelpCard';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
