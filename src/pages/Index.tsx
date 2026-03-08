@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useLocation } from 'react-router-dom';
 import { ScrollText, Settings, Regex } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -9,7 +9,9 @@ import { EditorToolbar } from '@/components/EditorToolbar';
 import { ChapterMarkerDialog } from '@/components/ChapterMarkerDialog';
 import { MessageEditDialog } from '@/components/MessageEditDialog';
 import { RegexSidebar } from '@/components/RegexSidebar';
-import { OnboardingGuide, useOnboardingVisible } from '@/components/OnboardingGuide';
+import { GuidedTour } from '@/components/GuidedTour';
+import { HOME_TOUR_STEPS, isTourCompleted, setTourCompleted } from '@/lib/tour-steps';
+import { demoSession } from '@/components/DemoData';
 import type { ChatSession, ExportSettings, ChapterMarker, ChatMessage } from '@/types/chat';
 import { saveBook, generateBookId, type BookItem } from '@/lib/bookshelf-db';
 import { 
