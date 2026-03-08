@@ -2,6 +2,7 @@ import { useState, useCallback, useMemo } from 'react';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { useNavigate } from 'react-router-dom';
 import { Globe, LayoutGrid, List, Library, Moon, Sun, Plus, Trash2, Save, Search, X } from 'lucide-react';
+import { RenumberButton } from '@/components/worldbook/RenumberDialog';
 import { useTheme } from 'next-themes';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
