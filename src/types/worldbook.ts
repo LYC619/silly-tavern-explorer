@@ -110,7 +110,7 @@ export function parseKeys(raw: string | string[]): string[] {
 
 /** Normalize a raw entry from JSON, filling missing fields with defaults */
 export function normalizeEntry(raw: Record<string, unknown>, uid: number): WorldBookEntry {
-  return {
+  const result: WorldBookEntry = {
     ...DEFAULT_ENTRY,
     ...raw,
     uid,
@@ -132,7 +132,19 @@ export function normalizeEntry(raw: Record<string, unknown>, uid: number): World
     sticky: (raw.sticky as number) ?? 0,
     cooldown: (raw.cooldown as number) ?? 0,
     delay: (raw.delay as number) ?? 0,
-  };
+    groupOverride: (raw.groupOverride as boolean) ?? false,
+    groupWeight: (raw.groupWeight as number) ?? 100,
+    scanDepth: (raw.scanDepth as number | null) ?? null,
+    caseSensitive: (raw.caseSensitive as boolean | null) ?? null,
+    matchWholeWords: (raw.matchWholeWords as boolean | null) ?? null,
+    useGroupScoring: (raw.useGroupScoring as boolean | null) ?? null,
+    automationId: (raw.automationId as string) ?? '',
+    excludeRecursion: (raw.excludeRecursion as boolean) ?? false,
+    preventRecursion: (raw.preventRecursion as boolean) ?? false,
+    delayUntilRecursion: (raw.delayUntilRecursion as boolean) ?? false,
+    displayIndex: (raw.displayIndex as number) ?? 0,
+  } as WorldBookEntry;
+  return result;
 }
 
 /** Parse a world book JSON (supports both Record and Array entries) */
