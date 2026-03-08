@@ -64,6 +64,10 @@ export function EditorToolbar({
         <Sparkles className="w-4 h-4 mr-2" />
         AI工具
       </Button>
+      <Button variant="ghost" size="sm" onClick={() => navigate('/worldbook')}>
+        <Globe className="w-4 h-4 mr-2" />
+        世界书
+      </Button>
 
       <div className="w-px h-6 bg-border mx-1" />
 

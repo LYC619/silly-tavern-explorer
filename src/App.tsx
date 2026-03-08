@@ -24,6 +24,7 @@ const App = () => (
             <Route path="/" element={<Index />} />
             <Route path="/bookshelf" element={<Bookshelf />} />
             <Route path="/ai-tools" element={<AITools />} />
+            <Route path="/worldbook" element={<WorldBook />} />
             <Route path="/reader/:id" element={<Reader />} />
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
             <Route path="*" element={<NotFound />} />
