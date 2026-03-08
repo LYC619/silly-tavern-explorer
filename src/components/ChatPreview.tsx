@@ -14,6 +14,7 @@ interface ChatPreviewProps {
   markers?: ChapterMarker[];
   onMessageClick?: (messageId: string, messageIndex: number) => void;
   editMode?: boolean;
+  fontFamily?: string;
 }
 
 export const ChatPreview = forwardRef<HTMLDivElement, ChatPreviewProps>(
