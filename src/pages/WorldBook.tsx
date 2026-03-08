@@ -517,6 +517,7 @@ export default function WorldBookPage() {
             </AlertDialogContent>
           </AlertDialog>
 
+          {worldbook && activeTab === 'edit' && (
             <>
               <Button variant="outline" size="sm" onClick={addEntry} className="hidden sm:inline-flex">
                 <Plus className="w-4 h-4 mr-1" /> 新增
