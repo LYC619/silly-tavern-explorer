@@ -6,7 +6,6 @@ import { ChatImporter } from '@/components/ChatImporter';
 import { ChatPreview } from '@/components/ChatPreview';
 import { SettingsPanel } from '@/components/SettingsPanel';
 import { EditorToolbar } from '@/components/EditorToolbar';
-import { BatchMarkerImport } from '@/components/BatchMarkerImport';
 import { ChapterMarkerDialog } from '@/components/ChapterMarkerDialog';
 import { MessageEditDialog } from '@/components/MessageEditDialog';
 import { RegexSidebar } from '@/components/RegexSidebar';
@@ -26,7 +25,6 @@ import { useToast } from '@/hooks/use-toast';
 const getDefaultSettings = (): ExportSettings => {
   const saved = loadSettings();
   if (saved) {
-    // 确保正则规则是最新的（合并已保存的自定义规则）
     return {
       ...saved,
       regexRules: getInitialRegexRules(),
@@ -60,9 +58,6 @@ const Index = () => {
   const [markerDialogOpen, setMarkerDialogOpen] = useState(false);
   const [messageEditDialogOpen, setMessageEditDialogOpen] = useState(false);
   const [selectedMessage, setSelectedMessage] = useState<{ id: string; index: number } | null>(null);
-  const [batchImportOpen, setBatchImportOpen] = useState(false);
-  const [selectedFloor, setSelectedFloor] = useState<number | null>(null);
-  const [activeChapterIndex, setActiveChapterIndex] = useState<number | null>(null);
   const [currentBookId, setCurrentBookId] = useState<string | null>(null);
   const [regexSidebarOpen, setRegexSidebarOpen] = useState(false);
 
@@ -76,10 +71,8 @@ const Index = () => {
       if (state.book.settings) {
         setSettings(state.book.settings);
       }
-      // Clear the state to prevent reloading on refresh
       window.history.replaceState({}, document.title);
     } else {
-      // 从 sessionStorage 恢复状态（子页面返回时）
       const savedState = loadSessionState();
       if (savedState?.session) {
         setSession(savedState.session);
@@ -115,14 +108,14 @@ const Index = () => {
     }
   }, []);
 
-  // 保存状态到 sessionStorage（用于子页面返回时恢复）
+  // 保存状态到 sessionStorage
   useEffect(() => {
     if (session) {
       saveSessionState({ session, markers, currentBookId, settings });
     }
   }, [session, markers, currentBookId, settings]);
 
-  // 保存设置变更到 localStorage（持久化）
+  // 保存设置变更到 localStorage
   useEffect(() => {
     saveSettings(settings);
   }, [settings]);
@@ -132,7 +125,6 @@ const Index = () => {
     setMarkers([]);
     setEditMode(false);
     setContentEditMode(false);
-    setBatchImportOpen(false);
     setCurrentBookId(null);
     setRegexSidebarOpen(false);
     clearSessionState();
@@ -159,15 +151,10 @@ const Index = () => {
   };
 
   const handleMessageClick = (messageId: string, messageIndex: number) => {
-    if (batchImportOpen && activeChapterIndex !== null) {
-      // 批量导入模式下，选择楼层
-      setSelectedFloor(messageIndex + 1); // 楼层从1开始
-    } else if (contentEditMode) {
-      // 内容编辑模式
+    if (contentEditMode) {
       setSelectedMessage({ id: messageId, index: messageIndex });
       setMessageEditDialogOpen(true);
     } else if (editMode) {
-      // 单个标记模式
       setSelectedMessage({ id: messageId, index: messageIndex });
       setMarkerDialogOpen(true);
     }
@@ -189,17 +176,8 @@ const Index = () => {
       ...session,
       messages: session.messages.filter(msg => msg.id !== selectedMessage.id),
     });
-    // 同时删除关联的章节标记
     setMarkers(prev => prev.filter(m => m.messageId !== selectedMessage.id));
   };
-
-  // 重置 selectedFloor
-  useEffect(() => {
-    if (selectedFloor !== null) {
-      const timer = setTimeout(() => setSelectedFloor(null), 100);
-      return () => clearTimeout(timer);
-    }
-  }, [selectedFloor]);
 
   const handleSaveMarker = (marker: ChapterMarker) => {
     setMarkers(prev => {
@@ -213,30 +191,6 @@ const Index = () => {
     });
   };
 
-  const handleBatchImport = (newMarkers: ChapterMarker[]) => {
-    if (!session) return;
-    const correctedMarkers = newMarkers.map(m => ({
-      ...m,
-      messageId: session.messages[m.messageIndex]?.id || m.messageId,
-    }));
-    setMarkers(prev => {
-      const merged = [...prev];
-      for (const marker of correctedMarkers) {
-        const existing = merged.findIndex(m => m.messageIndex === marker.messageIndex);
-        if (existing >= 0) {
-          merged[existing] = marker;
-        } else {
-          merged.push(marker);
-        }
-      }
-      return merged.sort((a, b) => a.messageIndex - b.messageIndex);
-    });
-
-    // 导入完成后，自动切到“章节标记”编辑模式，方便继续微调
-    setBatchImportOpen(false);
-    setEditMode(true);
-  };
-
   const handleDeleteMarker = () => {
     if (selectedMessage) {
       setMarkers(prev => prev.filter(m => m.messageId !== selectedMessage.id));
@@ -247,7 +201,6 @@ const Index = () => {
     setContentEditMode(!contentEditMode);
     if (!contentEditMode) {
       setEditMode(false);
-      setBatchImportOpen(false);
     }
   };
 
@@ -255,15 +208,6 @@ const Index = () => {
     setEditMode(!editMode);
     if (!editMode) {
       setContentEditMode(false);
-      setBatchImportOpen(false);
-    }
-  };
-
-  const handleToggleBatchImport = () => {
-    setBatchImportOpen(!batchImportOpen);
-    if (!batchImportOpen) {
-      setContentEditMode(false);
-      setEditMode(false);
     }
   };
 
@@ -292,13 +236,11 @@ const Index = () => {
             markers={markers}
             editMode={editMode}
             contentEditMode={contentEditMode}
-            batchImportOpen={batchImportOpen}
             onLoadSession={setSession}
             onReset={handleReset}
             onSaveToBookshelf={handleSaveToBookshelf}
             onToggleContentEdit={handleToggleContentEdit}
             onToggleEditMode={handleToggleEditMode}
-            onToggleBatchImport={handleToggleBatchImport}
           />
         </div>
       </header>
@@ -366,13 +308,11 @@ const Index = () => {
                       <span className="ml-2 text-primary">· {markers.length} 个章节标记</span>
                     )}
                   </div>
-                  {(editMode || batchImportOpen || contentEditMode) && (
+                  {(editMode || contentEditMode) && (
                     <div className="text-sm text-primary animate-pulse">
-                      {batchImportOpen 
-                        ? '点击消息选择楼层' 
-                        : contentEditMode 
-                          ? '点击消息编辑内容'
-                          : '点击消息添加章节标记'}
+                      {contentEditMode 
+                        ? '点击消息编辑内容'
+                        : '点击消息添加章节标记'}
                     </div>
                   )}
                 </div>
@@ -380,7 +320,7 @@ const Index = () => {
                 <div className="rounded-lg border border-border bg-card/50">
                   <div className="flex justify-center py-6 px-4">
                     <div 
-                      style={{ width: Math.min(settings.paperWidth, (batchImportOpen || regexSidebarOpen) ? 520 : settings.paperWidth) }}
+                      style={{ width: Math.min(settings.paperWidth, regexSidebarOpen ? 520 : settings.paperWidth) }}
                       className="shadow-warm rounded-lg overflow-hidden animate-fade-in"
                     >
                       <ChatPreview
@@ -392,25 +332,12 @@ const Index = () => {
                         regexRules={settings.regexRules}
                         markers={markers}
                         onMessageClick={handleMessageClick}
-                        editMode={editMode || batchImportOpen || contentEditMode}
+                        editMode={editMode || contentEditMode}
                       />
                     </div>
                   </div>
                 </div>
               </div>
-
-              {/* Batch Import Sidebar */}
-              {batchImportOpen && session && (
-                <BatchMarkerImport
-                  totalMessages={session.messages.length}
-                  onImport={handleBatchImport}
-                  isOpen={batchImportOpen}
-                  onClose={() => setBatchImportOpen(false)}
-                  selectedFloor={selectedFloor}
-                  activeChapterIndex={activeChapterIndex}
-                  onSetActiveChapter={setActiveChapterIndex}
-                />
-              )}
 
               {/* Regex Sidebar */}
               <RegexSidebar

@@ -403,6 +403,8 @@ export default function WorldBookPage() {
             </TabsList>
           </Tabs>
 
+          <GlobalSettings />
+
           <Button variant="ghost" size="icon" className="h-8 w-8"
             onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
             title={theme === 'dark' ? '日间模式' : '夜间模式'}>
