@@ -1,4 +1,4 @@
-# ST 聊天记录处理器 v0.6
+# ST 聊天记录处理器 v0.7
 
 SillyTavern Chat Beautifier - 将 SillyTavern 的聊天记录转换为精美格式，支持编辑、书架管理和 AI 辅助功能。
 
