@@ -462,13 +462,61 @@ export default function WorldBookPage() {
         <div className="flex-1 flex overflow-hidden">
           {!worldbook ? (
             <div className="flex-1 flex items-center justify-center">
-              <div className="text-center space-y-4 px-4">
+              <div className="text-center space-y-4 px-4 max-w-lg w-full">
                 <Globe className="w-16 h-16 mx-auto text-muted-foreground/40" />
                 <h2 className="text-xl font-semibold text-foreground">开始使用世界书编辑器</h2>
-                <p className="text-muted-foreground max-w-md">
+                <p className="text-muted-foreground max-w-md mx-auto">
                   导入 SillyTavern 的世界书 JSON 文件，可视化浏览和编辑所有条目，然后导出为兼容格式。
                 </p>
                 <WorldBookImporter onImport={handleImport} />
+
+                {savedItems.length > 0 && (
+                  <div className="mt-8 text-left space-y-3">
+                    <div className="flex items-center gap-2 text-sm font-medium text-foreground">
+                      <FolderOpen className="w-4 h-4" />
+                      从本地恢复
+                    </div>
+                    <div className="space-y-2">
+                      {savedItems.map(item => (
+                        <Card
+                          key={item.id}
+                          className="cursor-pointer hover:bg-accent/50 transition-colors"
+                          onClick={() => {
+                            setWorldbook(item.worldbook);
+                            setFilename(item.title);
+                            setCurrentItemId(item.id);
+                          }}
+                        >
+                          <CardContent className="p-3 flex items-center justify-between">
+                            <div className="min-w-0">
+                              <p className="font-medium text-sm truncate text-foreground">{item.title}</p>
+                              <p className="text-xs text-muted-foreground">
+                                {Object.keys(item.worldbook.entries).length} 个条目
+                                <span className="mx-1">·</span>
+                                <Clock className="w-3 h-3 inline -mt-0.5" />
+                                {' '}{new Date(item.updatedAt).toLocaleString()}
+                              </p>
+                            </div>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-7 w-7 shrink-0"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                deleteWorldBook(item.id).then(() => {
+                                  setSavedItems(prev => prev.filter(s => s.id !== item.id));
+                                  toast({ title: '已删除', description: `暂存「${item.title}」已删除` });
+                                });
+                              }}
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </Button>
+                          </CardContent>
+                        </Card>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
           ) : (
