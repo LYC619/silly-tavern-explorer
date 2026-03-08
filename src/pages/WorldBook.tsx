@@ -58,6 +58,18 @@ export default function WorldBookPage() {
 
   const hasFilters = searchQuery || filterConstant || filterKeyword || filterVector || filterEnabled || filterDisabled || filterPosition !== 'all';
 
+  // Auto-restore from IndexedDB on mount
+  useEffect(() => {
+    getAllWorldBooks().then(items => {
+      setSavedItems(items);
+      if (items.length > 0 && !worldbook) {
+        const latest = items[0]; // already sorted by updatedAt desc
+        setWorldbook(latest.worldbook);
+        setFilename(latest.title);
+        setCurrentItemId(latest.id);
+      }
+    }).catch(() => {});
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
   const filteredEntries = useMemo(() => {
     let result = allEntries;
 
