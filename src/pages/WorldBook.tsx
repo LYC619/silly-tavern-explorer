@@ -284,7 +284,7 @@ export default function WorldBookPage() {
 
           <div className="flex-1" />
 
-          <WorldBookImporter onImport={handleImport} />
+          <WorldBookImporter onImport={handleImport} onAppend={handleAppend} hasExisting={!!worldbook} />
 
           {worldbook && activeTab === 'edit' && (
             <>
