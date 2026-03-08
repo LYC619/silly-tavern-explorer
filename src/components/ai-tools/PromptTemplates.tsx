@@ -222,6 +222,53 @@ export function PromptTemplates({ config, selectedContent, selectedCount }: Prom
     }
   };
 
+  const extractChapterMarkers = (): any[] | null => {
+    if (!output) return null;
+    // Find ## 章节标记 followed by a JSON code block
+    const match = output.match(/##\s*章节标记[\s\S]*?```json\s*\n([\s\S]*?)\n```/);
+    if (!match) return null;
+    try {
+      const parsed = JSON.parse(match[1]);
+      if (Array.isArray(parsed) && parsed.length > 0 && parsed[0].floor !== undefined) {
+        return parsed;
+      }
+    } catch { /* ignore */ }
+    return null;
+  };
+
+  const handleImportChapterMarkers = () => {
+    const chaptersData = extractChapterMarkers();
+    if (!chaptersData) {
+      toast({ title: '未找到有效的章节标记数据', variant: 'destructive' });
+      return;
+    }
+    const sessionState = loadSessionState();
+    if (!sessionState?.session) {
+      toast({ title: '未找到活跃的聊天记录', description: '请先在主页导入聊天记录', variant: 'destructive' });
+      return;
+    }
+    const messages = sessionState.session.messages;
+    const markers: ChapterMarker[] = chaptersData
+      .filter((c: any) => c.floor >= 1 && c.floor <= messages.length)
+      .map((c: any) => ({
+        messageId: messages[c.floor - 1]?.id || '',
+        messageIndex: c.floor - 1,
+        title: c.title || '',
+        volume: c.volume || undefined,
+        summary: c.summary || undefined,
+        createdAt: Date.now(),
+      }));
+    
+    if (markers.length === 0) {
+      toast({ title: '无有效的章节标记', description: '楼层号超出消息范围', variant: 'destructive' });
+      return;
+    }
+
+    sessionStorage.setItem('ai-chapter-markers', JSON.stringify(markers));
+    navigate('/');
+    toast({ title: `已生成 ${markers.length} 个章节标记`, description: '正在跳转到主页导入...' });
+  };
+
   const handleImportToWorldbook = () => {
     try {
       const jsonStr = output.replace(/^```json?\s*\n?/m, '').replace(/\n?```\s*$/m, '').trim();
