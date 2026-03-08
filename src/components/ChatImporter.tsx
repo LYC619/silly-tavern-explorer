@@ -1,9 +1,10 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { Upload, FileText, AlertCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Label } from '@/components/ui/label';
+import { Input } from '@/components/ui/input';
 import {
   Dialog,
   DialogContent,
@@ -20,12 +21,34 @@ interface ChatImporterProps {
 
 type TxtFormat = 'dialogue' | 'novel';
 
+/** Pre-scan TXT content to extract speaker names from first 20 lines */
+function preScanSpeakers(content: string): { userName: string; charName: string } {
+  const lines = content.split('\n').slice(0, 20);
+  const names: string[] = [];
+  for (const line of lines) {
+    const colonIdx = line.indexOf(':');
+    if (colonIdx > 0 && colonIdx < 30) {
+      const name = line.slice(0, colonIdx).trim();
+      if (name && !names.includes(name)) {
+        names.push(name);
+        if (names.length >= 2) break;
+      }
+    }
+  }
+  return {
+    userName: names[0] || 'User',
+    charName: names[1] || 'Character',
+  };
+}
+
 export function ChatImporter({ onImport }: ChatImporterProps) {
   const [isDragging, setIsDragging] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [txtFormatDialog, setTxtFormatDialog] = useState(false);
   const [pendingTxtFile, setPendingTxtFile] = useState<File | null>(null);
   const [txtFormat, setTxtFormat] = useState<TxtFormat>('dialogue');
+  const [dialogueUserName, setDialogueUserName] = useState('User');
+  const [dialogueCharName, setDialogueCharName] = useState('Character');
 
   const parseJsonl = (content: string): { messages: ChatMessage[]; metadata?: STMetadata } => {
     const lines = content.trim().split('\n');
