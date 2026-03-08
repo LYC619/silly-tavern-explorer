@@ -456,7 +456,67 @@ export default function WorldBookPage() {
 
           <WorldBookImporter onImport={handleImport} onAppend={handleAppend} hasExisting={!!worldbook} />
 
-          {worldbook && activeTab === 'edit' && (
+          <Dialog open={stagedDialogOpen} onOpenChange={setStagedDialogOpen}>
+            <DialogTrigger asChild>
+              <Button variant="outline" size="sm" onClick={() => {
+                getAllWorldBooks().then(items => setSavedItems(items));
+              }}>
+                <Archive className="w-4 h-4 mr-1" /> <span className="hidden sm:inline">已暂存</span>
+              </Button>
+            </DialogTrigger>
+            <DialogContent className="max-w-lg max-h-[70vh] overflow-y-auto">
+              <DialogHeader>
+                <DialogTitle>已暂存的世界书</DialogTitle>
+              </DialogHeader>
+              {savedItems.length === 0 ? (
+                <p className="text-sm text-muted-foreground py-4 text-center">暂无暂存记录</p>
+              ) : (
+                <div className="space-y-2">
+                  {savedItems.map(item => (
+                    <div key={item.id} className="flex items-center justify-between p-3 rounded-lg border bg-card hover:bg-accent/50 transition-colors">
+                      <button
+                        className="flex-1 text-left"
+                        onClick={() => handleLoadStaged(item)}
+                      >
+                        <div className="font-medium text-sm text-foreground">{item.title}</div>
+                        <div className="text-xs text-muted-foreground flex items-center gap-2 mt-0.5">
+                          <span>{Object.keys(item.worldbook.entries).length} 条目</span>
+                          <span>·</span>
+                          <span>{new Date(item.updatedAt).toLocaleString()}</span>
+                        </div>
+                      </button>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-7 w-7 text-muted-foreground hover:text-destructive"
+                        onClick={(e) => { e.stopPropagation(); handleDeleteStaged(item.id); }}
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </Button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </DialogContent>
+          </Dialog>
+
+          <AlertDialog open={!!confirmLoadItem} onOpenChange={(open) => !open && setConfirmLoadItem(null)}>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>确认切换</AlertDialogTitle>
+                <AlertDialogDescription>
+                  当前编辑中的世界书将被替换为「{confirmLoadItem?.title}」，未暂存的修改将丢失。是否继续？
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel>取消</AlertDialogCancel>
+                <AlertDialogAction onClick={() => confirmLoadItem && doLoadStaged(confirmLoadItem)}>
+                  确认加载
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
+
             <>
               <Button variant="outline" size="sm" onClick={addEntry} className="hidden sm:inline-flex">
                 <Plus className="w-4 h-4 mr-1" /> 新增
