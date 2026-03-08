@@ -4,6 +4,7 @@ import { Globe, LayoutGrid, List, Library, Moon, Sun, Plus, Trash2, Save } from 
 import { useTheme } from 'next-themes';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { WorldBookImporter } from '@/components/worldbook/WorldBookImporter';
 import { WorldBookExporter } from '@/components/worldbook/WorldBookExporter';
 import { EntryCard } from '@/components/worldbook/EntryCard';
@@ -24,6 +25,7 @@ export default function WorldBookPage() {
   const [filename, setFilename] = useState('worldbook');
   const [selectedUid, setSelectedUid] = useState<string | null>(null);
   const [viewMode, setViewMode] = useState<'card' | 'list'>('card');
+  const [mobileEditorOpen, setMobileEditorOpen] = useState(false);
 
   const entries = worldbook ? Object.entries(worldbook.entries) : [];
   const selectedEntry = selectedUid && worldbook ? worldbook.entries[selectedUid] : null;
@@ -57,6 +59,7 @@ export default function WorldBookPage() {
     const newEntry: WorldBookEntry = { ...DEFAULT_ENTRY, uid: newUid, comment: '新条目' } as WorldBookEntry;
     setWorldbook(prev => prev ? { ...prev, entries: { ...prev.entries, [key]: newEntry } } : prev);
     setSelectedUid(key);
+    setMobileEditorOpen(true);
   }, [worldbook]);
 
   const deleteEntry = useCallback((key: string) => {
@@ -65,8 +68,16 @@ export default function WorldBookPage() {
       const { [key]: _, ...rest } = prev.entries;
       return { ...prev, entries: rest };
     });
-    if (selectedUid === key) setSelectedUid(null);
+    if (selectedUid === key) {
+      setSelectedUid(null);
+      setMobileEditorOpen(false);
+    }
   }, [selectedUid]);
+
+  const handleSelectEntry = useCallback((key: string) => {
+    setSelectedUid(key);
+    setMobileEditorOpen(true);
+  }, []);
 
   const handleSaveLocal = useCallback(async () => {
     if (!worldbook) return;
@@ -81,13 +92,27 @@ export default function WorldBookPage() {
     toast({ title: '已保存', description: `世界书「${filename}」已保存到本地` });
   }, [worldbook, filename, toast]);
 
+  const editorContent = selectedEntry && selectedUid ? (
+    <>
+      <EntryEditor
+        entry={selectedEntry}
+        onChange={(updated) => updateEntry(selectedUid, updated)}
+      />
+      <div className="px-4 pb-4">
+        <Button variant="destructive" size="sm" onClick={() => deleteEntry(selectedUid)}>
+          <Trash2 className="w-4 h-4 mr-1" /> 删除此条目
+        </Button>
+      </div>
+    </>
+  ) : null;
+
   return (
     <div className="min-h-screen bg-background flex flex-col">
       {/* Header */}
       <header className="border-b bg-card/80 backdrop-blur sticky top-0 z-30">
         <div className="max-w-[1600px] mx-auto px-4 h-14 flex items-center gap-2">
           <Globe className="w-5 h-5 text-primary" />
-          <h1 className="font-semibold text-foreground text-lg mr-4">世界书编辑器</h1>
+          <h1 className="font-semibold text-foreground text-lg mr-4 hidden sm:block">世界书编辑器</h1>
 
           <Button variant="ghost" size="icon" className="h-8 w-8"
             onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
@@ -96,10 +121,10 @@ export default function WorldBookPage() {
           </Button>
 
           <Button variant="ghost" size="sm" onClick={() => navigate('/')}>
-            <Library className="w-4 h-4 mr-1" /> 编辑器
+            <Library className="w-4 h-4 mr-1" /> <span className="hidden sm:inline">编辑器</span>
           </Button>
           <Button variant="ghost" size="sm" onClick={() => navigate('/bookshelf')}>
-            <Library className="w-4 h-4 mr-1" /> 书架
+            <Library className="w-4 h-4 mr-1" /> <span className="hidden sm:inline">书架</span>
           </Button>
 
           <div className="flex-1" />
@@ -108,21 +133,24 @@ export default function WorldBookPage() {
 
           {worldbook && (
             <>
-              <Button variant="outline" size="sm" onClick={addEntry}>
-                <Plus className="w-4 h-4 mr-1" /> 新增条目
+              <Button variant="outline" size="sm" onClick={addEntry} className="hidden sm:inline-flex">
+                <Plus className="w-4 h-4 mr-1" /> 新增
               </Button>
-              <Button variant="outline" size="sm" onClick={handleSaveLocal}>
-                <Save className="w-4 h-4 mr-1" /> 保存到本地
+              <Button variant="outline" size="icon" onClick={addEntry} className="h-8 w-8 sm:hidden">
+                <Plus className="w-4 h-4" />
+              </Button>
+              <Button variant="outline" size="sm" onClick={handleSaveLocal} className="hidden sm:inline-flex">
+                <Save className="w-4 h-4 mr-1" /> 保存
               </Button>
               <WorldBookExporter worldbook={worldbook} filename={filename} />
 
-              <div className="w-px h-6 bg-border mx-1" />
+              <div className="w-px h-6 bg-border mx-1 hidden sm:block" />
 
-              <Button variant={viewMode === 'card' ? 'default' : 'ghost'} size="icon" className="h-8 w-8"
+              <Button variant={viewMode === 'card' ? 'default' : 'ghost'} size="icon" className="h-8 w-8 hidden sm:inline-flex"
                 onClick={() => setViewMode('card')}>
                 <LayoutGrid className="w-4 h-4" />
               </Button>
-              <Button variant={viewMode === 'list' ? 'default' : 'ghost'} size="icon" className="h-8 w-8"
+              <Button variant={viewMode === 'list' ? 'default' : 'ghost'} size="icon" className="h-8 w-8 hidden sm:inline-flex"
                 onClick={() => setViewMode('list')}>
                 <List className="w-4 h-4" />
               </Button>
@@ -134,9 +162,8 @@ export default function WorldBookPage() {
       {/* Body */}
       <div className="flex-1 flex overflow-hidden">
         {!worldbook ? (
-          /* Empty state */
           <div className="flex-1 flex items-center justify-center">
-            <div className="text-center space-y-4">
+            <div className="text-center space-y-4 px-4">
               <Globe className="w-16 h-16 mx-auto text-muted-foreground/40" />
               <h2 className="text-xl font-semibold text-foreground">开始使用世界书编辑器</h2>
               <p className="text-muted-foreground max-w-md">
@@ -148,7 +175,7 @@ export default function WorldBookPage() {
         ) : (
           <>
             {/* Left: entries */}
-            <div className="flex-1 min-w-0 border-r">
+            <div className="flex-1 min-w-0 md:border-r">
               <ScrollArea className="h-[calc(100vh-3.5rem)]">
                 <div className="p-4">
                   <p className="text-sm text-muted-foreground mb-3">
@@ -162,7 +189,7 @@ export default function WorldBookPage() {
                           key={key}
                           entry={entry}
                           selected={selectedUid === key}
-                          onClick={() => setSelectedUid(key)}
+                          onClick={() => handleSelectEntry(key)}
                           onToggleEnabled={(v) => toggleEnabled(key, v)}
                         />
                       ))}
@@ -186,7 +213,7 @@ export default function WorldBookPage() {
                               key={key}
                               entry={entry}
                               selected={selectedUid === key}
-                              onClick={() => setSelectedUid(key)}
+                              onClick={() => handleSelectEntry(key)}
                               onToggleEnabled={(v) => toggleEnabled(key, v)}
                             />
                           ))}
@@ -198,19 +225,11 @@ export default function WorldBookPage() {
               </ScrollArea>
             </div>
 
-            {/* Right: editor */}
+            {/* Right: desktop editor */}
             <div className="w-[400px] shrink-0 hidden md:block border-l bg-card/50">
-              {selectedEntry && selectedUid ? (
+              {editorContent ? (
                 <ScrollArea className="h-[calc(100vh-3.5rem)]">
-                  <EntryEditor
-                    entry={selectedEntry}
-                    onChange={(updated) => updateEntry(selectedUid, updated)}
-                  />
-                  <div className="px-4 pb-4">
-                    <Button variant="destructive" size="sm" onClick={() => deleteEntry(selectedUid)}>
-                      <Trash2 className="w-4 h-4 mr-1" /> 删除此条目
-                    </Button>
-                  </div>
+                  {editorContent}
                 </ScrollArea>
               ) : (
                 <div className="flex items-center justify-center h-full text-muted-foreground text-sm">
@@ -218,6 +237,20 @@ export default function WorldBookPage() {
                 </div>
               )}
             </div>
+
+            {/* Mobile: bottom sheet editor */}
+            <Sheet open={mobileEditorOpen && !!selectedEntry} onOpenChange={setMobileEditorOpen}>
+              <SheetContent side="bottom" className="h-[85vh] md:hidden p-0">
+                <SheetHeader className="px-4 pt-4 pb-2">
+                  <SheetTitle className="text-base">
+                    编辑：{selectedEntry?.comment || '(无标题)'}
+                  </SheetTitle>
+                </SheetHeader>
+                <ScrollArea className="h-[calc(85vh-3.5rem)]">
+                  {editorContent}
+                </ScrollArea>
+              </SheetContent>
+            </Sheet>
           </>
         )}
       </div>
