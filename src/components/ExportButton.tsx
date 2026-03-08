@@ -55,7 +55,7 @@ function getMessagesInRange(
   return messages;
 }
 
-export function ExportButton({ session, settings, markers = [], onSettingsChange }: ExportButtonProps) {
+export function ExportButton({ session, settings, markers = [], onSettingsChange }: ExportButtonProps & { 'data-tour'?: string }) {
   const { toast } = useToast();
   const [open, setOpen] = useState(false);
 
@@ -220,7 +220,7 @@ export function ExportButton({ session, settings, markers = [], onSettingsChange
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button className="gold-gradient text-primary-foreground">
+        <Button className="gold-gradient text-primary-foreground" data-tour="export-button">
           <Download className="w-4 h-4 mr-2" />
           导出
         </Button>
