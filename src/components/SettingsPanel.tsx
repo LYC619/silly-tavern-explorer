@@ -9,6 +9,14 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/component
 import { Button } from '@/components/ui/button';
 import type { ThemeStyle, ExportSettings, PrefixMode } from '@/types/chat';
 
+const FONT_OPTIONS = [
+  { value: 'sans-serif', label: '系统默认' },
+  { value: '"Noto Serif SC", "Source Han Serif SC", serif', label: '宋体' },
+  { value: '"LXGW WenKai", "KaiTi", cursive', label: '楷体' },
+  { value: '"Noto Sans SC", "Source Han Sans SC", sans-serif', label: '黑体' },
+  { value: '"JetBrains Mono", "Fira Code", monospace', label: '等宽' },
+];
+
 interface SettingsPanelProps {
   settings: ExportSettings;
   onSettingsChange: (settings: ExportSettings) => void;
@@ -169,6 +177,25 @@ export function SettingsPanel({ settings, onSettingsChange }: SettingsPanelProps
             </Select>
           </div>
 
+          {/* Font Family */}
+          <div className="space-y-2">
+            <Label className="text-base font-display">预览字体</Label>
+            <Select
+              value={settings.fontFamily || 'sans-serif'}
+              onValueChange={(value) => updateSetting('fontFamily', value)}
+            >
+              <SelectTrigger className="w-64">
+                <SelectValue placeholder="选择字体" />
+              </SelectTrigger>
+              <SelectContent>
+                {FONT_OPTIONS.map((f) => (
+                  <SelectItem key={f.value} value={f.value}>
+                    <span style={{ fontFamily: f.value }}>{f.label}</span>
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
           {/* Reset Onboarding */}
           <div className="pt-2 border-t border-border">
             <Button

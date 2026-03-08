@@ -86,6 +86,7 @@ export interface ExportSettings {
   recentCount: number;
   customStart: number;
   customEnd: number;
+  fontFamily?: string;
 }
 
 // 内置正则规则

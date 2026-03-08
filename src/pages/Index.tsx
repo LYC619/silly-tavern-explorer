@@ -348,6 +348,7 @@ const Index = () => {
                         markers={markers}
                         onMessageClick={handleMessageClick}
                         editMode={editMode || contentEditMode}
+                        fontFamily={settings.fontFamily}
                       />
                     </div>
                   </div>
