@@ -115,13 +115,15 @@ const AITools = () => {
                 <span>· {session.character?.name} & {session.user?.name}</span>
               </div>
 
-              <FloorSelector
-                messages={session.messages}
-                characterName={session.character?.name}
-                userName={session.user?.name}
-                selectedIndices={selectedIndices}
-                onSelectionChange={setSelectedIndices}
-              />
+              <div data-tour="ai-floor-selector">
+                <FloorSelector
+                  messages={session.messages}
+                  characterName={session.character?.name}
+                  userName={session.user?.name}
+                  selectedIndices={selectedIndices}
+                  onSelectionChange={setSelectedIndices}
+                />
+              </div>
 
               <BatchProcessor
                 config={config}
