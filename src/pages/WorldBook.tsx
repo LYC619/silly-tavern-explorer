@@ -2,6 +2,7 @@ import { useState, useCallback, useMemo } from 'react';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { useNavigate } from 'react-router-dom';
 import { Globe, LayoutGrid, List, Library, Moon, Sun, Plus, Trash2, Save, Search, X } from 'lucide-react';
+import { RenumberButton } from '@/components/worldbook/RenumberDialog';
 import { useTheme } from 'next-themes';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -118,6 +119,29 @@ export default function WorldBookPage() {
     setActiveTab('edit');
   }, []);
 
+  const handleAppend = useCallback((wb: WorldBook) => {
+    setWorldbook(prev => {
+      if (!prev) return wb;
+      const maxKey = Math.max(-1, ...Object.keys(prev.entries).map(Number).filter(n => !isNaN(n)));
+      const maxUid = Object.values(prev.entries).reduce((max, e) => Math.max(max, e.uid), -1);
+      const updated = { ...prev.entries };
+      const newEntries = Object.values(wb.entries);
+      newEntries.forEach((e, i) => {
+        updated[String(maxKey + 1 + i)] = { ...e, uid: maxUid + 1 + i };
+      });
+      return { ...prev, entries: updated };
+    });
+    const newCount = Object.keys(wb.entries).length;
+    setActiveTab('edit');
+    // Toast after state update
+    setTimeout(() => {
+      toast({
+        title: '追加成功',
+        description: `已追加 ${newCount} 个条目`,
+      });
+    }, 0);
+  }, [toast]);
+
   const updateEntry = useCallback((key: string, updated: WorldBookEntry) => {
     setWorldbook(prev => {
       if (!prev) return prev;
@@ -191,6 +215,30 @@ export default function WorldBookPage() {
     toast({ title: '已添加', description: `${newEntries.length} 个条目已添加到世界书` });
   }, [toast]);
 
+  const sortLabel = useMemo(() => {
+    switch (sortMode) {
+      case 'order-asc': return 'Order 升序';
+      case 'order-desc': return 'Order 降序';
+      case 'title': return '标题排序';
+      case 'uid': return '创建顺序';
+    }
+  }, [sortMode]);
+
+  const handleRenumber = useCallback((start: number, step: number) => {
+    if (!worldbook) return;
+    // Use filteredEntries order (which respects current sort)
+    const keys = filteredEntries.map(([key]) => key);
+    setWorldbook(prev => {
+      if (!prev) return prev;
+      const updated = { ...prev.entries };
+      keys.forEach((key, i) => {
+        updated[key] = { ...updated[key], order: start + i * step };
+      });
+      return { ...prev, entries: updated };
+    });
+    toast({ title: '已重新编号', description: `${keys.length} 个条目的 Order 已更新` });
+  }, [worldbook, filteredEntries, toast]);
+
   const editorContent = selectedEntry && selectedUid ? (
     <>
       <EntryEditor
@@ -236,7 +284,7 @@ export default function WorldBookPage() {
 
           <div className="flex-1" />
 
-          <WorldBookImporter onImport={handleImport} />
+          <WorldBookImporter onImport={handleImport} onAppend={handleAppend} hasExisting={!!worldbook} />
 
           {worldbook && activeTab === 'edit' && (
             <>
@@ -250,6 +298,7 @@ export default function WorldBookPage() {
                 <Save className="w-4 h-4 mr-1" /> 保存
               </Button>
               <WorldBookExporter worldbook={worldbook} filename={filename} />
+              <RenumberButton sortLabel={sortLabel} onRenumber={handleRenumber} />
 
               <div className="w-px h-6 bg-border mx-1 hidden sm:block" />
 
