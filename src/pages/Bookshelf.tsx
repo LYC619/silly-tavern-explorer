@@ -25,6 +25,7 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 import { useToast } from '@/hooks/use-toast';
+import { GlobalSettings } from '@/components/GlobalSettings';
 import { getAllBooks, deleteBook, saveBook, generateBookId, type BookItem } from '@/lib/bookshelf-db';
 
 const Bookshelf = () => {
@@ -176,6 +177,7 @@ const Bookshelf = () => {
           </div>
 
           <div className="flex items-center gap-2">
+            <GlobalSettings />
             <Button onClick={() => navigate('/')}>
               <Plus className="w-4 h-4 mr-2" />
               导入新作品

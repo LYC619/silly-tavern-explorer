@@ -24,6 +24,7 @@ import { DEFAULT_ENTRY, POSITION_LABELS, generateWorldBookId } from '@/types/wor
 import { saveWorldBook, getAllWorldBooks, deleteWorldBook } from '@/lib/worldbook-db';
 import type { WorldBookItem } from '@/types/worldbook';
 import { useToast } from '@/hooks/use-toast';
+import { GlobalSettings } from '@/components/GlobalSettings';
 
 type SortMode = 'order-asc' | 'order-desc' | 'title' | 'uid';
 
@@ -401,6 +402,8 @@ export default function WorldBookPage() {
               <TabsTrigger value="quick" className="text-xs px-3 h-6">快速创作</TabsTrigger>
             </TabsList>
           </Tabs>
+
+          <GlobalSettings />
 
           <Button variant="ghost" size="icon" className="h-8 w-8"
             onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
