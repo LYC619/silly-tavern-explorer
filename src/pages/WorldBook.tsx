@@ -1,4 +1,5 @@
 import { useState, useCallback, useMemo } from 'react';
+import { useIsMobile } from '@/hooks/use-mobile';
 import { useNavigate } from 'react-router-dom';
 import { Globe, LayoutGrid, List, Library, Moon, Sun, Plus, Trash2, Save, Search, X } from 'lucide-react';
 import { useTheme } from 'next-themes';
@@ -26,6 +27,7 @@ type SortMode = 'order-asc' | 'order-desc' | 'title' | 'uid';
 export default function WorldBookPage() {
   const navigate = useNavigate();
   const { theme, setTheme } = useTheme();
+  const isMobile = useIsMobile();
   const { toast } = useToast();
 
   const [worldbook, setWorldbook] = useState<WorldBook | null>(null);
@@ -139,7 +141,7 @@ export default function WorldBookPage() {
     const newEntry: WorldBookEntry = { ...DEFAULT_ENTRY, uid: newUid, comment: '新条目' } as WorldBookEntry;
     setWorldbook(prev => prev ? { ...prev, entries: { ...prev.entries, [key]: newEntry } } : prev);
     setSelectedUid(key);
-    setMobileEditorOpen(true);
+    if (isMobile) setMobileEditorOpen(true);
   }, [worldbook]);
 
   const deleteEntry = useCallback((key: string) => {
@@ -156,8 +158,8 @@ export default function WorldBookPage() {
 
   const handleSelectEntry = useCallback((key: string) => {
     setSelectedUid(key);
-    setMobileEditorOpen(true);
-  }, []);
+    if (isMobile) setMobileEditorOpen(true);
+  }, [isMobile]);
 
   const handleSaveLocal = useCallback(async () => {
     if (!worldbook) return;
@@ -442,18 +444,20 @@ export default function WorldBookPage() {
               </div>
 
               {/* Mobile: bottom sheet editor */}
-              <Sheet open={mobileEditorOpen && !!selectedEntry} onOpenChange={setMobileEditorOpen}>
-                <SheetContent side="bottom" className="h-[85vh] md:hidden p-0">
-                  <SheetHeader className="px-4 pt-4 pb-2">
-                    <SheetTitle className="text-base">
-                      编辑：{selectedEntry?.comment || '(无标题)'}
-                    </SheetTitle>
-                  </SheetHeader>
-                  <ScrollArea className="h-[calc(85vh-3.5rem)]">
-                    {editorContent}
-                  </ScrollArea>
-                </SheetContent>
-              </Sheet>
+              {isMobile && (
+                <Sheet open={mobileEditorOpen && !!selectedEntry} onOpenChange={setMobileEditorOpen}>
+                  <SheetContent side="bottom" className="h-[85vh] p-0">
+                    <SheetHeader className="px-4 pt-4 pb-2">
+                      <SheetTitle className="text-base">
+                        编辑：{selectedEntry?.comment || '(无标题)'}
+                      </SheetTitle>
+                    </SheetHeader>
+                    <ScrollArea className="h-[calc(85vh-3.5rem)]">
+                      {editorContent}
+                    </ScrollArea>
+                  </SheetContent>
+                </Sheet>
+              )}
             </>
           )}
         </div>
