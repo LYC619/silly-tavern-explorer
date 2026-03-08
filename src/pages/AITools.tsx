@@ -37,6 +37,7 @@ const AITools = () => {
   const [session, setSession] = useState<ChatSession | null>(null);
   const [selectedIndices, setSelectedIndices] = useState<Set<number>>(new Set());
   const [activeTab, setActiveTab] = useState('summarize');
+  const [showTour, setShowTour] = useState(false);
 
   useEffect(() => {
     setConfig(loadAPIConfig());
