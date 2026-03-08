@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Copy, Check, BookOpen, GitBranch, FileText, MessageSquare, Loader2, Import, RotateCcw, ChevronDown } from 'lucide-react';
+import { Copy, Check, BookOpen, GitBranch, FileText, MessageSquare, Loader2, Import, RotateCcw, ChevronDown, BookmarkPlus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
@@ -10,6 +10,8 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/component
 import { useToast } from '@/hooks/use-toast';
 import { callOpenAI } from './useOpenAI';
 import type { APIConfig } from './APIConfigCard';
+import type { ChapterMarker } from '@/types/chat';
+import { loadSessionState } from '@/lib/session-storage';
 
 interface PromptTemplatesProps {
   config: APIConfig;
@@ -34,10 +36,20 @@ const DEFAULT_PROMPTS: Record<string, { system: string; label: string; icon: any
 ## 剧情走向
 总结当前剧情的发展方向和未解决的悬念
 
+## 章节标记
+在上述分析基础上，将对话按剧情转折点划分为若干章节，输出一个 JSON 代码块，格式为：
+\`\`\`json
+[
+  { "floor": 1, "title": "章节标题", "volume": "第一卷", "summary": "本章概要..." },
+  { "floor": 15, "title": "章节标题", "volume": "第一卷", "summary": "本章概要..." }
+]
+\`\`\`
+其中 floor 是该章节起始消息的楼层号（从 1 开始，对应消息前的 #编号），title 是章节标题，volume 是卷名（可选），summary 是章节概要。请根据剧情的关键转折点合理划分章节。
+
 请用中文回复。`,
     label: '总结剧情',
     icon: BookOpen,
-    description: '将选中楼层内容总结为结构化的剧情概要',
+    description: '将选中楼层内容总结为结构化的剧情概要，并自动生成章节标记',
     placeholder: '',
   },
   worldbook: {
@@ -210,6 +222,53 @@ export function PromptTemplates({ config, selectedContent, selectedCount }: Prom
     }
   };
 
+  const extractChapterMarkers = (): any[] | null => {
+    if (!output) return null;
+    // Find ## 章节标记 followed by a JSON code block
+    const match = output.match(/##\s*章节标记[\s\S]*?```json\s*\n([\s\S]*?)\n```/);
+    if (!match) return null;
+    try {
+      const parsed = JSON.parse(match[1]);
+      if (Array.isArray(parsed) && parsed.length > 0 && parsed[0].floor !== undefined) {
+        return parsed;
+      }
+    } catch { /* ignore */ }
+    return null;
+  };
+
+  const handleImportChapterMarkers = () => {
+    const chaptersData = extractChapterMarkers();
+    if (!chaptersData) {
+      toast({ title: '未找到有效的章节标记数据', variant: 'destructive' });
+      return;
+    }
+    const sessionState = loadSessionState();
+    if (!sessionState?.session) {
+      toast({ title: '未找到活跃的聊天记录', description: '请先在主页导入聊天记录', variant: 'destructive' });
+      return;
+    }
+    const messages = sessionState.session.messages;
+    const markers: ChapterMarker[] = chaptersData
+      .filter((c: any) => c.floor >= 1 && c.floor <= messages.length)
+      .map((c: any) => ({
+        messageId: messages[c.floor - 1]?.id || '',
+        messageIndex: c.floor - 1,
+        title: c.title || '',
+        volume: c.volume || undefined,
+        summary: c.summary || undefined,
+        createdAt: Date.now(),
+      }));
+    
+    if (markers.length === 0) {
+      toast({ title: '无有效的章节标记', description: '楼层号超出消息范围', variant: 'destructive' });
+      return;
+    }
+
+    sessionStorage.setItem('ai-chapter-markers', JSON.stringify(markers));
+    navigate('/');
+    toast({ title: `已生成 ${markers.length} 个章节标记`, description: '正在跳转到主页导入...' });
+  };
+
   const handleImportToWorldbook = () => {
     try {
       const jsonStr = output.replace(/^```json?\s*\n?/m, '').replace(/\n?```\s*$/m, '').trim();
@@ -307,6 +366,12 @@ export function PromptTemplates({ config, selectedContent, selectedCount }: Prom
                         <Button variant="outline" size="sm" onClick={handleImportToWorldbook}>
                           <Import className="w-4 h-4 mr-1" />
                           导入到世界书编辑器
+                        </Button>
+                      )}
+                      {extractChapterMarkers() && (
+                        <Button variant="outline" size="sm" onClick={handleImportChapterMarkers}>
+                          <BookmarkPlus className="w-4 h-4 mr-1" />
+                          导入为章节标记
                         </Button>
                       )}
                       <Button variant="ghost" size="sm" onClick={handleCopy}>
