@@ -53,6 +53,14 @@ export function EntryCard({ entry, selected, onClick, onToggleEnabled, batchMode
         {/* Header */}
         <div className="flex items-center justify-between gap-2">
           <div className="flex items-center gap-2 min-w-0 flex-1">
+            {batchMode && (
+              <Checkbox
+                checked={batchChecked}
+                onCheckedChange={(v) => onBatchToggle?.(!!v)}
+                onClick={(e) => e.stopPropagation()}
+                className="shrink-0"
+              />
+            )}
             <span className={cn('w-2.5 h-2.5 rounded-full shrink-0', strategy.dot)} />
             <span className="font-semibold text-sm truncate text-foreground">
               {entry.comment || '(无标题)'}
