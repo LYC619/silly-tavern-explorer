@@ -184,7 +184,7 @@ const Bookshelf = () => {
 
           <div className="flex items-center gap-2">
             <GlobalSettings data-tour="global-settings" />
-            <Button onClick={() => navigate('/')}>
+            <Button data-tour="bookshelf-import" onClick={() => navigate('/')}>
               <Plus className="w-4 h-4 mr-2" />
               导入新作品
             </Button>

@@ -304,7 +304,7 @@ export function GuidedTour({ steps, module, onComplete, onSkip }: GuidedTourProp
 
       {/* Skip confirmation */}
       {showSkipConfirm && (
-        <div className="fixed inset-0 z-[10002] flex items-center justify-center bg-black/40">
+        <div className="fixed inset-0 z-[10002] flex items-center justify-center bg-black/40 pointer-events-auto">
           <div className="bg-card rounded-xl p-6 max-w-sm mx-4 shadow-2xl border border-border">
             <p className="text-sm mb-4">确定要跳过新手引导吗？您可以在设置中随时重新开启。</p>
             <div className="flex gap-2 justify-end">
