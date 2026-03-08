@@ -1,9 +1,10 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { Upload, FileText, AlertCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Label } from '@/components/ui/label';
+import { Input } from '@/components/ui/input';
 import {
   Dialog,
   DialogContent,
@@ -20,12 +21,34 @@ interface ChatImporterProps {
 
 type TxtFormat = 'dialogue' | 'novel';
 
+/** Pre-scan TXT content to extract speaker names from first 20 lines */
+function preScanSpeakers(content: string): { userName: string; charName: string } {
+  const lines = content.split('\n').slice(0, 20);
+  const names: string[] = [];
+  for (const line of lines) {
+    const colonIdx = line.indexOf(':');
+    if (colonIdx > 0 && colonIdx < 30) {
+      const name = line.slice(0, colonIdx).trim();
+      if (name && !names.includes(name)) {
+        names.push(name);
+        if (names.length >= 2) break;
+      }
+    }
+  }
+  return {
+    userName: names[0] || 'User',
+    charName: names[1] || 'Character',
+  };
+}
+
 export function ChatImporter({ onImport }: ChatImporterProps) {
   const [isDragging, setIsDragging] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [txtFormatDialog, setTxtFormatDialog] = useState(false);
   const [pendingTxtFile, setPendingTxtFile] = useState<File | null>(null);
   const [txtFormat, setTxtFormat] = useState<TxtFormat>('dialogue');
+  const [dialogueUserName, setDialogueUserName] = useState('User');
+  const [dialogueCharName, setDialogueCharName] = useState('Character');
 
   const parseJsonl = (content: string): { messages: ChatMessage[]; metadata?: STMetadata } => {
     const lines = content.trim().split('\n');
@@ -98,24 +121,10 @@ export function ChatImporter({ onImport }: ChatImporterProps) {
     throw new Error('Unsupported JSON format');
   };
 
-  const parseTxtDialogue = (content: string): ChatMessage[] => {
+  const parseTxtDialogue = (content: string, userNameOverride?: string): ChatMessage[] => {
     const lines = content.split('\n').filter(l => l.trim());
     const messages: ChatMessage[] = [];
-    const speakerCounts: Record<string, number> = {};
-
-    // First pass: collect all speakers
-    for (const line of lines) {
-      const colonIdx = line.indexOf(':');
-      if (colonIdx > 0 && colonIdx < 30) {
-        const name = line.slice(0, colonIdx).trim();
-        if (name) speakerCounts[name] = (speakerCounts[name] || 0) + 1;
-      }
-    }
-
-    // Determine user: the speaker with the most messages, or first speaker as user
-    const speakers = Object.keys(speakerCounts);
-    // If only 2 speakers, use first as user convention; otherwise heuristic
-    let userName = speakers[0] || 'User';
+    const targetUserName = userNameOverride || 'User';
     
     for (const line of lines) {
       const colonIdx = line.indexOf(':');
@@ -125,7 +134,7 @@ export function ChatImporter({ onImport }: ChatImporterProps) {
         if (name && text) {
           messages.push({
             id: crypto.randomUUID(),
-            role: name === userName ? 'user' : 'assistant',
+            role: name === targetUserName ? 'user' : 'assistant',
             content: text,
             name,
           });
@@ -178,11 +187,15 @@ export function ChatImporter({ onImport }: ChatImporterProps) {
         } catch {
           // It's a real TXT file, ask for format
           setPendingTxtFile(file);
+          // Pre-scan for speaker names
+          const speakers = preScanSpeakers(content);
+          setDialogueUserName(speakers.userName);
+          setDialogueCharName(speakers.charName);
           setTxtFormatDialog(true);
           return;
         }
       } else if (isTxt && forceTxtFormat) {
-        messages = forceTxtFormat === 'dialogue' ? parseTxtDialogue(content) : parseTxtNovel(content);
+        messages = forceTxtFormat === 'dialogue' ? parseTxtDialogue(content, dialogueUserName) : parseTxtNovel(content);
       } else if (file.name.endsWith('.jsonl')) {
         const result = parseJsonl(content);
         messages = result.messages;
@@ -303,7 +316,7 @@ export function ChatImporter({ onImport }: ChatImporterProps) {
           <RadioGroup value={txtFormat} onValueChange={(v) => setTxtFormat(v as TxtFormat)} className="space-y-4">
             <div className="flex items-start gap-3 p-3 rounded-lg border border-border hover:bg-accent/50 cursor-pointer" onClick={() => setTxtFormat('dialogue')}>
               <RadioGroupItem value="dialogue" id="fmt-dialogue" className="mt-0.5" />
-              <div>
+              <div className="flex-1">
                 <Label htmlFor="fmt-dialogue" className="cursor-pointer font-medium">对话格式</Label>
                 <p className="text-xs text-muted-foreground mt-1">
                   每行为「角色名: 内容」格式，冒号前为说话人名称<br />
@@ -311,6 +324,31 @@ export function ChatImporter({ onImport }: ChatImporterProps) {
                 </p>
               </div>
             </div>
+            {txtFormat === 'dialogue' && (
+              <div className="space-y-3 pl-4 border-l-2 border-border ml-3">
+                <div className="space-y-1">
+                  <Label className="text-xs">用户名称（匹配此名称的行设为 user）</Label>
+                  <Input
+                    value={dialogueUserName}
+                    onChange={(e) => setDialogueUserName(e.target.value)}
+                    placeholder="User"
+                    className="h-8"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-xs">角色名称（其余行设为 assistant）</Label>
+                  <Input
+                    value={dialogueCharName}
+                    onChange={(e) => setDialogueCharName(e.target.value)}
+                    placeholder="Character"
+                    className="h-8"
+                  />
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  已从文件前 20 行预扫描提取，可手动修改
+                </p>
+              </div>
+            )}
             <div className="flex items-start gap-3 p-3 rounded-lg border border-border hover:bg-accent/50 cursor-pointer" onClick={() => setTxtFormat('novel')}>
               <RadioGroupItem value="novel" id="fmt-novel" className="mt-0.5" />
               <div>
