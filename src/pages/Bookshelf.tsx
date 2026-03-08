@@ -27,6 +27,8 @@ import {
 import { useToast } from '@/hooks/use-toast';
 import { GlobalSettings } from '@/components/GlobalSettings';
 import { getAllBooks, deleteBook, saveBook, generateBookId, type BookItem } from '@/lib/bookshelf-db';
+import { GuidedTour } from '@/components/GuidedTour';
+import { BOOKSHELF_TOUR_STEPS, isTourCompleted, setTourCompleted } from '@/lib/tour-steps';
 
 const Bookshelf = () => {
   const navigate = useNavigate();
