@@ -4,6 +4,7 @@ import { useTheme } from 'next-themes';
 import { Button } from '@/components/ui/button';
 import { DemoData } from '@/components/DemoData';
 import { ExportButton } from '@/components/ExportButton';
+import { GlobalSettings } from '@/components/GlobalSettings';
 import type { ChatSession, ExportSettings, ChapterMarker } from '@/types/chat';
 
 interface EditorToolbarProps {
@@ -40,7 +41,10 @@ export function EditorToolbar({
 
   return (
     <div className="flex items-center gap-2">
-      {/* Dark mode toggle - always visible */}
+      {/* Global Settings */}
+      <GlobalSettings />
+
+      {/* Dark mode toggle */}
       <Button
         variant="ghost"
         size="icon"

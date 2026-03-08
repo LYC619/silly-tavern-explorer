@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Library, Plus, Trash2, Clock, MessageSquare, BookOpen, ArrowLeft, Upload, Edit3, Play } from 'lucide-react';
-import { StorageManager } from '@/components/StorageManager';
 import { HelpCard } from '@/components/HelpCard';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
@@ -177,7 +176,6 @@ const Bookshelf = () => {
           </div>
 
           <div className="flex items-center gap-2">
-            <StorageManager onDataChanged={loadBooks} />
             <Button onClick={() => navigate('/')}>
               <Plus className="w-4 h-4 mr-2" />
               导入新作品
