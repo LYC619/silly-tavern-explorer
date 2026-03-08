@@ -253,6 +253,21 @@ const ReaderView = ({
                     <span className="text-xs text-muted-foreground">大</span>
                   </div>
                 </div>
+                <div>
+                  <div className="text-sm font-medium mb-2">字体</div>
+                  <Select value={fontFamily} onValueChange={setFontFamily}>
+                    <SelectTrigger className="h-8 text-xs">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {FONT_OPTIONS.map((f) => (
+                        <SelectItem key={f.value} value={f.value} style={{ fontFamily: f.value }}>
+                          {f.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
               </div>
             </PopoverContent>
           </Popover>
