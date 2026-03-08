@@ -232,6 +232,109 @@ export default function WorldBookPage() {
     toast({ title: '归类完成', description: `已更新 ${Object.keys(updates).length} 个条目的标签、前缀和 Order` });
   }, [toast]);
 
+  // Batch mode
+  const exitBatchMode = useCallback(() => {
+    setBatchMode(false);
+    setBatchSelected(new Set());
+  }, []);
+
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && batchMode) exitBatchMode();
+    };
+    window.addEventListener('keydown', handler);
+    return () => window.removeEventListener('keydown', handler);
+  }, [batchMode, exitBatchMode]);
+
+  const toggleBatchItem = useCallback((key: string, checked: boolean) => {
+    setBatchSelected(prev => {
+      const next = new Set(prev);
+      checked ? next.add(key) : next.delete(key);
+      return next;
+    });
+  }, []);
+
+  const handleBatchPrefix = useCallback((prefix: string) => {
+    setWorldbook(prev => {
+      if (!prev) return prev;
+      const updated = { ...prev.entries };
+      batchSelected.forEach(key => {
+        if (updated[key] && !updated[key].comment.startsWith(prefix)) {
+          updated[key] = { ...updated[key], comment: prefix + updated[key].comment };
+        }
+      });
+      return { ...prev, entries: updated };
+    });
+    toast({ title: '前缀已添加', description: `已为 ${batchSelected.size} 个条目添加前缀` });
+  }, [batchSelected, toast]);
+
+  const handleBatchDelete = useCallback(() => {
+    const count = batchSelected.size;
+    setWorldbook(prev => {
+      if (!prev) return prev;
+      const updated = { ...prev.entries };
+      batchSelected.forEach(key => { delete updated[key]; });
+      return { ...prev, entries: updated };
+    });
+    if (selectedUid && batchSelected.has(selectedUid)) {
+      setSelectedUid(null);
+      setMobileEditorOpen(false);
+    }
+    setBatchSelected(new Set());
+    toast({ title: '已删除', description: `已删除 ${count} 个条目` });
+  }, [batchSelected, selectedUid, toast]);
+
+  const handleBatchPosition = useCallback((position: number, depth?: number, role?: number) => {
+    setWorldbook(prev => {
+      if (!prev) return prev;
+      const updated = { ...prev.entries };
+      batchSelected.forEach(key => {
+        if (updated[key]) {
+          updated[key] = {
+            ...updated[key],
+            position,
+            ...(depth !== undefined ? { depth } : {}),
+            ...(role !== undefined ? { role } : {}),
+          };
+        }
+      });
+      return { ...prev, entries: updated };
+    });
+    toast({ title: '位置已修改', description: `已修改 ${batchSelected.size} 个条目的插入位置` });
+  }, [batchSelected, toast]);
+
+  const handleBatchStrategy = useCallback((strategy: 'keyword' | 'constant' | 'vectorized') => {
+    setWorldbook(prev => {
+      if (!prev) return prev;
+      const updated = { ...prev.entries };
+      batchSelected.forEach(key => {
+        if (updated[key]) {
+          updated[key] = {
+            ...updated[key],
+            constant: strategy === 'constant',
+            vectorized: strategy === 'vectorized',
+          };
+        }
+      });
+      return { ...prev, entries: updated };
+    });
+    toast({ title: '策略已修改', description: `已修改 ${batchSelected.size} 个条目的触发策略` });
+  }, [batchSelected, toast]);
+
+  const handleBatchEnable = useCallback((enabled: boolean) => {
+    setWorldbook(prev => {
+      if (!prev) return prev;
+      const updated = { ...prev.entries };
+      batchSelected.forEach(key => {
+        if (updated[key]) {
+          updated[key] = { ...updated[key], enabled };
+        }
+      });
+      return { ...prev, entries: updated };
+    });
+    toast({ title: enabled ? '已启用' : '已停用', description: `已${enabled ? '启用' : '停用'} ${batchSelected.size} 个条目` });
+  }, [batchSelected, toast]);
+
   const editorContent = selectedEntry && selectedUid ? (
     <>
       <EntryEditor
