@@ -281,6 +281,7 @@ const Index = () => {
       <main className="container mx-auto px-4 py-6 flex-1">
         {!session ? (
           <div className="max-w-xl mx-auto animate-fade-in">
+            {showOnboarding && <OnboardingGuide onDismiss={dismissOnboarding} />}
             <div className="text-center mb-8">
               <h2 className="font-display text-3xl mb-3 text-gradient">处理你的对话记录</h2>
               <p className="text-muted-foreground">
