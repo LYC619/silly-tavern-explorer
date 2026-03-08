@@ -25,8 +25,8 @@ import {
 import { getAllBooks } from '@/lib/bookshelf-db';
 import { getAllWorldBooks } from '@/lib/worldbook-db';
 
-const APP_VERSION = 'v0.8';
-const ONBOARDING_KEY = 'st-explorer-onboarding-dismissed';
+const APP_VERSION = 'v0.9';
+import { resetAllTours } from '@/lib/tour-steps';
 
 interface StorageDetail {
   label: string;
