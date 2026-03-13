@@ -134,6 +134,29 @@ const Index = () => {
     saveSettings(settings);
   }, [settings]);
 
+  const handleImport = async (newSession: ChatSession) => {
+    setSession(newSession);
+    // Auto-save to bookshelf on import
+    try {
+      const bookId = generateBookId();
+      const book: BookItem = {
+        id: bookId,
+        title: newSession.title || newSession.character?.name || '未命名作品',
+        session: newSession,
+        markers: [],
+        settings,
+        createdAt: Date.now(),
+        updatedAt: Date.now(),
+      };
+      await saveBook(book);
+      setCurrentBookId(bookId);
+      toast({ title: '已自动保存到书架' });
+    } catch (error) {
+      console.error('Auto-save failed:', error);
+      toast({ title: '自动保存失败，请手动保存', variant: 'destructive' });
+    }
+  };
+
   const handleReset = () => {
     setSession(null);
     setMarkers([]);
@@ -270,7 +293,7 @@ const Index = () => {
                 导入 SillyTavern 聊天记录，支持正则清理、章节标记、范围导出和多种阅读主题
               </p>
             </div>
-            <ChatImporter onImport={setSession} />
+            <ChatImporter onImport={handleImport} />
             
             <div className="mt-8 grid grid-cols-2 md:grid-cols-4 gap-4 text-center">
               {[
