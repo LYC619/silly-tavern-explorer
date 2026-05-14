@@ -251,14 +251,13 @@ export default function WorldBookPage() {
   const handleQuickAddEntries = useCallback((newEntries: WorldBookEntry[]) => {
     setWorldbook(prev => {
       if (!prev) {
-        // Create new worldbook
+        // Create new worldbook; key by uid to keep ST-compatible mapping
         const entries: Record<string, WorldBookEntry> = {};
-        newEntries.forEach((e, i) => { entries[String(i)] = e; });
+        newEntries.forEach((e) => { entries[String(e.uid)] = e; });
         return { entries };
       }
-      const maxKey = Math.max(-1, ...Object.keys(prev.entries).map(Number).filter(n => !isNaN(n)));
       const updated = { ...prev.entries };
-      newEntries.forEach((e, i) => { updated[String(maxKey + 1 + i)] = e; });
+      newEntries.forEach((e) => { updated[String(e.uid)] = e; });
       return { ...prev, entries: updated };
     });
     setActiveTab('edit');
