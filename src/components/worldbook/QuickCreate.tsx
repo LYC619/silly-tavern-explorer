@@ -8,9 +8,9 @@ import { Switch } from '@/components/ui/switch';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
-import { ChevronDown, X, Wand2, Plus, Download, ArrowLeft } from 'lucide-react';
+import { ChevronDown, X, Wand2, Plus, ArrowLeft } from 'lucide-react';
 import type { WorldBookEntry, WorldBook } from '@/types/worldbook';
-import { DEFAULT_ENTRY, POSITION_LABELS, exportWorldBook } from '@/types/worldbook';
+import { DEFAULT_ENTRY, POSITION_LABELS } from '@/types/worldbook';
 
 interface Props {
   existingWorldbook: WorldBook | null;
