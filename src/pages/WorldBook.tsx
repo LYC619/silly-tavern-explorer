@@ -438,7 +438,7 @@ export default function WorldBookPage() {
           <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as 'edit' | 'quick')} className="hidden sm:block">
             <TabsList className="h-8">
               <TabsTrigger value="edit" className="text-xs px-3 h-6">编辑模式</TabsTrigger>
-              <TabsTrigger value="quick" className="text-xs px-3 h-6">快速创作</TabsTrigger>
+              <TabsTrigger value="quick" className="text-xs px-3 h-6">快速添加</TabsTrigger>
             </TabsList>
           </Tabs>
 
