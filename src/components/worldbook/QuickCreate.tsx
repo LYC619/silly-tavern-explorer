@@ -194,9 +194,8 @@ export function QuickCreate({ existingWorldbook, onAddToWorldbook }: Props) {
     setPreviewEntries(prev => prev ? prev.filter((_, i) => i !== index) : prev);
   };
 
-  const buildEntries = (): WorldBookEntry[] => {
+  const buildEntries = (baseUid: number): WorldBookEntry[] => {
     if (!previewEntries) return [];
-    const baseUid = Date.now();
     return previewEntries.map((pe, i): WorldBookEntry => ({
       ...DEFAULT_ENTRY,
       uid: baseUid + i,
@@ -213,24 +212,14 @@ export function QuickCreate({ existingWorldbook, onAddToWorldbook }: Props) {
   };
 
   const handleAddToWorldbook = () => {
-    const entries = buildEntries();
+    // baseUid: max existing uid + 1, or 0 for empty/new worldbook
+    const maxUid = existingWorldbook
+      ? Object.values(existingWorldbook.entries).reduce((m, e) => Math.max(m, e.uid), -1)
+      : -1;
+    const entries = buildEntries(maxUid + 1);
     onAddToWorldbook(entries);
     setPreviewEntries(null);
     setText('');
-  };
-
-  const handleExportNew = () => {
-    const entries = buildEntries();
-    const wb: WorldBook = { entries: {} };
-    entries.forEach((e, i) => { wb.entries[String(i)] = e; });
-    const json = exportWorldBook(wb);
-    const blob = new Blob([json], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = 'quick-worldbook.json';
-    a.click();
-    URL.revokeObjectURL(url);
   };
 
   if (previewEntries) {
@@ -242,13 +231,8 @@ export function QuickCreate({ existingWorldbook, onAddToWorldbook }: Props) {
           </Button>
           <span className="text-sm text-muted-foreground">预览 {previewEntries.length} 个条目</span>
           <div className="flex-1" />
-          {existingWorldbook && (
-            <Button variant="default" size="sm" onClick={handleAddToWorldbook}>
-              <Plus className="w-4 h-4 mr-1" /> 添加到当前世界书
-            </Button>
-          )}
-          <Button variant="outline" size="sm" onClick={handleExportNew}>
-            <Download className="w-4 h-4 mr-1" /> 导出为新世界书
+          <Button variant="default" size="sm" onClick={handleAddToWorldbook}>
+            <Plus className="w-4 h-4 mr-1" /> {existingWorldbook ? '添加到当前世界书' : '创建并添加'}
           </Button>
         </div>
         <div className="grid gap-3 grid-cols-1 lg:grid-cols-2">
