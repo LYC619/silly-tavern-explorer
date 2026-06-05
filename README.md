@@ -197,8 +197,8 @@ docker run -d -p 8080:80 st-chat-processor
 ```sh
 git clone https://github.com/LYC619/silly-tavern-explorer.git
 cd silly-tavern-explorer
-npm install
-npm run dev
+bun install
+bun run dev
 ```
 
 ## 📄 License
