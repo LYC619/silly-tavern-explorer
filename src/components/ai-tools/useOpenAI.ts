@@ -11,7 +11,12 @@ export async function callOpenAI(
     throw new Error('请先配置 API Key');
   }
 
-  const body: any = {
+  const body: {
+    model: string;
+    messages: { role: string; content: string }[];
+    temperature: number;
+    stream?: boolean;
+  } = {
     model: config.model,
     messages: [
       { role: 'system', content: systemPrompt },
@@ -120,7 +125,7 @@ export async function fetchModels(baseUrl: string, apiKey: string): Promise<stri
 
   const data = await response.json();
   if (data.data && Array.isArray(data.data)) {
-    return data.data.map((m: any) => m.id).sort();
+    return data.data.map((m: { id: string }) => m.id).sort();
   }
   throw new Error('无法解析模型列表');
 }

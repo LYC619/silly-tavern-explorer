@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Copy, Check, BookOpen, GitBranch, FileText, MessageSquare, Loader2, Import, RotateCcw, ChevronDown, BookmarkPlus, Square } from 'lucide-react';
+import { Copy, Check, BookOpen, GitBranch, FileText, MessageSquare, Loader2, Import, RotateCcw, ChevronDown, BookmarkPlus, Square, type LucideIcon } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
@@ -19,7 +19,15 @@ interface PromptTemplatesProps {
   selectedCount: number;
 }
 
-const DEFAULT_PROMPTS: Record<string, { system: string; label: string; icon: any; description: string; placeholder: string }> = {
+/** AI 输出的章节标记 JSON 形状（floor 为 1-based 楼层号） */
+interface ExtractedChapter {
+  floor: number;
+  title?: string;
+  volume?: string;
+  summary?: string;
+}
+
+const DEFAULT_PROMPTS: Record<string, { system: string; label: string; icon: LucideIcon; description: string; placeholder: string }> = {
   summarize: {
     system: `你是一个故事分析专家。用户会提供一段对话/角色扮演记录，请将其总结为结构化的剧情概要。
 
@@ -230,7 +238,7 @@ export function PromptTemplates({ config, selectedContent, selectedCount }: Prom
     }
   };
 
-  const extractChapterMarkers = (): any[] | null => {
+  const extractChapterMarkers = (): ExtractedChapter[] | null => {
     if (!output) return null;
     // Find ## 章节标记 followed by a JSON code block
     const match = output.match(/##\s*章节标记[\s\S]*?```json\s*\n([\s\S]*?)\n```/);
@@ -257,8 +265,8 @@ export function PromptTemplates({ config, selectedContent, selectedCount }: Prom
     }
     const messages = sessionState.session.messages;
     const markers: ChapterMarker[] = chaptersData
-      .filter((c: any) => c.floor >= 1 && c.floor <= messages.length)
-      .map((c: any) => ({
+      .filter((c: ExtractedChapter) => c.floor >= 1 && c.floor <= messages.length)
+      .map((c: ExtractedChapter) => ({
         messageId: messages[c.floor - 1]?.id || '',
         messageIndex: c.floor - 1,
         title: c.title || '',
