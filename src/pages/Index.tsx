@@ -139,15 +139,25 @@ const Index = () => {
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const settingsRef = useRef(settings);
   settingsRef.current = settings;
+  // 只在首次配额溢出时提示一次，避免每次防抖保存都弹 toast 刷屏
+  const quotaWarnedRef = useRef(false);
   useEffect(() => {
     if (session) {
       if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
       saveTimerRef.current = setTimeout(() => {
-        saveSessionState({ session, markers, currentBookId, settings: settingsRef.current });
+        const ok = saveSessionState({ session, markers, currentBookId, settings: settingsRef.current });
+        if (!ok && !quotaWarnedRef.current) {
+          quotaWarnedRef.current = true;
+          toast({
+            title: '临时缓存已满，跨页可能丢失编辑',
+            description: '这份记录较大，超出浏览器临时存储上限。请点「保存到书架」持久化，避免切换页面后丢失改动。',
+            variant: 'destructive',
+          });
+        }
       }, 500);
     }
     return () => { if (saveTimerRef.current) clearTimeout(saveTimerRef.current); };
-  }, [session, markers, currentBookId]);
+  }, [session, markers, currentBookId, toast]);
 
   // 保存设置变更到 localStorage
   useEffect(() => {
