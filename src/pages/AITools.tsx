@@ -1,10 +1,11 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Sparkles, ArrowLeft, AlertCircle } from 'lucide-react';
+import { Sparkles, AlertCircle } from 'lucide-react';
 import { GuidedTour } from '@/components/GuidedTour';
 import { AITOOLS_TOUR_STEPS, isTourCompleted, setTourCompleted } from '@/lib/tour-steps';
 import { Button } from '@/components/ui/button';
 import { HelpCard } from '@/components/HelpCard';
+import { AppLayout } from '@/components/AppLayout';
 import {
   APIConfigCard,
   loadAPIConfig,
@@ -75,13 +76,11 @@ const AITools = () => {
   }, [activeTab]);
 
   return (
-    <div className="min-h-screen paper-bg flex flex-col">
-      <header className="border-b border-border bg-card/80 backdrop-blur-sm sticky top-0 z-50">
-        <div className="container mx-auto px-4 py-4 flex items-center justify-between">
+    <AppLayout>
+      <div className="container mx-auto px-4 py-6">
+        <div className="max-w-3xl mx-auto space-y-6">
+          {/* 页内标题 */}
           <div className="flex items-center gap-3">
-            <Button variant="ghost" size="icon" onClick={() => navigate('/')}>
-              <ArrowLeft className="w-5 h-5" />
-            </Button>
             <div className="w-10 h-10 rounded-lg gold-gradient flex items-center justify-center shadow-card">
               <Sparkles className="w-5 h-5 text-primary-foreground" />
             </div>
@@ -95,11 +94,7 @@ const AITools = () => {
               <p className="text-xs text-muted-foreground">聊天记录智能分析</p>
             </div>
           </div>
-        </div>
-      </header>
 
-      <main className="container mx-auto px-4 py-6 flex-1">
-        <div className="max-w-3xl mx-auto space-y-6">
           <div data-tour="ai-config">
             <APIConfigCard savedConfig={config} onConfigSave={handleConfigSave} onConfigClear={handleConfigClear} />
           </div>
@@ -152,7 +147,7 @@ const AITools = () => {
             </>
           )}
         </div>
-      </main>
+      </div>
 
       {/* Guided Tour */}
       {showTour && (
@@ -171,7 +166,7 @@ const AITools = () => {
           {' · MIT License'}
         </p>
       </footer>
-    </div>
+    </AppLayout>
   );
 };
 

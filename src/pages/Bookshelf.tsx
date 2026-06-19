@@ -1,7 +1,8 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Library, Plus, Trash2, Clock, MessageSquare, BookOpen, ArrowLeft, Upload, Edit3, Play, ArrowUpDown, Search } from 'lucide-react';
+import { Library, Plus, Trash2, Clock, MessageSquare, BookOpen, Upload, Edit3, Play, ArrowUpDown, Search } from 'lucide-react';
 import { HelpCard } from '@/components/HelpCard';
+import { AppLayout } from '@/components/AppLayout';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -32,7 +33,6 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 import { useToast } from '@/hooks/use-toast';
-import { GlobalSettings } from '@/components/GlobalSettings';
 import { getAllBooks, deleteBook, saveBook, generateBookId, type BookItem } from '@/lib/bookshelf-db';
 import { GuidedTour } from '@/components/GuidedTour';
 import { BOOKSHELF_TOUR_STEPS, isTourCompleted, setTourCompleted } from '@/lib/tour-steps';
@@ -205,66 +205,59 @@ const Bookshelf = () => {
   }, [books, sortBy, searchQuery]);
 
   return (
-    <div className="min-h-screen paper-bg flex flex-col">
-      {/* Header */}
-      <header className="border-b border-border bg-card/80 backdrop-blur-sm sticky top-0 z-50">
-        <div className="container mx-auto px-4 py-4 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <Button variant="ghost" size="icon" onClick={() => navigate('/')} aria-label="返回首页">
-              <ArrowLeft className="w-5 h-5" />
-            </Button>
-            <div className="w-10 h-10 rounded-lg gold-gradient flex items-center justify-center shadow-card">
-              <Library className="w-5 h-5 text-primary-foreground" />
+    <AppLayout
+      actions={
+        <>
+          {books.length > 3 && (
+            <div className="relative">
+              <Search className="absolute left-2 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+              <Input
+                placeholder="搜索书名..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="h-8 w-40 pl-8 text-sm"
+              />
             </div>
-            <div>
-              <div className="flex items-center gap-1">
-                <h1 className="font-display text-xl font-semibold">我的书架</h1>
-                <HelpCard>
-                  书架将聊天记录保存在浏览器本地（IndexedDB），不上传服务器。可自定义封面、编辑标题。点击作品可选择「沉浸阅读」或「编辑处理」。注意：清除浏览器数据会丢失书架内容，建议定期使用「存储管理」中的备份功能。
-                </HelpCard>
-              </div>
-              <div className="flex items-center gap-2">
-                <p className="text-xs text-muted-foreground">共 {books.length} 本作品</p>
-                {books.length > 1 && (
-                  <Select value={sortBy} onValueChange={(v) => setSortBy(v as typeof sortBy)}>
-                    <SelectTrigger className="h-6 w-auto gap-1 text-xs border-none bg-transparent px-1">
-                      <ArrowUpDown className="w-3 h-3" />
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="updatedAt">按更新时间</SelectItem>
-                      <SelectItem value="createdAt">按创建时间</SelectItem>
-                      <SelectItem value="title">按标题排序</SelectItem>
-                    </SelectContent>
-                  </Select>
-                )}
-              </div>
-            </div>
+          )}
+          <Button data-tour="bookshelf-import" onClick={() => navigate('/')}>
+            <Plus className="w-4 h-4 mr-2" />
+            导入新作品
+          </Button>
+        </>
+      }
+    >
+      {/* Main Content */}
+      <div className="container mx-auto px-4 py-6">
+        {/* 页内标题 */}
+        <div className="flex items-center gap-3 mb-6">
+          <div className="w-10 h-10 rounded-lg gold-gradient flex items-center justify-center shadow-card">
+            <Library className="w-5 h-5 text-primary-foreground" />
           </div>
-
-          <div className="flex items-center gap-2">
-            {books.length > 3 && (
-              <div className="relative">
-                <Search className="absolute left-2 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                <Input
-                  placeholder="搜索书名..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="h-8 w-40 pl-8 text-sm"
-                />
-              </div>
-            )}
-            <GlobalSettings data-tour="global-settings" />
-            <Button data-tour="bookshelf-import" onClick={() => navigate('/')}>
-              <Plus className="w-4 h-4 mr-2" />
-              导入新作品
-            </Button>
+          <div>
+            <div className="flex items-center gap-1">
+              <h1 className="font-display text-xl font-semibold">我的书架</h1>
+              <HelpCard>
+                书架将聊天记录保存在浏览器本地（IndexedDB），不上传服务器。可自定义封面、编辑标题。点击作品可选择「沉浸阅读」或「编辑处理」。注意：清除浏览器数据会丢失书架内容，建议定期使用「存储管理」中的备份功能。
+              </HelpCard>
+            </div>
+            <div className="flex items-center gap-2">
+              <p className="text-xs text-muted-foreground">共 {books.length} 本作品</p>
+              {books.length > 1 && (
+                <Select value={sortBy} onValueChange={(v) => setSortBy(v as typeof sortBy)}>
+                  <SelectTrigger className="h-6 w-auto gap-1 text-xs border-none bg-transparent px-1">
+                    <ArrowUpDown className="w-3 h-3" />
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="updatedAt">按更新时间</SelectItem>
+                    <SelectItem value="createdAt">按创建时间</SelectItem>
+                    <SelectItem value="title">按标题排序</SelectItem>
+                  </SelectContent>
+                </Select>
+              )}
+            </div>
           </div>
         </div>
-      </header>
-
-      {/* Main Content */}
-      <main className="container mx-auto px-4 py-6 flex-1">
         {loading ? (
           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
             {Array.from({ length: 6 }).map((_, i) => (
@@ -349,7 +342,7 @@ const Bookshelf = () => {
             ))}
           </div>
         )}
-      </main>
+      </div>
 
       {/* Edit Dialog */}
       <Dialog open={editDialogOpen} onOpenChange={setEditDialogOpen}>
@@ -477,7 +470,7 @@ const Bookshelf = () => {
           {' · MIT License'}
         </p>
       </footer>
-    </div>
+    </AppLayout>
   );
 };
 

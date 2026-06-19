@@ -1,12 +1,11 @@
 import { useState, useCallback, useMemo, useEffect, useRef } from 'react';
 import { useIsMobile } from '@/hooks/use-mobile';
-import { useNavigate } from 'react-router-dom';
-import { Globe, LayoutGrid, List, Library, Moon, Sun, Plus, Trash2, Save, Search, X, CheckSquare, Clock, FolderOpen, Archive } from 'lucide-react';
+import { Globe, LayoutGrid, List, Library, Plus, Trash2, Save, Search, X, CheckSquare, Clock, FolderOpen, Archive } from 'lucide-react';
 import { GuidedTour } from '@/components/GuidedTour';
+import { AppLayout } from '@/components/AppLayout';
 import { WORLDBOOK_TOUR_STEPS, isTourCompleted, setTourCompleted } from '@/lib/tour-steps';
 import { PrefixCategorize } from '@/components/worldbook/PrefixCategorize';
 import { BatchOperations } from '@/components/worldbook/BatchOperations';
-import { useTheme } from 'next-themes';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -29,13 +28,10 @@ import { saveWorldBook, getAllWorldBooks, deleteWorldBook } from '@/lib/worldboo
 import type { WorldBookItem } from '@/types/worldbook';
 import { useToast } from '@/hooks/use-toast';
 import { ToastAction } from '@/components/ui/toast';
-import { GlobalSettings } from '@/components/GlobalSettings';
 
 type SortMode = 'order-asc' | 'order-desc' | 'title' | 'uid';
 
 export default function WorldBookPage() {
-  const navigate = useNavigate();
-  const { theme, setTheme } = useTheme();
   const isMobile = useIsMobile();
   const { toast } = useToast();
 
@@ -496,8 +492,9 @@ export default function WorldBookPage() {
   ) : null;
 
   return (
-    <div className="min-h-screen bg-background flex flex-col">
-      {/* Header */}
+    <AppLayout>
+      <div className="bg-background flex flex-col h-screen">
+      {/* 页内工具栏 */}
       <header className="border-b bg-card/80 backdrop-blur sticky top-0 z-30">
         <div className="max-w-[1600px] mx-auto px-4 h-14 flex items-center gap-2">
           <Globe className="w-5 h-5 text-primary" />
@@ -510,21 +507,6 @@ export default function WorldBookPage() {
               <TabsTrigger value="quick" className="text-xs px-3 h-6">快速添加</TabsTrigger>
             </TabsList>
           </Tabs>
-
-          <GlobalSettings />
-
-          <Button variant="ghost" size="icon" className="h-8 w-8"
-            onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
-            aria-label={theme === 'dark' ? '日间模式' : '夜间模式'}>
-            {theme === 'dark' ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
-          </Button>
-
-          <Button variant="ghost" size="sm" onClick={() => navigate('/')}>
-            <Library className="w-4 h-4 mr-1" /> <span className="hidden sm:inline">编辑器</span>
-          </Button>
-          <Button variant="ghost" size="sm" onClick={() => navigate('/bookshelf')}>
-            <Library className="w-4 h-4 mr-1" /> <span className="hidden sm:inline">书架</span>
-          </Button>
 
           <div className="flex-1" />
 
@@ -908,6 +890,7 @@ export default function WorldBookPage() {
           onSkip={() => { setTourCompleted('worldbook'); setShowTour(false); }}
         />
       )}
-    </div>
+      </div>
+    </AppLayout>
   );
 }

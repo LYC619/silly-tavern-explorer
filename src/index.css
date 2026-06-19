@@ -157,12 +157,19 @@
     pointer-events: none;
   }
 
-  /* 起点式阅读流：舒适行距 + 首行缩进，让长对话读起来像小说正文 */
+  /* 起点式阅读流：舒适行距 + 每段首行缩进，让长对话读起来像小说正文 */
   .reading-flow {
     line-height: 1.9;
-    text-indent: 2em;
     letter-spacing: 0.02em;
     color: hsl(var(--foreground) / 0.9);
+  }
+  /* 每个段落独立缩进——text-indent 只缩进块首行，多段消息须逐段成 <p> 才能段段缩进 */
+  .reading-flow .reading-paragraph {
+    text-indent: 2em;
+    margin-bottom: 0.6em;
+  }
+  .reading-flow .reading-paragraph:last-child {
+    margin-bottom: 0;
   }
 }
 
