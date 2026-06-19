@@ -71,6 +71,8 @@ export interface RegexRule {
   replaceString: string;
   placement: ('all' | 'user' | 'assistant')[];
   disabled: boolean;
+  /** 从 ST 正则脚本导入时，保留 ST 独有字段(trimStrings/markdownOnly/substituteRegex 等)，导出时无损拼回 */
+  _raw?: Record<string, unknown>;
 }
 
 export interface ExportSettings {
