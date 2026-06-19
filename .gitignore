@@ -22,3 +22,8 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# AI 工作记忆（planning-with-files 规划文件，不纳入仓库）
+task_plan.md
+findings.md
+progress.md
