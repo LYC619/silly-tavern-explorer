@@ -7,6 +7,8 @@ export interface BookItem {
   session: ChatSession;
   markers: ChapterMarker[];
   settings?: ExportSettings;
+  /** 收藏的楼层（messageId 列表，轻量书签，不进导出） */
+  favorites?: string[];
   createdAt: number;
   updatedAt: number;
 }
