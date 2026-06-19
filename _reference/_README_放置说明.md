@@ -1,7 +1,21 @@
 # 参考资料投放说明
 
-这个文件夹**不进 Git**（已加入 `.gitignore`），仅供 AI 对照真实 SillyTavern（ST）格式用。
-请把下面要的东西放进对应子文件夹。**真实样本 > 文档描述 > 我凭记忆**，所以样本文件最值钱。
+> ⚠️ **2026-06-20 夜更新 —— 关键修正（请先读）**
+> 上一轮 Lovable 说"已生成 4 份文档到 `_reference/st-docs/`"，但**那些文件没能传到我这边**。
+> 原因：当时 `_reference/` 整个被 `.gitignore` 忽略，Lovable 经 GitHub 同步时这些文件不会被提交，
+> 只留在了 Lovable 自己的沙箱里。我已修正 `.gitignore`：
+> - **`_reference/st-docs/` 和顶层 `_reference/*.md` 现在会入仓**（文字文档随 git 同步）。
+> - `_reference/samples/` 和 `_reference/st-source/` 仍忽略（二进制/大文件/源码不入仓）。
+>
+> **所以请把 Lovable 重新跑一次**（同样的 4 段提示词，在 `Lovable提示词.md` 里），
+> 让它把 4 份 `.md` 写到 `_reference/st-docs/` 并 **commit + push**。这次就能经 git 到我这边了。
+> （Lovable 那边的 `bun.lock` 我已忽略+移除，本项目用 npm，不受影响。）
+
+---
+
+这个文件夹里 **`st-docs/` 和顶层 `*.md` 入 Git**（文档随仓库同步），
+**`samples/` 与 `st-source/` 不进 Git**（仅本地供 AI 对照）。
+**真实样本 > 文档描述 > 我凭记忆**，所以样本文件最值钱。
 
 > 隐私提醒：聊天样本里的私人内容可以删/改成无意义文本，**我只看结构字段，不需要真实剧情**。把几条消息的 JSON 结构保留即可。
 
