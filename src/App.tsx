@@ -1,25 +1,33 @@
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { ThemeProvider } from "next-themes";
-import Index from "./pages/Index";
-import Bookshelf from "./pages/Bookshelf";
-import AITools from "./pages/AITools";
-import Reader from "./pages/Reader";
-import WorldBook from "./pages/WorldBook";
-import NotFound from "./pages/NotFound";
+import { lazy, Suspense } from "react";
+import { Loader2 } from "lucide-react";
 
-const queryClient = new QueryClient();
+// 路由级代码分割：每个页面单独打包，首屏只加载首页所需 chunk，
+// 其余页面(世界书/AI工具/阅读器等)按需懒加载，避免全部塞进一个大 bundle。
+const Index = lazy(() => import("./pages/Index"));
+const Bookshelf = lazy(() => import("./pages/Bookshelf"));
+const AITools = lazy(() => import("./pages/AITools"));
+const Reader = lazy(() => import("./pages/Reader"));
+const WorldBook = lazy(() => import("./pages/WorldBook"));
+const NotFound = lazy(() => import("./pages/NotFound"));
+
+const PageFallback = () => (
+  <div className="flex min-h-screen items-center justify-center">
+    <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
+  </div>
+);
 
 const App = () => (
-  <QueryClientProvider client={queryClient}>
-    <ThemeProvider attribute="class" defaultTheme="light" enableSystem={false}>
-      <TooltipProvider>
-        <Toaster />
-        <Sonner />
-        <BrowserRouter>
+  <ThemeProvider attribute="class" defaultTheme="light" enableSystem={false}>
+    <TooltipProvider>
+      <Toaster />
+      <Sonner />
+      <BrowserRouter>
+        <Suspense fallback={<PageFallback />}>
           <Routes>
             <Route path="/" element={<Index />} />
             <Route path="/bookshelf" element={<Bookshelf />} />
@@ -29,10 +37,10 @@ const App = () => (
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
             <Route path="*" element={<NotFound />} />
           </Routes>
-        </BrowserRouter>
-      </TooltipProvider>
-    </ThemeProvider>
-  </QueryClientProvider>
+        </Suspense>
+      </BrowserRouter>
+    </TooltipProvider>
+  </ThemeProvider>
 );
 
 export default App;
