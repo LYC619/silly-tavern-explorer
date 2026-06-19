@@ -233,10 +233,10 @@ const MessageRow = memo(function MessageRow({
             </Tooltip>
           </div>
         )}
-        {/* 非编辑模式：左侧外侧常驻浅色楼层号（像行号），方便和左侧跳转条对照，不挤正文 */}
+        {/* 非编辑模式：左侧外侧常驻浅色楼层号（像行号），与名字/正文首行对齐，方便和左侧跳转条对照 */}
         {!editMode && (
           <span
-            className="absolute -left-7 top-0 hidden select-none font-mono text-[11px] leading-relaxed text-muted-foreground/40 md:block"
+            className="pointer-events-none absolute -left-8 top-1 hidden select-none font-mono text-[10px] leading-none text-muted-foreground/30 md:block"
             aria-hidden="true"
           >
             {index + 1}
