@@ -30,61 +30,15 @@ interface RegexSidebarProps {
   isOpen: boolean;
   onClose: () => void;
   sampleMessages?: ChatMessage[];
+  /** 切换正在预览的规则：传 null 表示退出预览。预览效果在主界面阅读区原地高亮显示。 */
+  onPreviewChange?: (rule: RegexRule | null) => void;
+  /** 当前正在预览的规则 id（由父级持有，便于跨组件高亮按钮状态） */
+  previewId?: string | null;
 }
 
-function RegexPreviewDiff({ rule, messages }: { rule: RegexRule; messages: ChatMessage[] }) {
-  const previews = useMemo(() => {
-    const results: { before: string; after: string; name?: string }[] = [];
-    const singleRule = [rule];
-    // 扫描全部消息直到收集够 3 条命中——长对话中待清理内容常出现在很靠后的楼层，
-    // 不能只看开头若干条，否则会误报「无匹配」。命中 3 条即提前结束，开销可控。
-    for (let i = 0; i < messages.length && results.length < 3; i++) {
-      const msg = messages[i];
-      const isUser = msg.role === 'user' || msg.is_user;
-      const before = msg.content;
-      const after = applyRegexRules(before, singleRule, isUser);
-      if (before !== after) {
-        results.push({
-          before: before.length > 200 ? before.slice(0, 200) + '...' : before,
-          after: after.length > 200 ? after.slice(0, 200) + '...' : after,
-          name: msg.name,
-        });
-      }
-    }
-    return results;
-  }, [rule, messages]);
-
-  if (previews.length === 0) {
-    return (
-      <div className="text-xs text-muted-foreground italic p-2 bg-muted/50 rounded">
-        当前消息中无匹配内容
-      </div>
-    );
-  }
-
-  return (
-    <div className="space-y-2 max-h-48 overflow-y-auto">
-      {previews.map((p, i) => (
-        <div key={i} className="text-xs rounded border border-border overflow-hidden">
-          <div className="px-2 py-1 bg-muted/50 text-muted-foreground font-medium border-b border-border">
-            {p.name || '消息'} #{i + 1}
-          </div>
-          <div className="px-2 py-1 bg-red-50 dark:bg-red-950/20 line-through text-red-700 dark:text-red-400 whitespace-pre-wrap break-all">
-            {p.before}
-          </div>
-          <div className="px-2 py-1 bg-green-50 dark:bg-green-950/20 text-green-700 dark:text-green-400 whitespace-pre-wrap break-all">
-            {p.after || <span className="italic text-muted-foreground">(空)</span>}
-          </div>
-        </div>
-      ))}
-    </div>
-  );
-}
-
-export function RegexSidebar({ rules, onRulesChange, isOpen, onClose, sampleMessages = [] }: RegexSidebarProps) {
+export function RegexSidebar({ rules, onRulesChange, isOpen, onClose, sampleMessages = [], onPreviewChange, previewId = null }: RegexSidebarProps) {
   const { toast } = useToast();
   const [editingId, setEditingId] = useState<string | null>(null);
-  const [previewId, setPreviewId] = useState<string | null>(null);
   const [dragIndex, setDragIndex] = useState<number | null>(null);
   const [dragOverIndex, setDragOverIndex] = useState<number | null>(null);
   const [presets, setPresets] = useState<RegexPreset[]>([]);
@@ -398,22 +352,17 @@ export function RegexSidebar({ rules, onRulesChange, isOpen, onClose, sampleMess
                     </div>
                   </div>
 
-                  {/* Preview Diff */}
-                  {sampleMessages.length > 0 && rule.findRegex && (
-                    <div className="space-y-1.5">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        className="w-full gap-1 h-7 text-xs"
-                        onClick={() => setPreviewId(previewId === rule.id ? null : rule.id)}
-                      >
-                        <Eye className="w-3 h-3" />
-                        {previewId === rule.id ? '隐藏预览' : '预览效果'}
-                      </Button>
-                      {previewId === rule.id && (
-                        <RegexPreviewDiff rule={rule} messages={sampleMessages} />
-                      )}
-                    </div>
+                  {/* 在主界面阅读区原地预览该规则效果 */}
+                  {rule.findRegex && onPreviewChange && (
+                    <Button
+                      variant={previewId === rule.id ? 'secondary' : 'outline'}
+                      size="sm"
+                      className="w-full gap-1 h-7 text-xs"
+                      onClick={() => onPreviewChange(previewId === rule.id ? null : rule)}
+                    >
+                      <Eye className="w-3 h-3" />
+                      {previewId === rule.id ? '退出预览' : '在正文中预览'}
+                    </Button>
                   )}
                 </div>
               )}

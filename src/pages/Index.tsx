@@ -1,10 +1,8 @@
 import { useState, useEffect, useRef } from 'react';
 import { useLocation } from 'react-router-dom';
-import { ScrollText, Settings, Regex } from 'lucide-react';
-import { Button } from '@/components/ui/button';
+import { AppLayout } from '@/components/AppLayout';
 import { ChatImporter, type ImportStats } from '@/components/ChatImporter';
 import { ChatPreview } from '@/components/ChatPreview';
-import { SettingsPanel } from '@/components/SettingsPanel';
 import { EditorToolbar } from '@/components/EditorToolbar';
 import { ChapterMarkerDialog } from '@/components/ChapterMarkerDialog';
 import { MessageEditDialog } from '@/components/MessageEditDialog';
@@ -12,7 +10,7 @@ import { RegexSidebar } from '@/components/RegexSidebar';
 import { GuidedTour } from '@/components/GuidedTour';
 import { HOME_TOUR_STEPS, isTourCompleted, setTourCompleted } from '@/lib/tour-steps';
 import { demoSession } from '@/components/DemoData';
-import type { ChatSession, ExportSettings, ChapterMarker, ChatMessage } from '@/types/chat';
+import type { ChatSession, ExportSettings, ChapterMarker, ChatMessage, RegexRule } from '@/types/chat';
 import { saveBook, getBook, generateBookId, type BookItem } from '@/lib/bookshelf-db';
 import { 
   saveSessionState, 
@@ -62,6 +60,18 @@ const Index = () => {
   const [selectedMessage, setSelectedMessage] = useState<{ id: string; index: number } | null>(null);
   const [currentBookId, setCurrentBookId] = useState<string | null>(null);
   const [regexSidebarOpen, setRegexSidebarOpen] = useState(false);
+  // 正在主界面原地预览的正则规则（点侧栏「预览」时设置，再次点取消）
+  const [previewRule, setPreviewRule] = useState<RegexRule | null>(null);
+
+  // 任意方式载入聊天记录（导入/从书架编辑/恢复上次会话）后，自动展开正则框一次，
+  // 让用户第一时间看到清理工具；之后用户可自由关闭，不会被反复强制打开。
+  const regexAutoOpenedRef = useRef(false);
+  useEffect(() => {
+    if (session && !regexAutoOpenedRef.current) {
+      regexAutoOpenedRef.current = true;
+      setRegexSidebarOpen(true);
+    }
+  }, [session]);
 
   // Auto-start tour for first-time visitors
   useEffect(() => {
@@ -141,8 +151,6 @@ const Index = () => {
 
   const handleImport = async (newSession: ChatSession, stats?: ImportStats) => {
     setSession(newSession);
-    // 导入后自动展开正则栏，让用户第一时间看到并配置清理规则
-    setRegexSidebarOpen(true);
     // Auto-save to bookshelf on import
     try {
       const bookId = generateBookId();
@@ -277,37 +285,27 @@ const Index = () => {
     : undefined;
 
   return (
-    <div className="min-h-screen paper-bg flex flex-col">
-      {/* Header */}
-      <header className="border-b border-border bg-card/80 backdrop-blur-sm sticky top-0 z-50">
-        <div className="container mx-auto px-4 py-4 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-lg gold-gradient flex items-center justify-center shadow-card">
-              <ScrollText className="w-5 h-5 text-primary-foreground" />
-            </div>
-            <div>
-              <h1 className="font-display text-xl font-semibold">ST 聊天记录处理器</h1>
-              <p className="text-xs text-muted-foreground">SillyTavern Chat Processor</p>
-            </div>
-          </div>
-
-          <EditorToolbar
-            session={session}
-            settings={settings}
-            markers={markers}
-            editMode={editMode}
-            contentEditMode={contentEditMode}
-            onLoadSession={setSession}
-            onReset={handleReset}
-            onSaveToBookshelf={handleSaveToBookshelf}
-            onToggleContentEdit={handleToggleContentEdit}
-            onToggleEditMode={handleToggleEditMode}
-          />
-        </div>
-      </header>
-
+    <AppLayout
+      actions={
+        <EditorToolbar
+          session={session}
+          settings={settings}
+          markers={markers}
+          editMode={editMode}
+          contentEditMode={contentEditMode}
+          regexSidebarOpen={regexSidebarOpen}
+          onLoadSession={setSession}
+          onReset={handleReset}
+          onSaveToBookshelf={handleSaveToBookshelf}
+          onToggleContentEdit={handleToggleContentEdit}
+          onToggleEditMode={handleToggleEditMode}
+          onToggleRegex={() => setRegexSidebarOpen(!regexSidebarOpen)}
+          onSettingsChange={setSettings}
+        />
+      }
+    >
       {/* Main Content */}
-      <main className="container mx-auto px-4 py-6 flex-1">
+      <div className="container mx-auto px-4 py-6">
         {!session ? (
           <div className="max-w-xl mx-auto animate-fade-in">
             {/* Tour replaces old onboarding */}
@@ -334,33 +332,9 @@ const Index = () => {
             </div>
           </div>
         ) : (
-          <div className="flex flex-col h-full">
-            {/* Settings Panel (horizontal) */}
-            <div className="mb-4 flex-shrink-0">
-              <div className="flex items-center justify-between mb-3">
-                <div className="flex items-center gap-2 text-muted-foreground">
-                  <Settings className="w-4 h-4" />
-                  <span className="font-display text-sm uppercase tracking-wider">设置</span>
-                </div>
-                <Button
-                  variant={regexSidebarOpen ? 'secondary' : 'outline'}
-                  size="sm"
-                  onClick={() => setRegexSidebarOpen(!regexSidebarOpen)}
-                  className="gap-2"
-                  data-tour="regex-toggle"
-                >
-                  <Regex className="w-4 h-4" />
-                  正则规则
-                  <span className="text-xs text-muted-foreground">
-                    ({settings.regexRules.filter(r => !r.disabled).length})
-                  </span>
-                </Button>
-              </div>
-              <SettingsPanel settings={settings} onSettingsChange={setSettings} />
-            </div>
-
+          <div className="flex flex-col">
             {/* Preview + Sidebars Row */}
-            <div className="flex gap-4 items-start flex-1 min-h-0">
+            <div className="flex gap-4 items-start">
               {/* Preview Area */}
               <div className="flex-1 min-w-0">
                 <div className="mb-3 flex items-center justify-between">
@@ -396,6 +370,7 @@ const Index = () => {
                         onMessageClick={handleMessageClick}
                         editMode={editMode || contentEditMode}
                         fontFamily={settings.fontFamily}
+                        previewRule={previewRule}
                       />
                     </div>
                   </div>
@@ -407,13 +382,15 @@ const Index = () => {
                 rules={settings.regexRules}
                 onRulesChange={(rules) => setSettings({ ...settings, regexRules: rules })}
                 isOpen={regexSidebarOpen}
-                onClose={() => setRegexSidebarOpen(false)}
+                onClose={() => { setRegexSidebarOpen(false); setPreviewRule(null); }}
                 sampleMessages={session.messages}
+                onPreviewChange={setPreviewRule}
+                previewId={previewRule?.id ?? null}
               />
             </div>
           </div>
         )}
-      </main>
+      </div>
 
       {/* Chapter Marker Dialog */}
       {selectedMessage && (
@@ -464,7 +441,7 @@ const Index = () => {
           {' · MIT License'}
         </p>
       </footer>
-    </div>
+    </AppLayout>
   );
 };
 

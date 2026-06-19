@@ -1,11 +1,9 @@
-import { useState } from 'react';
-import { BookOpen, MessageCircle, Minus, Sparkles, ChevronDown, ChevronUp, RotateCcw } from 'lucide-react';
-import { Card } from '@/components/ui/card';
+import { BookOpen, MessageCircle, Minus, Sparkles, SlidersHorizontal } from 'lucide-react';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { Slider } from '@/components/ui/slider';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Button } from '@/components/ui/button';
 import type { ThemeStyle, ExportSettings, PrefixMode } from '@/types/chat';
 
@@ -36,9 +34,11 @@ const prefixModes: { id: PrefixMode; name: string; desc: string }[] = [
   { id: 'none', name: '无前缀', desc: '仅显示内容' },
 ];
 
+/**
+ * 外观/排版设置：收纳进单个「外观」popover，不再占据主界面一整行，
+ * 给阅读区让出空间。包含主题、字号、宽度、时间戳、字体、TXT 导出格式。
+ */
 export function SettingsPanel({ settings, onSettingsChange }: SettingsPanelProps) {
-  const [isOpen, setIsOpen] = useState(false);
-
   const updateSetting = <K extends keyof ExportSettings>(
     key: K,
     value: ExportSettings[K]
@@ -46,122 +46,107 @@ export function SettingsPanel({ settings, onSettingsChange }: SettingsPanelProps
     onSettingsChange({ ...settings, [key]: value });
   };
 
-  const currentTheme = themes.find(t => t.id === settings.theme);
-
   return (
-    <Collapsible open={isOpen} onOpenChange={setIsOpen}>
-      <Card className="p-4">
-        {/* Collapsed view - horizontal summary */}
-        <div className="flex items-center justify-between gap-4">
-          <div className="flex items-center gap-6 flex-1 min-w-0">
-            {/* Theme quick selector */}
-            <div className="flex items-center gap-2">
-              <span className="text-sm text-muted-foreground">主题:</span>
-              <div className="flex gap-1">
-                {themes.map((theme) => (
-                  <button
-                    key={theme.id}
-                    onClick={() => updateSetting('theme', theme.id)}
-                    className={`p-2 rounded-md transition-all ${
-                      settings.theme === theme.id
-                        ? 'bg-primary text-primary-foreground'
-                        : 'hover:bg-secondary text-muted-foreground hover:text-foreground'
-                    }`}
-                    title={theme.desc}
-                  >
-                    {theme.icon}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            {/* Font size quick control */}
-            <div className="flex items-center gap-2 min-w-[140px]">
-              <span className="text-sm text-muted-foreground whitespace-nowrap">字号:</span>
-              <Slider
-                value={[settings.fontSize]}
-                onValueChange={([value]) => updateSetting('fontSize', value)}
-                min={12}
-                max={20}
-                step={1}
-                className="w-20"
-              />
-              <span className="text-xs text-muted-foreground w-8">{settings.fontSize}px</span>
-            </div>
-
-            {/* Width quick control */}
-            <div className="flex items-center gap-2 min-w-[160px]">
-              <span className="text-sm text-muted-foreground whitespace-nowrap">宽度:</span>
-              <Slider
-                value={[settings.paperWidth]}
-                onValueChange={([value]) => updateSetting('paperWidth', value)}
-                min={400}
-                max={800}
-                step={50}
-                className="w-24"
-              />
-              <span className="text-xs text-muted-foreground w-10">{settings.paperWidth}px</span>
-            </div>
-
-            {/* Timestamp toggle */}
-            <div className="flex items-center gap-2">
-              <span className="text-sm text-muted-foreground">时间戳:</span>
-              <Switch
-                checked={settings.showTimestamp}
-                onCheckedChange={(checked) => updateSetting('showTimestamp', checked)}
-              />
-            </div>
-          </div>
-
-          <CollapsibleTrigger asChild>
-            <Button variant="ghost" size="sm" className="flex-shrink-0">
-              {isOpen ? (
-                <>
-                  收起 <ChevronUp className="w-4 h-4 ml-1" />
-                </>
-              ) : (
-                <>
-                  更多设置 <ChevronDown className="w-4 h-4 ml-1" />
-                </>
-              )}
-            </Button>
-          </CollapsibleTrigger>
-        </div>
-
-        {/* Expanded view - detailed settings */}
-        <CollapsibleContent className="mt-4 pt-4 border-t border-border space-y-6">
-          {/* Theme Selection (detailed) */}
-          <div className="space-y-3">
-            <Label className="text-base font-display">主题风格</Label>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+    <Popover>
+      <PopoverTrigger asChild>
+        <Button variant="outline" size="sm" className="gap-1.5">
+          <SlidersHorizontal className="w-4 h-4" />
+          外观
+        </Button>
+      </PopoverTrigger>
+      <PopoverContent className="w-80 max-h-[70vh] overflow-y-auto" align="end">
+        <div className="space-y-5">
+          {/* 主题风格 */}
+          <div className="space-y-2">
+            <Label className="text-sm font-display">主题风格</Label>
+            <div className="grid grid-cols-2 gap-2">
               {themes.map((theme) => (
                 <button
                   key={theme.id}
                   onClick={() => updateSetting('theme', theme.id)}
-                  className={`p-3 rounded-lg border-2 text-left transition-all ${
+                  className={`p-2.5 rounded-lg border text-left transition-all ${
                     settings.theme === theme.id
                       ? 'border-primary bg-primary/5'
                       : 'border-border hover:border-primary/50 hover:bg-secondary/50'
                   }`}
                 >
-                  <div className="flex items-center gap-2 mb-1">
+                  <div className="flex items-center gap-1.5 mb-0.5">
                     {theme.icon}
-                    <span className="font-medium">{theme.name}</span>
+                    <span className="text-sm font-medium">{theme.name}</span>
                   </div>
-                  <p className="text-xs text-muted-foreground">{theme.desc}</p>
+                  <p className="text-xs text-muted-foreground leading-tight">{theme.desc}</p>
                 </button>
               ))}
             </div>
           </div>
 
-          {/* Prefix Mode for TXT Export */}
+          {/* 字号 */}
           <div className="space-y-2">
-            <Label htmlFor="prefix-mode" className="text-base font-display">TXT 导出格式</Label>
+            <div className="flex items-center justify-between">
+              <Label className="text-sm">字号</Label>
+              <span className="text-xs text-muted-foreground">{settings.fontSize}px</span>
+            </div>
+            <Slider
+              value={[settings.fontSize]}
+              onValueChange={([value]) => updateSetting('fontSize', value)}
+              min={12}
+              max={20}
+              step={1}
+            />
+          </div>
+
+          {/* 宽度 */}
+          <div className="space-y-2">
+            <div className="flex items-center justify-between">
+              <Label className="text-sm">阅读宽度</Label>
+              <span className="text-xs text-muted-foreground">{settings.paperWidth}px</span>
+            </div>
+            <Slider
+              value={[settings.paperWidth]}
+              onValueChange={([value]) => updateSetting('paperWidth', value)}
+              min={400}
+              max={1000}
+              step={50}
+            />
+          </div>
+
+          {/* 时间戳 */}
+          <div className="flex items-center justify-between">
+            <Label className="text-sm">显示时间戳</Label>
+            <Switch
+              checked={settings.showTimestamp}
+              onCheckedChange={(checked) => updateSetting('showTimestamp', checked)}
+            />
+          </div>
+
+          {/* 预览字体 */}
+          <div className="space-y-2">
+            <Label className="text-sm">预览字体</Label>
+            <Select
+              value={settings.fontFamily || 'sans-serif'}
+              onValueChange={(value) => updateSetting('fontFamily', value)}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="选择字体" />
+              </SelectTrigger>
+              <SelectContent>
+                {FONT_OPTIONS.map((f) => (
+                  <SelectItem key={f.value} value={f.value}>
+                    <span style={{ fontFamily: f.value }}>{f.label}</span>
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          {/* TXT 导出格式 */}
+          <div className="space-y-2">
+            <Label className="text-sm">TXT 导出格式</Label>
             <Select
               value={settings.prefixMode}
               onValueChange={(value: PrefixMode) => updateSetting('prefixMode', value)}
             >
-              <SelectTrigger id="prefix-mode" className="w-64">
+              <SelectTrigger>
                 <SelectValue placeholder="选择前缀模式" />
               </SelectTrigger>
               <SelectContent>
@@ -176,43 +161,8 @@ export function SettingsPanel({ settings, onSettingsChange }: SettingsPanelProps
               </SelectContent>
             </Select>
           </div>
-
-          {/* Font Family */}
-          <div className="space-y-2">
-            <Label className="text-base font-display">预览字体</Label>
-            <Select
-              value={settings.fontFamily || 'sans-serif'}
-              onValueChange={(value) => updateSetting('fontFamily', value)}
-            >
-              <SelectTrigger className="w-64">
-                <SelectValue placeholder="选择字体" />
-              </SelectTrigger>
-              <SelectContent>
-                {FONT_OPTIONS.map((f) => (
-                  <SelectItem key={f.value} value={f.value}>
-                    <span style={{ fontFamily: f.value }}>{f.label}</span>
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-          {/* Reset Onboarding */}
-          <div className="pt-2 border-t border-border">
-            <Button
-              variant="ghost"
-              size="sm"
-              className="gap-1 text-xs"
-              onClick={() => {
-                localStorage.removeItem('st-explorer-onboarding-dismissed');
-                window.location.reload();
-              }}
-            >
-              <RotateCcw className="w-3 h-3" />
-              重新显示新手引导
-            </Button>
-          </div>
-        </CollapsibleContent>
-      </Card>
-    </Collapsible>
+        </div>
+      </PopoverContent>
+    </Popover>
   );
 }
