@@ -269,10 +269,31 @@ const Index = () => {
 
   const handleSaveMessage = (updatedMessage: ChatMessage) => {
     if (!session) return;
+    // 快照编辑前的整条消息，用于撤销（删段/改内容/改说话人都走这里）
+    const prevMessage = session.messages.find(msg => msg.id === updatedMessage.id);
     setSession({
       ...session,
-      messages: session.messages.map(msg => 
+      messages: session.messages.map(msg =>
         msg.id === updatedMessage.id ? updatedMessage : msg
+      ),
+    });
+    if (!prevMessage) return;
+    const changed =
+      prevMessage.content !== updatedMessage.content ||
+      prevMessage.name !== updatedMessage.name ||
+      prevMessage.role !== updatedMessage.role;
+    if (!changed) return;
+    toast({
+      title: '已修改该楼',
+      action: (
+        <ToastAction altText="撤销修改" onClick={() => {
+          setSession(cur => cur
+            ? { ...cur, messages: cur.messages.map(m => m.id === prevMessage.id ? prevMessage : m) }
+            : cur
+          );
+        }}>
+          撤销
+        </ToastAction>
       ),
     });
   };
