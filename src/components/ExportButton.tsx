@@ -43,6 +43,17 @@ function byteLength(s: string): number {
   return _sizeEncoder.encode(s).length;
 }
 
+// 清洗文件名里的非法字符，避免 Windows 下下载失败/被截断（/ \ : * ? " < > | 及控制字符）。
+function sanitizeFilename(name: string): string {
+  const cleaned = (name || '')
+    .replace(/[/\\:*?"<>|-]/g, '_')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .replace(/^\.+/, '') // 去掉开头的点，避免隐藏文件
+    .slice(0, 100);
+  return cleaned || '未命名作品';
+}
+
 function getMessagesInRange(
   messages: import('@/types/chat').ChatMessage[],
   range: ExportSettings['exportRange'],
@@ -146,19 +157,31 @@ export function ExportButton({ session, settings, markers = [], onSettingsChange
 
   const exportAsTxt = () => {
     const msgs = getExportMessages();
-    const txtContent = convertMessagesToTxt(msgs, settings.regexRules, settings.prefixMode, markers);
+    const body = convertMessagesToTxt(msgs, settings.regexRules, settings.prefixMode, markers);
 
+    // 归档元数据头：标题 / 角色与用户 / 导出日期，让 TXT 成品更像一份正式归档
+    const header = [
+      session.title || '对话记录',
+      `${session.character.name} & ${session.user.name}`,
+      `导出于 ${new Date().toLocaleDateString('zh-CN')}`,
+      '',
+      '────────────────────',
+      '',
+    ].join('\n');
+    const txtContent = header + body;
+
+    const txtName = `${sanitizeFilename(session.title)}.txt`;
     const blob = new Blob([txtContent], { type: 'text/plain;charset=utf-8' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `${session.title}.txt`;
+    a.download = txtName;
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
 
-    toast({ title: '导出成功', description: `已保存为 ${session.title}.txt` });
+    toast({ title: '导出成功', description: `已保存为 ${txtName}` });
     setOpen(false);
   };
 
@@ -205,17 +228,18 @@ export function ExportButton({ session, settings, markers = [], onSettingsChange
       }
 
       const content = lines.join('\n');
+      const jsonlName = `${sanitizeFilename(session.title)}_cleaned.jsonl`;
       const blob = new Blob([content], { type: 'application/jsonl;charset=utf-8' });
       const url = URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = url;
-      link.download = `${session.title}_cleaned.jsonl`;
+      link.download = jsonlName;
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
       URL.revokeObjectURL(url);
 
-      toast({ title: '导出成功', description: `已保存为 ${session.title}_cleaned.jsonl` });
+      toast({ title: '导出成功', description: `已保存为 ${jsonlName}` });
       setOpen(false);
     } catch (error) {
       console.error('JSONL export error:', error);
