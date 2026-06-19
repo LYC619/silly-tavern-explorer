@@ -1,4 +1,5 @@
-import { forwardRef, useMemo, useState, useEffect, memo } from 'react';
+import { forwardRef, useMemo, useState, useEffect, useRef, memo } from 'react';
+import { useWindowVirtualizer } from '@tanstack/react-virtual';
 import { User, Bot, Bookmark, BookmarkPlus } from 'lucide-react';
 import type { ChatSession, ThemeStyle, RegexRule, ChapterMarker } from '@/types/chat';
 import { applyRegexRules, parseRegex } from '@/lib/regex-processor';
@@ -58,6 +59,223 @@ function renderPreviewHighlight(content: string, rule: RegexRule): React.ReactNo
   return nodes.length > 0 ? nodes : content;
 }
 
+function formatTime(timestamp?: number): string {
+  if (!timestamp) return '';
+  return new Date(timestamp).toLocaleString('zh-CN', {
+    month: 'short',
+    day: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+  });
+}
+
+/** processedMessages 的单条形态：原始消息 + 派生的渲染字段（自包含，不依赖相邻行） */
+interface ProcessedMessage {
+  id: string;
+  role: 'user' | 'assistant' | 'system';
+  content: string;
+  name?: string;
+  timestamp?: number;
+  rawData?: unknown;
+  paragraphs: string[];
+  /** 是否与上一条不同说话人——预算进 memo，虚拟化后行不连续渲染也正确 */
+  isNewSpeaker: boolean;
+}
+
+type ThemeClasses = ReturnType<typeof getThemeClasses>;
+
+function getThemeClasses(theme: ThemeStyle) {
+  switch (theme) {
+    case 'novel':
+      return {
+        container: 'paper-bg p-8 font-serif',
+        title: 'text-center mb-8 pb-4 border-b-2 border-primary/30',
+        message: 'mb-5',
+        userBubble: '',
+        charBubble: '',
+        content: 'reading-flow',
+        name: 'font-display text-primary/70 text-sm mb-1',
+        separator: 'hidden',
+      };
+    case 'social':
+      return {
+        container: 'bg-background p-6',
+        title: 'text-left mb-6 pb-3 border-b border-border',
+        message: 'mb-4 flex gap-3',
+        userBubble: 'flex-row-reverse',
+        charBubble: 'flex-row',
+        content: 'rounded-2xl px-4 py-2.5 max-w-[80%]',
+        name: 'text-xs text-muted-foreground mb-1',
+        separator: 'hidden',
+      };
+    case 'minimal':
+      return {
+        container: 'bg-background p-8',
+        title: 'mb-8 pb-2 border-b border-border',
+        message: 'mb-4 py-2',
+        userBubble: 'border-l-2 border-primary pl-4',
+        charBubble: 'border-l-2 border-muted-foreground/30 pl-4',
+        content: '',
+        name: 'font-medium text-sm mb-1',
+        separator: 'hidden',
+      };
+    case 'elegant':
+    default:
+      return {
+        container: 'paper-bg p-10 decorative-border',
+        title: 'text-center mb-10 space-y-2',
+        message: 'mb-5',
+        userBubble: '',
+        charBubble: '',
+        content: 'reading-flow',
+        name: 'font-display text-base text-primary/70 mb-1',
+        separator: 'hidden',
+      };
+  }
+}
+
+interface MessageRowProps {
+  message: ProcessedMessage;
+  marker?: ChapterMarker;
+  index: number;
+  theme: ThemeStyle;
+  classes: ThemeClasses;
+  showTimestamp: boolean;
+  showAvatar: boolean;
+  editMode: boolean;
+  previewRule: RegexRule | null;
+  userName: string;
+  charName: string;
+  onMessageClick?: (messageId: string, messageIndex: number) => void;
+}
+
+/**
+ * 单条消息的渲染单元。从原 map body 抽出并用 memo 包裹，
+ * 虚拟化滚动时只重渲染进出可视区的行，无关行不动。
+ * 章节标记横幅留在行内（作为该行第一个子元素），高度随行一起被动态测量。
+ */
+const MessageRow = memo(function MessageRow({
+  message, marker, index, theme, classes, showTimestamp, showAvatar,
+  editMode, previewRule, userName, charName, onMessageClick,
+}: MessageRowProps) {
+  const isUser = message.role === 'user';
+  const isNewSpeaker = message.isNewSpeaker;
+  const hasMarker = !!marker;
+
+  return (
+    <div>
+      {/* Chapter marker display */}
+      {hasMarker && (
+        <div className="my-6 py-4 border-y border-primary/30 bg-primary/5 text-center">
+          {marker.volume && (
+            <div className="text-xs text-muted-foreground tracking-widest uppercase mb-1">
+              {marker.volume}
+            </div>
+          )}
+          <div className="font-display text-lg text-primary">
+            {marker.title}
+          </div>
+          {marker.summary && (
+            <div className="text-sm text-muted-foreground mt-2 max-w-md mx-auto">
+              {marker.summary}
+            </div>
+          )}
+        </div>
+      )}
+
+      <div
+        className={`${classes.message} ${isUser ? classes.userBubble : classes.charBubble} animate-fade-in group relative ${
+          editMode ? 'cursor-pointer hover:bg-primary/5 rounded-lg transition-colors pt-9 px-2' : ''
+        }`}
+        onClick={() => editMode && onMessageClick?.(message.id, index)}
+      >
+        {/* 章节标记模式：每条消息左上角常驻楼层号+书签按钮，清晰可点 */}
+        {editMode && (
+          <div className="absolute left-1 top-1 flex items-center gap-1 z-10">
+            <span className="text-xs text-muted-foreground font-mono">
+              #{index + 1}
+            </span>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <div className={`flex items-center gap-0.5 rounded px-1 py-0.5 text-xs transition-colors ${
+                  hasMarker
+                    ? 'bg-primary/15 text-primary'
+                    : 'bg-muted/60 text-muted-foreground hover:bg-primary/10 hover:text-primary'
+                }`}>
+                  {hasMarker ? (
+                    <Bookmark className="w-3.5 h-3.5 fill-primary" />
+                  ) : (
+                    <BookmarkPlus className="w-3.5 h-3.5" />
+                  )}
+                  <span>{hasMarker ? '已标记' : '设章节'}</span>
+                </div>
+              </TooltipTrigger>
+              <TooltipContent side="left">
+                {hasMarker ? '点击编辑章节标记' : '点击此楼设为章节起点'}
+              </TooltipContent>
+            </Tooltip>
+          </div>
+        )}
+        {theme === 'social' ? (
+          <>
+            {showAvatar && (
+              <div className={`w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 ${
+                isUser ? 'bubble-user' : 'bubble-char'
+              }`}>
+                {isUser ? <User className="w-5 h-5" /> : <Bot className="w-5 h-5" />}
+              </div>
+            )}
+            <div className={isUser ? 'text-right' : 'text-left'}>
+              <div className={classes.name}>
+                {message.name || (isUser ? userName : charName)}
+              </div>
+              <div className={`inline-block ${classes.content} ${
+                isUser ? 'bubble-user' : 'bubble-char'
+              } whitespace-pre-wrap`}>
+                {previewRule ? renderPreviewHighlight(message.content, previewRule) : message.content}
+              </div>
+              {showTimestamp && (
+                <div className="text-xs text-muted-foreground mt-1">
+                  {formatTime(message.timestamp)}
+                </div>
+              )}
+            </div>
+          </>
+        ) : (
+          <div>
+            {/* 阅读流主题(elegant/novel)下，同一说话人连续发言时省略重复名字，
+                让正文更连贯，贴近小说阅读体验；minimal 仍每条都标名 */}
+            {(theme === 'minimal' || isNewSpeaker) && (
+              <div className={classes.name}>
+                {message.name || (isUser ? userName : charName)}
+                {(() => {
+                  // 优先用导入时解析好的 timestamp；旧数据(timestamp 为空)则从 rawData.send_date 兜底实时解析，
+                  // 这样无需重新导入也能显示时间戳。
+                  const ts = message.timestamp ?? parseSTDate((message.rawData as { send_date?: unknown } | undefined)?.send_date);
+                  return showTimestamp && ts ? (
+                    <span className="text-muted-foreground font-normal ml-2 text-xs">
+                      {formatTime(ts)}
+                    </span>
+                  ) : null;
+                })()}
+              </div>
+            )}
+            <div className={`${classes.content} whitespace-pre-wrap`}>
+              {previewRule
+                ? renderPreviewHighlight(message.content, previewRule)
+                : (theme === 'elegant' || theme === 'novel')
+                  ? message.paragraphs.map((p, i) => (
+                      <p key={i} className="reading-paragraph">{p}</p>
+                    ))
+                  : message.content}
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+});
+
 export const ChatPreview = memo(forwardRef<HTMLDivElement, ChatPreviewProps>(
   ({ session, theme, showTimestamp, showAvatar, fontSize, regexRules, markers = [], onMessageClick, editMode = false, fontFamily, previewRule = null }, ref) => {
     const markerMap = useMemo(() => {
@@ -73,84 +291,63 @@ export const ChatPreview = memo(forwardRef<HTMLDivElement, ChatPreviewProps>(
       return () => clearTimeout(t);
     }, [regexRules]);
     // 预处理消息，应用正则规则
-    const processedMessages = useMemo(() => {
+    const processedMessages = useMemo<ProcessedMessage[]>(() => {
       // 预览某规则时，把该规则从应用列表中排除，这样它本该删除的内容仍保留在正文里，
       // 再由 renderPreviewHighlight 用红色删除线标出——所见即所得。
       const activeRules = previewRule
         ? debouncedRules.filter(r => r.id !== previewRule.id)
         : debouncedRules;
-      return session.messages.map(msg => {
+      const out: ProcessedMessage[] = [];
+      let prevRole: string | null = null; // 记录上一条已保留消息的 role，预算 isNewSpeaker
+      for (const msg of session.messages) {
         const isUser = msg.role === 'user';
         // 去除首尾空白：正则删除开头/结尾的标签块后常残留换行，
         // 否则 text-indent 会缩进到这条残留空行上，导致正文看起来没缩进、缩进忽有忽无。
         const processedContent = applyRegexRules(msg.content, activeRules, isUser).trim();
+        if (!processedContent) continue; // 过滤掉空消息
         // 预切段落（仅在此 memo 里算一次），render 时直接 map 成 <p>，
         // 避免每次重渲染都对全部消息重跑 split。
         const paragraphs = processedContent.split(/\n+/).map(s => s.trim()).filter(Boolean);
-        return { ...msg, content: processedContent, paragraphs };
-      }).filter(msg => msg.content); // 过滤掉空消息
-    }, [session.messages, debouncedRules, previewRule]);
-    const formatTime = (timestamp?: number) => {
-      if (!timestamp) return '';
-      return new Date(timestamp).toLocaleString('zh-CN', {
-        month: 'short',
-        day: 'numeric',
-        hour: '2-digit',
-        minute: '2-digit',
-      });
-    };
-
-    const getThemeClasses = () => {
-      switch (theme) {
-        case 'novel':
-          return {
-            container: 'paper-bg p-8 font-serif',
-            title: 'text-center mb-8 pb-4 border-b-2 border-primary/30',
-            message: 'mb-5',
-            userBubble: '',
-            charBubble: '',
-            content: 'reading-flow',
-            name: 'font-display text-primary/70 text-sm mb-1',
-            separator: 'hidden',
-          };
-        case 'social':
-          return {
-            container: 'bg-background p-6',
-            title: 'text-left mb-6 pb-3 border-b border-border',
-            message: 'mb-4 flex gap-3',
-            userBubble: 'flex-row-reverse',
-            charBubble: 'flex-row',
-            content: 'rounded-2xl px-4 py-2.5 max-w-[80%]',
-            name: 'text-xs text-muted-foreground mb-1',
-            separator: 'hidden',
-          };
-        case 'minimal':
-          return {
-            container: 'bg-background p-8',
-            title: 'mb-8 pb-2 border-b border-border',
-            message: 'mb-4 py-2',
-            userBubble: 'border-l-2 border-primary pl-4',
-            charBubble: 'border-l-2 border-muted-foreground/30 pl-4',
-            content: '',
-            name: 'font-medium text-sm mb-1',
-            separator: 'hidden',
-          };
-        case 'elegant':
-        default:
-          return {
-            container: 'paper-bg p-10 decorative-border',
-            title: 'text-center mb-10 space-y-2',
-            message: 'mb-5',
-            userBubble: '',
-            charBubble: '',
-            content: 'reading-flow',
-            name: 'font-display text-base text-primary/70 mb-1',
-            separator: 'hidden',
-          };
+        // isNewSpeaker 预算进 memo：虚拟化后行不连续渲染，不能在 render 里读 [index-1]。
+        out.push({
+          ...msg,
+          content: processedContent,
+          paragraphs,
+          isNewSpeaker: prevRole !== msg.role,
+        });
+        prevRole = msg.role;
       }
-    };
+      return out;
+    }, [session.messages, debouncedRules, previewRule]);
 
-    const classes = getThemeClasses();
+    const classes = useMemo(() => getThemeClasses(theme), [theme]);
+
+    // 窗口虚拟化：沿用整页滚动，只渲染可视区±overscan 的消息行。
+    // scrollMargin = 列表容器相对文档顶部的偏移，让虚拟坐标对齐整页滚动。
+    const listRef = useRef<HTMLDivElement>(null);
+    // 容器挂载/布局变化后测量 offsetTop（首帧 ref 仍为 null，故用 state 兜住）。
+    const [scrollMargin, setScrollMargin] = useState(0);
+    useEffect(() => {
+      const el = listRef.current;
+      if (!el) return;
+      const measure = () => setScrollMargin(el.offsetTop);
+      measure();
+      // 标题块高度随主题变化、字体加载会改变 offsetTop，用 ResizeObserver 跟随
+      const ro = new ResizeObserver(measure);
+      if (el.parentElement) ro.observe(el.parentElement);
+      return () => ro.disconnect();
+    }, [theme, session.title]);
+
+    const virtualizer = useWindowVirtualizer({
+      count: processedMessages.length,
+      estimateSize: () => 200, // 估计行高；measureElement 会逐行校正
+      overscan: 6,
+      // 行用 message.id 做稳定 key，正则预览/排序变化时复用 DOM、保留测量
+      getItemKey: (i) => processedMessages[i]?.id ?? i,
+      scrollMargin,
+    });
+
+    const virtualItems = virtualizer.getVirtualItems();
 
     return (
       <div
@@ -175,132 +372,45 @@ export const ChatPreview = memo(forwardRef<HTMLDivElement, ChatPreviewProps>(
           )}
         </div>
 
-        {/* Messages */}
+        {/* Messages（窗口虚拟化） */}
         <TooltipProvider>
-          <div className="space-y-1">
-            {processedMessages.map((message, index) => {
-              const isUser = message.role === 'user';
-              const isNewSpeaker = index === 0 || 
-                processedMessages[index - 1].role !== message.role;
-              const marker = markerMap.get(message.id);
-              const hasMarker = !!marker;
-
+          <div ref={listRef} className="relative w-full" style={{ height: virtualizer.getTotalSize() }}>
+            {virtualItems.map((vItem) => {
+              const message = processedMessages[vItem.index];
+              if (!message) return null;
               return (
-                <div key={message.id}>
-                  {/* Chapter marker display */}
-                  {hasMarker && (
-                    <div className="my-6 py-4 border-y border-primary/30 bg-primary/5 text-center">
-                      {marker.volume && (
-                        <div className="text-xs text-muted-foreground tracking-widest uppercase mb-1">
-                          {marker.volume}
-                        </div>
-                      )}
-                      <div className="font-display text-lg text-primary">
-                        {marker.title}
-                      </div>
-                      {marker.summary && (
-                        <div className="text-sm text-muted-foreground mt-2 max-w-md mx-auto">
-                          {marker.summary}
-                        </div>
-                      )}
-                    </div>
-                  )}
-
-                  <div
-                    className={`${classes.message} ${isUser ? classes.userBubble : classes.charBubble} animate-fade-in group relative ${
-                      editMode ? 'cursor-pointer hover:bg-primary/5 rounded-lg transition-colors pt-9 px-2' : ''
-                    }`}
-                    onClick={() => editMode && onMessageClick?.(message.id, index)}
-                    data-tour-message={index}
-                  >
-                    {/* 章节标记模式：每条消息左上角常驻楼层号+书签按钮，清晰可点 */}
-                    {editMode && (
-                      <div className="absolute left-1 top-1 flex items-center gap-1 z-10">
-                        <span className="text-xs text-muted-foreground font-mono">
-                          #{index + 1}
-                        </span>
-                        <Tooltip>
-                          <TooltipTrigger asChild>
-                            <div className={`flex items-center gap-0.5 rounded px-1 py-0.5 text-xs transition-colors ${
-                              hasMarker
-                                ? 'bg-primary/15 text-primary'
-                                : 'bg-muted/60 text-muted-foreground hover:bg-primary/10 hover:text-primary'
-                            }`}>
-                              {hasMarker ? (
-                                <Bookmark className="w-3.5 h-3.5 fill-primary" />
-                              ) : (
-                                <BookmarkPlus className="w-3.5 h-3.5" />
-                              )}
-                              <span>{hasMarker ? '已标记' : '设章节'}</span>
-                            </div>
-                          </TooltipTrigger>
-                          <TooltipContent side="left">
-                            {hasMarker ? '点击编辑章节标记' : '点击此楼设为章节起点'}
-                          </TooltipContent>
-                        </Tooltip>
-                      </div>
-                    )}
-                    {theme === 'social' ? (
-                    <>
-                      {showAvatar && (
-                        <div className={`w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 ${
-                          isUser ? 'bubble-user' : 'bubble-char'
-                        }`}>
-                          {isUser ? <User className="w-5 h-5" /> : <Bot className="w-5 h-5" />}
-                        </div>
-                      )}
-                      <div className={isUser ? 'text-right' : 'text-left'}>
-                        <div className={classes.name}>
-                          {message.name || (isUser ? session.user.name : session.character.name)}
-                        </div>
-                        <div className={`inline-block ${classes.content} ${
-                          isUser ? 'bubble-user' : 'bubble-char'
-                        } whitespace-pre-wrap`}>
-                          {previewRule ? renderPreviewHighlight(message.content, previewRule) : message.content}
-                        </div>
-                        {showTimestamp && (
-                          <div className="text-xs text-muted-foreground mt-1">
-                            {formatTime(message.timestamp)}
-                          </div>
-                        )}
-                      </div>
-                    </>
-                  ) : (
-                    <div>
-                      {/* 阅读流主题(elegant/novel)下，同一说话人连续发言时省略重复名字，
-                          让正文更连贯，贴近小说阅读体验；minimal 仍每条都标名 */}
-                      {(theme === 'minimal' || isNewSpeaker) && (
-                        <div className={classes.name}>
-                          {message.name || (isUser ? session.user.name : session.character.name)}
-                          {(() => {
-                            // 优先用导入时解析好的 timestamp；旧数据(timestamp 为空)则从 rawData.send_date 兜底实时解析，
-                            // 这样无需重新导入也能显示时间戳。
-                            const ts = message.timestamp ?? parseSTDate((message.rawData as { send_date?: unknown } | undefined)?.send_date);
-                            return showTimestamp && ts ? (
-                              <span className="text-muted-foreground font-normal ml-2 text-xs">
-                                {formatTime(ts)}
-                              </span>
-                            ) : null;
-                          })()}
-                        </div>
-                      )}
-                      <div className={`${classes.content} whitespace-pre-wrap`}>
-                        {previewRule
-                          ? renderPreviewHighlight(message.content, previewRule)
-                          : (theme === 'elegant' || theme === 'novel')
-                            ? message.paragraphs.map((p, i) => (
-                                <p key={i} className="reading-paragraph">{p}</p>
-                              ))
-                            : message.content}
-                      </div>
-                    </div>
-                  )}
+                <div
+                  key={vItem.key}
+                  data-index={vItem.index}
+                  ref={virtualizer.measureElement}
+                  className="absolute top-0 left-0 w-full"
+                  style={{
+                    // flow-root 建立 BFC，让 MessageRow 内部子元素的 margin(mb-5 等)被算进
+                    // 本 wrapper 的测量高度，避免 measureElement 量短导致行重叠。
+                    display: 'flow-root',
+                    transform: `translateY(${vItem.start - virtualizer.options.scrollMargin}px)`,
+                  }}
+                >
+                  <MessageRow
+                    message={message}
+                    marker={markerMap.get(message.id)}
+                    index={vItem.index}
+                    theme={theme}
+                    classes={classes}
+                    showTimestamp={showTimestamp}
+                    showAvatar={showAvatar}
+                    editMode={editMode}
+                    previewRule={previewRule}
+                    userName={session.user.name}
+                    charName={session.character.name}
+                    onMessageClick={onMessageClick}
+                  />
                 </div>
-              </div>
-            );
-          })}
+              );
+            })}
           </div>
         </TooltipProvider>
+
 
         {/* Footer for elegant theme */}
         {theme === 'elegant' && (
