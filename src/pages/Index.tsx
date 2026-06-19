@@ -59,7 +59,7 @@ const Index = () => {
   const [favorites, setFavorites] = useState<string[]>([]);
   // 跳楼层：ChatPreview 命令式句柄 + 当前顶部可见楼层 + messageId→楼层号映射
   const previewRef = useRef<ChatPreviewHandle>(null);
-  const [currentFloor, setCurrentFloor] = useState(1);
+  const [currentFloor, setCurrentFloor] = useState(0);
   const [currentFloorMsgId, setCurrentFloorMsgId] = useState<string | null>(null);
   const [floorCount, setFloorCount] = useState(0);
   const [floorMap, setFloorMap] = useState<Map<string, number>>(new Map());
