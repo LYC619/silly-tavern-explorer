@@ -1,4 +1,4 @@
-import { forwardRef, useMemo, useState, useEffect } from 'react';
+import { forwardRef, useMemo, useState, useEffect, memo } from 'react';
 import { User, Bot, Bookmark, BookmarkPlus } from 'lucide-react';
 import type { ChatSession, ThemeStyle, RegexRule, ChapterMarker } from '@/types/chat';
 import { applyRegexRules, parseRegex } from '@/lib/regex-processor';
@@ -58,19 +58,7 @@ function renderPreviewHighlight(content: string, rule: RegexRule): React.ReactNo
   return nodes.length > 0 ? nodes : content;
 }
 
-/**
- * 把一条消息按换行拆成多个段落，每段独立成 <p>，这样起点式首行缩进能作用在「每一段」上，
- * 而不是只缩进整条消息的第一行（text-indent 只对块的首行生效，多段消息会出现缩进忽有忽无）。
- */
-function renderParagraphs(content: string): React.ReactNode {
-  const paras = content.split(/\n+/).map(s => s.trim()).filter(Boolean);
-  if (paras.length === 0) return null;
-  return paras.map((p, i) => (
-    <p key={i} className="reading-paragraph">{p}</p>
-  ));
-}
-
-export const ChatPreview = forwardRef<HTMLDivElement, ChatPreviewProps>(
+export const ChatPreview = memo(forwardRef<HTMLDivElement, ChatPreviewProps>(
   ({ session, theme, showTimestamp, showAvatar, fontSize, regexRules, markers = [], onMessageClick, editMode = false, fontFamily, previewRule = null }, ref) => {
     const markerMap = useMemo(() => {
       const map = new Map<string, ChapterMarker>();
@@ -96,7 +84,10 @@ export const ChatPreview = forwardRef<HTMLDivElement, ChatPreviewProps>(
         // 去除首尾空白：正则删除开头/结尾的标签块后常残留换行，
         // 否则 text-indent 会缩进到这条残留空行上，导致正文看起来没缩进、缩进忽有忽无。
         const processedContent = applyRegexRules(msg.content, activeRules, isUser).trim();
-        return { ...msg, content: processedContent };
+        // 预切段落（仅在此 memo 里算一次），render 时直接 map 成 <p>，
+        // 避免每次重渲染都对全部消息重跑 split。
+        const paragraphs = processedContent.split(/\n+/).map(s => s.trim()).filter(Boolean);
+        return { ...msg, content: processedContent, paragraphs };
       }).filter(msg => msg.content); // 过滤掉空消息
     }, [session.messages, debouncedRules, previewRule]);
     const formatTime = (timestamp?: number) => {
@@ -297,7 +288,9 @@ export const ChatPreview = forwardRef<HTMLDivElement, ChatPreviewProps>(
                         {previewRule
                           ? renderPreviewHighlight(message.content, previewRule)
                           : (theme === 'elegant' || theme === 'novel')
-                            ? renderParagraphs(message.content)
+                            ? message.paragraphs.map((p, i) => (
+                                <p key={i} className="reading-paragraph">{p}</p>
+                              ))
                             : message.content}
                       </div>
                     </div>
@@ -321,6 +314,6 @@ export const ChatPreview = forwardRef<HTMLDivElement, ChatPreviewProps>(
       </div>
     );
   }
-);
+));
 
 ChatPreview.displayName = 'ChatPreview';

@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { useLocation } from 'react-router-dom';
 import { AppLayout } from '@/components/AppLayout';
 import { ChatImporter, type ImportStats } from '@/components/ChatImporter';
@@ -133,16 +133,21 @@ const Index = () => {
   }, []);
 
   // 保存状态到 sessionStorage（防抖）
+  // 注意：依赖不含 settings——否则改字号/宽度/主题等纯样式操作会触发对整份(可能数十万字)
+  // session 的 JSON.stringify，造成「松手卡一下」。settings 本身已单独持久化到 localStorage，
+  // 这里用 ref 取其最新值随 session/markers 变化时一并存即可。
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const settingsRef = useRef(settings);
+  settingsRef.current = settings;
   useEffect(() => {
     if (session) {
       if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
       saveTimerRef.current = setTimeout(() => {
-        saveSessionState({ session, markers, currentBookId, settings });
+        saveSessionState({ session, markers, currentBookId, settings: settingsRef.current });
       }, 500);
     }
     return () => { if (saveTimerRef.current) clearTimeout(saveTimerRef.current); };
-  }, [session, markers, currentBookId, settings]);
+  }, [session, markers, currentBookId]);
 
   // 保存设置变更到 localStorage
   useEffect(() => {
@@ -219,7 +224,7 @@ const Index = () => {
     }
   };
 
-  const handleMessageClick = (messageId: string, messageIndex: number) => {
+  const handleMessageClick = useCallback((messageId: string, messageIndex: number) => {
     if (contentEditMode) {
       setSelectedMessage({ id: messageId, index: messageIndex });
       setMessageEditDialogOpen(true);
@@ -227,7 +232,7 @@ const Index = () => {
       setSelectedMessage({ id: messageId, index: messageIndex });
       setMarkerDialogOpen(true);
     }
-  };
+  }, [contentEditMode, editMode]);
 
   const handleSaveMessage = (updatedMessage: ChatMessage) => {
     if (!session) return;
