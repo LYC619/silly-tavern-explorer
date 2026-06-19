@@ -420,20 +420,18 @@ const Index = () => {
                 </div>
 
                 <div className="rounded-lg border border-border bg-card/50" data-tour="chat-preview">
-                  {/* 常驻跳转条：整页滚动下 sticky 在视口顶部，随时可跳楼层/收藏 */}
-                  <div className="sticky top-0 z-20 px-4 pt-3 pb-1 bg-card/80 backdrop-blur-sm rounded-t-lg">
-                    <MessageNavBar
-                      floorCount={floorCount}
-                      currentFloor={currentFloor}
-                      currentMessageId={currentFloorMsgId}
-                      favorites={favoriteItems}
-                      onJumpToFloor={(n) => previewRef.current?.scrollToFloor(n)}
-                      onPrev={() => previewRef.current?.scrollToFloor(currentFloor - 1)}
-                      onNext={() => previewRef.current?.scrollToFloor(currentFloor + 1)}
-                      onToggleFavorite={handleToggleFavorite}
-                      onJumpToMessageId={(id) => previewRef.current?.scrollToMessageId(id)}
-                    />
-                  </div>
+                  {/* 左侧悬浮竖向跳转条（fixed 自定位，不随滚动消失、不压缩阅读区） */}
+                  <MessageNavBar
+                    floorCount={floorCount}
+                    currentFloor={currentFloor}
+                    currentMessageId={currentFloorMsgId}
+                    favorites={favoriteItems}
+                    onJumpToFloor={(n) => previewRef.current?.scrollToFloor(n)}
+                    onPrev={() => previewRef.current?.scrollToFloor(currentFloor - 1)}
+                    onNext={() => previewRef.current?.scrollToFloor(currentFloor + 1)}
+                    onToggleFavorite={handleToggleFavorite}
+                    onJumpToMessageId={(id) => previewRef.current?.scrollToMessageId(id)}
+                  />
                   <div className="flex justify-center py-6 px-4">
                     <div
                       style={{ width: settings.paperWidth, maxWidth: '100%' }}

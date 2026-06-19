@@ -31,8 +31,9 @@ interface MessageNavBarProps {
 }
 
 /**
- * 预览区顶部常驻跳转条：
- * - 输入楼层号跳转 + 上/下一层
+ * 左侧悬浮竖向跳转条（fixed，不随整页滚动消失、不压缩主阅读区）：
+ * - 上/下一层
+ * - 楼层号输入跳转 + 当前楼/总楼
  * - 收藏/取消当前顶部楼层（轻量书签，不进导出）
  * - 收藏列表 popover，点一条跳过去
  */
@@ -48,9 +49,9 @@ export function MessageNavBar({
   onJumpToMessageId,
 }: MessageNavBarProps) {
   const [floorInput, setFloorInput] = useState(String(currentFloor));
-
-  // 滚动导致当前楼层变化时，同步输入框（用户正在输入时不抢）
   const [editing, setEditing] = useState(false);
+
+  // 滚动导致当前楼层变化时同步输入框（用户正在输入时不抢）
   useEffect(() => {
     if (!editing) setFloorInput(String(currentFloor));
   }, [currentFloor, editing]);
@@ -59,7 +60,7 @@ export function MessageNavBar({
 
   const commitJump = () => {
     const n = parseInt(floorInput, 10);
-    if (!Number.isNaN(n)) {
+    if (!Number.isNaN(n) && floorCount > 0) {
       const clamped = Math.min(Math.max(n, 1), floorCount);
       onJumpToFloor(clamped);
       setFloorInput(String(clamped));
@@ -71,42 +72,43 @@ export function MessageNavBar({
 
   return (
     <TooltipProvider>
-      <div className="flex items-center gap-2 rounded-lg border border-border bg-card/60 px-3 py-2 text-sm">
-        {/* 上/下一层 */}
-        <div className="flex items-center gap-1">
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Button variant="ghost" size="icon" className="h-7 w-7" onClick={onPrev} disabled={currentFloor <= 1}>
-                <ChevronUp className="h-4 w-4" />
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent>上一层</TooltipContent>
-          </Tooltip>
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Button variant="ghost" size="icon" className="h-7 w-7" onClick={onNext} disabled={currentFloor >= floorCount}>
-                <ChevronDown className="h-4 w-4" />
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent>下一层</TooltipContent>
-          </Tooltip>
-        </div>
+      <div className="fixed left-24 top-1/2 z-30 -translate-y-1/2 flex flex-col items-center gap-1.5 rounded-xl border border-border bg-card/90 px-1.5 py-2 shadow-md backdrop-blur-sm">
+        {/* 上一层 */}
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Button variant="ghost" size="icon" className="h-8 w-8" onClick={onPrev} disabled={currentFloor <= 1}>
+              <ChevronUp className="h-4 w-4" />
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent side="right">上一层</TooltipContent>
+        </Tooltip>
 
-        {/* 楼层号输入跳转 */}
-        <div className="flex items-center gap-1 text-muted-foreground">
-          <span>#</span>
+        {/* 楼层号输入 + 当前/总楼 */}
+        <div className="flex flex-col items-center gap-0.5">
           <Input
             value={floorInput}
             onChange={(e) => { setEditing(true); setFloorInput(e.target.value.replace(/[^0-9]/g, '')); }}
             onFocus={() => setEditing(true)}
             onBlur={commitJump}
             onKeyDown={(e) => { if (e.key === 'Enter') { e.currentTarget.blur(); } }}
-            className="h-7 w-14 text-center px-1"
+            className="h-7 w-11 px-1 text-center text-xs"
             inputMode="numeric"
             aria-label="跳转到楼层"
           />
-          <span className="whitespace-nowrap">/ {floorCount}</span>
+          <span className="text-[10px] leading-none text-muted-foreground">/ {floorCount}</span>
         </div>
+
+        {/* 下一层 */}
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Button variant="ghost" size="icon" className="h-8 w-8" onClick={onNext} disabled={currentFloor >= floorCount}>
+              <ChevronDown className="h-4 w-4" />
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent side="right">下一层</TooltipContent>
+        </Tooltip>
+
+        <div className="my-0.5 h-px w-6 bg-border" />
 
         {/* 收藏当前顶部楼层 */}
         <Tooltip>
@@ -114,27 +116,34 @@ export function MessageNavBar({
             <Button
               variant="ghost"
               size="icon"
-              className="h-7 w-7"
+              className="h-8 w-8"
               disabled={!currentMessageId}
               onClick={() => currentMessageId && onToggleFavorite(currentMessageId)}
             >
               <Star className={`h-4 w-4 ${isCurrentFavorited ? 'fill-primary text-primary' : ''}`} />
             </Button>
           </TooltipTrigger>
-          <TooltipContent>{isCurrentFavorited ? '取消收藏当前楼层' : '收藏当前楼层'}</TooltipContent>
+          <TooltipContent side="right">{isCurrentFavorited ? '取消收藏当前楼层' : '收藏当前楼层'}</TooltipContent>
         </Tooltip>
-
-        <div className="flex-1" />
 
         {/* 收藏列表 */}
         <Popover>
-          <PopoverTrigger asChild>
-            <Button variant="ghost" size="sm" className="h-7 gap-1.5">
-              <Bookmark className="h-4 w-4" />
-              <span>收藏 {favorites.length > 0 ? `(${favorites.length})` : ''}</span>
-            </Button>
-          </PopoverTrigger>
-          <PopoverContent align="end" className="w-72 p-0">
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <PopoverTrigger asChild>
+                <Button variant="ghost" size="icon" className="relative h-8 w-8">
+                  <Bookmark className="h-4 w-4" />
+                  {favorites.length > 0 && (
+                    <span className="absolute -right-0.5 -top-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-primary px-1 text-[9px] font-medium text-primary-foreground">
+                      {favorites.length}
+                    </span>
+                  )}
+                </Button>
+              </PopoverTrigger>
+            </TooltipTrigger>
+            <TooltipContent side="right">收藏列表</TooltipContent>
+          </Tooltip>
+          <PopoverContent side="right" align="center" className="w-72 p-0">
             {favorites.length === 0 ? (
               <div className="px-4 py-6 text-center text-sm text-muted-foreground">
                 还没有收藏的楼层<br />
