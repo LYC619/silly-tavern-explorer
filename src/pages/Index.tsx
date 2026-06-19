@@ -4,6 +4,7 @@ import { AppLayout } from '@/components/AppLayout';
 import { ChatImporter, type ImportStats } from '@/components/ChatImporter';
 import { ChatPreview, type ChatPreviewHandle } from '@/components/ChatPreview';
 import { MessageNavBar, type FavoriteItem } from '@/components/MessageNavBar';
+import { MessageSearchBar } from '@/components/MessageSearchBar';
 import { EditorToolbar } from '@/components/EditorToolbar';
 import { ChapterMarkerDialog } from '@/components/ChapterMarkerDialog';
 import { MessageEditDialog } from '@/components/MessageEditDialog';
@@ -62,6 +63,12 @@ const Index = () => {
   const [currentFloorMsgId, setCurrentFloorMsgId] = useState<string | null>(null);
   const [floorCount, setFloorCount] = useState(0);
   const [floorMap, setFloorMap] = useState<Map<string, number>>(new Map());
+  // 全文搜索
+  const [searchQuery, setSearchQuery] = useState('');
+  const [searchResult, setSearchResult] = useState({ total: 0, current: 0 });
+  const handleSearchResult = useCallback((total: number, current: number) => {
+    setSearchResult({ total, current });
+  }, []);
   const [editMode, setEditMode] = useState(false);
   const [contentEditMode, setContentEditMode] = useState(false);
   const [markerDialogOpen, setMarkerDialogOpen] = useState(false);
@@ -403,19 +410,28 @@ const Index = () => {
             <div className="flex gap-4 items-start">
               {/* Preview Area */}
               <div className="flex-1 min-w-0">
-                <div className="mb-3 flex items-center justify-between">
-                  <div className="text-sm text-muted-foreground">
+                <div className="mb-3 flex items-center justify-between gap-3">
+                  <div className="text-sm text-muted-foreground shrink-0">
                     共 {session.messages.length} 条消息
                     {markers.length > 0 && (
                       <span className="ml-2 text-primary">· {markers.length} 个章节标记</span>
                     )}
                   </div>
-                  {(editMode || contentEditMode) && (
+                  {(editMode || contentEditMode) ? (
                     <div className="text-sm text-primary animate-pulse">
-                      {contentEditMode 
+                      {contentEditMode
                         ? '点击消息编辑内容'
                         : '点击消息添加章节标记'}
                     </div>
+                  ) : (
+                    <MessageSearchBar
+                      query={searchQuery}
+                      onQueryChange={setSearchQuery}
+                      total={searchResult.total}
+                      current={searchResult.current}
+                      onNext={() => previewRef.current?.nextMatch()}
+                      onPrev={() => previewRef.current?.prevMatch()}
+                    />
                   )}
                 </div>
 
@@ -452,6 +468,8 @@ const Index = () => {
                         previewRule={previewRule}
                         onVisibleFloorChange={handleVisibleFloorChange}
                         onFloorMapChange={handleFloorMapChange}
+                        searchQuery={searchQuery}
+                        onSearchResult={handleSearchResult}
                       />
                     </div>
                   </div>
