@@ -105,10 +105,11 @@ export function ExportButton({ session, settings, markers = [], onSettingsChange
     // 导出体积估算（清理插件缓存 + 去 swipes + 应用正则后），同样按真实 UTF-8 字节数
     let estMetaSize = rawMetaSize;
     if (cleanPluginCache && session.rawMetadata?.chat_metadata) {
-      const cleaned: any = {};
+      const cm = session.rawMetadata.chat_metadata;
+      const cleaned: Record<string, unknown> = {};
       for (const key of METADATA_KEEP_KEYS) {
-        if (key in (session.rawMetadata.chat_metadata as any)) {
-          cleaned[key] = (session.rawMetadata.chat_metadata as any)[key];
+        if (key in cm) {
+          cleaned[key] = cm[key];
         }
       }
       estMetaSize = byteLength(JSON.stringify({ ...session.rawMetadata, chat_metadata: cleaned }));
@@ -118,11 +119,12 @@ export function ExportButton({ session, settings, markers = [], onSettingsChange
       const isUser = m.role === 'user' || m.is_user;
       const cleanedContent = applyRegexRules(m.content, settings.regexRules, isUser);
       if (!cleanedContent.trim()) return acc;
-      const base = m.rawData ? { ...m.rawData } : { mes: cleanedContent };
-      (base as any).mes = cleanedContent;
-      (base as any).swipes = [];
-      (base as any).swipe_id = 0;
-      (base as any).swipe_info = [];
+      const base: STRawMessage = m.rawData
+        ? { ...m.rawData, mes: cleanedContent }
+        : { mes: cleanedContent };
+      base.swipes = [];
+      base.swipe_id = 0;
+      base.swipe_info = [];
       return acc + byteLength(JSON.stringify(base));
     }, 0);
     const estimatedSize = estMetaSize + estMsgSize;
@@ -144,10 +146,11 @@ export function ExportButton({ session, settings, markers = [], onSettingsChange
         };
 
     if (cleanPluginCache && metadata.chat_metadata) {
-      const cleaned: any = {};
+      const cm = metadata.chat_metadata;
+      const cleaned: Record<string, unknown> = {};
       for (const key of METADATA_KEEP_KEYS) {
-        if (key in (metadata.chat_metadata as any)) {
-          cleaned[key] = (metadata.chat_metadata as any)[key];
+        if (key in cm) {
+          cleaned[key] = cm[key];
         }
       }
       metadata.chat_metadata = cleaned;
@@ -290,7 +293,7 @@ export function ExportButton({ session, settings, markers = [], onSettingsChange
         {/* Range Selection */}
         <div className="space-y-3">
           <Label className="text-sm font-medium">消息范围</Label>
-          <RadioGroup value={exportRange} onValueChange={(v) => setExportRange(v as any)} className="space-y-2">
+          <RadioGroup value={exportRange} onValueChange={(v) => setExportRange(v as 'all' | 'recent' | 'custom')} className="space-y-2">
             <div className="flex items-center space-x-2">
               <RadioGroupItem value="all" id="range-all" />
               <Label htmlFor="range-all" className="font-normal cursor-pointer">全部导出</Label>

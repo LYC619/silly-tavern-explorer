@@ -23,6 +23,7 @@ import {
   loadSettings,
 } from '@/lib/session-storage';
 import { useToast } from '@/hooks/use-toast';
+import { ToastAction } from '@/components/ui/toast';
 
 const getDefaultSettings = (): ExportSettings => {
   const saved = loadSettings();
@@ -278,12 +279,45 @@ const Index = () => {
 
   const handleDeleteMessage = () => {
     if (!session || !selectedMessage) return;
+    const delId = selectedMessage.id;
+    // 快照被删数据用于撤销：消息本身+原位置、联动删除的章节标记、收藏归属
+    const delIndex = session.messages.findIndex(m => m.id === delId);
+    const delMessage = session.messages[delIndex];
+    if (!delMessage) return;
+    const delMarkers = markers.filter(m => m.messageId === delId);
+    const wasFavorite = favorites.includes(delId);
+
     setSession({
       ...session,
-      messages: session.messages.filter(msg => msg.id !== selectedMessage.id),
+      messages: session.messages.filter(msg => msg.id !== delId),
     });
-    setMarkers(prev => prev.filter(m => m.messageId !== selectedMessage.id));
-    setFavorites(prev => prev.filter(id => id !== selectedMessage.id));
+    setMarkers(prev => prev.filter(m => m.messageId !== delId));
+    setFavorites(prev => prev.filter(id => id !== delId));
+
+    toast({
+      title: '已删除该楼',
+      description: delMarkers.length > 0 ? '连同其章节标记一并删除' : undefined,
+      action: (
+        <ToastAction altText="撤销删除" onClick={() => {
+          // 把消息插回原位置，并恢复其标记/收藏
+          setSession(cur => {
+            if (!cur) return cur;
+            if (cur.messages.some(m => m.id === delId)) return cur; // 已存在则不重复插
+            const msgs = [...cur.messages];
+            msgs.splice(Math.min(delIndex, msgs.length), 0, delMessage);
+            return { ...cur, messages: msgs };
+          });
+          if (delMarkers.length > 0) {
+            setMarkers(prev => [...prev, ...delMarkers].sort((a, b) => a.messageIndex - b.messageIndex));
+          }
+          if (wasFavorite) {
+            setFavorites(prev => prev.includes(delId) ? prev : [...prev, delId]);
+          }
+        }}>
+          撤销
+        </ToastAction>
+      ),
+    });
   };
 
   // 收藏/取消收藏某楼（messageId）。轻量书签，仅用于跳转，不进导出。
@@ -334,9 +368,25 @@ const Index = () => {
   };
 
   const handleDeleteMarker = () => {
-    if (selectedMessage) {
-      setMarkers(prev => prev.filter(m => m.messageId !== selectedMessage.id));
-    }
+    if (!selectedMessage) return;
+    const delId = selectedMessage.id;
+    const delMarkers = markers.filter(m => m.messageId === delId);
+    if (delMarkers.length === 0) return;
+    setMarkers(prev => prev.filter(m => m.messageId !== delId));
+    toast({
+      title: '已删除章节标记',
+      action: (
+        <ToastAction altText="撤销删除" onClick={() => {
+          setMarkers(prev =>
+            prev.some(m => m.messageId === delId)
+              ? prev
+              : [...prev, ...delMarkers].sort((a, b) => a.messageIndex - b.messageIndex)
+          );
+        }}>
+          撤销
+        </ToastAction>
+      ),
+    });
   };
 
   const handleToggleContentEdit = () => {
