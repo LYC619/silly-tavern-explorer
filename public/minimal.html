@@ -1,0 +1,283 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ST 聊天记录处理器 - 极简版</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { 
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      background: #f5f5f5; 
+      min-height: 100vh;
+      padding: 20px;
+    }
+    .container { max-width: 900px; margin: 0 auto; }
+    h1 { text-align: center; color: #333; margin-bottom: 8px; font-size: 1.5rem; }
+    .subtitle { text-align: center; color: #666; margin-bottom: 20px; font-size: 0.9rem; }
+    .card { background: white; border-radius: 12px; padding: 20px; margin-bottom: 16px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
+    .drop-zone {
+      border: 2px dashed #ccc;
+      border-radius: 8px;
+      padding: 40px;
+      text-align: center;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .drop-zone:hover, .drop-zone.dragover { border-color: #8B4513; background: #faf7f5; }
+    .drop-zone input { display: none; }
+    .btn { 
+      background: #8B4513; 
+      color: white; 
+      border: none; 
+      padding: 10px 20px; 
+      border-radius: 6px; 
+      cursor: pointer;
+      font-size: 14px;
+      margin: 4px;
+    }
+    .btn:hover { background: #6d360f; }
+    .btn:disabled { background: #ccc; cursor: not-allowed; }
+    .btn-outline { background: white; color: #8B4513; border: 1px solid #8B4513; }
+    .btn-outline:hover { background: #faf7f5; }
+    .toolbar { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 16px; }
+    .message { padding: 16px; border-bottom: 1px solid #eee; }
+    .message:last-child { border-bottom: none; }
+    .message-header { font-weight: 600; margin-bottom: 8px; }
+    .message-header.user { color: #5B8FA8; }
+    .message-header.assistant { color: #C48B9F; }
+    .message-content { line-height: 1.6; white-space: pre-wrap; }
+    .stats { display: flex; gap: 20px; color: #666; font-size: 0.9rem; }
+    .hidden { display: none; }
+    .info { background: #e8f4f8; padding: 12px; border-radius: 6px; font-size: 0.85rem; color: #555; }
+    .info a { color: #8B4513; }
+    .regex-section { margin-top: 16px; padding-top: 16px; border-top: 1px solid #eee; }
+    .regex-input { width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px; font-family: monospace; margin-bottom: 8px; }
+    .regex-list { font-size: 0.85rem; color: #666; }
+    .regex-item { display: flex; align-items: center; gap: 8px; padding: 4px 0; }
+    .regex-item input[type="checkbox"] { cursor: pointer; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>📖 ST 聊天记录处理器</h1>
+    <p class="subtitle">极简版 - 支持导入、清理、导出 SillyTavern 聊天记录</p>
+
+    <div class="card">
+      <div class="drop-zone" id="dropZone">
+        <p>📁 拖拽 JSON/JSONL 文件到这里，或点击选择文件</p>
+        <input type="file" id="fileInput" accept=".json,.jsonl">
+      </div>
+    </div>
+
+    <div id="content" class="hidden">
+      <div class="card">
+        <div class="toolbar">
+          <button class="btn" id="exportTxt">导出 TXT</button>
+          <button class="btn btn-outline" id="exportJsonl">导出 JSONL</button>
+          <button class="btn btn-outline" id="clearData">清除数据</button>
+        </div>
+        <div class="stats" id="stats"></div>
+        
+        <div class="regex-section">
+          <p style="font-weight: 600; margin-bottom: 8px;">🔧 正则清理规则</p>
+          <div class="regex-list" id="regexList"></div>
+          <input type="text" class="regex-input" id="customRegex" placeholder="添加自定义正则（如：<think>[\s\S]*?</think>）">
+          <button class="btn btn-outline" id="addRegex" style="margin-top: 4px;">添加规则</button>
+        </div>
+      </div>
+
+      <div class="card" id="messages"></div>
+    </div>
+
+    <div class="card info">
+      <p>💡 这是极简单文件版本，仅包含基础功能。完整版支持：多种主题风格、章节标记、书架管理、AI 工具等。</p>
+      <p style="margin-top: 8px;">👉 <a href="https://github.com/LYC619/silly-tavern-explorer" target="_blank">访问 GitHub 获取完整版</a></p>
+    </div>
+  </div>
+
+  <script>
+    let messages = [];
+    let userName = '用户';
+    let charName = '角色';
+    
+    const defaultRegexRules = [
+      { id: 'think', pattern: '<think>[\\s\\S]*?</think>', name: '思维链 <think>', enabled: true },
+      { id: 'thought', pattern: '<thought>[\\s\\S]*?</thought>', name: '思维链 <thought>', enabled: true },
+      { id: 'cot', pattern: '<chain_of_thought>[\\s\\S]*?</chain_of_thought>', name: '思维链 CoT', enabled: true },
+      { id: 'status', pattern: '\\n*【[^】]*?(?:状态|数值|好感|信赖|欲望|精力|体力|心情|饥饿|健康|san值|理智|服从|淫乱|快感|侍奉|魅惑)[^】]*?】[\\s\\S]*?(?=\\n\\n|$)', name: '状态栏', enabled: true },
+      { id: 'theatre', pattern: '<Theatre_of_the_Mind>[\\s\\S]*?</Theatre_of_the_Mind>', name: 'Theatre 标签', enabled: true },
+    ];
+    
+    let regexRules = [...defaultRegexRules];
+
+    // DOM elements
+    const dropZone = document.getElementById('dropZone');
+    const fileInput = document.getElementById('fileInput');
+    const content = document.getElementById('content');
+    const messagesEl = document.getElementById('messages');
+    const statsEl = document.getElementById('stats');
+    const regexListEl = document.getElementById('regexList');
+
+    // Event listeners
+    dropZone.addEventListener('click', () => fileInput.click());
+    dropZone.addEventListener('dragover', (e) => { e.preventDefault(); dropZone.classList.add('dragover'); });
+    dropZone.addEventListener('dragleave', () => dropZone.classList.remove('dragover'));
+    dropZone.addEventListener('drop', (e) => { e.preventDefault(); dropZone.classList.remove('dragover'); handleFile(e.dataTransfer.files[0]); });
+    fileInput.addEventListener('change', (e) => handleFile(e.target.files[0]));
+    
+    document.getElementById('exportTxt').addEventListener('click', exportTxt);
+    document.getElementById('exportJsonl').addEventListener('click', exportJsonl);
+    document.getElementById('clearData').addEventListener('click', clearData);
+    document.getElementById('addRegex').addEventListener('click', addCustomRegex);
+
+    function handleFile(file) {
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        try {
+          const text = e.target.result;
+          if (file.name.endsWith('.jsonl')) {
+            parseJsonl(text);
+          } else {
+            parseJson(text);
+          }
+          renderAll();
+          content.classList.remove('hidden');
+        } catch (err) {
+          alert('解析失败：' + err.message);
+        }
+      };
+      reader.readAsText(file);
+    }
+
+    function parseJson(text) {
+      const data = JSON.parse(text);
+      if (data.chat_metadata) {
+        charName = data.chat_metadata.character_name || '角色';
+        userName = data.chat_metadata.user_name || '用户';
+      }
+      messages = (data.chat || data.messages || []).filter(m => !m.is_system).map((m, i) => ({
+        id: i,
+        role: m.is_user ? 'user' : 'assistant',
+        content: m.mes || m.content || '',
+        name: m.is_user ? userName : charName,
+      }));
+    }
+
+    function parseJsonl(text) {
+      const lines = text.trim().split('\n').filter(l => l.trim());
+      messages = [];
+      lines.forEach((line, i) => {
+        try {
+          const m = JSON.parse(line);
+          if (m.is_system) return;
+          if (i === 0 && m.user_name) { userName = m.user_name; charName = m.character_name || '角色'; return; }
+          messages.push({
+            id: i,
+            role: m.is_user ? 'user' : 'assistant',
+            content: m.mes || m.content || '',
+            name: m.is_user ? userName : charName,
+          });
+        } catch {}
+      });
+    }
+
+    function applyRegex(text) {
+      let result = text;
+      regexRules.filter(r => r.enabled).forEach(r => {
+        try {
+          result = result.replace(new RegExp(r.pattern, 'g'), '');
+        } catch {}
+      });
+      return result.trim();
+    }
+
+    function renderAll() {
+      renderStats();
+      renderMessages();
+      renderRegexList();
+    }
+
+    function renderStats() {
+      const userCount = messages.filter(m => m.role === 'user').length;
+      const assistantCount = messages.filter(m => m.role === 'assistant').length;
+      statsEl.innerHTML = `<span>👤 ${userName}: ${userCount} 条</span><span>🎭 ${charName}: ${assistantCount} 条</span><span>📝 共 ${messages.length} 条消息</span>`;
+    }
+
+    function renderMessages() {
+      messagesEl.innerHTML = messages.map(m => `
+        <div class="message">
+          <div class="message-header ${m.role}">${m.name}</div>
+          <div class="message-content">${escapeHtml(applyRegex(m.content))}</div>
+        </div>
+      `).join('');
+    }
+
+    function renderRegexList() {
+      regexListEl.innerHTML = regexRules.map((r, i) => `
+        <div class="regex-item">
+          <input type="checkbox" ${r.enabled ? 'checked' : ''} onchange="toggleRegex(${i})">
+          <span>${r.name || r.pattern.substring(0, 30)}...</span>
+        </div>
+      `).join('');
+    }
+
+    window.toggleRegex = function(index) {
+      regexRules[index].enabled = !regexRules[index].enabled;
+      renderMessages();
+    };
+
+    function addCustomRegex() {
+      const input = document.getElementById('customRegex');
+      const pattern = input.value.trim();
+      if (!pattern) return;
+      try {
+        new RegExp(pattern);
+        regexRules.push({ id: 'custom-' + Date.now(), pattern, name: '自定义: ' + pattern.substring(0, 20), enabled: true });
+        input.value = '';
+        renderAll();
+      } catch {
+        alert('正则表达式格式错误');
+      }
+    }
+
+    function exportTxt() {
+      const text = messages.map(m => `【${m.name}】\n${applyRegex(m.content)}`).join('\n\n---\n\n');
+      download(text, 'chat-export.txt', 'text/plain');
+    }
+
+    function exportJsonl() {
+      const lines = messages.map(m => JSON.stringify({
+        name: m.name,
+        is_user: m.role === 'user',
+        mes: applyRegex(m.content),
+        send_date: Date.now(),
+      }));
+      download(lines.join('\n'), 'chat-export.jsonl', 'application/jsonl');
+    }
+
+    function clearData() {
+      messages = [];
+      content.classList.add('hidden');
+      fileInput.value = '';
+    }
+
+    function download(content, filename, type) {
+      const blob = new Blob([content], { type });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = filename;
+      a.click();
+      URL.revokeObjectURL(url);
+    }
+
+    function escapeHtml(text) {
+      const div = document.createElement('div');
+      div.textContent = text;
+      return div.innerHTML;
+    }
+  </script>
+</body>
+</html>

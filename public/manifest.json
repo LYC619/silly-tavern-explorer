@@ -1,0 +1,14 @@
+{
+  "name": "ST 聊天记录处理器",
+  "short_name": "ST Chat",
+  "description": "SillyTavern 聊天记录导入、编辑、导出工具",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#f5f0e8",
+  "theme_color": "#8B5A2B",
+  "icons": [
+    { "src": "/favicon.ico", "sizes": "64x64", "type": "image/x-icon" },
+    { "src": "/icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "/icon-512.png", "sizes": "512x512", "type": "image/png" }
+  ]
+}
