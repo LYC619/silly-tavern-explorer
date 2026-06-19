@@ -37,6 +37,12 @@ function formatSize(bytes: number): string {
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }
 
+// 真实 UTF-8 字节数（中文每字约 3 字节），而非 UTF-16 字符数。
+const _sizeEncoder = new TextEncoder();
+function byteLength(s: string): number {
+  return _sizeEncoder.encode(s).length;
+}
+
 function getMessagesInRange(
   messages: import('@/types/chat').ChatMessage[],
   range: ExportSettings['exportRange'],
@@ -77,14 +83,14 @@ export function ExportButton({ session, settings, markers = [], onSettingsChange
     const userCount = selectedMessages.filter(m => m.role === 'user' || m.is_user).length;
     const charCount = selectedCount - userCount;
 
-    // Original size estimate
-    const rawMetaSize = session.rawMetadata ? JSON.stringify(session.rawMetadata).length : 100;
+    // 原始体积估算（导入时的 JSON 大小：含 swipes、未经正则清理），按真实 UTF-8 字节数
+    const rawMetaSize = session.rawMetadata ? byteLength(JSON.stringify(session.rawMetadata)) : 100;
     const rawMsgSize = selectedMessages.reduce((acc, m) => {
-      return acc + JSON.stringify(m.rawData || { mes: m.content }).length;
+      return acc + byteLength(JSON.stringify(m.rawData || { mes: m.content }));
     }, 0);
     const originalSize = rawMetaSize + rawMsgSize;
 
-    // Estimated export size
+    // 导出体积估算（清理插件缓存 + 去 swipes + 应用正则后），同样按真实 UTF-8 字节数
     let estMetaSize = rawMetaSize;
     if (cleanPluginCache && session.rawMetadata?.chat_metadata) {
       const cleaned: any = {};
@@ -93,7 +99,7 @@ export function ExportButton({ session, settings, markers = [], onSettingsChange
           cleaned[key] = (session.rawMetadata.chat_metadata as any)[key];
         }
       }
-      estMetaSize = JSON.stringify({ ...session.rawMetadata, chat_metadata: cleaned }).length;
+      estMetaSize = byteLength(JSON.stringify({ ...session.rawMetadata, chat_metadata: cleaned }));
     }
 
     const estMsgSize = selectedMessages.reduce((acc, m) => {
@@ -105,7 +111,7 @@ export function ExportButton({ session, settings, markers = [], onSettingsChange
       (base as any).swipes = [];
       (base as any).swipe_id = 0;
       (base as any).swipe_info = [];
-      return acc + JSON.stringify(base).length;
+      return acc + byteLength(JSON.stringify(base));
     }, 0);
     const estimatedSize = estMetaSize + estMsgSize;
 

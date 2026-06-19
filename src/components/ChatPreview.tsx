@@ -1,4 +1,4 @@
-import { forwardRef, useMemo } from 'react';
+import { forwardRef, useMemo, useState, useEffect } from 'react';
 import { User, Bot, Bookmark, BookmarkPlus } from 'lucide-react';
 import type { ChatSession, ThemeStyle, RegexRule, ChapterMarker } from '@/types/chat';
 import { applyRegexRules } from '@/lib/regex-processor';
@@ -24,14 +24,23 @@ export const ChatPreview = forwardRef<HTMLDivElement, ChatPreviewProps>(
       markers.forEach(m => map.set(m.messageId, m));
       return map;
     }, [markers]);
+    // 防抖正则规则：编辑规则时频繁触发会导致大文本(数十万字)全量重算卡顿，
+    // 延迟 300ms 再应用，输入过程中不阻塞 UI。
+    const [debouncedRules, setDebouncedRules] = useState(regexRules);
+    useEffect(() => {
+      const t = setTimeout(() => setDebouncedRules(regexRules), 300);
+      return () => clearTimeout(t);
+    }, [regexRules]);
     // 预处理消息，应用正则规则
     const processedMessages = useMemo(() => {
       return session.messages.map(msg => {
         const isUser = msg.role === 'user';
-        const processedContent = applyRegexRules(msg.content, regexRules, isUser);
+        // 去除首尾空白：正则删除开头/结尾的标签块后常残留换行，
+        // 否则 text-indent 会缩进到这条残留空行上，导致正文看起来没缩进、缩进忽有忽无。
+        const processedContent = applyRegexRules(msg.content, debouncedRules, isUser).trim();
         return { ...msg, content: processedContent };
-      }).filter(msg => msg.content.trim()); // 过滤掉空消息
-    }, [session.messages, regexRules]);
+      }).filter(msg => msg.content); // 过滤掉空消息
+    }, [session.messages, debouncedRules]);
     const formatTime = (timestamp?: number) => {
       if (!timestamp) return '';
       return new Date(timestamp).toLocaleString('zh-CN', {
@@ -48,12 +57,12 @@ export const ChatPreview = forwardRef<HTMLDivElement, ChatPreviewProps>(
           return {
             container: 'paper-bg p-8 font-serif',
             title: 'text-center mb-8 pb-4 border-b-2 border-primary/30',
-            message: 'mb-6',
-            userBubble: 'text-right',
-            charBubble: 'text-left',
-            content: 'leading-relaxed',
-            name: 'font-display text-primary mb-1',
-            separator: 'my-8 flex items-center justify-center gap-4 text-muted-foreground',
+            message: 'mb-3',
+            userBubble: '',
+            charBubble: '',
+            content: 'reading-flow',
+            name: 'font-display text-primary/70 text-sm mb-1',
+            separator: 'hidden',
           };
         case 'social':
           return {
@@ -82,12 +91,12 @@ export const ChatPreview = forwardRef<HTMLDivElement, ChatPreviewProps>(
           return {
             container: 'paper-bg p-10 decorative-border',
             title: 'text-center mb-10 space-y-2',
-            message: 'mb-8',
-            userBubble: 'text-right',
-            charBubble: 'text-left',
-            content: 'leading-loose tracking-wide',
-            name: 'font-display text-lg text-primary/80 mb-2',
-            separator: 'my-10 flex items-center justify-center',
+            message: 'mb-3',
+            userBubble: '',
+            charBubble: '',
+            content: 'reading-flow',
+            name: 'font-display text-base text-primary/70 mb-1',
+            separator: 'hidden',
           };
       }
     };
@@ -148,21 +157,7 @@ export const ChatPreview = forwardRef<HTMLDivElement, ChatPreviewProps>(
                     </div>
                   )}
 
-                  {theme === 'novel' && isNewSpeaker && index > 0 && !hasMarker && (
-                    <div className={classes.separator}>
-                      <span className="text-2xl">❧</span>
-                    </div>
-                  )}
-                  
-                  {theme === 'elegant' && isNewSpeaker && index > 0 && !hasMarker && (
-                    <div className={classes.separator}>
-                      <div className="w-16 h-px bg-border" />
-                      <span className="text-muted-foreground">✦</span>
-                      <div className="w-16 h-px bg-border" />
-                    </div>
-                  )}
-
-                  <div 
+                  <div
                     className={`${classes.message} ${isUser ? classes.userBubble : classes.charBubble} animate-fade-in group relative ${
                       editMode ? 'cursor-pointer hover:bg-primary/5 rounded-lg transition-colors' : ''
                     }`}
@@ -220,22 +215,20 @@ export const ChatPreview = forwardRef<HTMLDivElement, ChatPreviewProps>(
                     </>
                   ) : (
                     <div>
-                      <div className={classes.name}>
-                        {message.name || (isUser ? session.user.name : session.character.name)}
-                        {showTimestamp && theme === 'minimal' && (
-                          <span className="text-muted-foreground font-normal ml-2">
-                            {formatTime(message.timestamp)}
-                          </span>
-                        )}
-                      </div>
+                      {/* 阅读流主题(elegant/novel)下，同一说话人连续发言时省略重复名字，
+                          让正文更连贯，贴近小说阅读体验；minimal 仍每条都标名 */}
+                      {(theme === 'minimal' || isNewSpeaker) && (
+                        <div className={classes.name}>
+                          {message.name || (isUser ? session.user.name : session.character.name)}
+                          {showTimestamp && theme === 'minimal' && (
+                            <span className="text-muted-foreground font-normal ml-2">
+                              {formatTime(message.timestamp)}
+                            </span>
+                          )}
+                        </div>
+                      )}
                       <div className={`${classes.content} whitespace-pre-wrap`}>
-                        {theme === 'novel' || theme === 'elegant' ? (
-                          <span className="text-muted-foreground mr-2">"</span>
-                        ) : null}
                         {message.content}
-                        {theme === 'novel' || theme === 'elegant' ? (
-                          <span className="text-muted-foreground ml-1">"</span>
-                        ) : null}
                       </div>
                     </div>
                   )}

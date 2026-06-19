@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import { X, Plus, Trash2, RotateCcw, ChevronDown, ChevronUp, Regex, GripVertical, Eye, Bookmark } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -36,8 +36,9 @@ function RegexPreviewDiff({ rule, messages }: { rule: RegexRule; messages: ChatM
   const previews = useMemo(() => {
     const results: { before: string; after: string; name?: string }[] = [];
     const singleRule = [rule];
-    const limit = Math.min(messages.length, 50);
-    for (let i = 0; i < limit && results.length < 3; i++) {
+    // 扫描全部消息直到收集够 3 条命中——长对话中待清理内容常出现在很靠后的楼层，
+    // 不能只看开头若干条，否则会误报「无匹配」。命中 3 条即提前结束，开销可控。
+    for (let i = 0; i < messages.length && results.length < 3; i++) {
       const msg = messages[i];
       const isUser = msg.role === 'user' || msg.is_user;
       const before = msg.content;
@@ -89,6 +90,17 @@ export function RegexSidebar({ rules, onRulesChange, isOpen, onClose, sampleMess
   const [presets, setPresets] = useState<RegexPreset[]>([]);
   const [presetName, setPresetName] = useState('');
   const [presetOpen, setPresetOpen] = useState(false);
+  // 记录刚添加、需要滚动到可见区的规则 id
+  const [scrollToId, setScrollToId] = useState<string | null>(null);
+  const newRuleRef = useRef<HTMLDivElement>(null);
+
+  // 添加规则后滚动到新规则位置（否则用户在列表上方时完全感知不到末尾新增了规则）
+  useEffect(() => {
+    if (scrollToId && newRuleRef.current) {
+      newRuleRef.current.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      setScrollToId(null);
+    }
+  }, [scrollToId, rules]);
 
   // 加载已保存的预设
   useEffect(() => {
@@ -131,6 +143,7 @@ export function RegexSidebar({ rules, onRulesChange, isOpen, onClose, sampleMess
     if (rule) {
       onRulesChange([...rules, rule]);
       setEditingId(rule.id);
+      setScrollToId(rule.id);
     } else {
       const newRule: RegexRule = {
         id: crypto.randomUUID(),
@@ -142,6 +155,7 @@ export function RegexSidebar({ rules, onRulesChange, isOpen, onClose, sampleMess
       };
       onRulesChange([...rules, newRule]);
       setEditingId(newRule.id);
+      setScrollToId(newRule.id);
     }
   };
 
@@ -231,7 +245,7 @@ export function RegexSidebar({ rules, onRulesChange, isOpen, onClose, sampleMess
           <Regex className="w-4 h-4 text-primary" />
           <h3 className="font-display font-medium">正则清理规则</h3>
           <HelpCard>
-            正则规则用于自动清理 AI 输出中的杂项内容（如思维链 &lt;thought&gt;、状态栏标签等）。内置规则已覆盖常见场景，也可通过「快速添加」输入开始/结束标签自动生成。规则按用户消息和助手消息分别应用，处理后导出的文件会更干净。
+            正则规则用于自动清理 AI 输出中的杂项内容（如思维链 &lt;thinking&gt;、状态栏标签等）。可通过「快速添加」按标签包裹或指定内容快速生成规则，也可手动添加。规则按用户消息和助手消息分别应用，处理后导出的文件会更干净。
           </HelpCard>
           <span className="text-xs text-muted-foreground">
             ({enabledCount}/{rules.length} 启用)
@@ -253,6 +267,7 @@ export function RegexSidebar({ rules, onRulesChange, isOpen, onClose, sampleMess
           {rules.map((rule, index) => (
             <div
               key={rule.id}
+              ref={rule.id === scrollToId ? newRuleRef : undefined}
               draggable
               onDragStart={() => handleDragStart(index)}
               onDragOver={(e) => handleDragOver(e, index)}

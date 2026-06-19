@@ -187,29 +187,28 @@ export function GuidedTour({ steps, module, onComplete, onSkip }: GuidedTourProp
 
   if (!step) return null;
 
-  // Fallback: target not found → show centered bubble without highlight
+  // Fallback: target not found → 不阻塞页面，仅在底部居中显示可关闭的轻提示。
+  // 关键：不再用全屏 pointer-events-auto 遮罩盖住页面，避免目标元素缺失时把用户困在引导里、
+  // 导致顶部设置等按钮点不动。
   if (!targetRect) {
     return (
-      <div className="fixed inset-0 z-[9999] pointer-events-none">
-        <div className="absolute inset-0 bg-black/55 pointer-events-auto" />
-        <div className="fixed inset-0 flex items-center justify-center pointer-events-none">
-          <div className="bg-card border border-border rounded-xl shadow-2xl p-4 w-80 pointer-events-auto animate-fade-in">
-            <button
-              className="absolute top-2 right-2 text-muted-foreground hover:text-foreground transition-colors"
-              onClick={handleSkipRequest}
-            >
-              <X className="w-4 h-4" />
-            </button>
-            <div className="text-xs text-muted-foreground mb-2">
-              {currentStep + 1} / {steps.length}
-            </div>
-            <p className="text-sm text-foreground leading-relaxed pr-4">{step.content}</p>
-            <div className="mt-3 flex justify-end">
-              <Button size="sm" onClick={advance} className="gap-1">
-                下一步
-                <ChevronRight className="w-3 h-3" />
-              </Button>
-            </div>
+      <div className="fixed inset-x-0 bottom-6 z-[9999] flex justify-center px-4 pointer-events-none">
+        <div className="bg-card border border-border rounded-xl shadow-2xl p-4 w-80 pointer-events-auto animate-fade-in relative">
+          <button
+            className="absolute top-2 right-2 text-muted-foreground hover:text-foreground transition-colors"
+            onClick={handleSkipRequest}
+          >
+            <X className="w-4 h-4" />
+          </button>
+          <div className="text-xs text-muted-foreground mb-2">
+            {currentStep + 1} / {steps.length}
+          </div>
+          <p className="text-sm text-foreground leading-relaxed pr-4">{step.content}</p>
+          <div className="mt-3 flex justify-end">
+            <Button size="sm" onClick={advance} className="gap-1">
+              下一步
+              <ChevronRight className="w-3 h-3" />
+            </Button>
           </div>
         </div>
         {showSkipConfirm && (

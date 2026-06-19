@@ -3,10 +3,9 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { BookOpen } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { getBook, type BookItem } from '@/lib/bookshelf-db';
-import { DEFAULT_REGEX_RULES, type RegexRule } from '@/types/chat';
+import { type RegexRule } from '@/types/chat';
+import { getInitialRegexRules } from '@/lib/session-storage';
 import ReaderView from '@/components/reader/ReaderView';
-
-const REGEX_STORAGE_KEY = 'st-beautifier-regex-rules';
 
 const Reader = () => {
   const { id } = useParams<{ id: string }>();
@@ -15,28 +14,6 @@ const Reader = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [regexRules, setRegexRules] = useState<RegexRule[]>([]);
-
-  // Load regex rules from localStorage
-  useEffect(() => {
-    const savedRules = localStorage.getItem(REGEX_STORAGE_KEY);
-    if (savedRules) {
-      try {
-        const parsed = JSON.parse(savedRules);
-        // Merge with defaults
-        const mergedRules = DEFAULT_REGEX_RULES.map(defaultRule => {
-          const saved = parsed.find((r: RegexRule) => r.id === defaultRule.id);
-          return saved ? { ...defaultRule, disabled: saved.disabled } : defaultRule;
-        });
-        // Add custom rules
-        const customRules = parsed.filter((r: RegexRule) => !r.id.startsWith('builtin-'));
-        setRegexRules([...mergedRules, ...customRules]);
-      } catch {
-        setRegexRules(DEFAULT_REGEX_RULES);
-      }
-    } else {
-      setRegexRules(DEFAULT_REGEX_RULES);
-    }
-  }, []);
 
   // Load book data
   useEffect(() => {
@@ -51,6 +28,9 @@ const Reader = () => {
         const bookData = await getBook(id);
         if (bookData) {
           setBook(bookData);
+          // 优先使用这本书保存时的正则规则（用户当时的自定义规则），
+          // 没有则回退到全局的当前规则集。不再读早已废弃、从未写入的 key。
+          setRegexRules(bookData.settings?.regexRules ?? getInitialRegexRules());
         } else {
           setError('找不到该作品');
         }

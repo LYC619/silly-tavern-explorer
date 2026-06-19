@@ -73,18 +73,6 @@ export default function WorldBookPage() {
     return () => window.removeEventListener('beforeunload', handler);
   }, [isDirty]);
 
-  // Ctrl+S / Cmd+S to save
-  useEffect(() => {
-    const handler = (e: KeyboardEvent) => {
-      if ((e.ctrlKey || e.metaKey) && e.key === 's') {
-        e.preventDefault();
-        if (worldbook) handleSaveLocal();
-      }
-    };
-    window.addEventListener('keydown', handler);
-    return () => window.removeEventListener('keydown', handler);
-  }, [worldbook, handleSaveLocal]);
-
   const allEntries = useMemo(
     () => worldbook ? Object.entries(worldbook.entries) : [],
     [worldbook]
@@ -286,6 +274,18 @@ export default function WorldBookPage() {
     setSavedItems(updated);
     toast({ title: '已暂存', description: '已暂存到浏览器，刷新页面后可恢复' });
   }, [worldbook, filename, currentItemId, savedItems, toast]);
+
+  // Ctrl+S / Cmd+S to save (declared after handleSaveLocal to avoid TDZ)
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.key === 's') {
+        e.preventDefault();
+        if (worldbook) handleSaveLocal();
+      }
+    };
+    window.addEventListener('keydown', handler);
+    return () => window.removeEventListener('keydown', handler);
+  }, [worldbook, handleSaveLocal]);
 
   const handleQuickAddEntries = useCallback((newEntries: WorldBookEntry[]) => {
     setWorldbook(prev => {

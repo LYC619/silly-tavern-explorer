@@ -3,6 +3,7 @@ import { Wand2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import {
   Dialog,
   DialogContent,
@@ -23,46 +24,77 @@ function escapeRegex(str: string): string {
   return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
 
+type QuickMode = 'wrap' | 'replace';
+
 export function RegexQuickAdd({ onAddRule }: RegexQuickAddProps) {
   const { toast } = useToast();
   const [open, setOpen] = useState(false);
+  const [mode, setMode] = useState<QuickMode>('wrap');
+
+  // 模式一：标签包裹删除
   const [startTag, setStartTag] = useState('');
   const [endTag, setEndTag] = useState('');
+
+  // 模式二：内容替换（A → B）
+  const [findText, setFindText] = useState('');
+  const [replaceText, setReplaceText] = useState('');
+
   const [ruleName, setRuleName] = useState('');
 
-  const generateRegex = () => {
+  const resetAll = () => {
+    setStartTag('');
+    setEndTag('');
+    setFindText('');
+    setReplaceText('');
+    setRuleName('');
+  };
+
+  const generateWrapRule = () => {
     if (!startTag || !endTag) {
       toast({ title: '请填写开始和结束标签', variant: 'destructive' });
       return;
     }
-
-    const escapedStart = escapeRegex(startTag);
-    const escapedEnd = escapeRegex(endTag);
-    const regex = `${escapedStart}[\\s\\S]*?${escapedEnd}(\\n)?`;
-
-    const newRule: RegexRule = {
+    const regex = `${escapeRegex(startTag)}[\\s\\S]*?${escapeRegex(endTag)}(\\n)?`;
+    onAddRule({
       id: crypto.randomUUID(),
       name: ruleName || `移除 ${startTag}...${endTag}`,
       findRegex: regex,
       replaceString: '',
       placement: ['all'],
       disabled: false,
-    };
-
-    onAddRule(newRule);
+    });
     toast({ title: '规则已添加' });
     setOpen(false);
-    setStartTag('');
-    setEndTag('');
-    setRuleName('');
+    resetAll();
   };
 
-  const previewRegex = startTag && endTag 
+  const generateReplaceRule = () => {
+    if (!findText) {
+      toast({ title: '请填写要查找的内容', variant: 'destructive' });
+      return;
+    }
+    onAddRule({
+      id: crypto.randomUUID(),
+      name: ruleName || (replaceText ? `${findText} → ${replaceText}` : `删除 ${findText}`),
+      findRegex: escapeRegex(findText),
+      replaceString: replaceText,
+      placement: ['all'],
+      disabled: false,
+    });
+    toast({ title: '规则已添加' });
+    setOpen(false);
+    resetAll();
+  };
+
+  const wrapPreview = startTag && endTag
     ? `/${escapeRegex(startTag)}[\\s\\S]*?${escapeRegex(endTag)}(\\n)?/gs`
+    : '';
+  const replacePreview = findText
+    ? `/${escapeRegex(findText)}/g → "${replaceText}"`
     : '';
 
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
+    <Dialog open={open} onOpenChange={(o) => { setOpen(o); if (!o) resetAll(); }}>
       <DialogTrigger asChild>
         <Button variant="outline" size="sm" className="gap-1">
           <Wand2 className="w-3 h-3" />
@@ -73,68 +105,112 @@ export function RegexQuickAdd({ onAddRule }: RegexQuickAddProps) {
         <DialogHeader>
           <DialogTitle>快速生成正则</DialogTitle>
           <DialogDescription>
-            输入包裹内容的开始和结束标签，自动生成匹配规则
+            选择一种方式自动生成清理规则，无需手写正则
           </DialogDescription>
         </DialogHeader>
 
-        <div className="space-y-4 py-4">
-          <div className="grid grid-cols-2 gap-3">
-            <div className="space-y-2">
-              <Label htmlFor="start-tag">开始标签</Label>
-              <Input
-                id="start-tag"
-                value={startTag}
-                onChange={(e) => setStartTag(e.target.value)}
-                placeholder="<content>"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="end-tag">结束标签</Label>
-              <Input
-                id="end-tag"
-                value={endTag}
-                onChange={(e) => setEndTag(e.target.value)}
-                placeholder="</content>"
-              />
-            </div>
-          </div>
+        <Tabs value={mode} onValueChange={(v) => setMode(v as QuickMode)}>
+          <TabsList className="grid w-full grid-cols-2">
+            <TabsTrigger value="wrap">标签包裹</TabsTrigger>
+            <TabsTrigger value="replace">内容替换</TabsTrigger>
+          </TabsList>
 
-          <div className="space-y-2">
-            <Label htmlFor="rule-name">规则名称（可选）</Label>
-            <Input
-              id="rule-name"
-              value={ruleName}
-              onChange={(e) => setRuleName(e.target.value)}
-              placeholder={startTag && endTag ? `移除 ${startTag}...${endTag}` : '自定义规则'}
-            />
-          </div>
-
-          {previewRegex && (
-            <div className="space-y-2">
-              <Label>预览正则</Label>
-              <div className="p-3 bg-muted rounded-lg font-mono text-xs break-all">
-                {previewRegex}
+          {/* 模式一：删除「开始标签…结束标签」之间的全部内容 */}
+          <TabsContent value="wrap" className="space-y-4 pt-4">
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-2">
+                <Label htmlFor="start-tag">开始标签</Label>
+                <Input
+                  id="start-tag"
+                  value={startTag}
+                  onChange={(e) => setStartTag(e.target.value)}
+                  placeholder="<content>"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="end-tag">结束标签</Label>
+                <Input
+                  id="end-tag"
+                  value={endTag}
+                  onChange={(e) => setEndTag(e.target.value)}
+                  placeholder="</content>"
+                />
               </div>
             </div>
-          )}
+            {wrapPreview && (
+              <div className="space-y-2">
+                <Label>预览正则</Label>
+                <div className="p-3 bg-muted rounded-lg font-mono text-xs break-all">
+                  {wrapPreview}
+                </div>
+              </div>
+            )}
+            <div className="text-xs text-muted-foreground space-y-1">
+              <p>💡 删除标签及其之间的全部内容，常见示例：</p>
+              <ul className="list-disc list-inside space-y-0.5 ml-2">
+                <li><code>&lt;thinking&gt;</code> 和 <code>&lt;/thinking&gt;</code></li>
+                <li><code>&lt;status&gt;</code> 和 <code>&lt;/status&gt;</code></li>
+              </ul>
+            </div>
+          </TabsContent>
 
-          <div className="text-xs text-muted-foreground space-y-1">
-            <p>💡 常见标签示例:</p>
-            <ul className="list-disc list-inside space-y-0.5 ml-2">
-              <li><code>&lt;thinking&gt;</code> 和 <code>&lt;/thinking&gt;</code></li>
-              <li><code>[思考中...]</code> 和 <code>[/思考]</code></li>
-              <li><code>*状态：</code> 和 <code>*</code></li>
-            </ul>
-          </div>
+          {/* 模式二：把指定内容整体替换为另一段（替换为空即为删除） */}
+          <TabsContent value="replace" className="space-y-4 pt-4">
+            <div className="space-y-2">
+              <Label htmlFor="find-text">查找内容</Label>
+              <Input
+                id="find-text"
+                value={findText}
+                onChange={(e) => setFindText(e.target.value)}
+                placeholder="要替换的文字，如 AAA"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="replace-text">替换为</Label>
+              <Input
+                id="replace-text"
+                value={replaceText}
+                onChange={(e) => setReplaceText(e.target.value)}
+                placeholder="留空表示删除，如 BBB"
+              />
+            </div>
+            {replacePreview && (
+              <div className="space-y-2">
+                <Label>预览</Label>
+                <div className="p-3 bg-muted rounded-lg font-mono text-xs break-all">
+                  {replacePreview}
+                </div>
+              </div>
+            )}
+            <div className="text-xs text-muted-foreground">
+              💡 通篇把某段文字替换为另一段，例如把角色旧名「AAA」全部改成「BBB」；替换为空则直接删除该文字。按原文精确匹配，无需转义。
+            </div>
+          </TabsContent>
+        </Tabs>
+
+        <div className="space-y-2">
+          <Label htmlFor="rule-name">规则名称（可选）</Label>
+          <Input
+            id="rule-name"
+            value={ruleName}
+            onChange={(e) => setRuleName(e.target.value)}
+            placeholder="自定义规则"
+          />
         </div>
 
         <DialogFooter>
           <Button variant="outline" onClick={() => setOpen(false)}>
             取消
           </Button>
-          <Button onClick={generateRegex} disabled={!startTag || !endTag}>
-            生成规则
-          </Button>
+          {mode === 'wrap' ? (
+            <Button onClick={generateWrapRule} disabled={!startTag || !endTag}>
+              生成规则
+            </Button>
+          ) : (
+            <Button onClick={generateReplaceRule} disabled={!findText}>
+              生成规则
+            </Button>
+          )}
         </DialogFooter>
       </DialogContent>
     </Dialog>

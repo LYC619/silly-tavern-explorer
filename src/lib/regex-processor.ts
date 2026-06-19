@@ -1,23 +1,23 @@
 import type { RegexRule, ChatMessage, PrefixMode, ChapterMarker } from '@/types/chat';
 
-const regexCache = new Map<string, { source: string; flags: string } | null>();
+const regexCache = new Map<string, RegExp | null>();
 
 /**
  * 解析正则表达式字符串为 RegExp 对象（带缓存）
+ * 直接缓存编译好的 RegExp 实例，避免每条消息、每条规则都重新 new RegExp。
+ * String.prototype.replace 对带 g 的正则每次从头匹配并重置 lastIndex，复用实例是安全的。
  */
 export function parseRegex(regexStr: string): RegExp | null {
   if (!regexStr) return null;
 
-  let cached = regexCache.get(regexStr);
-  if (cached === undefined) {
-    const formatted = formatRegex(regexStr);
-    const compiled = compileRegex(formatted);
-    cached = compiled ? { source: compiled.source, flags: compiled.flags } : null;
-    regexCache.set(regexStr, cached);
+  if (regexCache.has(regexStr)) {
+    return regexCache.get(regexStr)!;
   }
 
-  if (!cached) return null;
-  return new RegExp(cached.source, cached.flags);
+  const formatted = formatRegex(regexStr);
+  const compiled = compileRegex(formatted);
+  regexCache.set(regexStr, compiled);
+  return compiled;
 }
 
 function compileRegex(formatted: string): RegExp | null {
