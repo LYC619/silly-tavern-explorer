@@ -115,8 +115,8 @@ const ReaderView = ({
       const cleanContent = applyRegexRules(msg.content, regexRules, msg.role === 'user');
       if (!cleanContent.trim()) return;
 
-      // Check if this message has a chapter marker
-      const marker = markers.find(m => m.messageIndex === idx);
+      // Check if this message has a chapter marker（优先按 id 匹配，回退到 index 以兼容旧数据）
+      const marker = markers.find(m => m.messageId ? m.messageId === msg.id : m.messageIndex === idx);
       
       processedPages.push({
         messageIndex: idx,

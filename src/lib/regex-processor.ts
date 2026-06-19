@@ -163,19 +163,22 @@ export function convertMessagesToTxt(
   markers: ChapterMarker[] = []
 ): string {
   const lines: string[] = [];
-  
-  // 创建消息索引到标记的映射
-  const markerMap = new Map<number, ChapterMarker>();
+
+  // 章节标记按 messageId 匹配（稳定锚点，消息增删/重排后不会错位）；
+  // 对没有 messageId 的旧数据回退到 messageIndex。
+  const markerById = new Map<string, ChapterMarker>();
+  const markerByIndex = new Map<number, ChapterMarker>();
   for (const marker of markers) {
-    markerMap.set(marker.messageIndex, marker);
+    if (marker.messageId) markerById.set(marker.messageId, marker);
+    else markerByIndex.set(marker.messageIndex, marker);
   }
 
   for (let i = 0; i < messages.length; i++) {
     const message = messages[i];
     const isUser = message.role === 'user' || message.is_user;
-    
-    // 检查是否有章节标记
-    const marker = markerMap.get(i);
+
+    // 检查是否有章节标记（优先按 id，回退按 index）
+    const marker = markerById.get(message.id) ?? markerByIndex.get(i);
     if (marker) {
       lines.push(formatChapterMarker(marker));
     }

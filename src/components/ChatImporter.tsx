@@ -16,6 +16,31 @@ import {
 import type { ChatMessage, ChatSession, CharacterInfo, STMetadata, STRawMessage } from '@/types/chat';
 import { extractCharacterFromPng, getCharacterName, getFirstMessage } from '@/lib/png-parser';
 
+/**
+ * 解析 SillyTavern 的 send_date 为时间戳（毫秒）。ST 有两种字符串格式 JS 原生 Date 解析不了：
+ *  1. "November 14, 2024 6:18am"        —— am/pm 紧贴小时，缺空格
+ *  2. "2024-11-14 @06h 18m 30s 500ms"   —— @小时h 分m 秒s 毫秒ms
+ * 解析失败返回 undefined（而非 NaN），避免显示出 Invalid Date。
+ */
+export function parseSTDate(value: unknown): number | undefined {
+  if (typeof value === 'number') return Number.isFinite(value) ? value : undefined;
+  if (typeof value !== 'string' || !value.trim()) return undefined;
+  const s = value.trim();
+
+  // 格式 2： "YYYY-M-D @HHh MMm SSs MMMms"
+  const m2 = s.match(/^(\d{4})-(\d{1,2})-(\d{1,2})\s*@\s*(\d{1,2})h\s*(\d{1,2})m\s*(\d{1,2})s(?:\s*(\d{1,3})ms)?/i);
+  if (m2) {
+    const [, y, mo, d, h, mi, se, ms] = m2;
+    const t = new Date(+y, +mo - 1, +d, +h, +mi, +se, ms ? +ms : 0).getTime();
+    return Number.isFinite(t) ? t : undefined;
+  }
+
+  // 格式 1：给紧贴的 am/pm 补空格后交给原生 Date（"6:18am" -> "6:18 am"）
+  const normalized = s.replace(/(\d)(am|pm)\b/i, '$1 $2');
+  const t = new Date(normalized).getTime();
+  return Number.isFinite(t) ? t : undefined;
+}
+
 export interface ImportStats {
   totalMessages: number;
   swipesRemoved: number;
@@ -78,9 +103,7 @@ export function ChatImporter({ onImport }: ChatImporterProps) {
           role: parsed.is_user ? 'user' : 'assistant',
           content: messageContent,
           name: parsed.name || (parsed.is_user ? 'User' : 'Character'),
-          timestamp: parsed.send_date
-            ? (typeof parsed.send_date === 'number' ? parsed.send_date : new Date(parsed.send_date).getTime())
-            : undefined,
+          timestamp: parseSTDate(parsed.send_date),
           rawData: parsed,
         });
       } catch {
@@ -100,9 +123,7 @@ export function ChatImporter({ onImport }: ChatImporterProps) {
           role: (item.is_user || item.role === 'user' ? 'user' : 'assistant') as 'user' | 'assistant',
           content: item.mes || item.content || item.message || '',
           name: item.name || (item.is_user ? 'User' : 'Character'),
-          timestamp: item.send_date
-            ? (typeof item.send_date === 'number' ? item.send_date : new Date(item.send_date).getTime())
-            : undefined,
+          timestamp: parseSTDate(item.send_date),
           rawData: item as STRawMessage,
         }))
         .filter((m: ChatMessage) => m.content);
@@ -117,9 +138,7 @@ export function ChatImporter({ onImport }: ChatImporterProps) {
           role: (item.is_user || item.role === 'user' ? 'user' : 'assistant') as 'user' | 'assistant',
           content: item.mes || item.content || item.message || '',
           name: item.name,
-          timestamp: item.send_date
-            ? (typeof item.send_date === 'number' ? item.send_date : new Date(item.send_date).getTime())
-            : undefined,
+          timestamp: parseSTDate(item.send_date),
           rawData: item as STRawMessage,
         }))
         .filter((m: ChatMessage) => m.content);

@@ -2,6 +2,7 @@ import { forwardRef, useMemo, useState, useEffect } from 'react';
 import { User, Bot, Bookmark, BookmarkPlus } from 'lucide-react';
 import type { ChatSession, ThemeStyle, RegexRule, ChapterMarker } from '@/types/chat';
 import { applyRegexRules, parseRegex } from '@/lib/regex-processor';
+import { parseSTDate } from '@/components/ChatImporter';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 
 interface ChatPreviewProps {
@@ -216,31 +217,34 @@ export const ChatPreview = forwardRef<HTMLDivElement, ChatPreviewProps>(
 
                   <div
                     className={`${classes.message} ${isUser ? classes.userBubble : classes.charBubble} animate-fade-in group relative ${
-                      editMode ? 'cursor-pointer hover:bg-primary/5 rounded-lg transition-colors' : ''
+                      editMode ? 'cursor-pointer hover:bg-primary/5 rounded-lg transition-colors pt-9 px-2' : ''
                     }`}
                     onClick={() => editMode && onMessageClick?.(message.id, index)}
                     data-tour-message={index}
                   >
-                    {/* Floor number & edit mode indicator */}
+                    {/* 章节标记模式：每条消息左上角常驻楼层号+书签按钮，清晰可点 */}
                     {editMode && (
-                      <div className="absolute -left-12 top-1/2 -translate-y-1/2 flex items-center gap-1">
-                        <span className="text-xs text-muted-foreground font-mono opacity-50 group-hover:opacity-100">
+                      <div className="absolute left-1 top-1 flex items-center gap-1 z-10">
+                        <span className="text-xs text-muted-foreground font-mono">
                           #{index + 1}
                         </span>
                         <Tooltip>
                           <TooltipTrigger asChild>
-                            <div className={`opacity-0 group-hover:opacity-100 transition-opacity ${
-                              hasMarker ? 'text-primary' : 'text-muted-foreground'
+                            <div className={`flex items-center gap-0.5 rounded px-1 py-0.5 text-xs transition-colors ${
+                              hasMarker
+                                ? 'bg-primary/15 text-primary'
+                                : 'bg-muted/60 text-muted-foreground hover:bg-primary/10 hover:text-primary'
                             }`}>
                               {hasMarker ? (
-                                <Bookmark className="w-4 h-4 fill-primary" />
+                                <Bookmark className="w-3.5 h-3.5 fill-primary" />
                               ) : (
-                                <BookmarkPlus className="w-4 h-4" />
+                                <BookmarkPlus className="w-3.5 h-3.5" />
                               )}
+                              <span>{hasMarker ? '已标记' : '设章节'}</span>
                             </div>
                           </TooltipTrigger>
                           <TooltipContent side="left">
-                            {hasMarker ? '编辑章节标记' : '添加章节标记'}
+                            {hasMarker ? '点击编辑章节标记' : '点击此楼设为章节起点'}
                           </TooltipContent>
                         </Tooltip>
                       </div>
@@ -277,11 +281,16 @@ export const ChatPreview = forwardRef<HTMLDivElement, ChatPreviewProps>(
                       {(theme === 'minimal' || isNewSpeaker) && (
                         <div className={classes.name}>
                           {message.name || (isUser ? session.user.name : session.character.name)}
-                          {showTimestamp && theme === 'minimal' && (
-                            <span className="text-muted-foreground font-normal ml-2">
-                              {formatTime(message.timestamp)}
-                            </span>
-                          )}
+                          {(() => {
+                            // 优先用导入时解析好的 timestamp；旧数据(timestamp 为空)则从 rawData.send_date 兜底实时解析，
+                            // 这样无需重新导入也能显示时间戳。
+                            const ts = message.timestamp ?? parseSTDate((message.rawData as { send_date?: unknown } | undefined)?.send_date);
+                            return showTimestamp && ts ? (
+                              <span className="text-muted-foreground font-normal ml-2 text-xs">
+                                {formatTime(ts)}
+                              </span>
+                            ) : null;
+                          })()}
                         </div>
                       )}
                       <div className={`${classes.content} whitespace-pre-wrap`}>
