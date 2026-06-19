@@ -65,8 +65,9 @@ function getMessagesInRange(
     return messages.slice(-recentCount);
   }
   if (range === 'custom') {
-    const start = Math.max(0, customStart - 1);
-    const end = Math.min(messages.length, customEnd);
+    // 楼层号 0-based（按原始消息序号），范围 [customStart, customEnd] 闭区间
+    const start = Math.max(0, customStart);
+    const end = Math.min(messages.length, customEnd + 1);
     return messages.slice(start, end);
   }
   return messages;
@@ -80,8 +81,8 @@ export function ExportButton({ session, settings, markers = [], onSettingsChange
   const [cleanPluginCache, setCleanPluginCache] = useState(settings.cleanPluginCache ?? true);
   const [exportRange, setExportRange] = useState<'all' | 'recent' | 'custom'>(settings.exportRange ?? 'all');
   const [recentCount, setRecentCount] = useState(settings.recentCount ?? 100);
-  const [customStart, setCustomStart] = useState(settings.customStart ?? 1);
-  const [customEnd, setCustomEnd] = useState(settings.customEnd ?? session.messages.length);
+  const [customStart, setCustomStart] = useState(settings.customStart ?? 0);
+  const [customEnd, setCustomEnd] = useState(settings.customEnd ?? Math.max(session.messages.length - 1, 0));
 
   const selectedMessages = useMemo(
     () => getMessagesInRange(session.messages, exportRange, recentCount, customStart, customEnd),
@@ -159,18 +160,21 @@ export function ExportButton({ session, settings, markers = [], onSettingsChange
     const msgs = getExportMessages();
     const body = convertMessagesToTxt(msgs, settings.regexRules, settings.prefixMode, markers);
 
-    // 归档元数据头：标题 / 角色与用户 / 导出日期，让 TXT 成品更像一份正式归档
-    const header = [
-      session.title || '对话记录',
-      `${session.character.name} & ${session.user.name}`,
-      `导出于 ${new Date().toLocaleDateString('zh-CN')}`,
-      '',
-      '────────────────────',
-      '',
-    ].join('\n');
-    const txtContent = header + body;
+    // 归档元数据头：标题 / 角色与用户 / 导出日期。
+    // 标题去掉导入时残留的「 - <时间戳> imported」后缀；角色/用户名为占位 unused 时省略该行。
+    const cleanTitle = (session.title || '对话记录')
+      .replace(/\s*-\s*\d{4}-\d{2}-\d{2}@.*?imported\s*$/i, '')
+      .replace(/\s+imported\s*$/i, '')
+      .trim() || '对话记录';
+    const isPlaceholder = (n: string) => !n || /^unused$/i.test(n.trim());
+    const headerLines = [cleanTitle];
+    if (!isPlaceholder(session.character.name) || !isPlaceholder(session.user.name)) {
+      headerLines.push(`${session.character.name} & ${session.user.name}`);
+    }
+    headerLines.push(`导出于 ${new Date().toLocaleDateString('zh-CN')}`, '', '────────────────────', '');
+    const txtContent = headerLines.join('\n') + body;
 
-    const txtName = `${sanitizeFilename(session.title)}.txt`;
+    const txtName = `${sanitizeFilename(cleanTitle)}.txt`;
     const blob = new Blob([txtContent], { type: 'text/plain;charset=utf-8' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
@@ -310,20 +314,20 @@ export function ExportButton({ session, settings, markers = [], onSettingsChange
               <Label htmlFor="range-custom" className="font-normal cursor-pointer">自定义</Label>
               <Input
                 type="number"
-                min={1}
-                max={session.messages.length}
+                min={0}
+                max={session.messages.length - 1}
                 value={customStart}
-                onChange={(e) => setCustomStart(Math.max(1, parseInt(e.target.value) || 1))}
+                onChange={(e) => setCustomStart(Math.max(0, parseInt(e.target.value) || 0))}
                 className="w-16 h-7 text-xs"
                 disabled={exportRange !== 'custom'}
               />
               <span className="text-xs text-muted-foreground">~</span>
               <Input
                 type="number"
-                min={1}
-                max={session.messages.length}
+                min={0}
+                max={session.messages.length - 1}
                 value={customEnd}
-                onChange={(e) => setCustomEnd(Math.max(1, parseInt(e.target.value) || 1))}
+                onChange={(e) => setCustomEnd(Math.max(0, parseInt(e.target.value) || 0))}
                 className="w-16 h-7 text-xs"
                 disabled={exportRange !== 'custom'}
               />

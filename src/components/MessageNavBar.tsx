@@ -61,7 +61,8 @@ export function MessageNavBar({
   const commitJump = () => {
     const n = parseInt(floorInput, 10);
     if (!Number.isNaN(n) && floorCount > 0) {
-      const clamped = Math.min(Math.max(n, 1), floorCount);
+      // 楼层号 0-based（对齐 SillyTavern），有效范围 [0, floorCount-1]
+      const clamped = Math.min(Math.max(n, 0), floorCount - 1);
       onJumpToFloor(clamped);
       setFloorInput(String(clamped));
     } else {
@@ -76,7 +77,7 @@ export function MessageNavBar({
         {/* 上一层 */}
         <Tooltip>
           <TooltipTrigger asChild>
-            <Button variant="ghost" size="icon" className="h-8 w-8" onClick={onPrev} disabled={currentFloor <= 1}>
+            <Button variant="ghost" size="icon" className="h-8 w-8" onClick={onPrev} disabled={currentFloor <= 0}>
               <ChevronUp className="h-4 w-4" />
             </Button>
           </TooltipTrigger>
@@ -95,13 +96,13 @@ export function MessageNavBar({
             inputMode="numeric"
             aria-label="跳转到楼层"
           />
-          <span className="text-[10px] leading-none text-muted-foreground">/ {floorCount}</span>
+          <span className="text-[10px] leading-none text-muted-foreground">/ {Math.max(floorCount - 1, 0)}</span>
         </div>
 
         {/* 下一层 */}
         <Tooltip>
           <TooltipTrigger asChild>
-            <Button variant="ghost" size="icon" className="h-8 w-8" onClick={onNext} disabled={currentFloor >= floorCount}>
+            <Button variant="ghost" size="icon" className="h-8 w-8" onClick={onNext} disabled={currentFloor >= floorCount - 1}>
               <ChevronDown className="h-4 w-4" />
             </Button>
           </TooltipTrigger>

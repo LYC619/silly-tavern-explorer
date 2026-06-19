@@ -245,7 +245,7 @@ const MessageRow = memo(function MessageRow({
         {editMode && (
           <div className="absolute left-1 top-1 flex items-center gap-1 z-10">
             <span className="text-xs text-muted-foreground font-mono">
-              #{index + 1}
+              #{index}
             </span>
             <Tooltip>
               <TooltipTrigger asChild>
@@ -268,13 +268,13 @@ const MessageRow = memo(function MessageRow({
             </Tooltip>
           </div>
         )}
-        {/* 非编辑模式：左侧外侧常驻浅色楼层号（像行号），与名字/正文首行对齐，方便和左侧跳转条对照 */}
+        {/* 非编辑模式：左侧外侧常驻楼层号（像行号），与名字/正文首行对齐，醒目易认，方便和左侧跳转条对照 */}
         {!editMode && (
           <span
-            className="pointer-events-none absolute -left-8 top-1 hidden select-none font-mono text-[10px] leading-none text-muted-foreground/30 md:block"
+            className="pointer-events-none absolute -left-12 top-0.5 hidden w-9 select-none text-right font-mono text-sm font-semibold tabular-nums text-primary/50 md:block"
             aria-hidden="true"
           >
-            {index + 1}
+            {index}
           </span>
         )}
         {theme === 'social' ? (
@@ -427,7 +427,7 @@ export const ChatPreview = memo(forwardRef<ChatPreviewHandle, ChatPreviewProps>(
     useEffect(() => {
       if (!onFloorMapChange) return;
       const m = new Map<string, number>();
-      idToIndex.forEach((i, id) => m.set(id, i + 1));
+      idToIndex.forEach((i, id) => m.set(id, i));
       onFloorMapChange(m);
     }, [idToIndex, onFloorMapChange]);
 
@@ -461,7 +461,7 @@ export const ChatPreview = memo(forwardRef<ChatPreviewHandle, ChatPreviewProps>(
     // 暴露命令式句柄给跳转条/收藏列表
     useImperativeHandle(ref, () => ({
       scrollToFloor: (floor: number) => {
-        const idx = Math.min(Math.max(floor - 1, 0), processedMessages.length - 1);
+        const idx = Math.min(Math.max(floor, 0), processedMessages.length - 1);
         if (idx >= 0) virtualizer.scrollToIndex(idx, { align: 'start' });
       },
       scrollToMessageId: (messageId: string) => {
@@ -498,7 +498,7 @@ export const ChatPreview = memo(forwardRef<ChatPreviewHandle, ChatPreviewProps>(
       if (topVisibleIndex < 0 || topVisibleIndex === lastReportedFloorRef.current) return;
       lastReportedFloorRef.current = topVisibleIndex;
       const msg = processedMessages[topVisibleIndex];
-      onVisibleFloorChange(topVisibleIndex + 1, msg?.id ?? null);
+      onVisibleFloorChange(topVisibleIndex, msg?.id ?? null);
     }, [topVisibleIndex, processedMessages, onVisibleFloorChange]);
 
     return (
