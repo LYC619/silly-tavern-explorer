@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo, useRef } from 'react';
-import { X, Plus, Trash2, RotateCcw, ChevronDown, ChevronUp, Regex, GripVertical, Eye, Bookmark } from 'lucide-react';
+import { X, Plus, Trash2, RotateCcw, ChevronDown, ChevronUp, Regex, GripVertical, Eye, Bookmark, Upload, Download } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -22,6 +22,7 @@ import {
   type RegexPreset,
 } from '@/lib/session-storage';
 import { applyRegexRules } from '@/lib/regex-processor';
+import { parseSTRegexImport, exportSTRegex } from '@/lib/st-regex-interop';
 import { useToast } from '@/hooks/use-toast';
 
 interface RegexSidebarProps {
@@ -47,6 +48,7 @@ export function RegexSidebar({ rules, onRulesChange, isOpen, onClose, sampleMess
   // 记录刚添加、需要滚动到可见区的规则 id
   const [scrollToId, setScrollToId] = useState<string | null>(null);
   const newRuleRef = useRef<HTMLDivElement>(null);
+  const importInputRef = useRef<HTMLInputElement>(null);
 
   // 添加规则后滚动到新规则位置（否则用户在列表上方时完全感知不到末尾新增了规则）
   useEffect(() => {
@@ -91,6 +93,47 @@ export function RegexSidebar({ rules, onRulesChange, isOpen, onClose, sampleMess
 
   const handleDeletePreset = (id: string) => {
     setPresets(deleteRegexPreset(id));
+  };
+
+  // 导入 SillyTavern 正则脚本 .json（单脚本 / 数组 / {scripts:[]}）
+  const handleImportST = async (file: File) => {
+    try {
+      const text = await file.text();
+      const json = JSON.parse(text);
+      const imported = parseSTRegexImport(json);
+      if (imported.length === 0) {
+        toast({ title: '未发现可导入的规则', variant: 'destructive' });
+        return;
+      }
+      // 按 id 去重合并：已存在的 id 覆盖，新 id 追加
+      const byId = new Map(rules.map((r) => [r.id, r]));
+      imported.forEach((r) => byId.set(r.id, r));
+      onRulesChange(Array.from(byId.values()));
+      toast({ title: '已导入 ST 正则', description: `导入 ${imported.length} 条规则` });
+    } catch (e) {
+      toast({
+        title: '导入失败',
+        description: e instanceof Error ? e.message : '文件不是有效的 JSON',
+        variant: 'destructive',
+      });
+    }
+  };
+
+  // 导出当前规则为 ST 正则脚本 .json
+  const handleExportST = () => {
+    if (rules.length === 0) {
+      toast({ title: '当前没有规则可导出', variant: 'destructive' });
+      return;
+    }
+    const json = exportSTRegex(rules);
+    const blob = new Blob([json], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = rules.length === 1 ? `${rules[0].name || 'regex'}.json` : 'regex-scripts.json';
+    a.click();
+    URL.revokeObjectURL(url);
+    toast({ title: '已导出 ST 正则', description: `导出 ${rules.length} 条规则` });
   };
 
   const handleAddRule = (rule?: RegexRule) => {
@@ -448,6 +491,39 @@ export function RegexSidebar({ rules, onRulesChange, isOpen, onClose, sampleMess
             </div>
           </PopoverContent>
         </Popover>
+        <div className="flex items-center gap-2">
+          <input
+            ref={importInputRef}
+            type="file"
+            accept=".json,application/json"
+            className="hidden"
+            onChange={(e) => {
+              const file = e.target.files?.[0];
+              if (file) handleImportST(file);
+              e.target.value = ''; // 允许重复选择同一文件
+            }}
+          />
+          <Button
+            variant="outline"
+            size="sm"
+            className="flex-1 gap-1"
+            onClick={() => importInputRef.current?.click()}
+            title="导入 SillyTavern 正则脚本 .json"
+          >
+            <Upload className="w-3 h-3" />
+            导入 ST
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            className="flex-1 gap-1"
+            onClick={handleExportST}
+            title="导出为 SillyTavern 正则脚本 .json"
+          >
+            <Download className="w-3 h-3" />
+            导出 ST
+          </Button>
+        </div>
         <Button
           variant="ghost"
           size="sm"
