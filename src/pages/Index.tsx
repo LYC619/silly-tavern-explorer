@@ -141,6 +141,8 @@ const Index = () => {
 
   const handleImport = async (newSession: ChatSession, stats?: ImportStats) => {
     setSession(newSession);
+    // 导入后自动展开正则栏，让用户第一时间看到并配置清理规则
+    setRegexSidebarOpen(true);
     // Auto-save to bookshelf on import
     try {
       const bookId = generateBookId();
@@ -379,8 +381,8 @@ const Index = () => {
 
                 <div className="rounded-lg border border-border bg-card/50" data-tour="chat-preview">
                   <div className="flex justify-center py-6 px-4">
-                    <div 
-                      style={{ width: Math.min(settings.paperWidth, regexSidebarOpen ? 520 : settings.paperWidth) }}
+                    <div
+                      style={{ width: settings.paperWidth, maxWidth: '100%' }}
                       className="shadow-warm rounded-lg overflow-hidden animate-fade-in"
                     >
                       <ChatPreview

@@ -156,6 +156,14 @@
     border: 1px solid hsl(var(--border) / 0.5);
     pointer-events: none;
   }
+
+  /* 起点式阅读流：舒适行距 + 首行缩进，让长对话读起来像小说正文 */
+  .reading-flow {
+    line-height: 1.9;
+    text-indent: 2em;
+    letter-spacing: 0.02em;
+    color: hsl(var(--foreground) / 0.9);
+  }
 }
 
 @layer utilities {
