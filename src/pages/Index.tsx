@@ -1,8 +1,9 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { useLocation } from 'react-router-dom';
 import { AppLayout } from '@/components/AppLayout';
 import { ChatImporter, type ImportStats } from '@/components/ChatImporter';
-import { ChatPreview } from '@/components/ChatPreview';
+import { ChatPreview, type ChatPreviewHandle } from '@/components/ChatPreview';
+import { MessageNavBar, type FavoriteItem } from '@/components/MessageNavBar';
 import { EditorToolbar } from '@/components/EditorToolbar';
 import { ChapterMarkerDialog } from '@/components/ChapterMarkerDialog';
 import { MessageEditDialog } from '@/components/MessageEditDialog';
@@ -53,6 +54,14 @@ const Index = () => {
   const [session, setSession] = useState<ChatSession | null>(null);
   const [settings, setSettings] = useState<ExportSettings>(getDefaultSettings);
   const [markers, setMarkers] = useState<ChapterMarker[]>([]);
+  // 收藏楼层（messageId），轻量书签用于跳转，不进导出
+  const [favorites, setFavorites] = useState<string[]>([]);
+  // 跳楼层：ChatPreview 命令式句柄 + 当前顶部可见楼层 + messageId→楼层号映射
+  const previewRef = useRef<ChatPreviewHandle>(null);
+  const [currentFloor, setCurrentFloor] = useState(1);
+  const [currentFloorMsgId, setCurrentFloorMsgId] = useState<string | null>(null);
+  const [floorCount, setFloorCount] = useState(0);
+  const [floorMap, setFloorMap] = useState<Map<string, number>>(new Map());
   const [editMode, setEditMode] = useState(false);
   const [contentEditMode, setContentEditMode] = useState(false);
   const [markerDialogOpen, setMarkerDialogOpen] = useState(false);
@@ -91,6 +100,7 @@ const Index = () => {
     if (state?.book) {
       setSession(state.book.session);
       setMarkers(state.book.markers);
+      setFavorites(state.book.favorites ?? []);
       setCurrentBookId(state.book.id);
       if (state.book.settings) {
         setSettings(state.book.settings);
@@ -101,6 +111,7 @@ const Index = () => {
       if (savedState?.session) {
         setSession(savedState.session);
         setMarkers(savedState.markers);
+        setFavorites(savedState.favorites ?? []);
         setCurrentBookId(savedState.currentBookId);
       }
     }
@@ -145,7 +156,7 @@ const Index = () => {
     if (session) {
       if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
       saveTimerRef.current = setTimeout(() => {
-        const ok = saveSessionState({ session, markers, currentBookId, settings: settingsRef.current });
+        const ok = saveSessionState({ session, markers, currentBookId, settings: settingsRef.current, favorites });
         if (!ok && !quotaWarnedRef.current) {
           quotaWarnedRef.current = true;
           toast({
@@ -157,7 +168,7 @@ const Index = () => {
       }, 500);
     }
     return () => { if (saveTimerRef.current) clearTimeout(saveTimerRef.current); };
-  }, [session, markers, currentBookId, toast]);
+  }, [session, markers, currentBookId, favorites, toast]);
 
   // 保存设置变更到 localStorage
   useEffect(() => {
@@ -174,12 +185,14 @@ const Index = () => {
         title: newSession.title || newSession.character?.name || '未命名作品',
         session: newSession,
         markers: [],
+        favorites: [],
         settings,
         createdAt: Date.now(),
         updatedAt: Date.now(),
       };
       await saveBook(book);
       setCurrentBookId(bookId);
+      setFavorites([]);
 
       // Build description with swipes stats
       let description = '已自动保存到书架';
@@ -201,6 +214,7 @@ const Index = () => {
   const handleReset = () => {
     setSession(null);
     setMarkers([]);
+    setFavorites([]);
     setEditMode(false);
     setContentEditMode(false);
     setCurrentBookId(null);
@@ -222,6 +236,7 @@ const Index = () => {
         title: session.title || session.character?.name || '未命名作品',
         session,
         markers,
+        favorites,
         settings,
         createdAt,
         updatedAt: now,
@@ -261,7 +276,43 @@ const Index = () => {
       messages: session.messages.filter(msg => msg.id !== selectedMessage.id),
     });
     setMarkers(prev => prev.filter(m => m.messageId !== selectedMessage.id));
+    setFavorites(prev => prev.filter(id => id !== selectedMessage.id));
   };
+
+  // 收藏/取消收藏某楼（messageId）。轻量书签，仅用于跳转，不进导出。
+  const handleToggleFavorite = useCallback((messageId: string) => {
+    setFavorites(prev =>
+      prev.includes(messageId)
+        ? prev.filter(id => id !== messageId)
+        : [...prev, messageId]
+    );
+  }, []);
+
+  // ChatPreview 上报顶部可见楼层
+  const handleVisibleFloorChange = useCallback((floor: number, messageId: string | null) => {
+    setCurrentFloor(floor);
+    setCurrentFloorMsgId(messageId);
+  }, []);
+
+  // ChatPreview 上报楼层映射（顺序变化时），同步总楼层数
+  const handleFloorMapChange = useCallback((map: Map<string, number>) => {
+    setFloorMap(map);
+    setFloorCount(map.size);
+  }, []);
+
+  // 收藏列表项：按 messageId 解析楼层号 + 正文片段
+  const favoriteItems = useMemo<FavoriteItem[]>(() => {
+    if (!session) return [];
+    const byId = new Map(session.messages.map(m => [m.id, m]));
+    return favorites
+      .map(id => {
+        const msg = byId.get(id);
+        const snippet = (msg?.content ?? '').replace(/\s+/g, ' ').trim().slice(0, 60) || '（空消息）';
+        return { messageId: id, floor: floorMap.get(id) ?? null, snippet };
+      })
+      // 按楼层排序，未解析到楼层的排最后
+      .sort((a, b) => (a.floor ?? Infinity) - (b.floor ?? Infinity));
+  }, [favorites, floorMap, session]);
 
   const handleSaveMarker = (marker: ChapterMarker) => {
     setMarkers(prev => {
@@ -369,12 +420,27 @@ const Index = () => {
                 </div>
 
                 <div className="rounded-lg border border-border bg-card/50" data-tour="chat-preview">
+                  {/* 常驻跳转条：整页滚动下 sticky 在视口顶部，随时可跳楼层/收藏 */}
+                  <div className="sticky top-0 z-20 px-4 pt-3 pb-1 bg-card/80 backdrop-blur-sm rounded-t-lg">
+                    <MessageNavBar
+                      floorCount={floorCount}
+                      currentFloor={currentFloor}
+                      currentMessageId={currentFloorMsgId}
+                      favorites={favoriteItems}
+                      onJumpToFloor={(n) => previewRef.current?.scrollToFloor(n)}
+                      onPrev={() => previewRef.current?.scrollToFloor(currentFloor - 1)}
+                      onNext={() => previewRef.current?.scrollToFloor(currentFloor + 1)}
+                      onToggleFavorite={handleToggleFavorite}
+                      onJumpToMessageId={(id) => previewRef.current?.scrollToMessageId(id)}
+                    />
+                  </div>
                   <div className="flex justify-center py-6 px-4">
                     <div
                       style={{ width: settings.paperWidth, maxWidth: '100%' }}
                       className="shadow-warm rounded-lg overflow-hidden animate-fade-in"
                     >
                       <ChatPreview
+                        ref={previewRef}
                         session={session}
                         theme={settings.theme}
                         showTimestamp={settings.showTimestamp}
@@ -386,6 +452,8 @@ const Index = () => {
                         editMode={editMode || contentEditMode}
                         fontFamily={settings.fontFamily}
                         previewRule={previewRule}
+                        onVisibleFloorChange={handleVisibleFloorChange}
+                        onFloorMapChange={handleFloorMapChange}
                       />
                     </div>
                   </div>

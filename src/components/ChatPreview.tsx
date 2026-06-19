@@ -1,10 +1,23 @@
-import { forwardRef, useMemo, useState, useEffect, useRef, memo } from 'react';
+import { forwardRef, useMemo, useState, useEffect, useRef, useImperativeHandle, memo } from 'react';
 import { useWindowVirtualizer } from '@tanstack/react-virtual';
 import { User, Bot, Bookmark, BookmarkPlus } from 'lucide-react';
 import type { ChatSession, ThemeStyle, RegexRule, ChapterMarker } from '@/types/chat';
 import { applyRegexRules, parseRegex } from '@/lib/regex-processor';
 import { parseSTDate } from '@/components/ChatImporter';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+
+/**
+ * ChatPreview 暴露给父组件的命令式句柄：跳转条/收藏列表通过它驱动滚动。
+ * 因为 ChatPreview 内部才知道「过滤空消息后的楼层 → 虚拟索引」的映射，所以跳转解析放在这里。
+ */
+export interface ChatPreviewHandle {
+  /** 跳到第 floor 楼（1-based，与界面 #N 一致） */
+  scrollToFloor: (floor: number) => void;
+  /** 按 messageId 跳转（收藏列表用，id 稳定不受空消息过滤影响） */
+  scrollToMessageId: (messageId: string) => void;
+  /** 过滤空消息后的总楼层数，供跳转条做边界 */
+  getFloorCount: () => number;
+}
 
 interface ChatPreviewProps {
   session: ChatSession;
@@ -19,6 +32,10 @@ interface ChatPreviewProps {
   fontFamily?: string;
   /** 正在预览的规则：命中的内容会在正文中用红色删除线高亮标出（所见即所得） */
   previewRule?: RegexRule | null;
+  /** 顶部可见楼层变化回调：floor 为 1-based 楼层号，messageId 为该楼 id */
+  onVisibleFloorChange?: (floor: number, messageId: string | null) => void;
+  /** 过滤后楼层顺序变化时上报 messageId→楼层号(1-based) 映射，供收藏列表显示楼层 */
+  onFloorMapChange?: (map: Map<string, number>) => void;
 }
 
 /**
@@ -276,8 +293,8 @@ const MessageRow = memo(function MessageRow({
   );
 });
 
-export const ChatPreview = memo(forwardRef<HTMLDivElement, ChatPreviewProps>(
-  ({ session, theme, showTimestamp, showAvatar, fontSize, regexRules, markers = [], onMessageClick, editMode = false, fontFamily, previewRule = null }, ref) => {
+export const ChatPreview = memo(forwardRef<ChatPreviewHandle, ChatPreviewProps>(
+  ({ session, theme, showTimestamp, showAvatar, fontSize, regexRules, markers = [], onMessageClick, editMode = false, fontFamily, previewRule = null, onVisibleFloorChange, onFloorMapChange }, ref) => {
     const markerMap = useMemo(() => {
       const map = new Map<string, ChapterMarker>();
       markers.forEach(m => map.set(m.messageId, m));
@@ -349,9 +366,48 @@ export const ChatPreview = memo(forwardRef<HTMLDivElement, ChatPreviewProps>(
 
     const virtualItems = virtualizer.getVirtualItems();
 
+    // messageId → 过滤后楼层索引，供 scrollToMessageId 解析
+    const idToIndex = useMemo(() => {
+      const m = new Map<string, number>();
+      processedMessages.forEach((msg, i) => m.set(msg.id, i));
+      return m;
+    }, [processedMessages]);
+
+    // 楼层顺序变化时上报 messageId→楼层号(1-based)，收藏列表用它显示楼层
+    useEffect(() => {
+      if (!onFloorMapChange) return;
+      const m = new Map<string, number>();
+      idToIndex.forEach((i, id) => m.set(id, i + 1));
+      onFloorMapChange(m);
+    }, [idToIndex, onFloorMapChange]);
+
+    // 暴露命令式句柄给跳转条/收藏列表
+    useImperativeHandle(ref, () => ({
+      scrollToFloor: (floor: number) => {
+        const idx = Math.min(Math.max(floor - 1, 0), processedMessages.length - 1);
+        if (idx >= 0) virtualizer.scrollToIndex(idx, { align: 'start' });
+      },
+      scrollToMessageId: (messageId: string) => {
+        const idx = idToIndex.get(messageId);
+        if (idx !== undefined) virtualizer.scrollToIndex(idx, { align: 'start' });
+      },
+      getFloorCount: () => processedMessages.length,
+    }), [virtualizer, idToIndex, processedMessages.length]);
+
+    // 上报顶部可见楼层：用 virtualizer.range.startIndex（已排除 overscan，
+    // 是真正的首个可见行；virtualItems[0] 含 overscan 会偏上约 6 楼）。
+    const lastReportedFloorRef = useRef(-1);
+    const topVisibleIndex = virtualizer.range?.startIndex ?? -1;
+    useEffect(() => {
+      if (!onVisibleFloorChange) return;
+      if (topVisibleIndex < 0 || topVisibleIndex === lastReportedFloorRef.current) return;
+      lastReportedFloorRef.current = topVisibleIndex;
+      const msg = processedMessages[topVisibleIndex];
+      onVisibleFloorChange(topVisibleIndex + 1, msg?.id ?? null);
+    }, [topVisibleIndex, processedMessages, onVisibleFloorChange]);
+
     return (
       <div
-        ref={ref}
         className={`min-h-[400px] ${classes.container}`}
         style={{ fontSize: `${fontSize}px`, fontFamily: fontFamily || undefined }}
       >

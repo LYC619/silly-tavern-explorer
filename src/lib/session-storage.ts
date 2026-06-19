@@ -13,6 +13,8 @@ export interface StoredState {
   markers: ChapterMarker[];
   currentBookId: string | null;
   settings?: ExportSettings;
+  /** 收藏的楼层（存 messageId，轻量个人书签，不进导出，区别于会进 TXT 标题的章节标记） */
+  favorites?: string[];
 }
 
 // Session storage (临时，页面间导航)
