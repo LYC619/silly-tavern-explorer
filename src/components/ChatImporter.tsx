@@ -1,5 +1,6 @@
 import { useState, useCallback, useEffect } from 'react';
 import { Upload, FileText, AlertCircle } from 'lucide-react';
+import { useToast } from '@/hooks/use-toast';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
@@ -74,6 +75,7 @@ function preScanSpeakers(content: string): { userName: string; charName: string 
 }
 
 export function ChatImporter({ onImport }: ChatImporterProps) {
+  const { toast } = useToast();
   const [isDragging, setIsDragging] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [txtFormatDialog, setTxtFormatDialog] = useState(false);
@@ -144,7 +146,7 @@ export function ChatImporter({ onImport }: ChatImporterProps) {
         .filter((m: ChatMessage) => m.content);
       return { messages };
     }
-    throw new Error('Unsupported JSON format');
+    throw new Error('无法识别的 JSON 格式（应为消息数组，或含 messages / chat 字段的对象）');
   };
 
   const parseTxtDialogue = (content: string, userNameOverride?: string): ChatMessage[] => {
@@ -283,7 +285,7 @@ export function ChatImporter({ onImport }: ChatImporterProps) {
         }
       }
 
-      if (messages.length === 0) throw new Error('No valid messages found in file');
+      if (messages.length === 0) throw new Error('文件里没有找到可导入的消息（可能格式不符或内容为空）');
 
       // Compute swipes statistics
       let swipesRemoved = 0;
@@ -333,9 +335,11 @@ export function ChatImporter({ onImport }: ChatImporterProps) {
       onImport(session, importStats);
     } catch (e) {
       console.error('Import error:', e);
-      setError(e instanceof Error ? e.message : 'Failed to parse file');
+      const msg = e instanceof Error ? e.message : '文件解析失败，请检查格式';
+      setError(msg);
+      toast({ title: '导入失败', description: msg, variant: 'destructive' });
     }
-  }, [onImport]);
+  }, [onImport, toast]);
 
   const handleTxtFormatConfirm = () => {
     setTxtFormatDialog(false);
