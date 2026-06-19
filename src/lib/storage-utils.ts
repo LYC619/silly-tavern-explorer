@@ -2,6 +2,9 @@
  * IndexedDB storage management utilities
  */
 
+import type { BookItem } from '@/lib/bookshelf-db';
+import type { WorldBookItem } from '@/types/worldbook';
+
 const DB_NAME = 'st-chat-beautifier';
 
 /**
@@ -24,24 +27,36 @@ export async function estimateStorageUsage(): Promise<{
 }
 
 /**
- * Export entire IndexedDB as a JSON file for backup
+ * Export entire IndexedDB as a JSON file for backup.
+ * 同时备份 books（聊天作品）和 worldbooks（世界书）两个 store，
+ * 二者是独立的 object store，少备份任何一个都会造成"完整备份"名不副实的数据丢失。
  */
 export async function exportFullBackup(): Promise<void> {
   const db = await openDB();
-  const tx = db.transaction('books', 'readonly');
-  const store = tx.objectStore('books');
 
-  const allBooks = await new Promise<any[]>((resolve, reject) => {
-    const req = store.getAll();
-    req.onsuccess = () => resolve(req.result);
-    req.onerror = () => reject(req.error);
-  });
+  const readAll = <T>(storeName: string) =>
+    new Promise<T[]>((resolve, reject) => {
+      // 某些旧库可能尚未建出 worldbooks store，缺失时返回空数组而非抛错
+      if (!db.objectStoreNames.contains(storeName)) {
+        resolve([]);
+        return;
+      }
+      const req = db.transaction(storeName, 'readonly').objectStore(storeName).getAll();
+      req.onsuccess = () => resolve(req.result as T[]);
+      req.onerror = () => reject(req.error);
+    });
+
+  const [allBooks, allWorldbooks] = await Promise.all([
+    readAll<BookItem>('books'),
+    readAll<WorldBookItem>('worldbooks'),
+  ]);
 
   const backup = {
-    version: 1,
+    version: 2,
     exportedAt: new Date().toISOString(),
     app: 'silly-tavern-explorer',
     books: allBooks,
+    worldbooks: allWorldbooks,
   };
 
   const blob = new Blob([JSON.stringify(backup)], { type: 'application/json;charset=utf-8' });
@@ -56,9 +71,11 @@ export async function exportFullBackup(): Promise<void> {
 }
 
 /**
- * Import a backup JSON file into IndexedDB
+ * Import a backup JSON file into IndexedDB.
+ * 兼容 v1 备份（只有 books）与 v2 备份（books + worldbooks）。
+ * 返回写入的书籍数与世界书数。
  */
-export async function importFullBackup(file: File): Promise<number> {
+export async function importFullBackup(file: File): Promise<{ books: number; worldbooks: number }> {
   const text = await file.text();
   const data = JSON.parse(text);
 
@@ -67,35 +84,55 @@ export async function importFullBackup(file: File): Promise<number> {
   }
 
   const db = await openDB();
-  const tx = db.transaction('books', 'readwrite');
-  const store = tx.objectStore('books');
 
-  let count = 0;
-  for (const book of data.books) {
-    if (book.id && book.session) {
-      await new Promise<void>((resolve, reject) => {
-        const req = store.put(book);
-        req.onsuccess = () => { count++; resolve(); };
-        req.onerror = () => reject(req.error);
-      });
-    }
-  }
+  const putAll = (storeName: string, items: unknown[], isValid: (item: Record<string, unknown>) => boolean) =>
+    new Promise<number>((resolve, reject) => {
+      if (!Array.isArray(items) || items.length === 0) {
+        resolve(0);
+        return;
+      }
+      if (!db.objectStoreNames.contains(storeName)) {
+        resolve(0);
+        return;
+      }
+      const tx = db.transaction(storeName, 'readwrite');
+      const store = tx.objectStore(storeName);
+      let count = 0;
+      for (const item of items) {
+        if (item && typeof item === 'object' && isValid(item as Record<string, unknown>)) {
+          store.put(item);
+          count++;
+        }
+      }
+      tx.oncomplete = () => resolve(count);
+      tx.onerror = () => reject(tx.error);
+      tx.onabort = () => reject(tx.error);
+    });
 
-  return count;
+  const books = await putAll('books', data.books, (b) => !!b.id && !!b.session);
+  // v1 备份没有 worldbooks 字段，putAll 会安全地返回 0
+  const worldbooks = await putAll('worldbooks', data.worldbooks ?? [], (w) => !!w.id);
+
+  return { books, worldbooks };
 }
 
 /**
- * Clear all data from IndexedDB
+ * Clear all data from IndexedDB（books + worldbooks 一并清空）
  */
 export async function clearAllData(): Promise<void> {
   const db = await openDB();
-  const tx = db.transaction('books', 'readwrite');
-  const store = tx.objectStore('books');
-  await new Promise<void>((resolve, reject) => {
-    const req = store.clear();
-    req.onsuccess = () => resolve();
-    req.onerror = () => reject(req.error);
-  });
+  const clearStore = (storeName: string) =>
+    new Promise<void>((resolve, reject) => {
+      if (!db.objectStoreNames.contains(storeName)) {
+        resolve();
+        return;
+      }
+      const tx = db.transaction(storeName, 'readwrite');
+      const req = tx.objectStore(storeName).clear();
+      req.onsuccess = () => resolve();
+      req.onerror = () => reject(req.error);
+    });
+  await Promise.all([clearStore('books'), clearStore('worldbooks')]);
 }
 
 function openDB(): Promise<IDBDatabase> {

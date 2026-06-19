@@ -16,11 +16,15 @@ export interface StoredState {
 }
 
 // Session storage (临时，页面间导航)
-export function saveSessionState(state: StoredState): void {
+// 返回是否保存成功：长记录(几十万字)可能超出 sessionStorage ~5MB 配额，
+// 失败时返回 false 让调用方提示用户，而非静默丢失未保存编辑。
+export function saveSessionState(state: StoredState): boolean {
   try {
     sessionStorage.setItem(SESSION_KEY, JSON.stringify(state));
+    return true;
   } catch (e) {
     console.error('Failed to save session state:', e);
+    return false;
   }
 }
 

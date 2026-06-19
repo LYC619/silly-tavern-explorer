@@ -66,8 +66,13 @@ export function StorageManager({ onDataChanged }: StorageManagerProps) {
     if (!file) return;
     try {
       setLoading(true);
-      const count = await importFullBackup(file);
-      toast({ title: '恢复成功', description: `已导入 ${count} 本作品` });
+      const { books, worldbooks } = await importFullBackup(file);
+      toast({
+        title: '恢复成功',
+        description: worldbooks > 0
+          ? `已导入 ${books} 本作品、${worldbooks} 本世界书`
+          : `已导入 ${books} 本作品`,
+      });
       await refreshStorage();
       onDataChanged?.();
     } catch (err) {

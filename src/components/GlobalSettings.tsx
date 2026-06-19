@@ -113,7 +113,7 @@ export function GlobalSettings({ onDataChanged, ...props }: GlobalSettingsProps)
     try {
       setLoading(true);
       await exportFullBackup();
-      toast({ title: '备份成功', description: '已导出完整数据备份' });
+      toast({ title: '备份成功', description: '已导出完整备份（作品 + 世界书）' });
     } catch {
       toast({ title: '备份失败', variant: 'destructive' });
     } finally {
@@ -126,8 +126,13 @@ export function GlobalSettings({ onDataChanged, ...props }: GlobalSettingsProps)
     if (!file) return;
     try {
       setLoading(true);
-      const count = await importFullBackup(file);
-      toast({ title: '恢复成功', description: `已导入 ${count} 本作品` });
+      const { books, worldbooks } = await importFullBackup(file);
+      toast({
+        title: '恢复成功',
+        description: worldbooks > 0
+          ? `已导入 ${books} 本作品、${worldbooks} 本世界书`
+          : `已导入 ${books} 本作品`,
+      });
       await refreshStorage();
       onDataChanged?.();
     } catch (err) {
@@ -146,7 +151,7 @@ export function GlobalSettings({ onDataChanged, ...props }: GlobalSettingsProps)
     try {
       setLoading(true);
       await clearAllData();
-      toast({ title: '已清空', description: '所有书架数据已删除' });
+      toast({ title: '已清空', description: '所有作品与世界书数据已删除' });
       await refreshStorage();
       onDataChanged?.();
     } catch {
