@@ -3,8 +3,8 @@ import { describe, it, expect } from 'vitest';
 // Test the JSONL parsing logic directly
 function parseJsonl(content: string) {
   const lines = content.trim().split('\n');
-  const messages: any[] = [];
-  let metadata: any;
+  const messages: Record<string, unknown>[] = [];
+  let metadata: Record<string, unknown> | undefined;
 
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i];
