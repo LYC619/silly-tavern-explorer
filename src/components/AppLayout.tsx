@@ -1,5 +1,5 @@
 import { useNavigate, useLocation } from 'react-router-dom';
-import { ScrollText, Globe, Library, Sparkles, Moon, Sun } from 'lucide-react';
+import { ScrollText, Globe, Library, Sparkles, Moon, Sun, IdCard } from 'lucide-react';
 import { useTheme } from 'next-themes';
 import { Button } from '@/components/ui/button';
 import { GlobalSettings } from '@/components/GlobalSettings';
@@ -14,6 +14,7 @@ interface AppLayoutProps {
 const NAV_ITEMS = [
   { label: '聊天处理', icon: ScrollText, path: '/' },
   { label: '世界书', icon: Globe, path: '/worldbook' },
+  { label: '角色卡', icon: IdCard, path: '/card-viewer' },
   { label: '书架', icon: Library, path: '/bookshelf' },
   { label: 'AI 工具', icon: Sparkles, path: '/ai-tools' },
 ];

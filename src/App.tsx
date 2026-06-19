@@ -13,6 +13,7 @@ const Bookshelf = lazy(() => import("./pages/Bookshelf"));
 const AITools = lazy(() => import("./pages/AITools"));
 const Reader = lazy(() => import("./pages/Reader"));
 const WorldBook = lazy(() => import("./pages/WorldBook"));
+const CardViewer = lazy(() => import("./pages/CardViewer"));
 const NotFound = lazy(() => import("./pages/NotFound"));
 
 const PageFallback = () => (
@@ -33,6 +34,7 @@ const App = () => (
             <Route path="/bookshelf" element={<Bookshelf />} />
             <Route path="/ai-tools" element={<AITools />} />
             <Route path="/worldbook" element={<WorldBook />} />
+            <Route path="/card-viewer" element={<CardViewer />} />
             <Route path="/reader/:id" element={<Reader />} />
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
             <Route path="*" element={<NotFound />} />
