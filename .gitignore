@@ -28,5 +28,11 @@ task_plan.md
 findings.md
 progress.md
 
-# 参考资料（ST 文档/样本/源码，仅供 AI 对照格式，不纳入仓库）
-_reference/
+# 参考资料：samples/ 与 st-source/（二进制/大文件/源码）不纳入仓库，
+# 但 st-docs/ 下的文字文档与顶层 *.md 要经 git 同步（含 Lovable 产出）。
+# git 无法在被忽略的目录内反选，故这里只忽略具体子内容、不忽略 _reference 目录本身。
+_reference/samples/
+_reference/st-source/
+
+# bun 锁文件：本项目用 npm(package-lock.json)，bun.lock 由 Lovable 环境产生，不纳入仓库
+bun.lock
