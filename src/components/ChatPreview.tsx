@@ -17,6 +17,9 @@ export interface ChatPreviewHandle {
   scrollToMessageId: (messageId: string) => void;
   /** 过滤空消息后的总楼层数，供跳转条做边界 */
   getFloorCount: () => number;
+  /** 跳到下一个/上一个搜索命中（循环），无命中时无操作 */
+  nextMatch: () => void;
+  prevMatch: () => void;
 }
 
 interface ChatPreviewProps {
@@ -36,6 +39,10 @@ interface ChatPreviewProps {
   onVisibleFloorChange?: (floor: number, messageId: string | null) => void;
   /** 过滤后楼层顺序变化时上报 messageId→楼层号(1-based) 映射，供收藏列表显示楼层 */
   onFloorMapChange?: (map: Map<string, number>) => void;
+  /** 全文搜索词（纯字符串，大小写不敏感） */
+  searchQuery?: string;
+  /** 搜索结果变化回调：命中楼层数 + 当前定位到第几个命中(1-based，0 表示无) */
+  onSearchResult?: (total: number, current: number) => void;
 }
 
 /**
@@ -74,6 +81,30 @@ function renderPreviewHighlight(content: string, rule: RegexRule): React.ReactNo
   }
   if (last < content.length) nodes.push(content.slice(last));
   return nodes.length > 0 ? nodes : content;
+}
+
+/** 把文本里命中搜索词的部分用 <mark> 标黄（大小写不敏感，纯字符串匹配，非正则）。 */
+function renderTextWithSearch(text: string, query: string): React.ReactNode {
+  if (!query) return text;
+  const lowerText = text.toLowerCase();
+  const lowerQuery = query.toLowerCase();
+  const nodes: React.ReactNode[] = [];
+  let from = 0;
+  let key = 0;
+  let idx = lowerText.indexOf(lowerQuery, from);
+  while (idx !== -1) {
+    if (idx > from) nodes.push(text.slice(from, idx));
+    nodes.push(
+      <mark key={`s${key}`} className="rounded-sm bg-yellow-200 px-0.5 text-inherit dark:bg-yellow-500/40">
+        {text.slice(idx, idx + query.length)}
+      </mark>
+    );
+    from = idx + query.length;
+    key++;
+    idx = lowerText.indexOf(lowerQuery, from);
+  }
+  if (from < text.length) nodes.push(text.slice(from));
+  return nodes.length > 0 ? nodes : text;
 }
 
 function formatTime(timestamp?: number): string {
@@ -161,6 +192,10 @@ interface MessageRowProps {
   showAvatar: boolean;
   editMode: boolean;
   previewRule: RegexRule | null;
+  /** 全文搜索词，命中处标黄；与 previewRule 互斥（预览优先） */
+  searchQuery: string;
+  /** 本行是否为当前选中的搜索命中（高亮整行 + 滚动定位目标） */
+  isActiveMatch: boolean;
   userName: string;
   charName: string;
   onMessageClick?: (messageId: string, messageIndex: number) => void;
@@ -173,7 +208,7 @@ interface MessageRowProps {
  */
 const MessageRow = memo(function MessageRow({
   message, marker, index, theme, classes, showTimestamp, showAvatar,
-  editMode, previewRule, userName, charName, onMessageClick,
+  editMode, previewRule, searchQuery, isActiveMatch, userName, charName, onMessageClick,
 }: MessageRowProps) {
   const isUser = message.role === 'user';
   const isNewSpeaker = message.isNewSpeaker;
@@ -203,7 +238,7 @@ const MessageRow = memo(function MessageRow({
       <div
         className={`${classes.message} ${isUser ? classes.userBubble : classes.charBubble} animate-fade-in group relative ${
           editMode ? 'cursor-pointer hover:bg-primary/5 rounded-lg transition-colors pt-9 px-2' : ''
-        }`}
+        } ${isActiveMatch ? 'rounded-lg ring-2 ring-primary/60 ring-offset-2 ring-offset-background' : ''}`}
         onClick={() => editMode && onMessageClick?.(message.id, index)}
       >
         {/* 章节标记模式：每条消息左上角常驻楼层号+书签按钮，清晰可点 */}
@@ -258,7 +293,11 @@ const MessageRow = memo(function MessageRow({
               <div className={`inline-block ${classes.content} ${
                 isUser ? 'bubble-user' : 'bubble-char'
               } whitespace-pre-wrap`}>
-                {previewRule ? renderPreviewHighlight(message.content, previewRule) : message.content}
+                {previewRule
+                  ? renderPreviewHighlight(message.content, previewRule)
+                  : searchQuery
+                    ? renderTextWithSearch(message.content, searchQuery)
+                    : message.content}
               </div>
               {showTimestamp && (
                 <div className="text-xs text-muted-foreground mt-1">
@@ -291,9 +330,11 @@ const MessageRow = memo(function MessageRow({
                 ? renderPreviewHighlight(message.content, previewRule)
                 : (theme === 'elegant' || theme === 'novel')
                   ? message.paragraphs.map((p, i) => (
-                      <p key={i} className="reading-paragraph">{p}</p>
+                      <p key={i} className="reading-paragraph">
+                        {searchQuery ? renderTextWithSearch(p, searchQuery) : p}
+                      </p>
                     ))
-                  : message.content}
+                  : (searchQuery ? renderTextWithSearch(message.content, searchQuery) : message.content)}
             </div>
           </div>
         )}
@@ -303,7 +344,7 @@ const MessageRow = memo(function MessageRow({
 });
 
 export const ChatPreview = memo(forwardRef<ChatPreviewHandle, ChatPreviewProps>(
-  ({ session, theme, showTimestamp, showAvatar, fontSize, regexRules, markers = [], onMessageClick, editMode = false, fontFamily, previewRule = null, onVisibleFloorChange, onFloorMapChange }, ref) => {
+  ({ session, theme, showTimestamp, showAvatar, fontSize, regexRules, markers = [], onMessageClick, editMode = false, fontFamily, previewRule = null, onVisibleFloorChange, onFloorMapChange, searchQuery = '', onSearchResult }, ref) => {
     const markerMap = useMemo(() => {
       const map = new Map<string, ChapterMarker>();
       markers.forEach(m => map.set(m.messageId, m));
@@ -390,6 +431,33 @@ export const ChatPreview = memo(forwardRef<ChatPreviewHandle, ChatPreviewProps>(
       onFloorMapChange(m);
     }, [idToIndex, onFloorMapChange]);
 
+    // 全文搜索：命中的楼层索引列表（对过滤后正文做大小写不敏感匹配）
+    const matchIndices = useMemo(() => {
+      const q = searchQuery.trim().toLowerCase();
+      if (!q) return [] as number[];
+      const out: number[] = [];
+      processedMessages.forEach((msg, i) => {
+        if (msg.content.toLowerCase().includes(q)) out.push(i);
+      });
+      return out;
+    }, [searchQuery, processedMessages]);
+
+    // 当前定位到第几个命中（matchIndices 里的下标）。搜索词变化时重置到第一个。
+    const [matchPos, setMatchPos] = useState(0);
+    useEffect(() => {
+      setMatchPos(0);
+      // 上报命中总数与当前序号（1-based）
+      onSearchResult?.(matchIndices.length, matchIndices.length > 0 ? 1 : 0);
+      // 首个命中时滚过去
+      if (matchIndices.length > 0) {
+        virtualizer.scrollToIndex(matchIndices[0], { align: 'center' });
+      }
+      // 仅在搜索词/命中集合变化时触发，virtualizer 不入依赖避免重复滚动
+      // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [matchIndices]);
+
+    const activeMatchIndex = matchIndices.length > 0 ? matchIndices[matchPos] : -1;
+
     // 暴露命令式句柄给跳转条/收藏列表
     useImperativeHandle(ref, () => ({
       scrollToFloor: (floor: number) => {
@@ -401,7 +469,25 @@ export const ChatPreview = memo(forwardRef<ChatPreviewHandle, ChatPreviewProps>(
         if (idx !== undefined) virtualizer.scrollToIndex(idx, { align: 'start' });
       },
       getFloorCount: () => processedMessages.length,
-    }), [virtualizer, idToIndex, processedMessages.length]);
+      nextMatch: () => {
+        if (matchIndices.length === 0) return;
+        setMatchPos(p => {
+          const next = (p + 1) % matchIndices.length;
+          virtualizer.scrollToIndex(matchIndices[next], { align: 'center' });
+          onSearchResult?.(matchIndices.length, next + 1);
+          return next;
+        });
+      },
+      prevMatch: () => {
+        if (matchIndices.length === 0) return;
+        setMatchPos(p => {
+          const prev = (p - 1 + matchIndices.length) % matchIndices.length;
+          virtualizer.scrollToIndex(matchIndices[prev], { align: 'center' });
+          onSearchResult?.(matchIndices.length, prev + 1);
+          return prev;
+        });
+      },
+    }), [virtualizer, idToIndex, processedMessages.length, matchIndices, onSearchResult]);
 
     // 上报顶部可见楼层：用 virtualizer.range.startIndex（已排除 overscan，
     // 是真正的首个可见行；virtualItems[0] 含 overscan 会偏上约 6 楼）。
@@ -466,6 +552,8 @@ export const ChatPreview = memo(forwardRef<ChatPreviewHandle, ChatPreviewProps>(
                     showAvatar={showAvatar}
                     editMode={editMode}
                     previewRule={previewRule}
+                    searchQuery={searchQuery}
+                    isActiveMatch={vItem.index === activeMatchIndex}
                     userName={session.user.name}
                     charName={session.character.name}
                     onMessageClick={onMessageClick}
