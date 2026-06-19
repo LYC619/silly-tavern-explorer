@@ -93,7 +93,7 @@ describe('exportWorldBook (round-trip)', () => {
       entries: { '0': { uid: 0, key: ['sword', 'shield'], content: 'c' } },
     });
     const out = JSON.parse(exportWorldBook(wb));
-    expect(out.entries['0'].key).toBe('sword, shield');
+    expect(out.entries['0'].key).toEqual(['sword', 'shield']);
   });
 
   it('preserves top-level metadata through parse → export', () => {
@@ -105,7 +105,96 @@ describe('exportWorldBook (round-trip)', () => {
     const out = JSON.parse(exportWorldBook(parseWorldBook(source)));
     expect(out.name).toBe('RoundTrip');
     expect(out.description).toBe('d');
-    expect(out.entries['0'].key).toBe('k');
+    expect(out.entries['0'].key).toEqual(['k']);
     expect(out.entries['0'].content).toBe('c');
+  });
+
+  it('forces record-key === String(uid) even if source key mismatched', () => {
+    // 源记录键 "99" 与 uid 5 不一致（ST 拒导入的根因）
+    const wb = parseWorldBook({ entries: { '99': { uid: 5, content: 'c' } } });
+    const out = JSON.parse(exportWorldBook(wb));
+    expect(Object.keys(out.entries)).toEqual(['5']);
+    expect(out.entries['5'].uid).toBe(5);
+  });
+
+  it('writes ST-style disable (inverted) and drops internal enabled', () => {
+    const wb = parseWorldBook({ entries: { '0': { uid: 0, disable: true, content: 'c' } } });
+    expect(wb.entries['0'].enabled).toBe(false); // 导入读对
+    const out = JSON.parse(exportWorldBook(wb));
+    expect(out.entries['0'].disable).toBe(true); // 导出写回 disable
+    expect(out.entries['0'].enabled).toBeUndefined(); // 不泄漏内部字段
+  });
+});
+
+describe('normalizeEntry — ST disable 反义', () => {
+  it('reads ST disable:true as enabled:false', () => {
+    expect(normalizeEntry({ disable: true }, 0).enabled).toBe(false);
+  });
+  it('reads ST disable:false as enabled:true', () => {
+    expect(normalizeEntry({ disable: false }, 0).enabled).toBe(true);
+  });
+  it('falls back to enabled field when disable absent', () => {
+    expect(normalizeEntry({ enabled: false }, 0).enabled).toBe(false);
+  });
+  it('defaults to enabled:true when neither present', () => {
+    expect(normalizeEntry({}, 0).enabled).toBe(true);
+  });
+});
+
+describe('normalizeEntry — 老格式字段名 / position', () => {
+  it('maps snake_case legacy names to canonical fields', () => {
+    const e = normalizeEntry({
+      keys: ['a'],
+      secondary_keys: ['b'],
+      insertion_order: 50,
+      case_sensitive: true,
+      scan_depth: 10,
+      exclude_recursion: true,
+      group_weight: 30,
+      automation_id: 'auto',
+    }, 0);
+    expect(e.key).toEqual(['a']);
+    expect(e.keysecondary).toEqual(['b']);
+    expect(e.order).toBe(50);
+    expect(e.caseSensitive).toBe(true);
+    expect(e.scanDepth).toBe(10);
+    expect(e.excludeRecursion).toBe(true);
+    expect(e.groupWeight).toBe(30);
+    expect(e.automationId).toBe('auto');
+    // 老字段名清理掉，不污染
+    expect((e as Record<string, unknown>).keys).toBeUndefined();
+    expect((e as Record<string, unknown>).insertion_order).toBeUndefined();
+  });
+
+  it('maps string position enums to numbers', () => {
+    expect(normalizeEntry({ position: 'before_char' }, 0).position).toBe(0);
+    expect(normalizeEntry({ position: 'after_char' }, 0).position).toBe(1);
+    expect(normalizeEntry({ position: 'at_depth' }, 0).position).toBe(6);
+  });
+
+  it('treats legacy position:-1 as disabled', () => {
+    const e = normalizeEntry({ position: -1 }, 0);
+    expect(e.enabled).toBe(false);
+  });
+
+  it('collapses deprecated selectiveLogic:4 (XOR) to 0', () => {
+    expect(normalizeEntry({ selectiveLogic: 4 }, 0).selectiveLogic).toBe(0);
+  });
+
+  it('uses entry top-level name as comment fallback (NAI style)', () => {
+    expect(normalizeEntry({ name: 'My Memo' }, 0).comment).toBe('My Memo');
+  });
+
+  it('preserves comment over name when both present', () => {
+    expect(normalizeEntry({ name: 'n', comment: 'c' }, 0).comment).toBe('c');
+  });
+});
+
+describe('parseKeys — 边界', () => {
+  it('filters out null/undefined elements in arrays', () => {
+    expect(parseKeys(['a', null, undefined, 'b'] as unknown)).toEqual(['a', 'b']);
+  });
+  it('keeps regex-style key strings intact (no slash stripping)', () => {
+    expect(parseKeys(['/dark.*night/i'])).toEqual(['/dark.*night/i']);
   });
 });
