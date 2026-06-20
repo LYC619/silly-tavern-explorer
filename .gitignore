@@ -34,6 +34,7 @@ progress.md
 _reference/samples/
 _reference/st-source/
 _reference/projects/
+_reference/_archived-deadcode/
 
 # bun 锁文件：本项目用 npm(package-lock.json)，bun.lock 由 Lovable 环境产生，不纳入仓库
 bun.lock
