@@ -94,3 +94,15 @@ export async function deleteWorldBook(id: string): Promise<void> {
     request.onerror = () => reject(request.error);
   });
 }
+
+/**
+ * 只保留最近 `keep` 份「自动保留」(autoSaved) 的世界书，超出的按 updatedAt 由旧到新删除。
+ * 用户手动保存(autoSaved 非 true)的不受影响。返回被删除的 id 数组。
+ */
+export async function pruneAutoSavedWorldBooks(keep = 5): Promise<string[]> {
+  const all = await getAllWorldBooks(); // 已按 updatedAt 降序
+  const auto = all.filter(i => i.autoSaved);
+  const toDelete = auto.slice(keep); // 第 keep 份之后的（更旧的）
+  await Promise.all(toDelete.map(i => deleteWorldBook(i.id)));
+  return toDelete.map(i => i.id);
+}
