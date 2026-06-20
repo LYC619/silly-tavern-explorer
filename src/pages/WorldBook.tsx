@@ -748,9 +748,9 @@ export default function WorldBookPage() {
           ) : (
             <>
               {/* Left: entries */}
-              <div className="flex-1 min-w-0 md:border-r">
-                <ScrollArea className="h-[calc(100vh-3.5rem)]">
-                  <div className="p-4 space-y-3">
+              <div className="flex-1 min-w-0 md:border-r flex flex-col h-[calc(100vh-3.5rem)]">
+                {/* 置顶筛选/搜索条：不随条目列表滚动，方便随时筛选/批量操作下方内容 */}
+                <div className="shrink-0 border-b bg-card/60 backdrop-blur px-4 py-2 space-y-2">
                     {/* Search + Sort row */}
                     <div className="flex gap-2 items-center">
                       <div className="relative flex-1">
@@ -843,7 +843,10 @@ export default function WorldBookPage() {
                         ? `显示 ${filteredEntries.length} / 共 ${allEntries.length} 个条目 · ${filename}`
                         : `共 ${allEntries.length} 个条目 · ${filename}`}
                     </p>
+                </div>
 
+                <ScrollArea className="flex-1 min-h-0">
+                  <div className="p-4 space-y-3">
                     {viewMode === 'card' ? (
                       <div className="grid gap-3 grid-cols-1 lg:grid-cols-2">
                         {filteredEntries.map(([key, entry]) => (
