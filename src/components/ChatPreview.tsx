@@ -1,6 +1,6 @@
 import { forwardRef, useMemo, useState, useEffect, useRef, useImperativeHandle, memo } from 'react';
 import { useWindowVirtualizer } from '@tanstack/react-virtual';
-import { User, Bot, Bookmark, BookmarkPlus } from 'lucide-react';
+import { User, Bot, Bookmark, BookmarkPlus, Pencil } from 'lucide-react';
 import type { ChatSession, ThemeStyle, RegexRule, ChapterMarker } from '@/types/chat';
 import { applyRegexRules, parseRegex } from '@/lib/regex-processor';
 import { parseSTDate } from '@/components/ChatImporter';
@@ -31,6 +31,8 @@ interface ChatPreviewProps {
   regexRules: RegexRule[];
   markers?: ChapterMarker[];
   onMessageClick?: (messageId: string, messageIndex: number) => void;
+  /** 点击某楼右上角铅笔：直接打开该楼的编辑窗口（不经「编辑模式」，常驻可见，所见即点） */
+  onEditMessage?: (messageId: string, messageIndex: number) => void;
   editMode?: boolean;
   fontFamily?: string;
   /** 正在预览的规则：命中的内容会在正文中用红色删除线高亮标出（所见即所得） */
@@ -199,6 +201,8 @@ interface MessageRowProps {
   userName: string;
   charName: string;
   onMessageClick?: (messageId: string, messageIndex: number) => void;
+  /** 点击该楼右上角铅笔：直接打开本楼编辑窗口 */
+  onEditMessage?: (messageId: string, messageIndex: number) => void;
 }
 
 /**
@@ -208,7 +212,7 @@ interface MessageRowProps {
  */
 const MessageRow = memo(function MessageRow({
   message, marker, index, theme, classes, showTimestamp, showAvatar,
-  editMode, previewRule, searchQuery, isActiveMatch, userName, charName, onMessageClick,
+  editMode, previewRule, searchQuery, isActiveMatch, userName, charName, onMessageClick, onEditMessage,
 }: MessageRowProps) {
   const isUser = message.role === 'user';
   const isNewSpeaker = message.isNewSpeaker;
@@ -277,6 +281,23 @@ const MessageRow = memo(function MessageRow({
             {index}
           </span>
         )}
+        {/* 非编辑模式：每楼右上角常驻铅笔，点击直接打开本楼编辑窗口（所见即点，不必先切「编辑模式」）。
+            常驻显示而非 hover 才出现——避免用户不知道哪里能编辑。章节标记模式下让位给整行点击设章节。 */}
+        {!editMode && onEditMessage && (
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <button
+                type="button"
+                onClick={(e) => { e.stopPropagation(); onEditMessage(message.id, index); }}
+                className="absolute right-1 top-1 z-10 flex h-7 w-7 items-center justify-center rounded-md bg-background/70 text-muted-foreground shadow-sm backdrop-blur-sm transition-colors hover:bg-primary/10 hover:text-primary"
+                aria-label={`编辑第 ${index} 楼`}
+              >
+                <Pencil className="h-3.5 w-3.5" />
+              </button>
+            </TooltipTrigger>
+            <TooltipContent side="left">编辑本楼</TooltipContent>
+          </Tooltip>
+        )}
         {theme === 'social' ? (
           <>
             {showAvatar && (
@@ -344,7 +365,7 @@ const MessageRow = memo(function MessageRow({
 });
 
 export const ChatPreview = memo(forwardRef<ChatPreviewHandle, ChatPreviewProps>(
-  ({ session, theme, showTimestamp, showAvatar, fontSize, regexRules, markers = [], onMessageClick, editMode = false, fontFamily, previewRule = null, onVisibleFloorChange, onFloorMapChange, searchQuery = '', onSearchResult }, ref) => {
+  ({ session, theme, showTimestamp, showAvatar, fontSize, regexRules, markers = [], onMessageClick, onEditMessage, editMode = false, fontFamily, previewRule = null, onVisibleFloorChange, onFloorMapChange, searchQuery = '', onSearchResult }, ref) => {
     const markerMap = useMemo(() => {
       const map = new Map<string, ChapterMarker>();
       markers.forEach(m => map.set(m.messageId, m));
@@ -442,21 +463,19 @@ export const ChatPreview = memo(forwardRef<ChatPreviewHandle, ChatPreviewProps>(
       return out;
     }, [searchQuery, processedMessages]);
 
-    // 当前定位到第几个命中（matchIndices 里的下标）。搜索词变化时重置到第一个。
-    const [matchPos, setMatchPos] = useState(0);
+    // 当前定位到第几个命中（matchIndices 里的下标）。-1 = 尚未定位（刚改搜索词、还没按下一个）。
+    // 关键：搜索词变化时只重置定位与上报命中数，**不自动滚动**——否则边打字页面就被甩到第一个命中
+    // （问题1），且任何会改变 processedMessages 的操作（如新增正则）都会重算 matchIndices 触发误滚
+    // （问题3）。滚动只发生在用户主动按 Enter / 上一个 / 下一个时（见 nextMatch/prevMatch）。
+    const [matchPos, setMatchPos] = useState(-1);
     useEffect(() => {
-      setMatchPos(0);
-      // 上报命中总数与当前序号（1-based）
-      onSearchResult?.(matchIndices.length, matchIndices.length > 0 ? 1 : 0);
-      // 首个命中时滚过去
-      if (matchIndices.length > 0) {
-        virtualizer.scrollToIndex(matchIndices[0], { align: 'center' });
-      }
-      // 仅在搜索词/命中集合变化时触发，virtualizer 不入依赖避免重复滚动
+      setMatchPos(-1);
+      onSearchResult?.(matchIndices.length, 0);
+      // 仅在搜索词/命中集合变化时触发；不滚动，不入 virtualizer 依赖
       // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [matchIndices]);
 
-    const activeMatchIndex = matchIndices.length > 0 ? matchIndices[matchPos] : -1;
+    const activeMatchIndex = matchPos >= 0 && matchPos < matchIndices.length ? matchIndices[matchPos] : -1;
 
     // 暴露命令式句柄给跳转条/收藏列表
     useImperativeHandle(ref, () => ({
@@ -472,7 +491,8 @@ export const ChatPreview = memo(forwardRef<ChatPreviewHandle, ChatPreviewProps>(
       nextMatch: () => {
         if (matchIndices.length === 0) return;
         setMatchPos(p => {
-          const next = (p + 1) % matchIndices.length;
+          // 从「尚未定位」(-1) 起按下一个，跳到第一个命中
+          const next = p < 0 ? 0 : (p + 1) % matchIndices.length;
           virtualizer.scrollToIndex(matchIndices[next], { align: 'center' });
           onSearchResult?.(matchIndices.length, next + 1);
           return next;
@@ -481,7 +501,8 @@ export const ChatPreview = memo(forwardRef<ChatPreviewHandle, ChatPreviewProps>(
       prevMatch: () => {
         if (matchIndices.length === 0) return;
         setMatchPos(p => {
-          const prev = (p - 1 + matchIndices.length) % matchIndices.length;
+          // 从「尚未定位」(-1) 起按上一个，跳到最后一个命中
+          const prev = p < 0 ? matchIndices.length - 1 : (p - 1 + matchIndices.length) % matchIndices.length;
           virtualizer.scrollToIndex(matchIndices[prev], { align: 'center' });
           onSearchResult?.(matchIndices.length, prev + 1);
           return prev;
@@ -557,6 +578,7 @@ export const ChatPreview = memo(forwardRef<ChatPreviewHandle, ChatPreviewProps>(
                     userName={session.user.name}
                     charName={session.character.name}
                     onMessageClick={onMessageClick}
+                    onEditMessage={onEditMessage}
                   />
                 </div>
               );

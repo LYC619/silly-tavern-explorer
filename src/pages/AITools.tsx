@@ -16,7 +16,7 @@ import {
 import { FloorSelector } from '@/components/ai-tools/FloorSelector';
 import { PromptTemplates } from '@/components/ai-tools/PromptTemplates';
 import { BatchProcessor } from '@/components/ai-tools/BatchProcessor';
-import { loadSessionState } from '@/lib/session-storage';
+import { loadActiveSession } from '@/lib/session-storage';
 import type { ChatSession } from '@/types/chat';
 
 // Need to access the active system prompt from PromptTemplates
@@ -42,14 +42,16 @@ const AITools = () => {
 
   useEffect(() => {
     setConfig(loadAPIConfig());
-    const state = loadSessionState();
-    if (state?.session) {
-      setSession(state.session);
-      setSelectedIndices(new Set(state.session.messages.map((_, i) => i)));
-    }
+    let cancelled = false;
+    loadActiveSession().then(active => {
+      if (cancelled || !active) return;
+      setSession(active);
+      setSelectedIndices(new Set(active.messages.map((_, i) => i)));
+    });
     if (!isTourCompleted('aitools')) {
       setTimeout(() => setShowTour(true), 500);
     }
+    return () => { cancelled = true; };
   }, []);
 
   const handleConfigSave = (newConfig: APIConfig) => setConfig(newConfig);

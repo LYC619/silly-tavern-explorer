@@ -11,7 +11,7 @@ import { useToast } from '@/hooks/use-toast';
 import { callOpenAI } from './useOpenAI';
 import type { APIConfig } from './APIConfigCard';
 import type { ChapterMarker } from '@/types/chat';
-import { loadSessionState } from '@/lib/session-storage';
+import { loadActiveSession } from '@/lib/session-storage';
 
 interface PromptTemplatesProps {
   config: APIConfig;
@@ -252,18 +252,18 @@ export function PromptTemplates({ config, selectedContent, selectedCount }: Prom
     return null;
   };
 
-  const handleImportChapterMarkers = () => {
+  const handleImportChapterMarkers = async () => {
     const chaptersData = extractChapterMarkers();
     if (!chaptersData) {
       toast({ title: '未找到有效的章节标记数据', variant: 'destructive' });
       return;
     }
-    const sessionState = loadSessionState();
-    if (!sessionState?.session) {
+    const activeSession = await loadActiveSession();
+    if (!activeSession) {
       toast({ title: '未找到活跃的聊天记录', description: '请先在主页导入聊天记录', variant: 'destructive' });
       return;
     }
-    const messages = sessionState.session.messages;
+    const messages = activeSession.messages;
     const markers: ChapterMarker[] = chaptersData
       .filter((c: ExtractedChapter) => c.floor >= 1 && c.floor <= messages.length)
       .map((c: ExtractedChapter) => ({

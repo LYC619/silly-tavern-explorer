@@ -14,14 +14,16 @@ import { HOME_TOUR_STEPS, isTourCompleted, setTourCompleted } from '@/lib/tour-s
 import { demoSession } from '@/components/DemoData';
 import type { ChatSession, ExportSettings, ChapterMarker, ChatMessage, RegexRule } from '@/types/chat';
 import { saveBook, getBook, generateBookId, type BookItem } from '@/lib/bookshelf-db';
-import { 
-  saveSessionState, 
-  loadSessionState, 
+import {
+  saveSessionPointer,
+  loadSessionPointer,
+  loadActiveSession,
   clearSessionState,
   getInitialRegexRules,
   saveSettings,
   loadSettings,
 } from '@/lib/session-storage';
+import { SettingsPanel } from '@/components/SettingsPanel';
 import { useToast } from '@/hooks/use-toast';
 import { ToastAction } from '@/components/ui/toast';
 
@@ -71,7 +73,6 @@ const Index = () => {
     setSearchResult({ total, current });
   }, []);
   const [editMode, setEditMode] = useState(false);
-  const [contentEditMode, setContentEditMode] = useState(false);
   const [markerDialogOpen, setMarkerDialogOpen] = useState(false);
   const [messageEditDialogOpen, setMessageEditDialogOpen] = useState(false);
   const [selectedMessage, setSelectedMessage] = useState<{ id: string; index: number } | null>(null);
@@ -115,12 +116,19 @@ const Index = () => {
       }
       window.history.replaceState({}, document.title);
     } else {
-      const savedState = loadSessionState();
-      if (savedState?.session) {
-        setSession(savedState.session);
-        setMarkers(savedState.markers);
-        setFavorites(savedState.favorites ?? []);
-        setCurrentBookId(savedState.currentBookId);
+      // session 本体已不在 sessionStorage（见 SessionPointer 注释），凭指针从 IndexedDB 回读，
+      // 再用指针里的 markers/favorites（最近一次未必已保存到书架的临时编辑态）覆盖。
+      const pointer = loadSessionPointer();
+      if (pointer?.currentBookId) {
+        let cancelled = false;
+        loadActiveSession().then(active => {
+          if (cancelled || !active) return;
+          setSession(active);
+          setMarkers(pointer.markers ?? []);
+          setFavorites(pointer.favorites ?? []);
+          setCurrentBookId(pointer.currentBookId);
+        });
+        return () => { cancelled = true; };
       }
     }
   }, [location.state, showTour]);
@@ -151,32 +159,19 @@ const Index = () => {
     }
   }, []);
 
-  // 保存状态到 sessionStorage（防抖）
-  // 注意：依赖不含 settings——否则改字号/宽度/主题等纯样式操作会触发对整份(可能数十万字)
-  // session 的 JSON.stringify，造成「松手卡一下」。settings 本身已单独持久化到 localStorage，
-  // 这里用 ref 取其最新值随 session/markers 变化时一并存即可。
+  // 保存「跨页临时态」到 sessionStorage（防抖）。
+  // 现在只存轻量指针(currentBookId+markers+favorites)，session 本体在 IndexedDB，
+  // 永远不会触及 5MB 配额，故不再需要 quota 提示。settings 已单独持久化到 localStorage。
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const settingsRef = useRef(settings);
-  settingsRef.current = settings;
-  // 只在首次配额溢出时提示一次，避免每次防抖保存都弹 toast 刷屏
-  const quotaWarnedRef = useRef(false);
   useEffect(() => {
     if (session) {
       if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
       saveTimerRef.current = setTimeout(() => {
-        const ok = saveSessionState({ session, markers, currentBookId, settings: settingsRef.current, favorites });
-        if (!ok && !quotaWarnedRef.current) {
-          quotaWarnedRef.current = true;
-          toast({
-            title: '临时缓存已满，跨页可能丢失编辑',
-            description: '这份记录较大，超出浏览器临时存储上限。请点「保存到书架」持久化，避免切换页面后丢失改动。',
-            variant: 'destructive',
-          });
-        }
+        saveSessionPointer({ currentBookId, markers, favorites });
       }, 500);
     }
     return () => { if (saveTimerRef.current) clearTimeout(saveTimerRef.current); };
-  }, [session, markers, currentBookId, favorites, toast]);
+  }, [session, markers, currentBookId, favorites]);
 
   // 保存设置变更到 localStorage
   useEffect(() => {
@@ -224,7 +219,6 @@ const Index = () => {
     setMarkers([]);
     setFavorites([]);
     setEditMode(false);
-    setContentEditMode(false);
     setCurrentBookId(null);
     setRegexSidebarOpen(false);
     clearSessionState();
@@ -257,15 +251,19 @@ const Index = () => {
     }
   };
 
+  // 章节标记模式：点任意楼弹出章节标记对话框
   const handleMessageClick = useCallback((messageId: string, messageIndex: number) => {
-    if (contentEditMode) {
-      setSelectedMessage({ id: messageId, index: messageIndex });
-      setMessageEditDialogOpen(true);
-    } else if (editMode) {
+    if (editMode) {
       setSelectedMessage({ id: messageId, index: messageIndex });
       setMarkerDialogOpen(true);
     }
-  }, [contentEditMode, editMode]);
+  }, [editMode]);
+
+  // 点某楼右上角铅笔：直接打开该楼编辑窗口（不经「编辑模式」，所见即点）
+  const handleEditMessage = useCallback((messageId: string, messageIndex: number) => {
+    setSelectedMessage({ id: messageId, index: messageIndex });
+    setMessageEditDialogOpen(true);
+  }, []);
 
   const handleSaveMessage = (updatedMessage: ChatMessage) => {
     if (!session) return;
@@ -410,18 +408,8 @@ const Index = () => {
     });
   };
 
-  const handleToggleContentEdit = () => {
-    setContentEditMode(!contentEditMode);
-    if (!contentEditMode) {
-      setEditMode(false);
-    }
-  };
-
   const handleToggleEditMode = () => {
     setEditMode(!editMode);
-    if (!editMode) {
-      setContentEditMode(false);
-    }
   };
 
   const selectedMarker = selectedMessage 
@@ -430,21 +418,35 @@ const Index = () => {
 
   return (
     <AppLayout
+      leftActions={
+        <>
+          {/* 外观设置（顶栏最左常驻，popover 从左展开不遮正文） */}
+          <SettingsPanel settings={settings} onSettingsChange={setSettings} />
+          {/* 全文搜索：仅在有记录且不在章节标记模式时显示 */}
+          {session && !editMode && (
+            <MessageSearchBar
+              query={searchQuery}
+              onQueryChange={setSearchQuery}
+              total={searchResult.total}
+              current={searchResult.current}
+              onNext={() => previewRef.current?.nextMatch()}
+              onPrev={() => previewRef.current?.prevMatch()}
+            />
+          )}
+        </>
+      }
       actions={
         <EditorToolbar
           session={session}
           settings={settings}
           markers={markers}
           editMode={editMode}
-          contentEditMode={contentEditMode}
           regexSidebarOpen={regexSidebarOpen}
           onLoadSession={setSession}
           onReset={handleReset}
           onSaveToBookshelf={handleSaveToBookshelf}
-          onToggleContentEdit={handleToggleContentEdit}
           onToggleEditMode={handleToggleEditMode}
           onToggleRegex={() => setRegexSidebarOpen(!regexSidebarOpen)}
-          onSettingsChange={setSettings}
         />
       }
     >
@@ -488,21 +490,10 @@ const Index = () => {
                       <span className="ml-2 text-primary">· {markers.length} 个章节标记</span>
                     )}
                   </div>
-                  {(editMode || contentEditMode) ? (
+                  {editMode && (
                     <div className="text-sm text-primary animate-pulse">
-                      {contentEditMode
-                        ? '点击消息编辑内容'
-                        : '点击消息添加章节标记'}
+                      点击消息添加章节标记
                     </div>
-                  ) : (
-                    <MessageSearchBar
-                      query={searchQuery}
-                      onQueryChange={setSearchQuery}
-                      total={searchResult.total}
-                      current={searchResult.current}
-                      onNext={() => previewRef.current?.nextMatch()}
-                      onPrev={() => previewRef.current?.prevMatch()}
-                    />
                   )}
                 </div>
 
@@ -534,7 +525,8 @@ const Index = () => {
                         regexRules={settings.regexRules}
                         markers={markers}
                         onMessageClick={handleMessageClick}
-                        editMode={editMode || contentEditMode}
+                        onEditMessage={handleEditMessage}
+                        editMode={editMode}
                         fontFamily={settings.fontFamily}
                         previewRule={previewRule}
                         onVisibleFloorChange={handleVisibleFloorChange}
@@ -605,7 +597,7 @@ const Index = () => {
 
       {/* Footer */}
       <footer className="border-t border-border py-6 text-center text-sm text-muted-foreground flex-shrink-0">
-        <p>ST 聊天记录处理器 v0.9</p>
+        <p>ST 聊天记录处理器 v0.10.1</p>
         <p className="mt-1">
           <a href="https://github.com/LYC619/silly-tavern-explorer" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">GitHub</a>
           {' · MIT License'}
