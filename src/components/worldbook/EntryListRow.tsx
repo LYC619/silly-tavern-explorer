@@ -11,7 +11,7 @@ interface Props {
   onToggleEnabled: (enabled: boolean) => void;
   batchMode?: boolean;
   batchChecked?: boolean;
-  onBatchToggle?: (checked: boolean) => void;
+  onBatchToggle?: (checked: boolean, shiftKey: boolean) => void;
 }
 
 function strategyIcon(entry: WorldBookEntry) {
@@ -31,7 +31,11 @@ export function EntryListRow({ entry, selected, onClick, onToggleEnabled, batchM
     >
       {batchMode && (
         <td className="px-2 py-1.5 w-8" onClick={(e) => e.stopPropagation()}>
-          <Checkbox checked={batchChecked} onCheckedChange={(v) => onBatchToggle?.(!!v)} className="scale-75" />
+          <Checkbox
+            checked={batchChecked}
+            onClick={(e) => onBatchToggle?.(!batchChecked, (e as React.MouseEvent).shiftKey)}
+            className="scale-75"
+          />
         </td>
       )}
       <td className="px-2 py-1.5 w-10" onClick={(e) => e.stopPropagation()}>
