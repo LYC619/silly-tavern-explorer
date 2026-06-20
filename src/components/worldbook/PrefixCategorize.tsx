@@ -136,8 +136,8 @@ export function PrefixCategorize({ entries, onApply, startOrder = 100, stepOrder
 
   return (
     <>
-      <Button variant="outline" size="sm" className="hidden sm:inline-flex" onClick={handleOpen}>
-        <Tags className="w-4 h-4 mr-1" /> 前缀归类
+      <Button variant="outline" size="sm" className="h-7 text-xs" onClick={handleOpen}>
+        <Tags className="w-3.5 h-3.5 mr-1" /> 前缀归类
       </Button>
 
       <Dialog open={open} onOpenChange={setOpen}>
