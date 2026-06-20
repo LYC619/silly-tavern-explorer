@@ -1,21 +1,8 @@
-import type { ChatSession, ChapterMarker, ExportSettings } from '@/types/chat';
-
-export interface BookItem {
-  id: string;
-  title: string;
-  cover?: string; // base64 image
-  session: ChatSession;
-  markers: ChapterMarker[];
-  settings?: ExportSettings;
-  /** 收藏的楼层（messageId 列表，轻量书签，不进导出） */
-  favorites?: string[];
-  createdAt: number;
-  updatedAt: number;
-}
+import type { PresetItem } from '@/types/preset';
 
 const DB_NAME = 'st-chat-beautifier';
 const DB_VERSION = 3;
-const STORE_NAME = 'books';
+const STORE_NAME = 'presets';
 
 let dbInstance: IDBDatabase | null = null;
 
@@ -43,9 +30,11 @@ function openDB(): Promise<IDBDatabase> {
       const oldVersion = event.oldVersion;
 
       if (oldVersion < 1) {
-        const store = db.createObjectStore(STORE_NAME, { keyPath: 'id' });
-        store.createIndex('updatedAt', 'updatedAt', { unique: false });
-        store.createIndex('title', 'title', { unique: false });
+        if (!db.objectStoreNames.contains('books')) {
+          const store = db.createObjectStore('books', { keyPath: 'id' });
+          store.createIndex('updatedAt', 'updatedAt', { unique: false });
+          store.createIndex('title', 'title', { unique: false });
+        }
       }
 
       if (oldVersion < 2) {
@@ -57,8 +46,8 @@ function openDB(): Promise<IDBDatabase> {
       }
 
       if (oldVersion < 3) {
-        if (!db.objectStoreNames.contains('presets')) {
-          const pStore = db.createObjectStore('presets', { keyPath: 'id' });
+        if (!db.objectStoreNames.contains(STORE_NAME)) {
+          const pStore = db.createObjectStore(STORE_NAME, { keyPath: 'id' });
           pStore.createIndex('updatedAt', 'updatedAt', { unique: false });
           pStore.createIndex('title', 'title', { unique: false });
         }
@@ -67,59 +56,61 @@ function openDB(): Promise<IDBDatabase> {
   });
 }
 
-export async function getAllBooks(): Promise<BookItem[]> {
+export async function getAllPresets(): Promise<PresetItem[]> {
   const db = await openDB();
   return new Promise((resolve, reject) => {
     const tx = db.transaction(STORE_NAME, 'readonly');
     const store = tx.objectStore(STORE_NAME);
-    const index = store.index('updatedAt');
-    const request = index.getAll();
-
+    const request = store.getAll();
     request.onsuccess = () => {
-      // Sort by updatedAt descending
-      const books = request.result.sort((a, b) => b.updatedAt - a.updatedAt);
-      resolve(books);
+      const items = request.result.sort((a: PresetItem, b: PresetItem) => b.updatedAt - a.updatedAt);
+      resolve(items);
     };
     request.onerror = () => reject(request.error);
   });
 }
 
-export async function getBook(id: string): Promise<BookItem | undefined> {
+export async function getPreset(id: string): Promise<PresetItem | undefined> {
   const db = await openDB();
   return new Promise((resolve, reject) => {
     const tx = db.transaction(STORE_NAME, 'readonly');
     const store = tx.objectStore(STORE_NAME);
     const request = store.get(id);
-
     request.onsuccess = () => resolve(request.result);
     request.onerror = () => reject(request.error);
   });
 }
 
-export async function saveBook(book: BookItem): Promise<void> {
+export async function savePreset(item: PresetItem): Promise<void> {
   const db = await openDB();
   return new Promise((resolve, reject) => {
     const tx = db.transaction(STORE_NAME, 'readwrite');
     const store = tx.objectStore(STORE_NAME);
-    const request = store.put(book);
-
+    const request = store.put(item);
     request.onsuccess = () => resolve();
     request.onerror = () => reject(request.error);
   });
 }
 
-export async function deleteBook(id: string): Promise<void> {
+export async function deletePreset(id: string): Promise<void> {
   const db = await openDB();
   return new Promise((resolve, reject) => {
     const tx = db.transaction(STORE_NAME, 'readwrite');
     const store = tx.objectStore(STORE_NAME);
     const request = store.delete(id);
-
     request.onsuccess = () => resolve();
     request.onerror = () => reject(request.error);
   });
 }
 
-export function generateBookId(): string {
-  return `book_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`;
+/**
+ * 只保留最近 `keep` 份「自动保留」(autoSaved) 的预设，超出的按 updatedAt 由旧到新删除。
+ * 用户手动保存(autoSaved 非 true)的不受影响。返回被删除的 id 数组。
+ */
+export async function pruneAutoSavedPresets(keep = 5): Promise<string[]> {
+  const all = await getAllPresets(); // 已按 updatedAt 降序
+  const auto = all.filter(i => i.autoSaved);
+  const toDelete = auto.slice(keep);
+  await Promise.all(toDelete.map(i => deletePreset(i.id)));
+  return toDelete.map(i => i.id);
 }
