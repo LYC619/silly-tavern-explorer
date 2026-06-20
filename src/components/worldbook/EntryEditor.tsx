@@ -7,7 +7,9 @@ import { Switch } from '@/components/ui/switch';
 import { Slider } from '@/components/ui/slider';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
-import { ChevronDown, X } from 'lucide-react';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Button } from '@/components/ui/button';
+import { ChevronDown, X, Maximize2 } from 'lucide-react';
 import type { WorldBookEntry } from '@/types/worldbook';
 import { POSITION_LABELS, SELECTIVE_LOGIC_LABELS, ROLE_LABELS } from '@/types/worldbook';
 
@@ -65,6 +67,7 @@ function TagInput({ tags, onChange, dashed = false, placeholder = '' }: {
 }
 
 export function EntryEditor({ entry, onChange }: Props) {
+  const [contentExpanded, setContentExpanded] = useState(false);
   const update = <K extends keyof WorldBookEntry>(key: K, value: WorldBookEntry[K]) => {
     onChange({ ...entry, [key]: value });
   };
@@ -131,9 +134,42 @@ export function EntryEditor({ entry, onChange }: Props) {
 
       {/* Content */}
       <div className="space-y-1">
-        <Label>内容 (Content)</Label>
+        <div className="flex items-center justify-between">
+          <Label>内容 (Content)</Label>
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            className="h-6 px-2 text-xs text-muted-foreground hover:text-foreground"
+            onClick={() => setContentExpanded(true)}
+            title="放大编辑"
+          >
+            <Maximize2 className="w-3.5 h-3.5 mr-1" /> 放大
+          </Button>
+        </div>
         <Textarea value={entry.content} onChange={(e) => update('content', e.target.value)} rows={8} className="text-sm" />
       </div>
+
+      {/* 放大编辑内容弹窗 */}
+      <Dialog open={contentExpanded} onOpenChange={setContentExpanded}>
+        <DialogContent className="max-w-3xl">
+          <DialogHeader>
+            <DialogTitle className="text-base">
+              编辑内容{entry.comment ? ` — ${entry.comment}` : ''}
+            </DialogTitle>
+          </DialogHeader>
+          <Textarea
+            value={entry.content}
+            onChange={(e) => update('content', e.target.value)}
+            className="text-sm font-mono min-h-[60vh] resize-none"
+            placeholder="在此自由编辑条目内容..."
+            autoFocus
+          />
+          <div className="flex justify-end">
+            <Button size="sm" onClick={() => setContentExpanded(false)}>完成</Button>
+          </div>
+        </DialogContent>
+      </Dialog>
 
       {/* Position */}
       <div className="space-y-1">
