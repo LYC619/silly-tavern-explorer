@@ -127,10 +127,11 @@ export function GlobalSettings({ onDataChanged, ...props }: GlobalSettingsProps)
     if (!file) return;
     try {
       setLoading(true);
-      const { books, worldbooks, presets } = await importFullBackup(file);
+      const { books, worldbooks, presets, cards } = await importFullBackup(file);
       const parts = [`${books} 本作品`];
       if (worldbooks > 0) parts.push(`${worldbooks} 本世界书`);
       if (presets > 0) parts.push(`${presets} 份预设`);
+      if (cards > 0) parts.push(`${cards} 张角色卡`);
       toast({
         title: '恢复成功',
         description: `已导入 ${parts.join('、')}`,

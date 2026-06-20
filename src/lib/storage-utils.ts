@@ -5,6 +5,7 @@
 import type { BookItem } from '@/lib/bookshelf-db';
 import type { WorldBookItem } from '@/types/worldbook';
 import type { PresetItem } from '@/types/preset';
+import type { CardItem } from '@/types/character-card';
 
 const DB_NAME = 'st-chat-beautifier';
 
@@ -29,15 +30,15 @@ export async function estimateStorageUsage(): Promise<{
 
 /**
  * Export entire IndexedDB as a JSON file for backup.
- * 同时备份 books（聊天作品）、worldbooks（世界书）、presets（预设）三个 store，
- * 三者是独立的 object store，少备份任何一个都会造成"完整备份"名不副实的数据丢失。
+ * 同时备份 books（聊天作品）、worldbooks（世界书）、presets（预设）、cards（角色卡）四个 store，
+ * 它们是独立的 object store，少备份任何一个都会造成"完整备份"名不副实的数据丢失。
  */
 export async function exportFullBackup(): Promise<void> {
   const db = await openDB();
 
   const readAll = <T>(storeName: string) =>
     new Promise<T[]>((resolve, reject) => {
-      // 某些旧库可能尚未建出 worldbooks/presets store，缺失时返回空数组而非抛错
+      // 某些旧库可能尚未建出 worldbooks/presets/cards store，缺失时返回空数组而非抛错
       if (!db.objectStoreNames.contains(storeName)) {
         resolve([]);
         return;
@@ -47,19 +48,21 @@ export async function exportFullBackup(): Promise<void> {
       req.onerror = () => reject(req.error);
     });
 
-  const [allBooks, allWorldbooks, allPresets] = await Promise.all([
+  const [allBooks, allWorldbooks, allPresets, allCards] = await Promise.all([
     readAll<BookItem>('books'),
     readAll<WorldBookItem>('worldbooks'),
     readAll<PresetItem>('presets'),
+    readAll<CardItem>('cards'),
   ]);
 
   const backup = {
-    version: 3,
+    version: 4,
     exportedAt: new Date().toISOString(),
     app: 'silly-tavern-explorer',
     books: allBooks,
     worldbooks: allWorldbooks,
     presets: allPresets,
+    cards: allCards,
   };
 
   const blob = new Blob([JSON.stringify(backup)], { type: 'application/json;charset=utf-8' });
@@ -75,10 +78,10 @@ export async function exportFullBackup(): Promise<void> {
 
 /**
  * Import a backup JSON file into IndexedDB.
- * 兼容 v1 备份（只有 books）、v2 备份（books + worldbooks）与 v3 备份（再加 presets）。
- * 返回写入的书籍数、世界书数与预设数。
+ * 兼容 v1(books)/v2(+worldbooks)/v3(+presets)/v4(+cards) 备份。
+ * 返回写入的书籍数、世界书数、预设数与角色卡数。
  */
-export async function importFullBackup(file: File): Promise<{ books: number; worldbooks: number; presets: number }> {
+export async function importFullBackup(file: File): Promise<{ books: number; worldbooks: number; presets: number; cards: number }> {
   const text = await file.text();
   const data = JSON.parse(text);
 
@@ -117,12 +120,14 @@ export async function importFullBackup(file: File): Promise<{ books: number; wor
   const worldbooks = await putAll('worldbooks', data.worldbooks ?? [], (w) => !!w.id);
   // v1/v2 备份没有 presets 字段，putAll 会安全地返回 0
   const presets = await putAll('presets', data.presets ?? [], (p) => !!p.id);
+  // v1/v2/v3 备份没有 cards 字段，putAll 会安全地返回 0
+  const cards = await putAll('cards', data.cards ?? [], (c) => !!c.id && !!c.card);
 
-  return { books, worldbooks, presets };
+  return { books, worldbooks, presets, cards };
 }
 
 /**
- * Clear all data from IndexedDB（books + worldbooks + presets 一并清空）
+ * Clear all data from IndexedDB（books + worldbooks + presets + cards 一并清空）
  */
 export async function clearAllData(): Promise<void> {
   const db = await openDB();
@@ -137,12 +142,12 @@ export async function clearAllData(): Promise<void> {
       req.onsuccess = () => resolve();
       req.onerror = () => reject(req.error);
     });
-  await Promise.all([clearStore('books'), clearStore('worldbooks'), clearStore('presets')]);
+  await Promise.all([clearStore('books'), clearStore('worldbooks'), clearStore('presets'), clearStore('cards')]);
 }
 
 function openDB(): Promise<IDBDatabase> {
   return new Promise((resolve, reject) => {
-    const request = indexedDB.open(DB_NAME, 3);
+    const request = indexedDB.open(DB_NAME, 4);
     request.onerror = () => reject(request.error);
     request.onsuccess = () => resolve(request.result);
     request.onupgradeneeded = (event) => {
@@ -161,6 +166,11 @@ function openDB(): Promise<IDBDatabase> {
         const pStore = db.createObjectStore('presets', { keyPath: 'id' });
         pStore.createIndex('updatedAt', 'updatedAt', { unique: false });
         pStore.createIndex('title', 'title', { unique: false });
+      }
+      if (!db.objectStoreNames.contains('cards')) {
+        const cStore = db.createObjectStore('cards', { keyPath: 'id' });
+        cStore.createIndex('updatedAt', 'updatedAt', { unique: false });
+        cStore.createIndex('title', 'title', { unique: false });
       }
     };
   });
