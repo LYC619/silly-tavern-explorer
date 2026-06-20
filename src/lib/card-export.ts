@@ -1,4 +1,4 @@
-import type { STCharacterCard, CharacterCardData } from '@/lib/png-parser';
+import type { STCharacterCard, CharacterCardData, NormalizedCharacterCard } from '@/lib/png-parser';
 
 /**
  * 角色卡写回与导出。
@@ -69,4 +69,24 @@ export function applyEditsToCard(raw: STCharacterCard, edits: CardEdits): STChar
 /** 导出为角色卡 JSON 字符串（2 空格缩进） */
 export function exportCardJson(card: STCharacterCard): string {
   return JSON.stringify(card, null, 2);
+}
+
+/** 从归一化卡提取可编辑字段（编辑态初值） */
+export function editsFromNormalized(card: NormalizedCharacterCard): CardEdits {
+  return {
+    name: card.name,
+    nickname: card.nickname,
+    description: card.description,
+    personality: card.personality,
+    scenario: card.scenario,
+    firstMessage: card.firstMessage,
+    messageExample: card.messageExample,
+    creatorNotes: card.creatorNotes,
+    systemPrompt: card.systemPrompt,
+    postHistoryInstructions: card.postHistoryInstructions,
+    alternateGreetings: [...card.alternateGreetings],
+    tags: [...card.tags],
+    creator: card.creator,
+    characterVersion: card.characterVersion,
+  };
 }
