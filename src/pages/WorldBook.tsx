@@ -1,6 +1,6 @@
 import { useState, useCallback, useMemo, useEffect, useRef } from 'react';
 import { useIsMobile } from '@/hooks/use-mobile';
-import { Globe, LayoutGrid, List, Library, Plus, Trash2, Save, Search, X, CheckSquare, Clock, FolderOpen, Archive } from 'lucide-react';
+import { Globe, LayoutGrid, List, Library, Plus, Trash2, Save, Search, X, CheckSquare, Clock, FolderOpen, Archive, SlidersHorizontal, ChevronLeft, ChevronRight } from 'lucide-react';
 import { GuidedTour } from '@/components/GuidedTour';
 import { AppLayout } from '@/components/AppLayout';
 import { WORLDBOOK_TOUR_STEPS, isTourCompleted, setTourCompleted } from '@/lib/tour-steps';
@@ -13,6 +13,8 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sh
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Toggle } from '@/components/ui/toggle';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
@@ -69,6 +71,9 @@ export default function WorldBookPage() {
   const [sortMode, setSortMode] = useState<SortMode>('order-asc');
   const [showTour, setShowTour] = useState(false);
   const [isDirty, setIsDirty] = useState(false);
+  // 分页：每页条数 + 当前页(1-based)。pageSize=0 表示全部
+  const [pageSize, setPageSize] = useState(25);
+  const [page, setPage] = useState(1);
 
   // beforeunload guard for unsaved changes
   useEffect(() => {
@@ -188,6 +193,27 @@ export default function WorldBookPage() {
 
     return result;
   }, [allEntries, searchQuery, filterConstant, filterKeyword, filterVector, filterEnabled, filterDisabled, filterPosition, sortMode]);
+
+  // 分页：总页数 + 当前页切片。pageSize=0 → 全部
+  const totalPages = pageSize > 0 ? Math.max(1, Math.ceil(filteredEntries.length / pageSize)) : 1;
+  const pagedEntries = useMemo(() => {
+    if (pageSize <= 0) return filteredEntries;
+    const start = (page - 1) * pageSize;
+    return filteredEntries.slice(start, start + pageSize);
+  }, [filteredEntries, page, pageSize]);
+
+  // 筛选/搜索/排序变化或页数缩减时，把当前页夹回有效范围
+  useEffect(() => {
+    setPage(p => Math.min(Math.max(1, p), totalPages));
+  }, [totalPages]);
+  useEffect(() => {
+    setPage(1);
+  }, [searchQuery, filterConstant, filterKeyword, filterVector, filterEnabled, filterDisabled, filterPosition, pageSize]);
+
+  // 激活的筛选项数量（给「筛选」按钮角标）
+  const activeFilterCount =
+    (filterConstant ? 1 : 0) + (filterKeyword ? 1 : 0) + (filterVector ? 1 : 0) +
+    (filterEnabled ? 1 : 0) + (filterDisabled ? 1 : 0) + (filterPosition !== 'all' ? 1 : 0);
 
   const clearFilters = () => {
     setSearchQuery('');
@@ -551,6 +577,15 @@ export default function WorldBookPage() {
           <Globe className="w-5 h-5 text-primary" />
           <h1 className="font-semibold text-foreground text-lg mr-2 hidden sm:block">世界书编辑器</h1>
 
+          {/* 条目计数 + 世界书名（从置顶栏移到顶部） */}
+          {worldbook && (
+            <span className="text-xs text-muted-foreground truncate max-w-[280px] hidden md:inline">
+              {hasFilters
+                ? `${filteredEntries.length} / ${allEntries.length} 条 · ${filename}`
+                : `${allEntries.length} 条 · ${filename}`}
+            </span>
+          )}
+
           {/* Tab switcher */}
           <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as 'edit' | 'quick')} className="hidden sm:block">
             <TabsList className="h-8">
@@ -722,132 +757,148 @@ export default function WorldBookPage() {
             <>
               {/* Left: entries */}
               <div className="flex-1 min-w-0 md:border-r flex flex-col h-[calc(100vh-3.5rem)]">
-                {/* 置顶筛选/搜索条：不随条目列表滚动，方便随时筛选/批量操作下方内容 */}
+                {/* 置顶筛选/搜索条：不随条目列表滚动，最多两行 */}
                 <div className="shrink-0 border-b bg-card/60 backdrop-blur px-4 py-2 space-y-2">
-                    {/* Search + Sort row */}
-                    <div className="flex gap-2 items-center">
-                      <div className="relative flex-1">
-                        <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                        <Input
-                          value={searchQuery}
-                          onChange={(e) => setSearchQuery(e.target.value)}
-                          placeholder="搜索标题、关键词、内容..."
-                          className="h-8 pl-8 text-sm"
-                        />
-                        {searchQuery && (
-                          <button className="absolute right-2 top-1/2 -translate-y-1/2" onClick={() => setSearchQuery('')}>
-                            <X className="w-3.5 h-3.5 text-muted-foreground" />
-                          </button>
-                        )}
-                      </div>
-                      <Select value={sortMode} onValueChange={(v) => setSortMode(v as SortMode)}>
-                        <SelectTrigger className="h-8 w-36 text-xs shrink-0">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="order-asc">Order 升序</SelectItem>
-                          <SelectItem value="order-desc">Order 降序</SelectItem>
-                          <SelectItem value="title">标题排序</SelectItem>
-                          <SelectItem value="uid">创建顺序</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
+                  {batchMode ? (
+                    <BatchOperations
+                      selectedKeys={batchSelected}
+                      totalFiltered={filteredEntries.length}
+                      onSelectAll={() => setBatchSelected(new Set(filteredEntries.map(([k]) => k)))}
+                      onDeselectAll={() => setBatchSelected(new Set())}
+                      onExitBatch={exitBatchMode}
+                      onBatchPrefix={handleBatchPrefix}
+                      onBatchDelete={handleBatchDelete}
+                      onBatchPosition={handleBatchPosition}
+                      onBatchStrategy={handleBatchStrategy}
+                      onBatchEnable={handleBatchEnable}
+                    />
+                  ) : (
+                    <>
+                      {/* 行1：搜索 + 排序 + 筛选 + 每页条数 + 视图切换 */}
+                      <div className="flex gap-2 items-center flex-wrap">
+                        <div className="relative w-56 max-w-full">
+                          <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                          <Input
+                            value={searchQuery}
+                            onChange={(e) => setSearchQuery(e.target.value)}
+                            placeholder="搜索…"
+                            className="h-8 pl-8 pr-7 text-sm"
+                          />
+                          {searchQuery && (
+                            <button className="absolute right-2 top-1/2 -translate-y-1/2" onClick={() => setSearchQuery('')}>
+                              <X className="w-3.5 h-3.5 text-muted-foreground" />
+                            </button>
+                          )}
+                        </div>
 
-                    {/* 内容处理操作行：新增 / 批量 / 前缀归类 / 视图切换 */}
-                    <div className="flex items-center gap-1.5 flex-wrap">
-                      <Button variant="outline" size="sm" className="h-7 text-xs" onClick={addEntry}>
-                        <Plus className="w-3.5 h-3.5 mr-1" /> 新增
-                      </Button>
-                      <Button variant={batchMode ? 'default' : 'outline'} size="sm" className="h-7 text-xs"
-                        onClick={() => batchMode ? exitBatchMode() : setBatchMode(true)} data-tour="wb-batch">
-                        <CheckSquare className="w-3.5 h-3.5 mr-1" /> 批量
-                      </Button>
-                      <div data-tour="wb-prefix">
-                        <PrefixCategorize entries={worldbook.entries} onApply={handlePrefixCategorize} />
-                      </div>
-                      <div className="flex-1" />
-                      <div data-tour="wb-view-toggle" className="flex items-center gap-0">
-                        <Button variant={viewMode === 'card' ? 'default' : 'ghost'} size="icon" className="h-7 w-7"
-                          onClick={() => setViewMode('card')} aria-label="卡片视图">
-                          <LayoutGrid className="w-4 h-4" />
-                        </Button>
-                        <Button variant={viewMode === 'list' ? 'default' : 'ghost'} size="icon" className="h-7 w-7"
-                          onClick={() => setViewMode('list')} aria-label="列表视图">
-                          <List className="w-4 h-4" />
-                        </Button>
-                      </div>
-                    </div>
-
-                    {/* Filters / Batch toolbar */}
-                    {batchMode ? (
-                      <BatchOperations
-                        selectedKeys={batchSelected}
-                        totalFiltered={filteredEntries.length}
-                        onSelectAll={() => setBatchSelected(new Set(filteredEntries.map(([k]) => k)))}
-                        onDeselectAll={() => setBatchSelected(new Set())}
-                        onExitBatch={exitBatchMode}
-                        onBatchPrefix={handleBatchPrefix}
-                        onBatchDelete={handleBatchDelete}
-                        onBatchPosition={handleBatchPosition}
-                        onBatchStrategy={handleBatchStrategy}
-                        onBatchEnable={handleBatchEnable}
-                      />
-                    ) : (
-                      <div className="flex flex-wrap gap-1.5 items-center">
-                        <Toggle size="sm" pressed={filterConstant} onPressedChange={setFilterConstant}
-                          className="h-7 text-xs px-2 data-[state=on]:bg-blue-500/20 data-[state=on]:text-blue-700">
-                          🔵 常驻
-                        </Toggle>
-                        <Toggle size="sm" pressed={filterKeyword} onPressedChange={setFilterKeyword}
-                          className="h-7 text-xs px-2 data-[state=on]:bg-green-500/20 data-[state=on]:text-green-700">
-                          🟢 关键词
-                        </Toggle>
-                        <Toggle size="sm" pressed={filterVector} onPressedChange={setFilterVector}
-                          className="h-7 text-xs px-2 data-[state=on]:bg-purple-500/20 data-[state=on]:text-purple-700">
-                          🔗 向量
-                        </Toggle>
-                        <div className="w-px h-5 bg-border" />
-                        <Toggle size="sm" pressed={filterEnabled} onPressedChange={setFilterEnabled}
-                          className="h-7 text-xs px-2">
-                          已启用
-                        </Toggle>
-                        <Toggle size="sm" pressed={filterDisabled} onPressedChange={setFilterDisabled}
-                          className="h-7 text-xs px-2">
-                          已禁用
-                        </Toggle>
-                        <div className="w-px h-5 bg-border" />
-                        <Select value={filterPosition} onValueChange={setFilterPosition}>
-                          <SelectTrigger className="h-7 w-28 text-xs">
-                            <SelectValue placeholder="位置" />
+                        <Select value={sortMode} onValueChange={(v) => setSortMode(v as SortMode)}>
+                          <SelectTrigger className="h-8 w-28 text-xs shrink-0">
+                            <SelectValue />
                           </SelectTrigger>
                           <SelectContent>
-                            <SelectItem value="all">全部位置</SelectItem>
-                            {Object.entries(POSITION_LABELS).map(([k, v]) => (
-                              <SelectItem key={k} value={k}>{v}</SelectItem>
-                            ))}
+                            <SelectItem value="order-asc">Order 升序</SelectItem>
+                            <SelectItem value="order-desc">Order 降序</SelectItem>
+                            <SelectItem value="title">标题排序</SelectItem>
+                            <SelectItem value="uid">创建顺序</SelectItem>
                           </SelectContent>
                         </Select>
-                        {hasFilters && (
-                          <Button variant="ghost" size="sm" className="h-7 text-xs" onClick={clearFilters}>
-                            <X className="w-3 h-3 mr-1" /> 清除
-                          </Button>
-                        )}
-                      </div>
-                    )}
 
-                    {/* Count */}
-                    <p className="text-sm text-muted-foreground">
-                      {hasFilters
-                        ? `显示 ${filteredEntries.length} / 共 ${allEntries.length} 个条目 · ${filename}`
-                        : `共 ${allEntries.length} 个条目 · ${filename}`}
-                    </p>
+                        {/* 筛选 Popover */}
+                        <Popover>
+                          <PopoverTrigger asChild>
+                            <Button variant={activeFilterCount > 0 ? 'default' : 'outline'} size="sm" className="h-8 text-xs gap-1">
+                              <SlidersHorizontal className="w-3.5 h-3.5" /> 筛选
+                              {activeFilterCount > 0 && (
+                                <Badge variant="secondary" className="h-4 min-w-4 px-1 text-[10px] leading-none">{activeFilterCount}</Badge>
+                              )}
+                            </Button>
+                          </PopoverTrigger>
+                          <PopoverContent className="w-64 p-3 space-y-3" align="start">
+                            <div className="space-y-1.5">
+                              <p className="text-xs font-medium text-muted-foreground">策略</p>
+                              <div className="flex flex-wrap gap-1.5">
+                                <Toggle size="sm" pressed={filterConstant} onPressedChange={setFilterConstant}
+                                  className="h-7 text-xs px-2 data-[state=on]:bg-blue-500/20 data-[state=on]:text-blue-700">🔵 常驻</Toggle>
+                                <Toggle size="sm" pressed={filterKeyword} onPressedChange={setFilterKeyword}
+                                  className="h-7 text-xs px-2 data-[state=on]:bg-green-500/20 data-[state=on]:text-green-700">🟢 关键词</Toggle>
+                                <Toggle size="sm" pressed={filterVector} onPressedChange={setFilterVector}
+                                  className="h-7 text-xs px-2 data-[state=on]:bg-purple-500/20 data-[state=on]:text-purple-700">🔗 向量</Toggle>
+                              </div>
+                            </div>
+                            <div className="space-y-1.5">
+                              <p className="text-xs font-medium text-muted-foreground">状态</p>
+                              <div className="flex flex-wrap gap-1.5">
+                                <Toggle size="sm" pressed={filterEnabled} onPressedChange={setFilterEnabled} className="h-7 text-xs px-2">已启用</Toggle>
+                                <Toggle size="sm" pressed={filterDisabled} onPressedChange={setFilterDisabled} className="h-7 text-xs px-2">已禁用</Toggle>
+                              </div>
+                            </div>
+                            <div className="space-y-1.5">
+                              <p className="text-xs font-medium text-muted-foreground">位置</p>
+                              <Select value={filterPosition} onValueChange={setFilterPosition}>
+                                <SelectTrigger className="h-7 text-xs"><SelectValue placeholder="位置" /></SelectTrigger>
+                                <SelectContent>
+                                  <SelectItem value="all">全部位置</SelectItem>
+                                  {Object.entries(POSITION_LABELS).map(([k, v]) => (
+                                    <SelectItem key={k} value={k}>{v}</SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+                            </div>
+                            {hasFilters && (
+                              <Button variant="ghost" size="sm" className="h-7 text-xs w-full" onClick={clearFilters}>
+                                <X className="w-3 h-3 mr-1" /> 清除筛选
+                              </Button>
+                            )}
+                          </PopoverContent>
+                        </Popover>
+
+                        <Select value={String(pageSize)} onValueChange={(v) => setPageSize(Number(v))}>
+                          <SelectTrigger className="h-8 w-24 text-xs shrink-0">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="25">25 / 页</SelectItem>
+                            <SelectItem value="50">50 / 页</SelectItem>
+                            <SelectItem value="100">100 / 页</SelectItem>
+                            <SelectItem value="0">全部</SelectItem>
+                          </SelectContent>
+                        </Select>
+
+                        <div className="flex-1" />
+                        <div data-tour="wb-view-toggle" className="flex items-center gap-0">
+                          <Button variant={viewMode === 'card' ? 'default' : 'ghost'} size="icon" className="h-7 w-7"
+                            onClick={() => setViewMode('card')} aria-label="卡片视图">
+                            <LayoutGrid className="w-4 h-4" />
+                          </Button>
+                          <Button variant={viewMode === 'list' ? 'default' : 'ghost'} size="icon" className="h-7 w-7"
+                            onClick={() => setViewMode('list')} aria-label="列表视图">
+                            <List className="w-4 h-4" />
+                          </Button>
+                        </div>
+                      </div>
+
+                      {/* 行2：新增 / 批量 / 前缀归类 */}
+                      <div className="flex items-center gap-1.5 flex-wrap">
+                        <Button variant="outline" size="sm" className="h-7 text-xs" onClick={addEntry}>
+                          <Plus className="w-3.5 h-3.5 mr-1" /> 新增
+                        </Button>
+                        <Button variant="outline" size="sm" className="h-7 text-xs"
+                          onClick={() => setBatchMode(true)} data-tour="wb-batch">
+                          <CheckSquare className="w-3.5 h-3.5 mr-1" /> 批量
+                        </Button>
+                        <div data-tour="wb-prefix">
+                          <PrefixCategorize entries={worldbook.entries} onApply={handlePrefixCategorize} />
+                        </div>
+                      </div>
+                    </>
+                  )}
                 </div>
 
                 <ScrollArea className="flex-1 min-h-0">
                   <div className="p-4 space-y-3">
                     {viewMode === 'card' ? (
                       <div className="grid gap-3 grid-cols-1 lg:grid-cols-2">
-                        {filteredEntries.map(([key, entry]) => (
+                        {pagedEntries.map(([key, entry]) => (
                           <EntryCard
                             key={key}
                             entry={entry}
@@ -875,7 +926,7 @@ export default function WorldBookPage() {
                             </tr>
                           </thead>
                           <tbody>
-                            {filteredEntries.map(([key, entry]) => (
+                            {pagedEntries.map(([key, entry]) => (
                               <EntryListRow
                                 key={key}
                                 entry={entry}
@@ -895,6 +946,21 @@ export default function WorldBookPage() {
                     {filteredEntries.length === 0 && hasFilters && (
                       <div className="text-center py-8 text-muted-foreground text-sm">
                         没有匹配的条目，尝试调整筛选条件
+                      </div>
+                    )}
+
+                    {/* 分页 */}
+                    {pageSize > 0 && totalPages > 1 && (
+                      <div className="flex items-center justify-center gap-3 pt-2 pb-4">
+                        <Button variant="outline" size="sm" className="h-7 text-xs"
+                          disabled={page <= 1} onClick={() => setPage(p => Math.max(1, p - 1))}>
+                          <ChevronLeft className="w-3.5 h-3.5 mr-0.5" /> 上一页
+                        </Button>
+                        <span className="text-xs text-muted-foreground">第 {page} / {totalPages} 页</span>
+                        <Button variant="outline" size="sm" className="h-7 text-xs"
+                          disabled={page >= totalPages} onClick={() => setPage(p => Math.min(totalPages, p + 1))}>
+                          下一页 <ChevronRight className="w-3.5 h-3.5 ml-0.5" />
+                        </Button>
                       </div>
                     )}
                   </div>
