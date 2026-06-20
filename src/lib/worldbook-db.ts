@@ -1,7 +1,7 @@
 import type { WorldBookItem } from '@/types/worldbook';
 
 const DB_NAME = 'st-chat-beautifier';
-const DB_VERSION = 2;
+const DB_VERSION = 3;
 const STORE_NAME = 'worldbooks';
 
 let dbInstance: IDBDatabase | null = null;
@@ -42,6 +42,14 @@ function openDB(): Promise<IDBDatabase> {
           const store = db.createObjectStore(STORE_NAME, { keyPath: 'id' });
           store.createIndex('updatedAt', 'updatedAt', { unique: false });
           store.createIndex('title', 'title', { unique: false });
+        }
+      }
+
+      if (oldVersion < 3) {
+        if (!db.objectStoreNames.contains('presets')) {
+          const pStore = db.createObjectStore('presets', { keyPath: 'id' });
+          pStore.createIndex('updatedAt', 'updatedAt', { unique: false });
+          pStore.createIndex('title', 'title', { unique: false });
         }
       }
     };

@@ -4,6 +4,7 @@
 
 import type { BookItem } from '@/lib/bookshelf-db';
 import type { WorldBookItem } from '@/types/worldbook';
+import type { PresetItem } from '@/types/preset';
 
 const DB_NAME = 'st-chat-beautifier';
 
@@ -28,15 +29,15 @@ export async function estimateStorageUsage(): Promise<{
 
 /**
  * Export entire IndexedDB as a JSON file for backup.
- * 同时备份 books（聊天作品）和 worldbooks（世界书）两个 store，
- * 二者是独立的 object store，少备份任何一个都会造成"完整备份"名不副实的数据丢失。
+ * 同时备份 books（聊天作品）、worldbooks（世界书）、presets（预设）三个 store，
+ * 三者是独立的 object store，少备份任何一个都会造成"完整备份"名不副实的数据丢失。
  */
 export async function exportFullBackup(): Promise<void> {
   const db = await openDB();
 
   const readAll = <T>(storeName: string) =>
     new Promise<T[]>((resolve, reject) => {
-      // 某些旧库可能尚未建出 worldbooks store，缺失时返回空数组而非抛错
+      // 某些旧库可能尚未建出 worldbooks/presets store，缺失时返回空数组而非抛错
       if (!db.objectStoreNames.contains(storeName)) {
         resolve([]);
         return;
@@ -46,17 +47,19 @@ export async function exportFullBackup(): Promise<void> {
       req.onerror = () => reject(req.error);
     });
 
-  const [allBooks, allWorldbooks] = await Promise.all([
+  const [allBooks, allWorldbooks, allPresets] = await Promise.all([
     readAll<BookItem>('books'),
     readAll<WorldBookItem>('worldbooks'),
+    readAll<PresetItem>('presets'),
   ]);
 
   const backup = {
-    version: 2,
+    version: 3,
     exportedAt: new Date().toISOString(),
     app: 'silly-tavern-explorer',
     books: allBooks,
     worldbooks: allWorldbooks,
+    presets: allPresets,
   };
 
   const blob = new Blob([JSON.stringify(backup)], { type: 'application/json;charset=utf-8' });
@@ -72,10 +75,10 @@ export async function exportFullBackup(): Promise<void> {
 
 /**
  * Import a backup JSON file into IndexedDB.
- * 兼容 v1 备份（只有 books）与 v2 备份（books + worldbooks）。
- * 返回写入的书籍数与世界书数。
+ * 兼容 v1 备份（只有 books）、v2 备份（books + worldbooks）与 v3 备份（再加 presets）。
+ * 返回写入的书籍数、世界书数与预设数。
  */
-export async function importFullBackup(file: File): Promise<{ books: number; worldbooks: number }> {
+export async function importFullBackup(file: File): Promise<{ books: number; worldbooks: number; presets: number }> {
   const text = await file.text();
   const data = JSON.parse(text);
 
@@ -112,12 +115,14 @@ export async function importFullBackup(file: File): Promise<{ books: number; wor
   const books = await putAll('books', data.books, (b) => !!b.id && !!b.session);
   // v1 备份没有 worldbooks 字段，putAll 会安全地返回 0
   const worldbooks = await putAll('worldbooks', data.worldbooks ?? [], (w) => !!w.id);
+  // v1/v2 备份没有 presets 字段，putAll 会安全地返回 0
+  const presets = await putAll('presets', data.presets ?? [], (p) => !!p.id);
 
-  return { books, worldbooks };
+  return { books, worldbooks, presets };
 }
 
 /**
- * Clear all data from IndexedDB（books + worldbooks 一并清空）
+ * Clear all data from IndexedDB（books + worldbooks + presets 一并清空）
  */
 export async function clearAllData(): Promise<void> {
   const db = await openDB();
@@ -132,12 +137,12 @@ export async function clearAllData(): Promise<void> {
       req.onsuccess = () => resolve();
       req.onerror = () => reject(req.error);
     });
-  await Promise.all([clearStore('books'), clearStore('worldbooks')]);
+  await Promise.all([clearStore('books'), clearStore('worldbooks'), clearStore('presets')]);
 }
 
 function openDB(): Promise<IDBDatabase> {
   return new Promise((resolve, reject) => {
-    const request = indexedDB.open(DB_NAME, 2);
+    const request = indexedDB.open(DB_NAME, 3);
     request.onerror = () => reject(request.error);
     request.onsuccess = () => resolve(request.result);
     request.onupgradeneeded = (event) => {
@@ -151,6 +156,11 @@ function openDB(): Promise<IDBDatabase> {
         const wbStore = db.createObjectStore('worldbooks', { keyPath: 'id' });
         wbStore.createIndex('updatedAt', 'updatedAt', { unique: false });
         wbStore.createIndex('title', 'title', { unique: false });
+      }
+      if (!db.objectStoreNames.contains('presets')) {
+        const pStore = db.createObjectStore('presets', { keyPath: 'id' });
+        pStore.createIndex('updatedAt', 'updatedAt', { unique: false });
+        pStore.createIndex('title', 'title', { unique: false });
       }
     };
   });
