@@ -1,7 +1,7 @@
 {
   "name": "silly-tavern-explorer",
   "private": true,
-  "version": "0.10.3",
+  "version": "0.10.4",
   "description": "SillyTavern Chat Beautifier - 聊天记录处理、世界书编辑与 AI 辅助工具",
   "license": "MIT",
   "repository": {
