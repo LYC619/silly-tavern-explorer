@@ -14,6 +14,7 @@ const AITools = lazy(() => import("./pages/AITools"));
 const Reader = lazy(() => import("./pages/Reader"));
 const WorldBook = lazy(() => import("./pages/WorldBook"));
 const CardViewer = lazy(() => import("./pages/CardViewer"));
+const Preset = lazy(() => import("./pages/Preset"));
 const NotFound = lazy(() => import("./pages/NotFound"));
 
 const PageFallback = () => (
@@ -35,6 +36,7 @@ const App = () => (
             <Route path="/ai-tools" element={<AITools />} />
             <Route path="/worldbook" element={<WorldBook />} />
             <Route path="/card-viewer" element={<CardViewer />} />
+            <Route path="/preset" element={<Preset />} />
             <Route path="/reader/:id" element={<Reader />} />
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
             <Route path="*" element={<NotFound />} />
