@@ -152,8 +152,8 @@ export function EntryEditor({ entry, onChange }: Props) {
 
       {/* 放大编辑内容弹窗 */}
       <Dialog open={contentExpanded} onOpenChange={setContentExpanded}>
-        <DialogContent className="max-w-3xl">
-          <DialogHeader>
+        <DialogContent className="max-w-4xl w-[90vw] h-[85vh] flex flex-col">
+          <DialogHeader className="shrink-0">
             <DialogTitle className="text-base">
               编辑内容{entry.comment ? ` — ${entry.comment}` : ''}
             </DialogTitle>
@@ -161,11 +161,11 @@ export function EntryEditor({ entry, onChange }: Props) {
           <Textarea
             value={entry.content}
             onChange={(e) => update('content', e.target.value)}
-            className="text-sm font-mono min-h-[60vh] resize-none"
+            className="text-sm font-mono flex-1 min-h-0 resize-none leading-relaxed"
             placeholder="在此自由编辑条目内容..."
             autoFocus
           />
-          <div className="flex justify-end">
+          <div className="flex justify-end shrink-0">
             <Button size="sm" onClick={() => setContentExpanded(false)}>完成</Button>
           </div>
         </DialogContent>

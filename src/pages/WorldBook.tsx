@@ -629,37 +629,10 @@ export default function WorldBookPage() {
 
           {worldbook && activeTab === 'edit' && (
             <>
-              <Button variant="outline" size="sm" onClick={addEntry} className="hidden sm:inline-flex">
-                <Plus className="w-4 h-4 mr-1" /> 新增
-              </Button>
-              <Button variant="outline" size="icon" onClick={addEntry} className="h-8 w-8 sm:hidden" aria-label="新增条目">
-                <Plus className="w-4 h-4" />
-              </Button>
               <Button variant="outline" size="sm" onClick={handleSaveLocal} className="hidden sm:inline-flex">
                 <Save className="w-4 h-4 mr-1" /> 保存
               </Button>
               <WorldBookExporter worldbook={worldbook} filename={filename} />
-              <div data-tour="wb-prefix"><PrefixCategorize entries={worldbook.entries} onApply={handlePrefixCategorize} /></div>
-              <Button variant={batchMode ? 'default' : 'outline'} size="sm" className="hidden sm:inline-flex"
-                onClick={() => batchMode ? exitBatchMode() : setBatchMode(true)} data-tour="wb-batch">
-                <CheckSquare className="w-4 h-4 mr-1" /> 批量
-              </Button>
-              <Button variant={batchMode ? 'default' : 'outline'} size="icon" className="h-8 w-8 sm:hidden"
-                onClick={() => batchMode ? exitBatchMode() : setBatchMode(true)} aria-label="批量操作">
-                <CheckSquare className="w-4 h-4" />
-              </Button>
-              <div className="w-px h-6 bg-border mx-1 hidden sm:block" />
-
-              <div data-tour="wb-view-toggle" className="hidden sm:flex items-center gap-0">
-                <Button variant={viewMode === 'card' ? 'default' : 'ghost'} size="icon" className="h-8 w-8"
-                  onClick={() => setViewMode('card')} aria-label="卡片视图">
-                  <LayoutGrid className="w-4 h-4" />
-                </Button>
-                <Button variant={viewMode === 'list' ? 'default' : 'ghost'} size="icon" className="h-8 w-8"
-                  onClick={() => setViewMode('list')} aria-label="列表视图">
-                  <List className="w-4 h-4" />
-                </Button>
-              </div>
             </>
           )}
         </div>
@@ -778,6 +751,31 @@ export default function WorldBookPage() {
                           <SelectItem value="uid">创建顺序</SelectItem>
                         </SelectContent>
                       </Select>
+                    </div>
+
+                    {/* 内容处理操作行：新增 / 批量 / 前缀归类 / 视图切换 */}
+                    <div className="flex items-center gap-1.5 flex-wrap">
+                      <Button variant="outline" size="sm" className="h-7 text-xs" onClick={addEntry}>
+                        <Plus className="w-3.5 h-3.5 mr-1" /> 新增
+                      </Button>
+                      <Button variant={batchMode ? 'default' : 'outline'} size="sm" className="h-7 text-xs"
+                        onClick={() => batchMode ? exitBatchMode() : setBatchMode(true)} data-tour="wb-batch">
+                        <CheckSquare className="w-3.5 h-3.5 mr-1" /> 批量
+                      </Button>
+                      <div data-tour="wb-prefix">
+                        <PrefixCategorize entries={worldbook.entries} onApply={handlePrefixCategorize} />
+                      </div>
+                      <div className="flex-1" />
+                      <div data-tour="wb-view-toggle" className="flex items-center gap-0">
+                        <Button variant={viewMode === 'card' ? 'default' : 'ghost'} size="icon" className="h-7 w-7"
+                          onClick={() => setViewMode('card')} aria-label="卡片视图">
+                          <LayoutGrid className="w-4 h-4" />
+                        </Button>
+                        <Button variant={viewMode === 'list' ? 'default' : 'ghost'} size="icon" className="h-7 w-7"
+                          onClick={() => setViewMode('list')} aria-label="列表视图">
+                          <List className="w-4 h-4" />
+                        </Button>
+                      </div>
                     </div>
 
                     {/* Filters / Batch toolbar */}
