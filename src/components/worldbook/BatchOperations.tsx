@@ -98,6 +98,9 @@ export function BatchOperations({
         <span className="text-sm font-medium text-foreground mr-1">
           已选 {count} 项
         </span>
+        <span className="text-xs text-muted-foreground mr-1 hidden md:inline">
+          （按住 Shift 点选可连选一段）
+        </span>
         <Button variant="ghost" size="sm" className="h-7 text-xs" onClick={onSelectAll}>
           <CheckCheck className="w-3.5 h-3.5 mr-1" /> 全选({totalFiltered})
         </Button>

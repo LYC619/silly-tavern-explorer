@@ -510,8 +510,8 @@ export function RegexSidebar({ rules, onRulesChange, isOpen, onClose, sampleMess
             onClick={() => importInputRef.current?.click()}
             title="导入 SillyTavern 正则脚本 .json"
           >
-            <Upload className="w-3 h-3" />
-            导入 ST
+            <Download className="w-3 h-3" />
+            导入正则
           </Button>
           <Button
             variant="outline"
@@ -520,8 +520,8 @@ export function RegexSidebar({ rules, onRulesChange, isOpen, onClose, sampleMess
             onClick={handleExportST}
             title="导出为 SillyTavern 正则脚本 .json"
           >
-            <Download className="w-3 h-3" />
-            导出 ST
+            <Upload className="w-3 h-3" />
+            导出正则
           </Button>
         </div>
         <Button

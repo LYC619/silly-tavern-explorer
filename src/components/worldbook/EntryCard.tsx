@@ -12,7 +12,7 @@ interface Props {
   onToggleEnabled: (enabled: boolean) => void;
   batchMode?: boolean;
   batchChecked?: boolean;
-  onBatchToggle?: (checked: boolean) => void;
+  onBatchToggle?: (checked: boolean, shiftKey: boolean) => void;
 }
 
 function groupColor(group: string): string {
@@ -54,12 +54,15 @@ export function EntryCard({ entry, selected, onClick, onToggleEnabled, batchMode
         <div className="flex items-center justify-between gap-2">
           <div className="flex items-center gap-2 min-w-0 flex-1">
             {batchMode && (
-              <Checkbox
-                checked={batchChecked}
-                onCheckedChange={(v) => onBatchToggle?.(!!v)}
-                onClick={(e) => e.stopPropagation()}
-                className="shrink-0"
-              />
+              <span
+                className="shrink-0 inline-flex"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onBatchToggle?.(!batchChecked, e.shiftKey);
+                }}
+              >
+                <Checkbox checked={batchChecked} className="pointer-events-none" />
+              </span>
             )}
             <span className={cn('w-2.5 h-2.5 rounded-full shrink-0', strategy.dot)} />
             <span className="font-semibold text-sm truncate text-foreground">

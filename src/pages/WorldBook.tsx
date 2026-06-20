@@ -24,20 +24,31 @@ import { EntryEditor } from '@/components/worldbook/EntryEditor';
 import { QuickCreate } from '@/components/worldbook/QuickCreate';
 import type { WorldBook, WorldBookEntry } from '@/types/worldbook';
 import { DEFAULT_ENTRY, POSITION_LABELS, generateWorldBookId } from '@/types/worldbook';
-import { saveWorldBook, getAllWorldBooks, deleteWorldBook } from '@/lib/worldbook-db';
+import { saveWorldBook, getAllWorldBooks, deleteWorldBook, pruneAutoSavedWorldBooks } from '@/lib/worldbook-db';
 import type { WorldBookItem } from '@/types/worldbook';
 import { useToast } from '@/hooks/use-toast';
 import { ToastAction } from '@/components/ui/toast';
 
 type SortMode = 'order-asc' | 'order-desc' | 'title' | 'uid';
 
+/** 跨页面切换时暂存当前编辑中的世界书，避免切到聊天处理再回来丢失 */
+const WB_SESSION_KEY = 'wb-active-session';
+interface WbSession { worldbook: WorldBook; filename: string; currentItemId: string | null; }
+function loadWbSession(): WbSession | null {
+  try {
+    const raw = sessionStorage.getItem(WB_SESSION_KEY);
+    return raw ? (JSON.parse(raw) as WbSession) : null;
+  } catch { return null; }
+}
+
 export default function WorldBookPage() {
   const isMobile = useIsMobile();
   const { toast } = useToast();
 
-  const [worldbook, setWorldbook] = useState<WorldBook | null>(null);
-  const [filename, setFilename] = useState('worldbook');
-  const [currentItemId, setCurrentItemId] = useState<string | null>(null);
+  const restored = loadWbSession();
+  const [worldbook, setWorldbook] = useState<WorldBook | null>(restored?.worldbook ?? null);
+  const [filename, setFilename] = useState(restored?.filename ?? 'worldbook');
+  const [currentItemId, setCurrentItemId] = useState<string | null>(restored?.currentItemId ?? null);
   const [stagedDialogOpen, setStagedDialogOpen] = useState(false);
   const [confirmLoadItem, setConfirmLoadItem] = useState<WorldBookItem | null>(null);
   const [savedItems, setSavedItems] = useState<WorldBookItem[]>([]);
@@ -68,6 +79,17 @@ export default function WorldBookPage() {
     window.addEventListener('beforeunload', handler);
     return () => window.removeEventListener('beforeunload', handler);
   }, [isDirty]);
+
+  // 跨页面切换持久化：当前世界书写入 sessionStorage，切到别的页再回来不丢
+  useEffect(() => {
+    try {
+      if (worldbook) {
+        sessionStorage.setItem(WB_SESSION_KEY, JSON.stringify({ worldbook, filename, currentItemId }));
+      } else {
+        sessionStorage.removeItem(WB_SESSION_KEY);
+      }
+    } catch { /* sessionStorage 满或不可用时忽略，不影响使用 */ }
+  }, [worldbook, filename, currentItemId]);
 
   const allEntries = useMemo(
     () => worldbook ? Object.entries(worldbook.entries) : [],
@@ -181,8 +203,17 @@ export default function WorldBookPage() {
     setWorldbook(wb);
     setFilename(name);
     setSelectedUid(null);
-    setCurrentItemId(null);
     setActiveTab('edit');
+    // 自动保留为导入历史（autoSaved），并裁剪到最近 5 份
+    (async () => {
+      const id = generateWorldBookId();
+      const now = Date.now();
+      await saveWorldBook({ id, title: name, worldbook: wb, createdAt: now, updatedAt: now, autoSaved: true });
+      setCurrentItemId(id);
+      await pruneAutoSavedWorldBooks(5);
+      const updated = await getAllWorldBooks();
+      setSavedItems(updated);
+    })().catch(() => { /* 自动历史失败不阻塞导入 */ });
   }, []);
 
   const handleAppend = useCallback((wb: WorldBook) => {
@@ -261,6 +292,7 @@ export default function WorldBookPage() {
       worldbook,
       createdAt: currentItemId ? (savedItems.find(s => s.id === id)?.createdAt ?? now) : now,
       updatedAt: now,
+      autoSaved: false, // 手动保存 → 永久留存，不参与最近 5 份自动清理
     };
     await saveWorldBook(item);
     setCurrentItemId(id);
@@ -268,7 +300,7 @@ export default function WorldBookPage() {
     // Refresh saved items list
     const updated = await getAllWorldBooks();
     setSavedItems(updated);
-    toast({ title: '已暂存', description: '已暂存到浏览器，刷新页面后可恢复' });
+    toast({ title: '已保存到书架', description: '永久留存，不会被自动清理' });
   }, [worldbook, filename, currentItemId, savedItems, toast]);
 
   // Ctrl+S / Cmd+S to save (declared after handleSaveLocal to avoid TDZ)
@@ -337,13 +369,32 @@ export default function WorldBookPage() {
     return () => window.removeEventListener('keydown', handler);
   }, [batchMode, exitBatchMode]);
 
-  const toggleBatchItem = useCallback((key: string, checked: boolean) => {
+  const lastBatchKeyRef = useRef<string | null>(null);
+  const toggleBatchItem = useCallback((key: string, checked: boolean, shiftKey?: boolean) => {
+    // Shift 连选：从上次点击的条目到当前条目（按当前过滤后的显示顺序）整段设为 checked
+    if (shiftKey && lastBatchKeyRef.current) {
+      const order = filteredEntries.map(([k]) => k);
+      const from = order.indexOf(lastBatchKeyRef.current);
+      const to = order.indexOf(key);
+      if (from !== -1 && to !== -1) {
+        const [lo, hi] = from < to ? [from, to] : [to, from];
+        const range = order.slice(lo, hi + 1);
+        setBatchSelected(prev => {
+          const next = new Set(prev);
+          range.forEach(k => (checked ? next.add(k) : next.delete(k)));
+          return next;
+        });
+        lastBatchKeyRef.current = key;
+        return;
+      }
+    }
     setBatchSelected(prev => {
       const next = new Set(prev);
-      checked ? next.add(key) : next.delete(key);
+      if (checked) next.add(key); else next.delete(key);
       return next;
     });
-  }, []);
+    lastBatchKeyRef.current = key;
+  }, [filteredEntries]);
 
   const handleBatchPrefix = useCallback((prefix: string) => {
     batchUndoRef.current = worldbook;
@@ -585,7 +636,7 @@ export default function WorldBookPage() {
                 <Plus className="w-4 h-4" />
               </Button>
               <Button variant="outline" size="sm" onClick={handleSaveLocal} className="hidden sm:inline-flex">
-                <Save className="w-4 h-4 mr-1" /> 暂存
+                <Save className="w-4 h-4 mr-1" /> 保存
               </Button>
               <WorldBookExporter worldbook={worldbook} filename={filename} />
               <div data-tour="wb-prefix"><PrefixCategorize entries={worldbook.entries} onApply={handlePrefixCategorize} /></div>
@@ -804,7 +855,7 @@ export default function WorldBookPage() {
                             onToggleEnabled={(v) => toggleEnabled(key, v)}
                             batchMode={batchMode}
                             batchChecked={batchSelected.has(key)}
-                            onBatchToggle={(v) => toggleBatchItem(key, v)}
+                            onBatchToggle={(v, shift) => toggleBatchItem(key, v, shift)}
                           />
                         ))}
                       </div>
@@ -832,7 +883,7 @@ export default function WorldBookPage() {
                                 onToggleEnabled={(v) => toggleEnabled(key, v)}
                                 batchMode={batchMode}
                                 batchChecked={batchSelected.has(key)}
-                                onBatchToggle={(v) => toggleBatchItem(key, v)}
+                                onBatchToggle={(v, shift) => toggleBatchItem(key, v, shift)}
                               />
                             ))}
                           </tbody>
