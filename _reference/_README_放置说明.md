@@ -25,12 +25,24 @@
 
 | 文件夹 | 放什么 |
 |--------|--------|
+| `projects/` | **参考项目**（用来借鉴优化本项目的开源项目源码），不入仓 |
 | `st-docs/` | ST 官方文档的文字/markdown（见下方清单） |
 | `samples/chat/` | 真实导出的聊天文件样本 |
 | `samples/charcard/` | 真实角色卡（PNG / JSON） |
 | `samples/worldbook/` | 真实世界书/lorebook 导出 |
 | `samples/regex/` | 真实正则脚本导出 |
 | `st-source/` | ST 源码相关文件（见下方搜索清单） |
+
+### 参考项目放置约定（`projects/`）
+
+把要借鉴的开源项目放到 `_reference/projects/<项目名>/`，并在该项目目录下放一个
+`_可参考的点.md`（或在 `_reference/projects/NOTES.md` 里统一写），说明**这个项目哪些点值得我们参考**，例如：
+- 哪个功能/交互做得好（附文件路径）
+- 想让我们的项目学它的哪部分
+- 不想动的部分
+
+> 这样 AI 不必通读整个参考项目，可直奔你标注的重点，省 token、少跑偏。
+> `projects/` 已加入 `.gitignore`，不会提交（参考项目可能很大或有版权）。
 
 ---
 
