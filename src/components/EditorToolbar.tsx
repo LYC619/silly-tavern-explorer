@@ -1,8 +1,7 @@
-import { RefreshCw, Save, Pencil, BookmarkPlus, Regex } from 'lucide-react';
+import { RefreshCw, Save, BookmarkPlus, Regex } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { DemoData } from '@/components/DemoData';
 import { ExportButton } from '@/components/ExportButton';
-import { SettingsPanel } from '@/components/SettingsPanel';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -21,37 +20,30 @@ interface EditorToolbarProps {
   settings: ExportSettings;
   markers: ChapterMarker[];
   editMode: boolean;
-  contentEditMode: boolean;
   regexSidebarOpen: boolean;
   onLoadSession: (session: ChatSession) => void;
   onReset: () => void;
   onSaveToBookshelf: () => void;
-  onToggleContentEdit: () => void;
   onToggleEditMode: () => void;
   onToggleRegex: () => void;
-  onSettingsChange: (settings: ExportSettings) => void;
 }
 
 /**
- * 主编辑页的单行工具栏，按 输入 → 处理 → 外观 → 输出 的逻辑顺序分组：
- * - 输入/输出（高频）：重新导入、保存到书架、导出（导出为唯一主 CTA，金色高亮，最右）
- * - 处理：编辑内容、章节标记、正则规则
- * - 外观：收进 SettingsPanel 的「外观」popover
+ * 主编辑页顶栏右侧的操作组，按 处理 → 输入/输出 顺序分组：
+ * - 处理：章节标记、正则规则（「编辑内容」铅笔已移到预览区右上角；「外观」已移到顶栏最左）
+ * - 输入/输出（高频）：保存到书架、重新导入、导出（导出为唯一主 CTA，金色高亮，最右）
  */
 export function EditorToolbar({
   session,
   settings,
   markers,
   editMode,
-  contentEditMode,
   regexSidebarOpen,
   onLoadSession,
   onReset,
   onSaveToBookshelf,
-  onToggleContentEdit,
   onToggleEditMode,
   onToggleRegex,
-  onSettingsChange,
 }: EditorToolbarProps) {
   if (!session) {
     return (
@@ -65,22 +57,7 @@ export function EditorToolbar({
 
   return (
     <div className="flex items-center gap-2 flex-wrap justify-end">
-      {/* 外观设置（最左，收进 popover） */}
-      <SettingsPanel settings={settings} onSettingsChange={onSettingsChange} />
-
-      <div className="w-px h-6 bg-border mx-0.5" />
-
-      {/* 处理：编辑内容 / 章节标记 / 正则 */}
-      <Button
-        variant={contentEditMode ? "default" : "outline"}
-        size="sm"
-        onClick={onToggleContentEdit}
-        className={contentEditMode ? 'gold-gradient text-primary-foreground' : ''}
-        data-tour="content-edit-btn"
-      >
-        <Pencil className="w-4 h-4 mr-1.5" />
-        {contentEditMode ? '退出编辑' : '编辑内容'}
-      </Button>
+      {/* 处理：章节标记 / 正则（「编辑内容」已移到预览区右上角铅笔图标） */}
       <Button
         variant={editMode ? "default" : "outline"}
         size="sm"

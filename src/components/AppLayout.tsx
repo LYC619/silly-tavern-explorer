@@ -9,6 +9,8 @@ interface AppLayoutProps {
   children: React.ReactNode;
   /** 页面右上角的专属操作区（导入/导出/编辑等），由各页面传入 */
   actions?: React.ReactNode;
+  /** 顶栏左侧的常驻区（外观设置、全文搜索等），与 actions 分列两端，互不遮挡 */
+  leftActions?: React.ReactNode;
 }
 
 const NAV_ITEMS = [
@@ -23,7 +25,7 @@ const NAV_ITEMS = [
  * 全局共享布局：左侧固定主导航栏（主功能切换）+ 顶部品牌/全局设置 + 右侧页面专属操作。
  * 取代过去每个页面各写一份 header、星型 navigate 跳转的混乱结构。
  */
-export function AppLayout({ children, actions }: AppLayoutProps) {
+export function AppLayout({ children, actions, leftActions }: AppLayoutProps) {
   const navigate = useNavigate();
   const location = useLocation();
   const { theme, setTheme } = useTheme();
@@ -88,10 +90,13 @@ export function AppLayout({ children, actions }: AppLayoutProps) {
 
       {/* 右侧主内容区 */}
       <div className="flex-1 min-w-0 flex flex-col">
-        {actions && (
+        {(actions || leftActions) && (
           <header className="border-b border-border bg-card/60 backdrop-blur-sm sticky top-0 z-40">
-            <div className="px-4 py-3 flex items-center justify-end gap-2 flex-wrap">
-              {actions}
+            <div className="px-4 py-3 flex items-center justify-between gap-2 flex-wrap">
+              {/* 左侧常驻：外观 + 搜索（与右侧操作分列，popover/弹层从左展开不遮正文） */}
+              <div className="flex items-center gap-2 flex-wrap min-w-0">{leftActions}</div>
+              {/* 右侧操作：处理 + 输入输出 */}
+              <div className="flex items-center gap-2 flex-wrap justify-end">{actions}</div>
             </div>
           </header>
         )}

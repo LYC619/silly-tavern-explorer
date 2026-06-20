@@ -1,5 +1,6 @@
 import type { ChatSession, ExportSettings, ChapterMarker, RegexRule } from '@/types/chat';
 import { DEFAULT_REGEX_RULES } from '@/types/chat';
+import { getBook } from '@/lib/bookshelf-db';
 
 const SESSION_KEY = 'st-beautifier-session';
 const SETTINGS_KEY = 'st-beautifier-settings';
@@ -8,42 +9,81 @@ const CUSTOM_REGEX_KEY = 'st-beautifier-custom-regex';
 const BUILTIN_STATES_KEY = 'st-beautifier-builtin-states';
 const REGEX_PRESETS_KEY = 'st-beautifier-regex-presets';
 
-export interface StoredState {
-  session: ChatSession | null;
-  markers: ChapterMarker[];
+/**
+ * 跨页临时态。
+ *
+ * 历史教训：早期把整份 session（可能数十万字）直接 JSON 塞进 sessionStorage，
+ * 而 sessionStorage 有约 5MB 的硬上限——稍大的聊天记录就会写入失败、切页即丢，
+ * 且配额按 origin 隔离（localhost 各端口、线上域名互不相通），表现飘忽难复现。
+ *
+ * 现改为：session 本体只存于 IndexedDB（几乎无限），这里只存「指针 + 轻量临时态」。
+ * 切回聊天页时凭 currentBookId 从 IndexedDB 读回 session，再用这里的 markers/favorites
+ * 覆盖（它们是用户最近一次未必已「保存到书架」的编辑态）。
+ */
+export interface SessionPointer {
   currentBookId: string | null;
-  settings?: ExportSettings;
+  markers: ChapterMarker[];
   /** 收藏的楼层（存 messageId，轻量个人书签，不进导出，区别于会进 TXT 标题的章节标记） */
   favorites?: string[];
 }
 
 // Session storage (临时，页面间导航)
-// 返回是否保存成功：长记录(几十万字)可能超出 sessionStorage ~5MB 配额，
-// 失败时返回 false 让调用方提示用户，而非静默丢失未保存编辑。
-export function saveSessionState(state: StoredState): boolean {
+// 只存轻量指针，永远不会触及 5MB 配额，故不再需要返回成功与否。
+export function saveSessionPointer(pointer: SessionPointer): void {
   try {
-    sessionStorage.setItem(SESSION_KEY, JSON.stringify(state));
-    return true;
+    sessionStorage.setItem(SESSION_KEY, JSON.stringify(pointer));
   } catch (e) {
-    console.error('Failed to save session state:', e);
-    return false;
+    // 指针极小，正常不会失败；万一失败也只是跨页丢临时态，不影响 IndexedDB 里的数据
+    console.error('Failed to save session pointer:', e);
   }
 }
 
-export function loadSessionState(): StoredState | null {
+export function loadSessionPointer(): SessionPointer | null {
   try {
     const data = sessionStorage.getItem(SESSION_KEY);
     if (data) {
       return JSON.parse(data);
     }
   } catch (e) {
-    console.error('Failed to load session state:', e);
+    console.error('Failed to load session pointer:', e);
   }
   return null;
 }
 
 export function clearSessionState(): void {
   sessionStorage.removeItem(SESSION_KEY);
+}
+
+/**
+ * 清空全部「临时缓存」：聊天页指针、世界书跨页态、AI 工具中转数据等，
+ * 即整份 sessionStorage——它本就是页面间导航的临时态，按标签页隔离。
+ * 不触及 IndexedDB（书架作品 / 世界书等永久数据）与 localStorage（设置 / 正则 / AI 配置）。
+ * 供「设置」里出问题时给用户手动自救。
+ */
+export function clearAllTempCache(): void {
+  try {
+    sessionStorage.clear();
+  } catch (e) {
+    console.error('Failed to clear temp cache:', e);
+  }
+}
+
+/**
+ * 读回「当前活跃的聊天记录」session 本体。
+ * session 已不再存于 sessionStorage（见 SessionPointer 注释），故凭指针里的 currentBookId
+ * 从 IndexedDB 取回。供 AI 工具等需要读当前聊天内容的页面使用。
+ * 无活跃记录（无指针 / 无 bookId / book 已删）时返回 null。
+ */
+export async function loadActiveSession(): Promise<ChatSession | null> {
+  const pointer = loadSessionPointer();
+  if (!pointer?.currentBookId) return null;
+  try {
+    const book = await getBook(pointer.currentBookId);
+    return book?.session ?? null;
+  } catch (e) {
+    console.error('Failed to load active session:', e);
+    return null;
+  }
 }
 
 // Custom regex rules (持久化到 localStorage)

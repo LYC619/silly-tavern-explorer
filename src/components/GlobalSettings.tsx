@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Settings, HardDrive, Download, Upload, Trash2, AlertCircle, RotateCcw, Info, ExternalLink } from 'lucide-react';
+import { Settings, HardDrive, Download, Upload, Trash2, AlertCircle, RotateCcw, Info, ExternalLink, Eraser } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
@@ -22,11 +22,12 @@ import {
   clearAllData,
   formatBytes,
 } from '@/lib/storage-utils';
+import { clearAllTempCache } from '@/lib/session-storage';
 import { getAllBooks } from '@/lib/bookshelf-db';
 import { getAllWorldBooks } from '@/lib/worldbook-db';
 import { resetAllTours } from '@/lib/tour-steps';
 
-const APP_VERSION = 'v0.9';
+const APP_VERSION = 'v0.10.1';
 
 interface StorageDetail {
   label: string;
@@ -162,6 +163,15 @@ export function GlobalSettings({ onDataChanged, ...props }: GlobalSettingsProps)
     }
   };
 
+  const handleClearTempCache = () => {
+    clearAllTempCache();
+    toast({
+      title: '已清除临时缓存',
+      description: '页面间的临时编辑态已清空（书架与世界书数据不受影响）。重新进入聊天处理 / 世界书页即可。',
+    });
+    refreshStorage();
+  };
+
   const handleResetOnboarding = () => {
     resetAllTours();
     localStorage.removeItem('st-explorer-onboarding-dismissed');
@@ -265,6 +275,17 @@ export function GlobalSettings({ onDataChanged, ...props }: GlobalSettingsProps)
                 <Button
                   variant="outline"
                   size="sm"
+                  className="w-full justify-start gap-2"
+                  onClick={handleClearTempCache}
+                  disabled={loading}
+                >
+                  <Eraser className="w-4 h-4" />
+                  清除临时缓存
+                </Button>
+
+                <Button
+                  variant="outline"
+                  size="sm"
                   className="w-full justify-start gap-2 text-destructive hover:text-destructive"
                   onClick={() => setClearDialogOpen(true)}
                   disabled={loading}
@@ -273,6 +294,10 @@ export function GlobalSettings({ onDataChanged, ...props }: GlobalSettingsProps)
                   清空所有数据
                 </Button>
               </div>
+              <p className="text-xs text-muted-foreground leading-relaxed">
+                「清除临时缓存」只清页面间的临时编辑态，常用于切页后内容异常时自救，不影响书架与世界书；
+                「清空所有数据」会永久删除全部书架作品与世界书，请先备份。
+              </p>
             </div>
 
             <Separator />
