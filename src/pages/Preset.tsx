@@ -189,7 +189,7 @@ export default function Preset() {
     if (file) loadFile(file);
   }, [loadFile]);
 
-  // ---- 保存到书架（永久留存） ----
+  // ---- 保存（永久留存，存入 presets store，在「已存预设」中管理） ----
   const handleSaveLocal = useCallback(async () => {
     if (!preset) return;
     const id = currentItemId || generatePresetId();
@@ -202,7 +202,7 @@ export default function Preset() {
     });
     setCurrentItemId(id);
     await refreshSaved();
-    toast({ title: '已保存到书架', description: '永久留存，不会被自动清理' });
+    toast({ title: '已保存', description: '可在右上角「已存预设」中查看；永久留存、纳入完整备份' });
   }, [preset, fileName, currentItemId, savedItems, refreshSaved, toast]);
 
   const handleLoadItem = useCallback((item: PresetItem) => {
@@ -250,7 +250,7 @@ export default function Preset() {
         </PopoverContent>
       </Popover>
       <Button variant="outline" size="sm" onClick={handleSaveLocal}>
-        <Save className="w-4 h-4 mr-1.5" /> 保存到书架
+        <Save className="w-4 h-4 mr-1.5" /> 保存
       </Button>
       <label>
         <Button variant="outline" size="sm" asChild>
