@@ -1,6 +1,6 @@
 import { useState, useCallback, useMemo, useEffect, useRef } from 'react';
 import { useIsMobile } from '@/hooks/use-mobile';
-import { Globe, LayoutGrid, List, Library, Plus, Trash2, Save, Search, X, CheckSquare, Clock, FolderOpen, Archive, SlidersHorizontal, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Globe, LayoutGrid, List, Library, Plus, Trash2, Save, Search, X, CheckSquare, Clock, FolderOpen, Archive, SlidersHorizontal, ChevronLeft, ChevronRight, Sparkles } from 'lucide-react';
 import { GuidedTour } from '@/components/GuidedTour';
 import { AppLayout } from '@/components/AppLayout';
 import { WORLDBOOK_TOUR_STEPS, isTourCompleted, setTourCompleted } from '@/lib/tour-steps';
@@ -20,6 +20,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { WorldBookImporter } from '@/components/worldbook/WorldBookImporter';
 import { WorldBookExporter } from '@/components/worldbook/WorldBookExporter';
+import { AIUpdateDialog } from '@/components/worldbook/AIUpdateDialog';
 import { EntryCard } from '@/components/worldbook/EntryCard';
 import { EntryListRow } from '@/components/worldbook/EntryListRow';
 import { EntryEditor } from '@/components/worldbook/EntryEditor';
@@ -59,6 +60,7 @@ export default function WorldBookPage() {
   const [mobileEditorOpen, setMobileEditorOpen] = useState(false);
   const [activeTab, setActiveTab] = useState<'edit' | 'quick'>('edit');
   const [batchMode, setBatchMode] = useState(false);
+  const [aiDialogOpen, setAiDialogOpen] = useState(false);
   const [batchSelected, setBatchSelected] = useState<Set<string>>(new Set());
   // Filter state
   const [searchQuery, setSearchQuery] = useState('');
@@ -617,6 +619,12 @@ export default function WorldBookPage() {
             <WorldBookImporter onImport={handleImport} onAppend={handleAppend} hasExisting={!!worldbook} />
           </div>
 
+          {worldbook && (
+            <Button variant="outline" size="sm" onClick={() => setAiDialogOpen(true)}>
+              <Sparkles className="w-4 h-4 mr-1" /> <span className="hidden sm:inline">AI 更新</span>
+            </Button>
+          )}
+
           <Dialog open={stagedDialogOpen} onOpenChange={setStagedDialogOpen}>
             <DialogTrigger asChild>
               <Button variant="outline" size="sm" data-tour="wb-staged" onClick={() => {
@@ -1038,6 +1046,13 @@ export default function WorldBookPage() {
           onSkip={() => { setTourCompleted('worldbook'); setShowTour(false); }}
         />
       )}
+
+      <AIUpdateDialog
+        open={aiDialogOpen}
+        onOpenChange={setAiDialogOpen}
+        existingEntries={allEntries.map(([, e]) => e)}
+        onAppend={handleAppend}
+      />
       </div>
     </AppLayout>
   );
