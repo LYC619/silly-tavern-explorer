@@ -1,6 +1,7 @@
 import { Switch } from '@/components/ui/switch';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Badge } from '@/components/ui/badge';
+import { Trash2 } from 'lucide-react';
 import type { WorldBookEntry } from '@/types/worldbook';
 import { POSITION_LABELS } from '@/types/worldbook';
 import { cn } from '@/lib/utils';
@@ -10,6 +11,7 @@ interface Props {
   selected: boolean;
   onClick: () => void;
   onToggleEnabled: (enabled: boolean) => void;
+  onDelete?: () => void;
   batchMode?: boolean;
   batchChecked?: boolean;
   onBatchToggle?: (checked: boolean, shiftKey: boolean) => void;
@@ -29,7 +31,7 @@ function strategyInfo(entry: WorldBookEntry) {
   return { dot: 'bg-green-500', label: '关键词' };
 }
 
-export function EntryCard({ entry, selected, onClick, onToggleEnabled, batchMode, batchChecked, onBatchToggle }: Props) {
+export function EntryCard({ entry, selected, onClick, onToggleEnabled, onDelete, batchMode, batchChecked, onBatchToggle }: Props) {
   const strategy = strategyInfo(entry);
   const posLabel = POSITION_LABELS[entry.position] ?? `位置 ${entry.position}`;
   const contentPreview = entry.content.split('\n').slice(0, 3).join('\n');
@@ -76,6 +78,16 @@ export function EntryCard({ entry, selected, onClick, onToggleEnabled, batchMode
             onClick={(e) => e.stopPropagation()}
             className="shrink-0"
           />
+          {!batchMode && onDelete && (
+            <button
+              onClick={(e) => { e.stopPropagation(); onDelete(); }}
+              className="shrink-0 text-muted-foreground hover:text-destructive transition-colors"
+              aria-label="删除此条目"
+              title="删除此条目"
+            >
+              <Trash2 className="w-4 h-4" />
+            </button>
+          )}
         </div>
 
         {/* Keywords */}

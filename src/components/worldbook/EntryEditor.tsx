@@ -25,6 +25,8 @@ function TagInput({ tags, onChange, dashed = false, placeholder = '' }: {
   placeholder?: string;
 }) {
   const [input, setInput] = useState('');
+  const [bulkMode, setBulkMode] = useState(false);
+  const [bulkText, setBulkText] = useState('');
 
   const addTags = (raw: string) => {
     const newTags = raw.split(',').map(t => t.trim()).filter(t => t && !tags.includes(t));
@@ -39,9 +41,43 @@ function TagInput({ tags, onChange, dashed = false, placeholder = '' }: {
     }
   };
 
+  const openBulk = () => {
+    setBulkText(tags.join(', '));
+    setBulkMode(true);
+  };
+
+  const applyBulk = () => {
+    // 整体替换：逗号分隔、去空、去重、保序
+    const next: string[] = [];
+    for (const t of bulkText.split(',').map(s => s.trim()).filter(Boolean)) {
+      if (!next.includes(t)) next.push(t);
+    }
+    onChange(next);
+    setBulkMode(false);
+  };
+
+  if (bulkMode) {
+    return (
+      <div className="space-y-1.5">
+        <Textarea
+          value={bulkText}
+          onChange={(e) => setBulkText(e.target.value)}
+          placeholder="逗号分隔，整体替换（清空文本即删除全部关键词）"
+          className="text-sm min-h-[70px]"
+          autoFocus
+        />
+        <div className="flex items-center gap-2">
+          <Button size="sm" className="h-7 text-xs" onClick={applyBulk}>应用</Button>
+          <Button size="sm" variant="ghost" className="h-7 text-xs" onClick={() => setBulkMode(false)}>取消</Button>
+          <span className="text-xs text-muted-foreground">编辑 / 删除多个后整体替换</span>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-1.5">
-      <div className="flex flex-wrap gap-1">
+      <div className="flex flex-wrap gap-1 items-center">
         {tags.map((t, i) => (
           <Badge
             key={i}
@@ -53,6 +89,16 @@ function TagInput({ tags, onChange, dashed = false, placeholder = '' }: {
             <X className="w-3 h-3 ml-1" />
           </Badge>
         ))}
+        {tags.length > 0 && (
+          <button
+            type="button"
+            onClick={openBulk}
+            className="text-xs text-muted-foreground hover:text-foreground underline decoration-dotted ml-0.5"
+            title="批量编辑：文本框内逗号分隔，整体替换"
+          >
+            批量编辑
+          </button>
+        )}
       </div>
       <Input
         value={input}

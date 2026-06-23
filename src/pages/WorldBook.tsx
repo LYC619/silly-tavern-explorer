@@ -62,6 +62,7 @@ export default function WorldBookPage() {
   const [batchSelected, setBatchSelected] = useState<Set<string>>(new Set());
   // Filter state
   const [searchQuery, setSearchQuery] = useState('');
+  const [searchScope, setSearchScope] = useState<'all' | 'title'>('all');
   const [filterConstant, setFilterConstant] = useState(false);
   const [filterKeyword, setFilterKeyword] = useState(false);
   const [filterVector, setFilterVector] = useState(false);
@@ -152,9 +153,11 @@ export default function WorldBookPage() {
     if (searchQuery) {
       const q = searchQuery.toLowerCase();
       result = result.filter(([, e]) =>
-        e.comment.toLowerCase().includes(q) ||
-        e.key.some(k => k.toLowerCase().includes(q)) ||
-        e.content.toLowerCase().includes(q)
+        searchScope === 'title'
+          ? e.comment.toLowerCase().includes(q)
+          : e.comment.toLowerCase().includes(q) ||
+            e.key.some(k => k.toLowerCase().includes(q)) ||
+            e.content.toLowerCase().includes(q)
       );
     }
 
@@ -192,7 +195,7 @@ export default function WorldBookPage() {
     });
 
     return result;
-  }, [allEntries, searchQuery, filterConstant, filterKeyword, filterVector, filterEnabled, filterDisabled, filterPosition, sortMode]);
+  }, [allEntries, searchQuery, searchScope, filterConstant, filterKeyword, filterVector, filterEnabled, filterDisabled, filterPosition, sortMode]);
 
   // 分页：总页数 + 当前页切片。pageSize=0 → 全部
   const totalPages = pageSize > 0 ? Math.max(1, Math.ceil(filteredEntries.length / pageSize)) : 1;
@@ -208,7 +211,7 @@ export default function WorldBookPage() {
   }, [totalPages]);
   useEffect(() => {
     setPage(1);
-  }, [searchQuery, filterConstant, filterKeyword, filterVector, filterEnabled, filterDisabled, filterPosition, pageSize]);
+  }, [searchQuery, searchScope, filterConstant, filterKeyword, filterVector, filterEnabled, filterDisabled, filterPosition, pageSize]);
 
   // 激活的筛选项数量（给「筛选」按钮角标）
   const activeFilterCount =
@@ -292,8 +295,10 @@ export default function WorldBookPage() {
   }, [worldbook]);
 
   const deleteEntry = useCallback((key: string) => {
+    let removed: WorldBookEntry | undefined;
     setWorldbook(prev => {
       if (!prev) return prev;
+      removed = prev.entries[key];
       const { [key]: _, ...rest } = prev.entries;
       return { ...prev, entries: rest };
     });
@@ -301,7 +306,19 @@ export default function WorldBookPage() {
       setSelectedUid(null);
       setMobileEditorOpen(false);
     }
-  }, [selectedUid]);
+    if (removed) {
+      const restore = removed;
+      toast({
+        title: '已删除条目',
+        description: restore.comment || `条目 ${restore.uid}`,
+        action: (
+          <ToastAction altText="撤销" onClick={() => {
+            setWorldbook(prev => (prev ? { ...prev, entries: { ...prev.entries, [key]: restore } } : prev));
+          }}>撤销</ToastAction>
+        ),
+      });
+    }
+  }, [selectedUid, toast]);
 
   const handleSelectEntry = useCallback((key: string) => {
     setSelectedUid(key);
@@ -791,6 +808,16 @@ export default function WorldBookPage() {
                           )}
                         </div>
 
+                        <Select value={searchScope} onValueChange={(v) => setSearchScope(v as 'all' | 'title')}>
+                          <SelectTrigger className="h-8 w-24 text-xs shrink-0" title="搜索范围">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="all">搜全部</SelectItem>
+                            <SelectItem value="title">仅标题</SelectItem>
+                          </SelectContent>
+                        </Select>
+
                         <Select value={sortMode} onValueChange={(v) => setSortMode(v as SortMode)}>
                           <SelectTrigger className="h-8 w-28 text-xs shrink-0">
                             <SelectValue />
@@ -905,6 +932,7 @@ export default function WorldBookPage() {
                             selected={selectedUid === key}
                             onClick={() => handleSelectEntry(key)}
                             onToggleEnabled={(v) => toggleEnabled(key, v)}
+                            onDelete={() => deleteEntry(key)}
                             batchMode={batchMode}
                             batchChecked={batchSelected.has(key)}
                             onBatchToggle={(v, shift) => toggleBatchItem(key, v, shift)}
@@ -923,6 +951,7 @@ export default function WorldBookPage() {
                               <th className="px-2 py-1.5">关键词</th>
                               <th className="px-2 py-1.5">位置</th>
                               <th className="px-2 py-1.5 text-right">Order</th>
+                              {!batchMode && <th className="px-2 py-1.5 w-8"></th>}
                             </tr>
                           </thead>
                           <tbody>
@@ -933,6 +962,7 @@ export default function WorldBookPage() {
                                 selected={selectedUid === key}
                                 onClick={() => handleSelectEntry(key)}
                                 onToggleEnabled={(v) => toggleEnabled(key, v)}
+                                onDelete={() => deleteEntry(key)}
                                 batchMode={batchMode}
                                 batchChecked={batchSelected.has(key)}
                                 onBatchToggle={(v, shift) => toggleBatchItem(key, v, shift)}
