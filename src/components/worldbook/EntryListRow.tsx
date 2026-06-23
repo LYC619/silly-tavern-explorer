@@ -1,5 +1,6 @@
 import { Switch } from '@/components/ui/switch';
 import { Checkbox } from '@/components/ui/checkbox';
+import { Trash2 } from 'lucide-react';
 import type { WorldBookEntry } from '@/types/worldbook';
 import { POSITION_LABELS } from '@/types/worldbook';
 import { cn } from '@/lib/utils';
@@ -9,6 +10,7 @@ interface Props {
   selected: boolean;
   onClick: () => void;
   onToggleEnabled: (enabled: boolean) => void;
+  onDelete?: () => void;
   batchMode?: boolean;
   batchChecked?: boolean;
   onBatchToggle?: (checked: boolean, shiftKey: boolean) => void;
@@ -20,7 +22,7 @@ function strategyIcon(entry: WorldBookEntry) {
   return '🟢';
 }
 
-export function EntryListRow({ entry, selected, onClick, onToggleEnabled, batchMode, batchChecked, onBatchToggle }: Props) {
+export function EntryListRow({ entry, selected, onClick, onToggleEnabled, onDelete, batchMode, batchChecked, onBatchToggle }: Props) {
   return (
     <tr
       className={cn(
@@ -52,6 +54,20 @@ export function EntryListRow({ entry, selected, onClick, onToggleEnabled, batchM
         {POSITION_LABELS[entry.position] ?? `${entry.position}`}
       </td>
       <td className="px-2 py-1.5 text-muted-foreground text-right">{entry.order}</td>
+      {!batchMode && (
+        <td className="px-2 py-1.5 w-8 text-center" onClick={(e) => e.stopPropagation()}>
+          {onDelete && (
+            <button
+              onClick={onDelete}
+              className="text-muted-foreground hover:text-destructive transition-colors inline-flex"
+              aria-label="删除此条目"
+              title="删除此条目"
+            >
+              <Trash2 className="w-3.5 h-3.5" />
+            </button>
+          )}
+        </td>
+      )}
     </tr>
   );
 }
