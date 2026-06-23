@@ -6,11 +6,11 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { useToast } from '@/hooks/use-toast';
 import { callOpenAI, loadAPIConfig } from '@/components/ai-tools';
 
-const SYSTEM_PROMPT = `你是一个 SillyTavern 世界书条目润色助手。用户会给你一条世界书条目的当前内容，以及修改要求。
+const WB_SYSTEM_PROMPT = `你是一个 SillyTavern 世界书条目润色助手。用户会给你一条世界书条目的当前内容，以及修改要求。
 请按要求改写这条内容，直接输出改写后的【完整正文】，不要任何解释、不要代码块包裹、不要前后缀说明。
 保持世界书条目应有的设定描述风格；若用户没有特别要求格式，保留原有的结构与分段。`;
 
-const QUICK_PRESETS = [
+const WB_PRESETS = [
   '优化措辞，使表达更自然流畅',
   '精简内容，去掉冗余，保留要点',
   '扩写得更详细具体',
@@ -22,15 +22,25 @@ interface Props {
   onResult: (text: string) => void;
   /** 触发按钮样式，紧凑用于工具行 */
   compact?: boolean;
+  /** 改写用的 system prompt（默认世界书条目润色；预设等场景可传入自己的语境） */
+  systemPrompt?: string;
+  /** 快捷预设要求按钮（默认世界书那套） */
+  quickPresets?: string[];
+  /** 弹窗标题（默认"AI 改写本条内容"） */
+  title?: string;
 }
 
-/** 单条世界书条目的 AI 改写：输入要求 → 喂当前内容+要求 → 直接替换内容 */
-export function AIRewriteContent({ content, onResult, compact }: Props) {
+/** 通用 AI 改写：输入要求 → 喂当前内容+要求 → 直接替换内容。世界书条目 / 预设块等均可复用 */
+export function AIRewriteContent({ content, onResult, compact, systemPrompt, quickPresets, title }: Props) {
   const { toast } = useToast();
   const [open, setOpen] = useState(false);
   const [instruction, setInstruction] = useState('');
   const [loading, setLoading] = useState(false);
   const abortRef = useRef<AbortController | null>(null);
+
+  const sysPrompt = systemPrompt ?? WB_SYSTEM_PROMPT;
+  const presets = quickPresets ?? WB_PRESETS;
+  const popTitle = title ?? 'AI 改写本条内容';
 
   const run = async () => {
     const config = loadAPIConfig();
@@ -39,7 +49,7 @@ export function AIRewriteContent({ content, onResult, compact }: Props) {
       return;
     }
     if (!content.trim()) {
-      toast({ title: '当前条目内容为空', description: '没有可改写的内容', variant: 'destructive' });
+      toast({ title: '当前内容为空', description: '没有可改写的内容', variant: 'destructive' });
       return;
     }
     if (!instruction.trim()) {
@@ -52,11 +62,11 @@ export function AIRewriteContent({ content, onResult, compact }: Props) {
     setLoading(true);
     let acc = '';
     try {
-      await callOpenAI(config, userContent, SYSTEM_PROMPT, (chunk) => { acc += chunk; }, controller.signal);
+      await callOpenAI(config, userContent, sysPrompt, (chunk) => { acc += chunk; }, controller.signal);
       const result = acc.replace(/^```[a-z]*\s*\n?/i, '').replace(/\n?```\s*$/i, '').trim();
       if (result) {
         onResult(result);
-        toast({ title: 'AI 已改写', description: '可在内容框继续编辑或 Ctrl+Z 撤销' });
+        toast({ title: 'AI 已改写', description: '可继续编辑或 Ctrl+Z 撤销' });
         setOpen(false);
         setInstruction('');
       } else {
@@ -79,14 +89,14 @@ export function AIRewriteContent({ content, onResult, compact }: Props) {
           variant="ghost"
           size="sm"
           className={compact ? 'h-6 px-2 text-xs text-muted-foreground hover:text-foreground' : 'h-7 px-2 text-xs'}
-          title="用 AI 改写本条内容"
+          title="用 AI 改写当前内容"
         >
           <Wand2 className="w-3.5 h-3.5 mr-1" /> AI 改写
         </Button>
       </PopoverTrigger>
       <PopoverContent className="w-80" align="end">
         <div className="space-y-2">
-          <p className="text-xs font-medium">AI 改写本条内容</p>
+          <p className="text-xs font-medium">{popTitle}</p>
           <Textarea
             value={instruction}
             onChange={(e) => setInstruction(e.target.value)}
@@ -94,7 +104,7 @@ export function AIRewriteContent({ content, onResult, compact }: Props) {
             className="text-xs min-h-[60px]"
           />
           <div className="flex flex-wrap gap-1">
-            {QUICK_PRESETS.map((p) => (
+            {presets.map((p) => (
               <button
                 key={p}
                 type="button"

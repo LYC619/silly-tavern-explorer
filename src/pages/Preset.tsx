@@ -139,6 +139,32 @@ export default function Preset() {
     } : prev);
   }, []);
 
+  const handleBlockNameChange = useCallback((identifier: string, name: string) => {
+    setPreset((prev) => prev ? {
+      ...prev,
+      prompts: prev.prompts.map((p) => (p.identifier === identifier ? { ...p, name } : p)),
+    } : prev);
+  }, []);
+
+  // 手动新建提示词块：加入 prompts + 当前角色组 order（启用），不进历史栈
+  const handleAddBlock = useCallback((name: string) => {
+    const identifier = `custom-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
+    setPreset((prev) => {
+      if (!prev) return prev;
+      const newBlock = { identifier, name: name || '新提示词块', role: 'system' as const, content: '' };
+      return {
+        ...prev,
+        prompts: [...prev.prompts, newBlock],
+        promptOrder: prev.promptOrder.map((g) =>
+          g.character_id === activeCharacterId
+            ? { ...g, order: [...g.order, { identifier, enabled: true }] }
+            : g
+        ),
+      };
+    });
+    return identifier;
+  }, [activeCharacterId]);
+
   const handleFieldChange = useCallback((key: string, value: string) => {
     setPreset((prev) => prev ? { ...prev, originalData: { ...prev.originalData, [key]: value } } : prev);
   }, []);
@@ -332,6 +358,8 @@ export default function Preset() {
                 onCharacterIdChange={handleCharacterIdChange}
                 onOrderChange={handleOrderChange}
                 onBlockContentChange={handleBlockContentChange}
+                onBlockNameChange={handleBlockNameChange}
+                onAddBlock={handleAddBlock}
                 onUndo={undo}
                 onRedo={redo}
                 canUndo={canUndo}
