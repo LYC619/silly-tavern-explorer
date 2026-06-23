@@ -12,6 +12,7 @@ import { Button } from '@/components/ui/button';
 import { ChevronDown, X, Maximize2 } from 'lucide-react';
 import type { WorldBookEntry } from '@/types/worldbook';
 import { POSITION_LABELS, SELECTIVE_LOGIC_LABELS, ROLE_LABELS } from '@/types/worldbook';
+import { AIRewriteContent } from '@/components/worldbook/AIRewriteContent';
 
 interface Props {
   entry: WorldBookEntry;
@@ -182,26 +183,30 @@ export function EntryEditor({ entry, onChange }: Props) {
       <div className="space-y-1">
         <div className="flex items-center justify-between">
           <Label>内容 (Content)</Label>
-          <Button
-            type="button"
-            variant="ghost"
-            size="sm"
-            className="h-6 px-2 text-xs text-muted-foreground hover:text-foreground"
-            onClick={() => setContentExpanded(true)}
-            title="放大编辑"
-          >
-            <Maximize2 className="w-3.5 h-3.5 mr-1" /> 放大
-          </Button>
+          <div className="flex items-center gap-1">
+            <AIRewriteContent content={entry.content} onResult={(text) => update('content', text)} compact />
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              className="h-6 px-2 text-xs text-muted-foreground hover:text-foreground"
+              onClick={() => setContentExpanded(true)}
+              title="放大编辑"
+            >
+              <Maximize2 className="w-3.5 h-3.5 mr-1" /> 放大
+            </Button>
+          </div>
         </div>
         <Textarea value={entry.content} onChange={(e) => update('content', e.target.value)} rows={8} className="text-sm" />
       </div>
 
       {/* 放大编辑内容弹窗 */}
       <Dialog open={contentExpanded} onOpenChange={setContentExpanded}>
-        <DialogContent className="max-w-4xl w-[90vw] h-[85vh] flex flex-col">
+        <DialogContent className="!max-w-3xl h-[85vh] flex flex-col">
           <DialogHeader className="shrink-0">
-            <DialogTitle className="text-base">
-              编辑内容{entry.comment ? ` — ${entry.comment}` : ''}
+            <DialogTitle className="text-base flex items-center justify-between gap-2 pr-8">
+              <span>编辑内容{entry.comment ? ` — ${entry.comment}` : ''}</span>
+              <AIRewriteContent content={entry.content} onResult={(text) => update('content', text)} />
             </DialogTitle>
           </DialogHeader>
           <Textarea

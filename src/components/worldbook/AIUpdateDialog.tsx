@@ -144,12 +144,15 @@ export function AIUpdateDialog({ open, onOpenChange, existingEntries, onAppend }
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Sparkles className="w-5 h-5 text-primary" />
-            AI 按聊天内容更新世界书
+            AI 按聊天内容追加世界书条目
           </DialogTitle>
         </DialogHeader>
 
         <ScrollArea className="flex-1 pr-3">
           <div className="space-y-4">
+            <p className="text-xs text-muted-foreground">
+              根据聊天记录提炼<strong>新</strong>设定，<strong>追加</strong>为新条目（不改动现有条目）。想修改某一条，请在该条目编辑区用「AI 改写」。
+            </p>
             {/* API 配置：无 key 或用户主动展开时显示 */}
             {(showConfig || !config.apiKey) && (
               <APIConfigCard savedConfig={config} onConfigSave={handleConfigSave} onConfigClear={handleConfigClear} />
