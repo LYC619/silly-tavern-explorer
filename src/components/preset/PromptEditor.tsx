@@ -17,6 +17,19 @@ import {
   substituteVars, estimateTokens, getActiveOrder,
 } from '@/lib/preset-parser';
 import { RoleBadge, MarkerBadge, UnreferencedBadge, EmptyBadge, roleBorderClass } from './PresetRoleBadge';
+import { AIRewriteContent } from '@/components/worldbook/AIRewriteContent';
+
+/** 预设提示词块的 AI 改写语境 */
+const PRESET_REWRITE_SYSTEM = `你是一个 SillyTavern 预设（Chat Completion Preset）提示词调优助手。用户会给你一段提示词块的当前内容，以及修改要求。
+请按要求改写这段提示词，直接输出改写后的【完整提示词正文】，不要任何解释、不要代码块包裹。
+注意：这是发送给大语言模型的指令/系统提示，保持其作为"指令"的清晰与可执行性；保留 {{char}}、{{user}} 等占位宏不要替换掉。`;
+
+const PRESET_REWRITE_PRESETS = [
+  '让指令更清晰明确',
+  '精简冗余表述',
+  '强调中文回复',
+  '加强角色扮演沉浸感',
+];
 
 interface PromptEditorProps {
   preset: NormalizedPreset;
@@ -26,6 +39,10 @@ interface PromptEditorProps {
   onOrderChange: (order: OrderEntry[]) => void;
   /** 改 prompt 块内容（不进历史栈） */
   onBlockContentChange: (identifier: string, content: string) => void;
+  /** 改 prompt 块名称 */
+  onBlockNameChange: (identifier: string, name: string) => void;
+  /** 手动新建提示词块，返回新块 identifier */
+  onAddBlock: (name: string) => string;
   onUndo: () => void;
   onRedo: () => void;
   canUndo: boolean;
@@ -34,7 +51,7 @@ interface PromptEditorProps {
 
 export function PromptEditor({
   preset, activeCharacterId, onCharacterIdChange,
-  onOrderChange, onBlockContentChange, onUndo, onRedo, canUndo, canRedo,
+  onOrderChange, onBlockContentChange, onBlockNameChange, onAddBlock, onUndo, onRedo, canUndo, canRedo,
 }: PromptEditorProps) {
   const { toast } = useToast();
   const [expandedId, setExpandedId] = useState<string | null>(null);
@@ -136,7 +153,20 @@ export function PromptEditor({
 
         {/* 激活顺序 */}
         <div>
-          <h3 className="text-sm font-medium mb-2">激活顺序（{order.length}）</h3>
+          <div className="flex items-center justify-between mb-2">
+            <h3 className="text-sm font-medium">激活顺序（{order.length}）</h3>
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-7 px-2 text-xs"
+              onClick={() => {
+                const id = onAddBlock('新提示词块');
+                setExpandedId(id);
+              }}
+            >
+              <Plus className="w-3.5 h-3.5 mr-1" /> 新建块
+            </Button>
+          </div>
           <ScrollArea className="h-[420px] pr-2">
             <div className="space-y-1.5">
               {order.map((entry, index) => {
@@ -177,12 +207,30 @@ export function PromptEditor({
                         {block?.marker ? (
                           <p className="text-xs text-muted-foreground py-1">系统插槽，运行时由 SillyTavern 动态填充，无可编辑内容。</p>
                         ) : (
-                          <Textarea
-                            value={block?.content ?? ''}
-                            onChange={(e) => onBlockContentChange(entry.identifier, e.target.value)}
-                            placeholder="提示词内容"
-                            className="text-xs min-h-[80px] font-mono"
-                          />
+                          <div className="space-y-1">
+                            <div className="flex items-center gap-1.5">
+                              <Input
+                                value={block?.name ?? ''}
+                                onChange={(e) => onBlockNameChange(entry.identifier, e.target.value)}
+                                placeholder="块名称"
+                                className="h-7 text-xs flex-1"
+                              />
+                              <AIRewriteContent
+                                content={block?.content ?? ''}
+                                onResult={(text) => onBlockContentChange(entry.identifier, text)}
+                                systemPrompt={PRESET_REWRITE_SYSTEM}
+                                quickPresets={PRESET_REWRITE_PRESETS}
+                                title="AI 改写本提示词块"
+                                compact
+                              />
+                            </div>
+                            <Textarea
+                              value={block?.content ?? ''}
+                              onChange={(e) => onBlockContentChange(entry.identifier, e.target.value)}
+                              placeholder="提示词内容"
+                              className="text-xs min-h-[80px] font-mono"
+                            />
+                          </div>
                         )}
                       </div>
                     )}
