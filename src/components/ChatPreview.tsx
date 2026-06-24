@@ -151,7 +151,7 @@ function getThemeClasses(theme: ThemeStyle) {
       return {
         container: 'bg-background p-6',
         title: 'text-left mb-6 pb-3 border-b border-border',
-        message: 'mb-4 flex gap-3',
+        message: 'mb-4 flex gap-3 w-full',
         userBubble: 'flex-row-reverse',
         charBubble: 'flex-row',
         content: 'rounded-2xl px-4 py-2.5 max-w-[80%]',
@@ -240,7 +240,7 @@ const MessageRow = memo(function MessageRow({
       )}
 
       <div
-        className={`${classes.message} ${isUser ? classes.userBubble : classes.charBubble} animate-fade-in group relative ${
+        className={`${classes.message} ${isUser ? classes.userBubble : classes.charBubble} animate-fade-in group relative w-full ${
           editMode ? 'cursor-pointer hover:bg-primary/5 rounded-lg transition-colors pt-9 px-2' : ''
         } ${isActiveMatch ? 'rounded-lg ring-2 ring-primary/60 ring-offset-2 ring-offset-background' : ''}`}
         onClick={() => editMode && onMessageClick?.(message.id, index)}
