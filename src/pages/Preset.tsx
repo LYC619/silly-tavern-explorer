@@ -377,6 +377,7 @@ export default function Preset() {
                 onOrderChange={handleOrderChange}
                 onBlockContentChange={handleBlockContentChange}
                 onBlockNameChange={handleBlockNameChange}
+                onBlockRoleChange={handleBlockRoleChange}
                 onAddBlock={handleAddBlock}
                 onUndo={undo}
                 onRedo={redo}
