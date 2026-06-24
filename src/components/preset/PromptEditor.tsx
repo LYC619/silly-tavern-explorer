@@ -217,6 +217,19 @@ export function PromptEditor({
                                 placeholder="块名称"
                                 className="h-7 text-xs flex-1"
                               />
+                              <Select
+                                value={block?.role ?? 'system'}
+                                onValueChange={(v) => onBlockRoleChange(entry.identifier, v as 'system' | 'user' | 'assistant')}
+                              >
+                                <SelectTrigger className="h-7 w-[88px] text-xs" aria-label="角色类型">
+                                  <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  <SelectItem value="system" className="text-xs">系统</SelectItem>
+                                  <SelectItem value="user" className="text-xs">用户</SelectItem>
+                                  <SelectItem value="assistant" className="text-xs">助手</SelectItem>
+                                </SelectContent>
+                              </Select>
                               <AIRewriteContent
                                 content={block?.content ?? ''}
                                 onResult={(text) => onBlockContentChange(entry.identifier, text)}
