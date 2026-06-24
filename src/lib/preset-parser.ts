@@ -93,7 +93,9 @@ export function exportPreset(
     const group = np.promptOrder.find((g) => g.character_id === charId) ?? np.promptOrder[0];
     const enabledOrder = (group?.order ?? []).filter((o) => o.enabled);
     const enabledIds = new Set(enabledOrder.map((o) => o.identifier));
-    prompts = np.prompts.filter((p) => enabledIds.has(p.identifier));
+    // ST 内置 marker（chatHistory/worldInfo/charDescription 等）即便未启用也必须保留，
+    // 否则 ST 重新加载预设时会判定缺失并重置为默认，破坏用户配置。
+    prompts = np.prompts.filter((p) => enabledIds.has(p.identifier) || p.marker === true);
     promptOrder = [{ character_id: group?.character_id ?? charId, order: enabledOrder }];
   }
 
