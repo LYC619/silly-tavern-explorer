@@ -41,6 +41,8 @@ interface PromptEditorProps {
   onBlockContentChange: (identifier: string, content: string) => void;
   /** 改 prompt 块名称 */
   onBlockNameChange: (identifier: string, name: string) => void;
+  /** 改 prompt 块角色类型 */
+  onBlockRoleChange: (identifier: string, role: 'system' | 'user' | 'assistant') => void;
   /** 手动新建提示词块，返回新块 identifier */
   onAddBlock: (name: string) => string;
   onUndo: () => void;
