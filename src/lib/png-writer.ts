@@ -135,7 +135,7 @@ export function embedCharaInPng(originalPng: ArrayBuffer, cardJson: unknown): Ui
 
 /** 生成可下载的 PNG Blob */
 export function embedCharaInPngBlob(originalPng: ArrayBuffer, cardJson: unknown): Blob {
-  return new Blob([embedCharaInPng(originalPng, cardJson)], { type: 'image/png' });
+  return new Blob([embedCharaInPng(originalPng, cardJson) as BlobPart], { type: 'image/png' });
 }
 
 // 测试用导出（验证 round-trip）

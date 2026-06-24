@@ -41,6 +41,8 @@ interface PromptEditorProps {
   onBlockContentChange: (identifier: string, content: string) => void;
   /** 改 prompt 块名称 */
   onBlockNameChange: (identifier: string, name: string) => void;
+  /** 改 prompt 块角色类型 */
+  onBlockRoleChange: (identifier: string, role: 'system' | 'user' | 'assistant') => void;
   /** 手动新建提示词块，返回新块 identifier */
   onAddBlock: (name: string) => string;
   onUndo: () => void;
@@ -51,7 +53,7 @@ interface PromptEditorProps {
 
 export function PromptEditor({
   preset, activeCharacterId, onCharacterIdChange,
-  onOrderChange, onBlockContentChange, onBlockNameChange, onAddBlock, onUndo, onRedo, canUndo, canRedo,
+  onOrderChange, onBlockContentChange, onBlockNameChange, onBlockRoleChange, onAddBlock, onUndo, onRedo, canUndo, canRedo,
 }: PromptEditorProps) {
   const { toast } = useToast();
   const [expandedId, setExpandedId] = useState<string | null>(null);
@@ -215,6 +217,19 @@ export function PromptEditor({
                                 placeholder="块名称"
                                 className="h-7 text-xs flex-1"
                               />
+                              <Select
+                                value={block?.role ?? 'system'}
+                                onValueChange={(v) => onBlockRoleChange(entry.identifier, v as 'system' | 'user' | 'assistant')}
+                              >
+                                <SelectTrigger className="h-7 w-[88px] text-xs" aria-label="角色类型">
+                                  <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  <SelectItem value="system" className="text-xs">系统</SelectItem>
+                                  <SelectItem value="user" className="text-xs">用户</SelectItem>
+                                  <SelectItem value="assistant" className="text-xs">助手</SelectItem>
+                                </SelectContent>
+                              </Select>
                               <AIRewriteContent
                                 content={block?.content ?? ''}
                                 onResult={(text) => onBlockContentChange(entry.identifier, text)}
