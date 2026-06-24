@@ -157,6 +157,13 @@ export default function Preset() {
     } : prev);
   }, []);
 
+  const handleBlockRoleChange = useCallback((identifier: string, role: 'system' | 'user' | 'assistant') => {
+    setPreset((prev) => prev ? {
+      ...prev,
+      prompts: prev.prompts.map((p) => (p.identifier === identifier && !p.marker ? { ...p, role } : p)),
+    } : prev);
+  }, []);
+
   // 手动新建提示词块：加入 prompts + 当前角色组 order（启用），不进历史栈
   const handleAddBlock = useCallback((name: string) => {
     const identifier = `custom-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
@@ -370,6 +377,7 @@ export default function Preset() {
                 onOrderChange={handleOrderChange}
                 onBlockContentChange={handleBlockContentChange}
                 onBlockNameChange={handleBlockNameChange}
+                onBlockRoleChange={handleBlockRoleChange}
                 onAddBlock={handleAddBlock}
                 onUndo={undo}
                 onRedo={redo}
