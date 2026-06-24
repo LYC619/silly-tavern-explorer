@@ -116,6 +116,6 @@ describe('JSONL Parser', () => {
     ].join('\n');
 
     const { messages } = parseJsonl(content);
-    expect(messages[0].content.length).toBe(100000);
+    expect((messages[0].content as string).length).toBe(100000);
   });
 });
