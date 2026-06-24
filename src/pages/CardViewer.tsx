@@ -17,6 +17,8 @@ import {
 import { embedCharaInPngBlob } from '@/lib/png-writer';
 import { getAllCards, getCard, saveCard, deleteCard, pruneAutoSavedCards } from '@/lib/card-db';
 import { generateCardId, type CardItem } from '@/types/character-card';
+import { GuidedTour } from '@/components/GuidedTour';
+import { CARDVIEWER_TOUR_STEPS, isTourCompleted, setTourCompleted } from '@/lib/tour-steps';
 
 const CARD_SESSION_KEY = 'card-active-session';
 
@@ -56,11 +58,20 @@ export default function CardViewer() {
   const [fileName, setFileName] = useState('character');
   const [currentItemId, setCurrentItemId] = useState<string | null>(null);
   const [savedItems, setSavedItems] = useState<CardItem[]>([]);
+  const [showTour, setShowTour] = useState(false);
   // PNG 导入时的原图字节（用于导出 PNG 回写）；JSON 导入为 null
   const pngBytesRef = useRef<ArrayBuffer | null>(null);
 
   const refreshSaved = useCallback(async () => {
     try { setSavedItems(await getAllCards()); } catch { /* ignore */ }
+  }, []);
+
+  // 首次访问自动引导
+  useEffect(() => {
+    if (!isTourCompleted('cardviewer')) {
+      const t = setTimeout(() => setShowTour(true), 600);
+      return () => clearTimeout(t);
+    }
   }, []);
 
   // 跨页恢复
@@ -203,7 +214,7 @@ export default function CardViewer() {
         </PopoverContent>
       </Popover>
       <Button variant="outline" size="sm" onClick={handleSave}><Save className="w-4 h-4 mr-1.5" /> 保存</Button>
-      <Button variant="outline" size="sm" onClick={handleExportJson}><Download className="w-4 h-4 mr-1.5" /> 导出 JSON</Button>
+      <Button data-tour="card-export" variant="outline" size="sm" onClick={handleExportJson}><Download className="w-4 h-4 mr-1.5" /> 导出 JSON</Button>
       <Button variant="outline" size="sm" onClick={handleExportPng} disabled={!hasPng} title={hasPng ? '' : 'JSON 导入的卡无原图，无法导出 PNG'}>
         <Image className="w-4 h-4 mr-1.5" /> 导出 PNG
       </Button>
@@ -229,6 +240,14 @@ export default function CardViewer() {
         </div>
         <CharacterCardEditor card={card} edits={edits} onEditChange={onEditChange} onLoadFile={loadFile} />
       </div>
+      {showTour && (
+        <GuidedTour
+          steps={CARDVIEWER_TOUR_STEPS}
+          module="cardviewer"
+          onComplete={() => { setTourCompleted('cardviewer'); setShowTour(false); }}
+          onSkip={() => { setTourCompleted('cardviewer'); setShowTour(false); }}
+        />
+      )}
     </AppLayout>
   );
 }
