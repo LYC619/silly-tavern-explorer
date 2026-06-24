@@ -53,7 +53,7 @@ interface PromptEditorProps {
 
 export function PromptEditor({
   preset, activeCharacterId, onCharacterIdChange,
-  onOrderChange, onBlockContentChange, onBlockNameChange, onAddBlock, onUndo, onRedo, canUndo, canRedo,
+  onOrderChange, onBlockContentChange, onBlockNameChange, onBlockRoleChange, onAddBlock, onUndo, onRedo, canUndo, canRedo,
 }: PromptEditorProps) {
   const { toast } = useToast();
   const [expandedId, setExpandedId] = useState<string | null>(null);
