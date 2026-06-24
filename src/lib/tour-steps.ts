@@ -7,8 +7,8 @@ export const HOME_TOUR_STEPS: TourStep[] = [
     action: 'next',
   },
   {
-    targetSelector: '[data-tour="content-edit-btn"]',
-    content: '点击「编辑内容」进入编辑模式后，点击任意消息可打开编辑对话框，修改说话人和内容。',
+    targetSelector: '[data-tour="msg-edit-pencil"]',
+    content: '每条消息右上角的铅笔图标，点击即可直接编辑该楼的内容与说话人——所见即点，无需先切换模式。',
     action: 'next',
   },
   {
@@ -72,6 +72,11 @@ export const WORLDBOOK_TOUR_STEPS: TourStep[] = [
     content: '前缀归类可以为未分类条目分配标签，并自动整理排序。',
     action: 'next',
   },
+  {
+    targetSelector: '[data-tour="wb-ai"]',
+    content: 'AI 辅助：「AI 追加」可按当前聊天记录提炼新设定、追加为新条目；编辑某条目时还能用「AI 改写」精修这一条内容。需先在「AI 工具」页配置 API。',
+    action: 'next',
+  },
 ];
 
 export const AITOOLS_TOUR_STEPS: TourStep[] = [
@@ -97,9 +102,45 @@ export const AITOOLS_TOUR_STEPS: TourStep[] = [
   },
 ];
 
+export const CARDVIEWER_TOUR_STEPS: TourStep[] = [
+  {
+    targetSelector: '[data-tour="card-import"]',
+    content: '拖入或选择 SillyTavern 角色卡（PNG / JSON，支持 V1/V2/V3），即可解析并编辑。',
+    action: 'next',
+  },
+  {
+    targetSelector: '[data-tour="card-fields"]',
+    content: '可编辑角色的核心字段：名称、描述、性格、场景、开场白、标签等；未编辑的字段（内嵌世界书、立绘资源等）会原样保留。',
+    action: 'next',
+  },
+  {
+    targetSelector: '[data-tour="card-export"]',
+    content: '编辑完点这里导出：PNG 卡可回写图片（保留立绘）导出 PNG，也可导出 JSON，均能导回 SillyTavern。「保存」可留存到「已存角色卡」。',
+    action: 'next',
+  },
+];
+
+export const PRESET_TOUR_STEPS: TourStep[] = [
+  {
+    targetSelector: '[data-tour="preset-import"]',
+    content: '导入 SillyTavern 的 Chat Completion 预设 `.json`，即可可视化查看与编辑。',
+    action: 'next',
+  },
+  {
+    targetSelector: '[data-tour="preset-tabs"]',
+    content: '五个标签页：概览、提示词（拖拽排序 / 启用禁用 / 新建块 / AI 改写）、工具字段、正则、导出。',
+    action: 'next',
+  },
+  {
+    targetSelector: '[data-tour="preset-export"]',
+    content: '编辑完可完整 / 智能 / Markdown 导出，保留未识别字段无损还原；「保存」留存到「已存预设」。',
+    action: 'next',
+  },
+];
+
 // Storage keys
 const PREFIX = 'onboarding-';
-export const TOUR_MODULES = ['home', 'bookshelf', 'worldbook', 'aitools'] as const;
+export const TOUR_MODULES = ['home', 'bookshelf', 'worldbook', 'aitools', 'cardviewer', 'preset'] as const;
 export type TourModule = typeof TOUR_MODULES[number];
 
 export function isTourCompleted(module: TourModule): boolean {

@@ -620,7 +620,7 @@ export default function WorldBookPage() {
           </div>
 
           {worldbook && (
-            <Button variant="outline" size="sm" onClick={() => setAiDialogOpen(true)} title="根据聊天记录用 AI 提炼新设定，追加为新条目">
+            <Button data-tour="wb-ai" variant="outline" size="sm" onClick={() => setAiDialogOpen(true)} title="根据聊天记录用 AI 提炼新设定，追加为新条目">
               <Sparkles className="w-4 h-4 mr-1" /> <span className="hidden sm:inline">AI 追加</span>
             </Button>
           )}

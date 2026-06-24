@@ -66,7 +66,7 @@ export function CharacterCardEditor({ card, edits, onEditChange, onLoadFile }: C
   return (
     <div className="space-y-4">
       {/* 拖放 / 选择导入 */}
-      <Card>
+      <Card data-tour="card-import">
         <CardContent className="pt-6">
           <label
             onDragOver={(e) => e.preventDefault()}
@@ -91,7 +91,7 @@ export function CharacterCardEditor({ card, edits, onEditChange, onLoadFile }: C
               <Badge variant="outline" className="uppercase ml-1">{card.spec}</Badge>
             </CardTitle>
           </CardHeader>
-          <CardContent>
+          <CardContent data-tour="card-fields">
             <ScrollArea className="max-h-[64vh] pr-3">
               <div className="space-y-4">
                 {/* 基本信息：单行字段 */}

@@ -21,6 +21,8 @@ import { PromptEditor } from '@/components/preset/PromptEditor';
 import { PresetUtilityFields } from '@/components/preset/PresetUtilityFields';
 import { PresetRegexEditor } from '@/components/preset/PresetRegexEditor';
 import { PresetExport } from '@/components/preset/PresetExport';
+import { GuidedTour } from '@/components/GuidedTour';
+import { PRESET_TOUR_STEPS, isTourCompleted, setTourCompleted } from '@/lib/tour-steps';
 import type { RegexRule } from '@/types/chat';
 
 const PRESET_SESSION_KEY = 'preset-active-session';
@@ -43,6 +45,7 @@ export default function Preset() {
   const [savedItems, setSavedItems] = useState<PresetItem[]>([]);
   const [dragOver, setDragOver] = useState(false);
   const [tab, setTab] = useState('overview');
+  const [showTour, setShowTour] = useState(false);
 
   // 撤销/重做历史栈（仅覆盖激活顺序），按 ref 存快照
   const historyRef = useRef<OrderEntry[][]>([]);
@@ -51,6 +54,14 @@ export default function Preset() {
 
   const refreshSaved = useCallback(async () => {
     try { setSavedItems(await getAllPresets()); } catch { /* ignore */ }
+  }, []);
+
+  // 首次访问自动引导
+  useEffect(() => {
+    if (!isTourCompleted('preset')) {
+      const t = setTimeout(() => setShowTour(true), 600);
+      return () => clearTimeout(t);
+    }
   }, []);
 
   // 跨页恢复：组件挂载时凭 sessionStorage 指针从 IndexedDB 回读
@@ -307,7 +318,7 @@ export default function Preset() {
         </div>
 
         {!preset ? (
-          <Card className="max-w-2xl mx-auto">
+          <Card className="max-w-2xl mx-auto" data-tour="preset-import">
             <CardContent className="pt-6">
               <label
                 onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
@@ -341,12 +352,12 @@ export default function Preset() {
           </Card>
         ) : (
           <Tabs value={tab} onValueChange={setTab}>
-            <TabsList>
+            <TabsList data-tour="preset-tabs">
               <TabsTrigger value="overview">概览</TabsTrigger>
               <TabsTrigger value="prompts">提示词</TabsTrigger>
               <TabsTrigger value="utility">工具字段</TabsTrigger>
               <TabsTrigger value="regex">正则{preset.regexRules.length > 0 ? `（${preset.regexRules.length}）` : ''}</TabsTrigger>
-              <TabsTrigger value="export">导出</TabsTrigger>
+              <TabsTrigger value="export" data-tour="preset-export">导出</TabsTrigger>
             </TabsList>
             <TabsContent value="overview" className="mt-4">
               <PresetOverview preset={preset} />
@@ -378,6 +389,14 @@ export default function Preset() {
           </Tabs>
         )}
       </div>
+      {showTour && (
+        <GuidedTour
+          steps={PRESET_TOUR_STEPS}
+          module="preset"
+          onComplete={() => { setTourCompleted('preset'); setShowTour(false); }}
+          onSkip={() => { setTourCompleted('preset'); setShowTour(false); }}
+        />
+      )}
     </AppLayout>
   );
 }

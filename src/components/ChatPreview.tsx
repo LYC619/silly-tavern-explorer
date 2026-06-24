@@ -288,6 +288,7 @@ const MessageRow = memo(function MessageRow({
             <TooltipTrigger asChild>
               <button
                 type="button"
+                data-tour="msg-edit-pencil"
                 onClick={(e) => { e.stopPropagation(); onEditMessage(message.id, index); }}
                 className="absolute right-1 top-1 z-10 flex h-7 w-7 items-center justify-center rounded-md bg-background/70 text-muted-foreground shadow-sm backdrop-blur-sm transition-colors hover:bg-primary/10 hover:text-primary"
                 aria-label={`编辑第 ${index} 楼`}
