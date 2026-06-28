@@ -139,6 +139,22 @@ describe('exportPreset (round-trip)', () => {
     expect(promptIds).toEqual(['chatHistory', 'main']);
   });
 
+  it('smart export keeps DISABLED marker blocks in both prompts and prompt_order', () => {
+    // 构造：一个被禁用的 marker 块（worldInfoAfter），smart 导出后它应仍存在于
+    // prompts 和 prompt_order 两处（对齐 ST 行为，避免内置插槽位置丢失）
+    const p = makePreset();
+    p.prompts.push({ identifier: 'worldInfoAfter', name: 'WI After', marker: true });
+    p.prompt_order[0].order.push({ identifier: 'worldInfoAfter', enabled: false });
+    const np = parsePreset(p);
+    const out = JSON.parse(exportPreset(np, { mode: 'smart', activeCharacterId: 100000 }));
+    // 禁用的 marker 仍在 prompts
+    expect(out.prompts.some((b: { identifier: string }) => b.identifier === 'worldInfoAfter')).toBe(true);
+    // 且仍在 prompt_order（以 enabled:false 保留）
+    const orderEntry = out.prompt_order[0].order.find((o: { identifier: string }) => o.identifier === 'worldInfoAfter');
+    expect(orderEntry).toBeTruthy();
+    expect(orderEntry.enabled).toBe(false);
+  });
+
   it('does not emit extensions when none present and no regex', () => {
     const p = makePreset();
     delete (p as Record<string, unknown>).extensions;
