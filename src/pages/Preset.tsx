@@ -375,7 +375,7 @@ export default function Preset() {
             <TabsList data-tour="preset-tabs">
               <TabsTrigger value="overview">概览</TabsTrigger>
               <TabsTrigger value="prompts">提示词</TabsTrigger>
-              <TabsTrigger value="utility">工具字段</TabsTrigger>
+              <TabsTrigger value="utility">格式与杂项</TabsTrigger>
               <TabsTrigger value="regex">正则{preset.regexRules.length > 0 ? `（${preset.regexRules.length}）` : ''}</TabsTrigger>
               <TabsTrigger value="export" data-tour="preset-export">导出</TabsTrigger>
             </TabsList>

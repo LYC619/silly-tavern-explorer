@@ -28,12 +28,15 @@ export function PresetUtilityFields({ preset, onFieldChange }: PresetUtilityFiel
   const present = UTILITY_FIELDS.filter((f) => typeof od[f.key] === 'string');
 
   if (present.length === 0) {
-    return <p className="text-sm text-muted-foreground text-center py-8">该预设没有可编辑的工具型字段</p>;
+    return <p className="text-sm text-muted-foreground text-center py-8">该预设没有可编辑的格式 / 杂项字段</p>;
   }
 
   return (
     <ScrollArea className="h-[640px] pr-3">
       <div className="space-y-4 max-w-3xl">
+        <p className="text-xs text-muted-foreground bg-muted/50 rounded-md p-2.5 leading-relaxed">
+          这里是预设里的「格式与杂项」字段——控制 SillyTavern 如何包裹/拼接各类内容（如世界书注入格式、场景/性格格式、替身与新对话提示词等）。只显示当前预设里实际存在的字段，按需修改即可。
+        </p>
         {present.map((f) => (
           <div key={f.key} className="space-y-1.5">
             <Label className="text-sm">{f.label}</Label>

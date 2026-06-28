@@ -1,5 +1,5 @@
 import { useState, useMemo } from 'react';
-import { diffJson } from 'diff';
+import { diffLines } from 'diff';
 import { Download, FileText, GitCompare } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
@@ -53,13 +53,11 @@ export function PresetExport({ preset, originalPreset, activeCharacterId, fileNa
 
   const diffParts = useMemo(() => {
     if (!showDiff || !originalPreset) return null;
-    const before = exportPreset(originalPreset, { mode: 'full' });
-    try {
-      return diffJson(JSON.parse(before), JSON.parse(exportedJson));
-    } catch {
-      return null;
-    }
-  }, [showDiff, originalPreset, exportedJson]);
+    // 左右两侧用同一导出模式对比，避免 smart 模式把裁剪掉的条目全算成"删除"淹没真实改动
+    const before = exportPreset(originalPreset, { mode, activeCharacterId });
+    // 行级 diff：改一个字段就是几行红/几行绿，比整段 JSON 字符流易定位
+    return diffLines(before, exportedJson);
+  }, [showDiff, originalPreset, exportedJson, mode, activeCharacterId]);
 
   const base = sanitizeFilename(fileName || 'preset');
 
@@ -96,28 +94,31 @@ export function PresetExport({ preset, originalPreset, activeCharacterId, fileNa
 
       {showDiff && originalPreset && (
         <div>
-          <h3 className="text-sm font-medium mb-2">变更对比（导入时 ↔ 当前完整导出）</h3>
-          <ScrollArea className="h-[420px]">
+          <h3 className="text-sm font-medium mb-1">变更对比（导入时 ↔ 当前{mode === 'smart' ? '智能' : '完整'}导出）</h3>
+          <p className="text-xs text-muted-foreground mb-2">
+            <span className="text-emerald-600 dark:text-emerald-400">绿色 = 新增/改后</span>，
+            <span className="text-red-600 dark:text-red-400">红色 = 原值/删除</span>；灰色为未变行
+          </p>
+          <ScrollArea className="h-[420px] rounded-md border">
             {diffParts === null ? (
-              <p className="text-xs text-muted-foreground">无法生成对比</p>
+              <p className="text-xs text-muted-foreground p-3">无法生成对比</p>
             ) : diffParts.every((p) => !p.added && !p.removed) ? (
-              <p className="text-xs text-muted-foreground">没有变更</p>
+              <p className="text-xs text-muted-foreground p-3">没有变更</p>
             ) : (
-              <pre className="text-xs font-mono leading-relaxed">
-                {diffParts.map((part, i) => (
-                  <span
-                    key={i}
-                    className={
-                      part.added
-                        ? 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-400'
-                        : part.removed
-                          ? 'bg-red-500/15 text-red-700 dark:text-red-400'
-                          : 'text-muted-foreground'
-                    }
-                  >
-                    {part.value}
-                  </span>
-                ))}
+              <pre className="text-xs font-mono leading-relaxed p-2">
+                {diffParts.flatMap((part, i) => {
+                  const sign = part.added ? '+' : part.removed ? '-' : ' ';
+                  const cls = part.added
+                    ? 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-400'
+                    : part.removed
+                      ? 'bg-red-500/15 text-red-700 dark:text-red-400'
+                      : 'text-muted-foreground';
+                  // 每个 part 可能含多行，逐行加 +/- 前缀，便于阅读
+                  const lines = part.value.replace(/\n$/, '').split('\n');
+                  return lines.map((ln, j) => (
+                    <span key={`${i}-${j}`} className={`block ${cls}`}>{sign} {ln}</span>
+                  ));
+                })}
               </pre>
             )}
           </ScrollArea>

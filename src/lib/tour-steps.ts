@@ -128,7 +128,7 @@ export const PRESET_TOUR_STEPS: TourStep[] = [
   },
   {
     targetSelector: '[data-tour="preset-tabs"]',
-    content: '五个标签页：概览、提示词（拖拽排序 / 启用禁用 / 新建块 / AI 改写）、工具字段、正则、导出。',
+    content: '五个标签页：概览、提示词（拖拽排序 / 启用禁用 / 新建块 / AI 改写）、格式与杂项、正则、导出。',
     action: 'next',
   },
   {
