@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { IdCard, User, FileText, MessageSquare, Tag, BookOpen, Sparkles, Info, Upload, Plus, X } from 'lucide-react';
+import { IdCard, User, FileText, MessageSquare, Tag, BookOpen, Sparkles, Info, Upload, Plus, X, Regex, ArrowUpRight } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
@@ -41,16 +41,27 @@ interface CharacterCardViewerProps {
   onLoadFile: (file: File) => void;
   /** 立绘图片 URL（PNG 卡的原图 data URL；无图时为空 → 不显示） */
   portraitUrl?: string | null;
+  /** 暂存内嵌世界书到「世界书」页 */
+  onStashWorldBook?: () => void;
+  /** 暂存内嵌正则为正则预设 */
+  onStashRegex?: () => void;
 }
 
-export function CharacterCardEditor({ card, edits, onEditChange, onLoadFile, portraitUrl }: CharacterCardViewerProps) {
+export function CharacterCardEditor({ card, edits, onEditChange, onLoadFile, portraitUrl, onStashWorldBook, onStashRegex }: CharacterCardViewerProps) {
   const [portraitZoom, setPortraitZoom] = useState(false);
   // 内嵌世界书（只读展示，编辑用独立的世界书编辑器）
   const bookEntries = useMemo(() => {
     if (!card?.characterBook) return [];
     const wb = characterBookToWorldBook(card.characterBook);
+    if (!wb) return [];
     return Object.values(wb.entries);
   }, [card?.characterBook]);
+
+  // 内嵌正则数量（卡内 extensions.regex_scripts）
+  const regexCount = useMemo(() => {
+    const scripts = card?.extensions?.regex_scripts;
+    return Array.isArray(scripts) ? scripts.length : 0;
+  }, [card?.extensions]);
 
   const setArrayItem = (key: 'tags' | 'alternateGreetings', i: number, v: string) => {
     if (!edits) return;
@@ -174,6 +185,17 @@ export function CharacterCardEditor({ card, edits, onEditChange, onLoadFile, por
                     <div className="flex items-center gap-1.5 text-sm font-medium text-muted-foreground">
                       <BookOpen className="w-3.5 h-3.5" />
                       内嵌世界书 (character_book) · {bookEntries.length} 条（只读，导出时原样保留）
+                      {onStashWorldBook && (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="h-6 px-2 text-xs ml-auto"
+                          onClick={onStashWorldBook}
+                          title="把这本内嵌世界书暂存到「世界书」页，可在那里编辑/导出"
+                        >
+                          <ArrowUpRight className="w-3.5 h-3.5 mr-1" /> 暂存到世界书
+                        </Button>
+                      )}
                     </div>
                     <div className="space-y-2">
                       {bookEntries.map((e) => (
@@ -193,6 +215,30 @@ export function CharacterCardEditor({ card, edits, onEditChange, onLoadFile, por
                         </div>
                       ))}
                     </div>
+                  </div>
+                )}
+
+                {/* 内嵌正则（暂存为正则预设，到聊天处理页加载） */}
+                {regexCount > 0 && (
+                  <div className="space-y-2">
+                    <div className="flex items-center gap-1.5 text-sm font-medium text-muted-foreground">
+                      <Regex className="w-3.5 h-3.5" />
+                      内嵌正则 (regex_scripts) · {regexCount} 条（导出时原样保留）
+                      {onStashRegex && (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="h-6 px-2 text-xs ml-auto"
+                          onClick={onStashRegex}
+                          title="把这些内嵌正则存为正则预设，到「聊天处理」页『正则 → 预设管理』里加载"
+                        >
+                          <ArrowUpRight className="w-3.5 h-3.5 mr-1" /> 暂存正则
+                        </Button>
+                      )}
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                      存为正则预设后，可在「聊天处理」页『正则 → 预设管理』中加载，用于处理聊天记录。
+                    </p>
                   </div>
                 )}
               </div>

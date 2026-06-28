@@ -30,10 +30,16 @@ describe('normalizeCharacterCard — 版本探测', () => {
     expect(n.tags).toEqual(['a']);
   });
 
+  it('normalizes avatar field (for portrait display)', () => {
+    const card: STCharacterCard = { data: { name: 'A', avatar: 'https://x/y.png' } };
+    expect(normalizeCharacterCard(card).avatar).toBe('https://x/y.png');
+    // 无 avatar 时为空串，显示层据此不显示立绘
+    expect(normalizeCharacterCard({ data: { name: 'B' } }).avatar).toBe('');
+  });
+
   it('detects V2 when data present but spec missing', () => {
     const card: STCharacterCard = { data: { name: 'X' } };
-    expect(normalizeCharacterCard(card).spec).toBe('v2');
-  });
+    expect(normalizeCharacterCard(card).spec).toBe('v2');  });
 
   it('detects V3 and reads new fields', () => {
     const card: STCharacterCard = {
