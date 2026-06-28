@@ -1,11 +1,10 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useState, useEffect } from 'react';
 import { IdCard, User, FileText, MessageSquare, Tag, BookOpen, Sparkles, Info, Upload, Plus, X, Regex, ArrowUpRight } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Button } from '@/components/ui/button';
-import { ScrollArea } from '@/components/ui/scroll-area';
 import { Dialog, DialogContent } from '@/components/ui/dialog';
 import { characterBookToWorldBook } from '@/lib/character-book';
 import { POSITION_LABELS } from '@/types/worldbook';
@@ -49,6 +48,10 @@ interface CharacterCardViewerProps {
 
 export function CharacterCardEditor({ card, edits, onEditChange, onLoadFile, portraitUrl, onStashWorldBook, onStashRegex }: CharacterCardViewerProps) {
   const [portraitZoom, setPortraitZoom] = useState(false);
+  // 立绘加载失败（如 JSON 卡的 avatar 是坏 URL）→ 不显示，避免破图标
+  const [portraitError, setPortraitError] = useState(false);
+  useEffect(() => { setPortraitError(false); }, [portraitUrl]);
+  const showPortrait = !!portraitUrl && !portraitError;
   // 内嵌世界书（只读展示，编辑用独立的世界书编辑器）
   const bookEntries = useMemo(() => {
     if (!card?.characterBook) return [];
@@ -101,7 +104,7 @@ export function CharacterCardEditor({ card, edits, onEditChange, onLoadFile, por
         <Card>
           <CardHeader>
             <div className="flex items-center gap-3">
-              {portraitUrl && (
+              {showPortrait && (
                 <button
                   type="button"
                   onClick={() => setPortraitZoom(true)}
@@ -109,7 +112,12 @@ export function CharacterCardEditor({ card, edits, onEditChange, onLoadFile, por
                   title="点击放大立绘"
                   aria-label="放大立绘"
                 >
-                  <img src={portraitUrl} alt="角色立绘" className="h-24 w-24 object-cover" />
+                  <img
+                    src={portraitUrl ?? ''}
+                    alt="角色立绘"
+                    className="h-24 w-24 object-cover"
+                    onError={() => setPortraitError(true)}
+                  />
                 </button>
               )}
               <CardTitle className="flex items-center gap-2 flex-wrap">
@@ -120,7 +128,7 @@ export function CharacterCardEditor({ card, edits, onEditChange, onLoadFile, por
             </div>
           </CardHeader>
           <CardContent data-tour="card-fields">
-            <ScrollArea className="max-h-[64vh] pr-3">
+            <div className="pr-1">
               <div className="space-y-4">
                 {/* 基本信息：单行字段 */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -242,7 +250,7 @@ export function CharacterCardEditor({ card, edits, onEditChange, onLoadFile, por
                   </div>
                 )}
               </div>
-            </ScrollArea>
+            </div>
           </CardContent>
         </Card>
       )}
