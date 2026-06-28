@@ -59,6 +59,8 @@ export default function CardViewer() {
   const [currentItemId, setCurrentItemId] = useState<string | null>(null);
   const [savedItems, setSavedItems] = useState<CardItem[]>([]);
   const [showTour, setShowTour] = useState(false);
+  // 立绘显示用 URL：PNG 卡=原图 data URL；JSON 卡=avatar(若为 http/data URL)；否则 null（不显示）
+  const [portraitUrl, setPortraitUrl] = useState<string | null>(null);
   // PNG 导入时的原图字节（用于导出 PNG 回写）；JSON 导入为 null
   const pngBytesRef = useRef<ArrayBuffer | null>(null);
 
@@ -103,6 +105,13 @@ export default function CardViewer() {
     setEdits(editsFromNormalized(normalized));
     setFileName(name);
     pngBytesRef.current = png;
+    // 立绘：PNG 卡用原图；JSON 卡仅当 avatar 是可直接显示的 http/data URL 时用
+    if (png) {
+      setPortraitUrl(`data:image/png;base64,${abToBase64(png)}`);
+    } else {
+      const av = normalized.avatar;
+      setPortraitUrl(/^(https?:|data:image\/)/i.test(av) ? av : null);
+    }
   };
 
   const loadCardItem = useCallback((item: CardItem) => {
@@ -238,7 +247,7 @@ export default function CardViewer() {
             <p className="text-sm text-muted-foreground">导入现有卡 → 编辑核心字段 → 导出（PNG 回写 / JSON）</p>
           </div>
         </div>
-        <CharacterCardEditor card={card} edits={edits} onEditChange={onEditChange} onLoadFile={loadFile} />
+        <CharacterCardEditor card={card} edits={edits} onEditChange={onEditChange} onLoadFile={loadFile} portraitUrl={portraitUrl} />
       </div>
       {showTour && (
         <GuidedTour

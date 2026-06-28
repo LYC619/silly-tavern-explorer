@@ -202,7 +202,7 @@ export function EntryEditor({ entry, onChange }: Props) {
 
       {/* 放大编辑内容弹窗 */}
       <Dialog open={contentExpanded} onOpenChange={setContentExpanded}>
-        <DialogContent className="!max-w-3xl h-[85vh] flex flex-col">
+        <DialogContent className="!max-w-5xl h-[85vh] flex flex-col">
           <DialogHeader className="shrink-0">
             <DialogTitle className="text-base flex items-center justify-between gap-2 pr-8">
               <span>编辑内容{entry.comment ? ` — ${entry.comment}` : ''}</span>

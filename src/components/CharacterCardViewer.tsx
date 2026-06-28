@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { IdCard, User, FileText, MessageSquare, Tag, BookOpen, Sparkles, Info, Upload, Plus, X } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -6,6 +6,7 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { Dialog, DialogContent } from '@/components/ui/dialog';
 import { characterBookToWorldBook } from '@/lib/character-book';
 import { POSITION_LABELS } from '@/types/worldbook';
 import type { NormalizedCharacterCard } from '@/lib/png-parser';
@@ -38,9 +39,12 @@ interface CharacterCardViewerProps {
   edits: CardEdits | null;
   onEditChange: <K extends keyof CardEdits>(key: K, value: CardEdits[K]) => void;
   onLoadFile: (file: File) => void;
+  /** 立绘图片 URL（PNG 卡的原图 data URL；无图时为空 → 不显示） */
+  portraitUrl?: string | null;
 }
 
-export function CharacterCardEditor({ card, edits, onEditChange, onLoadFile }: CharacterCardViewerProps) {
+export function CharacterCardEditor({ card, edits, onEditChange, onLoadFile, portraitUrl }: CharacterCardViewerProps) {
+  const [portraitZoom, setPortraitZoom] = useState(false);
   // 内嵌世界书（只读展示，编辑用独立的世界书编辑器）
   const bookEntries = useMemo(() => {
     if (!card?.characterBook) return [];
@@ -85,11 +89,24 @@ export function CharacterCardEditor({ card, edits, onEditChange, onLoadFile }: C
       {card && edits && (
         <Card>
           <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <IdCard className="w-5 h-5 text-primary" />
-              {edits.name || '未命名角色'}
-              <Badge variant="outline" className="uppercase ml-1">{card.spec}</Badge>
-            </CardTitle>
+            <div className="flex items-center gap-3">
+              {portraitUrl && (
+                <button
+                  type="button"
+                  onClick={() => setPortraitZoom(true)}
+                  className="shrink-0 rounded-md overflow-hidden border border-border hover:ring-2 hover:ring-primary/50 transition"
+                  title="点击放大立绘"
+                  aria-label="放大立绘"
+                >
+                  <img src={portraitUrl} alt="角色立绘" className="h-24 w-24 object-cover" />
+                </button>
+              )}
+              <CardTitle className="flex items-center gap-2 flex-wrap">
+                <IdCard className="w-5 h-5 text-primary" />
+                {edits.name || '未命名角色'}
+                <Badge variant="outline" className="uppercase ml-1">{card.spec}</Badge>
+              </CardTitle>
+            </div>
           </CardHeader>
           <CardContent data-tour="card-fields">
             <ScrollArea className="max-h-[64vh] pr-3">
@@ -183,6 +200,13 @@ export function CharacterCardEditor({ card, edits, onEditChange, onLoadFile }: C
           </CardContent>
         </Card>
       )}
+
+      {/* 立绘放大查看 */}
+      <Dialog open={portraitZoom} onOpenChange={setPortraitZoom}>
+        <DialogContent className="!max-w-2xl flex items-center justify-center p-2">
+          {portraitUrl && <img src={portraitUrl} alt="角色立绘（放大）" className="max-h-[80vh] w-auto object-contain rounded-md" />}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
