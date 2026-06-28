@@ -162,6 +162,35 @@ describe('exportPreset (round-trip)', () => {
     const out = JSON.parse(exportPreset(np));
     expect(out.extensions).toBeUndefined();
   });
+
+  it('preserves absolute injection block fields (position/depth/order/trigger) on export', () => {
+    // 模拟「新建注入块」产出的块：injection_position=1 + ST 默认 depth/order/trigger
+    const p = makePreset();
+    p.prompts.push({
+      identifier: 'custom-inject-1',
+      name: '注入块',
+      role: 'system',
+      content: '注入内容',
+      injection_position: 1,
+      injection_depth: 4,
+      injection_order: 100,
+      injection_trigger: [],
+    });
+    p.prompt_order[0].order.push({ identifier: 'custom-inject-1', enabled: true });
+    const np = parsePreset(p);
+    const out = JSON.parse(exportPreset(np, { mode: 'full' }));
+    const inj = out.prompts.find((b: { identifier: string }) => b.identifier === 'custom-inject-1');
+    expect(inj).toBeTruthy();
+    expect(inj.injection_position).toBe(1);
+    expect(inj.injection_depth).toBe(4);
+    expect(inj.injection_order).toBe(100);
+    expect(inj.injection_trigger).toEqual([]);
+    // smart 导出（启用态）也保留这些字段
+    const outSmart = JSON.parse(exportPreset(np, { mode: 'smart', activeCharacterId: 100000 }));
+    const injS = outSmart.prompts.find((b: { identifier: string }) => b.identifier === 'custom-inject-1');
+    expect(injS.injection_position).toBe(1);
+    expect(injS.injection_depth).toBe(4);
+  });
 });
 
 describe('entry status detection', () => {
