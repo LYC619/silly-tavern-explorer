@@ -83,6 +83,8 @@ export interface NormalizedCharacterCard {
   characterVersion: string;
   nickname: string;
   assets: CardAsset[];
+  /** 角色卡内记录的头像/立绘引用（V2/V3 的 data.avatar）；可能是文件名/'none'/URL，显示层自行判断 */
+  avatar: string;
   /** 内嵌世界书（character_book），未解析的原始对象；用 normalizeCharacterBook 转换 */
   characterBook: unknown;
   extensions: Record<string, unknown>;
@@ -191,6 +193,7 @@ export function normalizeCharacterCard(card: STCharacterCard): NormalizedCharact
     characterVersion: asStr(d.character_version),
     nickname: asStr(d.nickname),
     assets: Array.isArray(d.assets) ? (d.assets as CardAsset[]) : [],
+    avatar: asStr(d.avatar),
     characterBook: d.character_book ?? null,
     extensions: (d.extensions as Record<string, unknown>) ?? {},
     raw: card,
