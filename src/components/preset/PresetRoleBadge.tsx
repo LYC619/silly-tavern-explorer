@@ -16,7 +16,11 @@ export function RoleBadge({ role }: { role?: string }) {
 
 export function MarkerBadge() {
   return (
-    <Badge variant="outline" className="text-[10px] px-1.5 py-0 bg-muted text-muted-foreground border-border">
+    <Badge
+      variant="outline"
+      className="text-[10px] px-1.5 py-0 bg-muted text-muted-foreground border-border cursor-help"
+      title="系统插槽：内容由 SillyTavern 运行时自动填充（如世界书、角色描述、聊天历史），不是被禁用，也无需手动填写"
+    >
       插槽
     </Badge>
   );

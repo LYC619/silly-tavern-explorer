@@ -15,6 +15,7 @@ import {
 import { ToastAction } from '@/components/ui/toast';
 import { useToast } from '@/hooks/use-toast';
 import type { NormalizedPreset, OrderEntry, PromptBlock, PromptOrderGroup } from '@/types/preset';
+import { blockDisplayName } from '@/types/preset';
 import {
   collectReferencedIds, isUnreferenced, isEmptyDisabled,
   substituteVars, estimateTokens, getActiveOrder,
@@ -217,7 +218,7 @@ export function PromptEditor({
                       >
                         {expanded ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
                       </button>
-                      <span className="text-sm truncate flex-1 min-w-0">{block?.name ?? entry.identifier}</span>
+                      <span className="text-sm truncate flex-1 min-w-0">{block ? blockDisplayName(block) : entry.identifier}</span>
                       {block?.marker ? <MarkerBadge /> : isInjectionBlock(block) ? <InjectionBadge depth={block?.injection_depth as number | undefined} /> : <RoleBadge role={block?.role} />}
                       {empty && <EmptyBadge />}
                       <Switch checked={entry.enabled} onCheckedChange={() => toggleEnabled(entry.identifier)} className="scale-90" />
@@ -314,7 +315,7 @@ export function PromptEditor({
             <div className="space-y-1.5">
               {libraryBlocks.map((block) => (
                 <div key={block.identifier} className="flex items-center gap-2 p-2 rounded-lg border border-border bg-secondary/20">
-                  <span className="text-sm truncate flex-1 min-w-0">{block.name || block.identifier}</span>
+                  <span className="text-sm truncate flex-1 min-w-0">{blockDisplayName(block)}</span>
                   {block.marker ? <MarkerBadge /> : isInjectionBlock(block) ? <InjectionBadge depth={block.injection_depth as number | undefined} /> : <RoleBadge role={block.role} />}
                   {isUnreferenced(block, referenced) && <UnreferencedBadge />}
                   <Button variant="ghost" size="icon" className="h-7 w-7 shrink-0" onClick={() => addToOrder(block.identifier)} aria-label="加入激活顺序">
@@ -347,11 +348,11 @@ export function PromptEditor({
             {previewBlocks.map((block, i) => (
               <div key={`${block.identifier}-${i}`} className={`rounded-md border border-l-2 ${roleBorderClass(block)} bg-card p-2.5`}>
                 <div className="flex items-center gap-2 mb-1">
-                  <span className="text-xs font-medium">{block.name || block.identifier}</span>
+                  <span className="text-xs font-medium">{blockDisplayName(block)}</span>
                   {block.marker ? <MarkerBadge /> : isInjectionBlock(block) ? <InjectionBadge depth={block.injection_depth as number | undefined} /> : <RoleBadge role={block.role} />}
                 </div>
                 {block.marker ? (
-                  <p className="text-xs text-muted-foreground italic">[ {block.name || block.identifier} ]</p>
+                  <p className="text-xs text-muted-foreground italic">[ {blockDisplayName(block)} —— 由 SillyTavern 运行时填充此处内容 ]</p>
                 ) : (
                   <p className="text-xs whitespace-pre-wrap leading-relaxed text-foreground/90">
                     {substituteVars(block.content ?? '', charName, userName) || <span className="text-muted-foreground italic">（空）</span>}

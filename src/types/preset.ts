@@ -77,6 +77,29 @@ export const PROMPT_ROLE_LABELS: Record<string, string> = {
   assistant: '助手',
 };
 
+/**
+ * SillyTavern 内置 marker（系统插槽）identifier → 中文显示名。
+ * 仅用于 UI 友好显示，不改导出的 identifier/name，不影响 round-trip。
+ * 8 个内置 marker 依据 ST 源码 PromptManager.js chatCompletionDefaultPrompts。
+ */
+export const MARKER_LABELS: Record<string, string> = {
+  worldInfoBefore: '世界书（前置）',
+  worldInfoAfter: '世界书（后置）',
+  charDescription: '角色描述',
+  charPersonality: '角色性格',
+  scenario: '场景',
+  dialogueExamples: '对话示例',
+  chatHistory: '聊天历史',
+  personaDescription: '用户角色描述',
+};
+
+/** 块的友好显示名：内置 marker 显示"中文 · 英文原名"，其余直接用 name/identifier */
+export function blockDisplayName(block: { identifier: string; name?: string; marker?: boolean }): string {
+  const zh = MARKER_LABELS[block.identifier];
+  if (zh) return `${zh} · ${block.name || block.identifier}`;
+  return block.name || block.identifier;
+}
+
 export function generatePresetId(): string {
   return `preset_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`;
 }
