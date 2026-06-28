@@ -9,6 +9,9 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@/components/ui/select';
+import {
+  DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import { ToastAction } from '@/components/ui/toast';
 import { useToast } from '@/hooks/use-toast';
 import type { NormalizedPreset, OrderEntry, PromptBlock, PromptOrderGroup } from '@/types/preset';
@@ -16,7 +19,7 @@ import {
   collectReferencedIds, isUnreferenced, isEmptyDisabled,
   substituteVars, estimateTokens, getActiveOrder,
 } from '@/lib/preset-parser';
-import { RoleBadge, MarkerBadge, UnreferencedBadge, EmptyBadge, roleBorderClass } from './PresetRoleBadge';
+import { RoleBadge, MarkerBadge, UnreferencedBadge, EmptyBadge, InjectionBadge, isInjectionBlock, roleBorderClass } from './PresetRoleBadge';
 import { AIRewriteContent } from '@/components/worldbook/AIRewriteContent';
 
 /** 预设提示词块的 AI 改写语境 */
@@ -43,8 +46,10 @@ interface PromptEditorProps {
   onBlockNameChange: (identifier: string, name: string) => void;
   /** 改 prompt 块角色类型 */
   onBlockRoleChange: (identifier: string, role: 'system' | 'user' | 'assistant') => void;
-  /** 手动新建提示词块，返回新块 identifier */
-  onAddBlock: (name: string) => string;
+  /** 手动新建提示词块（relative=普通块按顺序就地，injection=ST 绝对注入块），返回新块 identifier */
+  onAddBlock: (name: string, kind?: 'relative' | 'injection') => string;
+  /** 改注入块的 depth / order 数字字段 */
+  onBlockInjectionChange: (identifier: string, field: 'injection_depth' | 'injection_order', value: number) => void;
   onUndo: () => void;
   onRedo: () => void;
   canUndo: boolean;
@@ -53,7 +58,7 @@ interface PromptEditorProps {
 
 export function PromptEditor({
   preset, activeCharacterId, onCharacterIdChange,
-  onOrderChange, onBlockContentChange, onBlockNameChange, onBlockRoleChange, onAddBlock, onUndo, onRedo, canUndo, canRedo,
+  onOrderChange, onBlockContentChange, onBlockNameChange, onBlockRoleChange, onAddBlock, onBlockInjectionChange, onUndo, onRedo, canUndo, canRedo,
 }: PromptEditorProps) {
   const { toast } = useToast();
   const [expandedId, setExpandedId] = useState<string | null>(null);
@@ -157,17 +162,33 @@ export function PromptEditor({
         <div>
           <div className="flex items-center justify-between mb-2">
             <h3 className="text-sm font-medium">激活顺序（{order.length}）</h3>
-            <Button
-              variant="ghost"
-              size="sm"
-              className="h-7 px-2 text-xs"
-              onClick={() => {
-                const id = onAddBlock('新提示词块');
-                setExpandedId(id);
-              }}
-            >
-              <Plus className="w-3.5 h-3.5 mr-1" /> 新建块
-            </Button>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" size="sm" className="h-7 px-2 text-xs">
+                  <Plus className="w-3.5 h-3.5 mr-1" /> 新建块
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuItem
+                  className="text-xs"
+                  onSelect={() => {
+                    const id = onAddBlock('新提示词块', 'relative');
+                    setExpandedId(id);
+                  }}
+                >
+                  普通块（按激活顺序就地）
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  className="text-xs"
+                  onSelect={() => {
+                    const id = onAddBlock('新注入块', 'injection');
+                    setExpandedId(id);
+                  }}
+                >
+                  注入块（@深度注入聊天）
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
           </div>
           <ScrollArea className="h-[420px] pr-2">
             <div className="space-y-1.5">
@@ -197,7 +218,7 @@ export function PromptEditor({
                         {expanded ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
                       </button>
                       <span className="text-sm truncate flex-1 min-w-0">{block?.name ?? entry.identifier}</span>
-                      {block?.marker ? <MarkerBadge /> : <RoleBadge role={block?.role} />}
+                      {block?.marker ? <MarkerBadge /> : isInjectionBlock(block) ? <InjectionBadge depth={block?.injection_depth as number | undefined} /> : <RoleBadge role={block?.role} />}
                       {empty && <EmptyBadge />}
                       <Switch checked={entry.enabled} onCheckedChange={() => toggleEnabled(entry.identifier)} className="scale-90" />
                       <Button variant="ghost" size="icon" className="h-7 w-7 shrink-0" onClick={() => removeFromOrder(entry.identifier)} aria-label="移除">
@@ -239,6 +260,27 @@ export function PromptEditor({
                                 compact
                               />
                             </div>
+                            {isInjectionBlock(block) && (
+                              <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                                <span className="shrink-0">注入深度</span>
+                                <Input
+                                  type="number"
+                                  value={String(block?.injection_depth ?? 4)}
+                                  onChange={(e) => onBlockInjectionChange(entry.identifier, 'injection_depth', Number(e.target.value) || 0)}
+                                  className="h-7 text-xs w-16"
+                                  aria-label="注入深度"
+                                />
+                                <span className="shrink-0">顺序</span>
+                                <Input
+                                  type="number"
+                                  value={String(block?.injection_order ?? 100)}
+                                  onChange={(e) => onBlockInjectionChange(entry.identifier, 'injection_order', Number(e.target.value) || 0)}
+                                  className="h-7 text-xs w-16"
+                                  aria-label="注入顺序"
+                                />
+                                <span className="text-[10px]">@深度=插入聊天倒数第几层；顺序=同深度排序权重</span>
+                              </div>
+                            )}
                             <Textarea
                               value={block?.content ?? ''}
                               onChange={(e) => onBlockContentChange(entry.identifier, e.target.value)}
@@ -273,7 +315,7 @@ export function PromptEditor({
               {libraryBlocks.map((block) => (
                 <div key={block.identifier} className="flex items-center gap-2 p-2 rounded-lg border border-border bg-secondary/20">
                   <span className="text-sm truncate flex-1 min-w-0">{block.name || block.identifier}</span>
-                  {block.marker ? <MarkerBadge /> : <RoleBadge role={block.role} />}
+                  {block.marker ? <MarkerBadge /> : isInjectionBlock(block) ? <InjectionBadge depth={block.injection_depth as number | undefined} /> : <RoleBadge role={block.role} />}
                   {isUnreferenced(block, referenced) && <UnreferencedBadge />}
                   <Button variant="ghost" size="icon" className="h-7 w-7 shrink-0" onClick={() => addToOrder(block.identifier)} aria-label="加入激活顺序">
                     <Plus className="w-3.5 h-3.5" />
@@ -306,7 +348,7 @@ export function PromptEditor({
               <div key={`${block.identifier}-${i}`} className={`rounded-md border border-l-2 ${roleBorderClass(block)} bg-card p-2.5`}>
                 <div className="flex items-center gap-2 mb-1">
                   <span className="text-xs font-medium">{block.name || block.identifier}</span>
-                  {block.marker ? <MarkerBadge /> : <RoleBadge role={block.role} />}
+                  {block.marker ? <MarkerBadge /> : isInjectionBlock(block) ? <InjectionBadge depth={block.injection_depth as number | undefined} /> : <RoleBadge role={block.role} />}
                 </div>
                 {block.marker ? (
                   <p className="text-xs text-muted-foreground italic">[ {block.name || block.identifier} ]</p>

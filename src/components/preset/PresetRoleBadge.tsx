@@ -38,6 +38,20 @@ export function EmptyBadge() {
   );
 }
 
+/** ST 绝对注入块（injection_position=1）：按深度注入聊天，不按激活顺序位置 */
+export function InjectionBadge({ depth }: { depth?: number }) {
+  return (
+    <Badge variant="outline" className="text-[10px] px-1.5 py-0 bg-violet-500/15 text-violet-600 dark:text-violet-400 border-violet-500/30">
+      注入{depth !== undefined ? ` @${depth}` : ''}
+    </Badge>
+  );
+}
+
+/** 是否为 ST 绝对注入块（injection_position === 1） */
+export function isInjectionBlock(block?: PromptBlock): boolean {
+  return !!block && !block.marker && block.injection_position === 1;
+}
+
 /** 块左边框色（用于预览/列表项左侧色条） */
 export function roleBorderClass(block: PromptBlock): string {
   if (block.marker) return 'border-l-muted-foreground/40';

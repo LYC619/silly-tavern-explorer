@@ -165,11 +165,16 @@ export default function Preset() {
   }, []);
 
   // 手动新建提示词块：加入 prompts + 当前角色组 order（启用），不进历史栈
-  const handleAddBlock = useCallback((name: string) => {
+  // kind='injection' 时建为 ST 绝对注入块（injection_position=1），带 ST 默认 depth/order/trigger
+  const handleAddBlock = useCallback((name: string, kind: 'relative' | 'injection' = 'relative') => {
     const identifier = `custom-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
     setPreset((prev) => {
       if (!prev) return prev;
-      const newBlock = { identifier, name: name || '新提示词块', role: 'system' as const, content: '' };
+      const base = { identifier, name: name || (kind === 'injection' ? '新注入块' : '新提示词块'), role: 'system' as const, content: '' };
+      // ST 注入块默认值（依据 PromptManager.js: DEFAULT_DEPTH=4 / DEFAULT_ORDER=100 / trigger=[]）
+      const newBlock = kind === 'injection'
+        ? { ...base, injection_position: 1, injection_depth: 4, injection_order: 100, injection_trigger: [] as string[] }
+        : base;
       return {
         ...prev,
         prompts: [...prev.prompts, newBlock],
@@ -182,6 +187,14 @@ export default function Preset() {
     });
     return identifier;
   }, [activeCharacterId]);
+
+  // 改注入块的 depth / order（数字字段，不进历史栈）
+  const handleBlockInjectionChange = useCallback((identifier: string, field: 'injection_depth' | 'injection_order', value: number) => {
+    setPreset((prev) => prev ? {
+      ...prev,
+      prompts: prev.prompts.map((p) => (p.identifier === identifier ? { ...p, [field]: value } : p)),
+    } : prev);
+  }, []);
 
   const handleFieldChange = useCallback((key: string, value: string) => {
     setPreset((prev) => prev ? { ...prev, originalData: { ...prev.originalData, [key]: value } } : prev);
@@ -379,6 +392,7 @@ export default function Preset() {
                 onBlockNameChange={handleBlockNameChange}
                 onBlockRoleChange={handleBlockRoleChange}
                 onAddBlock={handleAddBlock}
+                onBlockInjectionChange={handleBlockInjectionChange}
                 onUndo={undo}
                 onRedo={redo}
                 canUndo={canUndo}
