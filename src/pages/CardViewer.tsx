@@ -1,10 +1,12 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { IdCard, Upload, Save, History, Download, FileJson, Image } from 'lucide-react';
 import { AppLayout } from '@/components/AppLayout';
 import { HelpCard } from '@/components/HelpCard';
 import { Button } from '@/components/ui/button';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { ToastAction } from '@/components/ui/toast';
 import { useToast } from '@/hooks/use-toast';
 import { CharacterCardEditor } from '@/components/CharacterCardViewer';
 import {
@@ -17,6 +19,11 @@ import {
 import { embedCharaInPngBlob } from '@/lib/png-writer';
 import { getAllCards, getCard, saveCard, deleteCard, pruneAutoSavedCards } from '@/lib/card-db';
 import { generateCardId, type CardItem } from '@/types/character-card';
+import { characterBookToWorldBook } from '@/lib/character-book';
+import { saveWorldBook } from '@/lib/worldbook-db';
+import { generateWorldBookId } from '@/types/worldbook';
+import { parseSTRegexImport } from '@/lib/st-regex-interop';
+import { addRegexPreset } from '@/lib/session-storage';
 import { GuidedTour } from '@/components/GuidedTour';
 import { CARDVIEWER_TOUR_STEPS, isTourCompleted, setTourCompleted } from '@/lib/tour-steps';
 
@@ -53,6 +60,7 @@ function base64ToAb(b64: string): ArrayBuffer {
 
 export default function CardViewer() {
   const { toast } = useToast();
+  const navigate = useNavigate();
   const [card, setCard] = useState<NormalizedCharacterCard | null>(null);
   const [edits, setEdits] = useState<CardEdits | null>(null);
   const [fileName, setFileName] = useState('character');
@@ -154,6 +162,49 @@ export default function CardViewer() {
     setEdits((prev) => (prev ? { ...prev, [key]: value } : prev));
   }, []);
 
+  // 暂存卡内嵌世界书到「世界书」页（落 IndexedDB，autoSaved；toast 可立即前往）
+  const handleStashWorldBook = useCallback(async () => {
+    if (!card?.characterBook) return;
+    const wb = characterBookToWorldBook(card.characterBook);
+    if (!wb || Object.keys(wb.entries).length === 0) {
+      toast({ title: '该卡没有可暂存的内嵌世界书', variant: 'destructive' });
+      return;
+    }
+    try {
+      const now = Date.now();
+      const title = `${edits?.name || fileName || '角色'}的世界书`;
+      await saveWorldBook({ id: generateWorldBookId(), title, worldbook: wb, createdAt: now, updatedAt: now, autoSaved: true });
+      toast({
+        title: '已暂存到世界书',
+        description: `${Object.keys(wb.entries).length} 条 · 可在「世界书」页加载编辑`,
+        action: <ToastAction altText="立即前往" onClick={() => navigate('/worldbook')}>立即前往</ToastAction>,
+      });
+    } catch {
+      toast({ title: '暂存失败', variant: 'destructive' });
+    }
+  }, [card, edits, fileName, toast, navigate]);
+
+  // 暂存卡内嵌正则为「正则预设」（存 localStorage；聊天处理页『正则→预设管理』可加载）
+  const handleStashRegex = useCallback(() => {
+    const scripts = card?.extensions?.regex_scripts;
+    if (!Array.isArray(scripts) || scripts.length === 0) return;
+    let rules;
+    try {
+      rules = parseSTRegexImport(scripts);
+    } catch {
+      rules = [];
+    }
+    if (rules.length === 0) {
+      toast({ title: '该卡没有可暂存的内嵌正则', variant: 'destructive' });
+      return;
+    }
+    addRegexPreset(`${edits?.name || fileName || '角色'}的正则`, rules);
+    toast({
+      title: '已存为正则预设',
+      description: `${rules.length} 条 · 到「聊天处理」页『正则 → 预设管理』里加载`,
+    });
+  }, [card, edits, fileName, toast]);
+
   // 当前编辑后的完整卡对象
   const buildEditedCard = useCallback((): STCharacterCard | null => {
     if (!card || !edits) return null;
@@ -247,7 +298,15 @@ export default function CardViewer() {
             <p className="text-sm text-muted-foreground">导入现有卡 → 编辑核心字段 → 导出（PNG 回写 / JSON）</p>
           </div>
         </div>
-        <CharacterCardEditor card={card} edits={edits} onEditChange={onEditChange} onLoadFile={loadFile} portraitUrl={portraitUrl} />
+        <CharacterCardEditor
+          card={card}
+          edits={edits}
+          onEditChange={onEditChange}
+          onLoadFile={loadFile}
+          portraitUrl={portraitUrl}
+          onStashWorldBook={handleStashWorldBook}
+          onStashRegex={handleStashRegex}
+        />
       </div>
       {showTour && (
         <GuidedTour
