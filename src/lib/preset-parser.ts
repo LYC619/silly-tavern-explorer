@@ -96,7 +96,14 @@ export function exportPreset(
     // ST 内置 marker（chatHistory/worldInfo/charDescription 等）即便未启用也必须保留，
     // 否则 ST 重新加载预设时会判定缺失并重置为默认，破坏用户配置。
     prompts = np.prompts.filter((p) => enabledIds.has(p.identifier) || p.marker === true);
-    promptOrder = [{ character_id: group?.character_id ?? charId, order: enabledOrder }];
+    // prompt_order 也要保留 marker 条目（以原启用状态），否则块在 prompts 里却不在 order 里，
+    // 与 ST 原生行为（禁用块以 enabled:false 留在 order）不一致，导致插槽位置丢失。
+    const markerOrder = (group?.order ?? []).filter((o) => {
+      if (enabledIds.has(o.identifier)) return false; // 已在 enabledOrder 里
+      const block = np.prompts.find((p) => p.identifier === o.identifier);
+      return block?.marker === true;
+    });
+    promptOrder = [{ character_id: group?.character_id ?? charId, order: [...enabledOrder, ...markerOrder] }];
   }
 
   const extensions = buildExtensions(np);
