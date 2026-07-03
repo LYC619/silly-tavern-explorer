@@ -73,6 +73,22 @@ describe('applyRegexRules', () => {
     expect(applyRegexRules('foo', [rule], true)).toBe('foo');
   });
 
+  it('trims from message start to marker (quick-add 首尾删除·开头)', () => {
+    // 默认 /gs 无 m：^ 锚定单条消息开头，多行内容一并删除
+    const rule = makeRule({ findRegex: '^[\\s\\S]*?——正文——', replaceString: '' });
+    expect(applyRegexRules('杂项\n杂项——正文——真正内容', [rule], false)).toBe('真正内容');
+    // 无标记时不误删
+    expect(applyRegexRules('没有标记的消息', [rule], false)).toBe('没有标记的消息');
+  });
+
+  it('trims from marker to message end (quick-add 首尾删除·结尾, 可保留标记)', () => {
+    const del = makeRule({ findRegex: '【状态栏】[\\s\\S]*$', replaceString: '' });
+    expect(applyRegexRules('正文内容【状态栏】HP:100\nMP:50', [del], false)).toBe('正文内容');
+    // 保留标记本身
+    const keep = makeRule({ findRegex: '【状态栏】[\\s\\S]*$', replaceString: '【状态栏】' });
+    expect(applyRegexRules('正文【状态栏】xx', [keep], false)).toBe('正文【状态栏】');
+  });
+
   it('should apply multiple rules in order', () => {
     const rules = [
       makeRule({ id: '1', findRegex: 'a', replaceString: 'b' }),
