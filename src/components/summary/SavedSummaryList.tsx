@@ -1,0 +1,156 @@
+import { useEffect, useState, useCallback } from 'react';
+import { Eye, RotateCcw, Trash2, Download, ChevronDown, ChevronUp } from 'lucide-react';
+import { Card, CardContent } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
+import { useToast } from '@/hooks/use-toast';
+import type { SummaryItem, SummaryKind } from '@/types/summary';
+import { SUMMARY_KIND_LABELS } from '@/types/summary';
+import { getAllSummaries, deleteSummary } from '@/lib/summary-db';
+
+interface SavedSummaryListProps {
+  /** 当前书 id，用于「仅当前书」筛选 */
+  currentBookId: string | null;
+  /** 刷新信号：父组件保存后 +1 触发重载 */
+  refreshKey: number;
+  /** 载入某条到编辑区 */
+  onView: (item: SummaryItem) => void;
+  /** 用 genParams 回填重新生成 */
+  onRegenerate: (item: SummaryItem) => void;
+}
+
+const KIND_FILTERS: (SummaryKind | 'all')[] = ['all', 'volume', 'diary', 'diy'];
+
+/** 已存总结列表：当前书/全部 + kind 筛选 + 查看/重新生成/删除/导出 */
+export function SavedSummaryList({ currentBookId, refreshKey, onView, onRegenerate }: SavedSummaryListProps) {
+  const { toast } = useToast();
+  const [all, setAll] = useState<SummaryItem[]>([]);
+  const [scope, setScope] = useState<'book' | 'all'>('book');
+  const [kindFilter, setKindFilter] = useState<SummaryKind | 'all'>('all');
+  const [expanded, setExpanded] = useState(false);
+  const [deleteId, setDeleteId] = useState<string | null>(null);
+
+  const load = useCallback(() => {
+    getAllSummaries().then(setAll).catch(() => {});
+  }, []);
+
+  useEffect(() => { load(); }, [load, refreshKey]);
+
+  const filtered = all.filter((s) => {
+    if (scope === 'book' && currentBookId && s.bookId !== currentBookId) return false;
+    if (kindFilter !== 'all' && s.kind !== kindFilter) return false;
+    return true;
+  });
+
+  const handleDelete = async () => {
+    if (!deleteId) return;
+    await deleteSummary(deleteId);
+    setDeleteId(null);
+    load();
+    toast({ title: '已删除' });
+  };
+
+  const handleExport = (item: SummaryItem) => {
+    const safeName = (item.title || SUMMARY_KIND_LABELS[item.kind]).replace(/[\\/:*?"<>|]/g, '_');
+    const blob = new Blob([item.content], { type: 'text/markdown;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `${safeName}.md`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  };
+
+  return (
+    <Card>
+      <CardContent className="p-4 space-y-3">
+        <button
+          className="flex items-center justify-between w-full"
+          onClick={() => setExpanded(!expanded)}
+        >
+          <span className="text-sm font-medium">已存总结（{filtered.length}）</span>
+          {expanded ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+        </button>
+
+        {expanded && (
+          <>
+            <div className="flex items-center gap-2 flex-wrap text-xs">
+              <div className="flex gap-1">
+                <Button variant={scope === 'book' ? 'default' : 'ghost'} size="sm" className="h-6 px-2" onClick={() => setScope('book')}>当前书</Button>
+                <Button variant={scope === 'all' ? 'default' : 'ghost'} size="sm" className="h-6 px-2" onClick={() => setScope('all')}>全部</Button>
+              </div>
+              <span className="text-muted-foreground">·</span>
+              <div className="flex gap-1">
+                {KIND_FILTERS.map((k) => (
+                  <Button
+                    key={k}
+                    variant={kindFilter === k ? 'default' : 'ghost'}
+                    size="sm"
+                    className="h-6 px-2"
+                    onClick={() => setKindFilter(k)}
+                  >
+                    {k === 'all' ? '全部类型' : SUMMARY_KIND_LABELS[k]}
+                  </Button>
+                ))}
+              </div>
+            </div>
+
+            {filtered.length === 0 ? (
+              <p className="text-sm text-muted-foreground py-4 text-center">暂无总结</p>
+            ) : (
+              <div className="space-y-1.5">
+                {filtered.map((s) => (
+                  <div key={s.id} className="flex items-center gap-2 p-2 rounded-md border hover:bg-accent/40 text-sm">
+                    <Badge variant="outline" className="text-[10px] px-1 py-0 shrink-0">{SUMMARY_KIND_LABELS[s.kind]}</Badge>
+                    {s.volumeNumber != null && <span className="text-xs text-muted-foreground shrink-0">第{s.volumeNumber}卷</span>}
+                    <span className="truncate flex-1" title={s.title}>{s.title}</span>
+                    <span className="text-xs text-muted-foreground shrink-0 hidden sm:inline">
+                      {s.floorStart}~{s.floorEnd}
+                    </span>
+                    {!s.autoSaved && <Badge variant="secondary" className="text-[10px] px-1 py-0 shrink-0">永久</Badge>}
+                    <div className="flex items-center gap-0.5 shrink-0">
+                      <Button variant="ghost" size="icon" className="h-7 w-7" title="查看/编辑" onClick={() => onView(s)}>
+                        <Eye className="w-3.5 h-3.5" />
+                      </Button>
+                      <Button variant="ghost" size="icon" className="h-7 w-7" title="用相同设置重新生成" onClick={() => onRegenerate(s)}>
+                        <RotateCcw className="w-3.5 h-3.5" />
+                      </Button>
+                      <Button variant="ghost" size="icon" className="h-7 w-7" title="导出 .md" onClick={() => handleExport(s)}>
+                        <Download className="w-3.5 h-3.5" />
+                      </Button>
+                      <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" title="删除" onClick={() => setDeleteId(s.id)}>
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </Button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+            <p className="text-xs text-muted-foreground">
+              标「永久」的是手动保存的；其余为自动暂存，仅保留最近若干份。
+            </p>
+          </>
+        )}
+      </CardContent>
+
+      <AlertDialog open={!!deleteId} onOpenChange={(o) => !o && setDeleteId(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>删除这条总结？</AlertDialogTitle>
+            <AlertDialogDescription>此操作不可撤销。</AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>取消</AlertDialogCancel>
+            <AlertDialogAction onClick={handleDelete}>删除</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </Card>
+  );
+}

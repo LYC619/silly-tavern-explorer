@@ -17,6 +17,8 @@ import {
 import { callOpenAIMessages } from '@/components/ai-tools/useOpenAI';
 import { loadActiveSession, loadSessionPointer } from '@/lib/session-storage';
 import type { ChatSession } from '@/types/chat';
+import type { NormalizedPreset } from '@/types/preset';
+import type { WorldBook } from '@/types/worldbook';
 import type { SummaryKind, SummaryItem } from '@/types/summary';
 import { SUMMARY_KIND_LABELS, generateSummaryId } from '@/types/summary';
 import {
@@ -25,11 +27,16 @@ import {
   getBuiltinTemplate,
   type AnySummaryTemplate,
 } from '@/lib/summary-templates';
-import { getSummaryTemplate, saveSummary, pruneAutoSavedSummaries } from '@/lib/summary-db';
+import { getSummaryTemplate, saveSummary, pruneAutoSavedSummaries, getAllSummaries } from '@/lib/summary-db';
+import { getAllPresets } from '@/lib/preset-db';
+import { getAllWorldBooks } from '@/lib/worldbook-db';
 import { buildSummaryMessages, extractTitle } from '@/lib/summary-engine';
 import { FloorRangePicker } from '@/components/summary/FloorRangePicker';
 import { TemplatePicker } from '@/components/summary/TemplatePicker';
 import { SummaryResultEditor } from '@/components/summary/SummaryResultEditor';
+import { AttachPanel, type AttachState } from '@/components/summary/AttachPanel';
+import { PriorVolumesPanel } from '@/components/summary/PriorVolumesPanel';
+import { SavedSummaryList } from '@/components/summary/SavedSummaryList';
 
 const KINDS: SummaryKind[] = ['volume', 'diary', 'diy'];
 
@@ -54,6 +61,18 @@ const Summary = () => {
   const [streaming, setStreaming] = useState(false);
   const [currentSummaryId, setCurrentSummaryId] = useState<string | null>(null);
   const [savedPermanent, setSavedPermanent] = useState(false);
+
+  // 挂载预设/世界书
+  const [attach, setAttach] = useState<AttachState>({
+    presetId: null, worldbookId: null, worldbookMode: 'constant', worldbookUids: [],
+  });
+
+  // 分卷连贯性：当前书已有分卷 + 勾选带入的卷
+  const [priorVolumes, setPriorVolumes] = useState<SummaryItem[]>([]);
+  const [priorSelectedIds, setPriorSelectedIds] = useState<string[]>([]);
+
+  // 已存列表刷新信号
+  const [savedRefresh, setSavedRefresh] = useState(0);
 
   const abortRef = useRef<AbortController | null>(null);
   const outputRef = useRef('');
@@ -87,6 +106,29 @@ const Summary = () => {
 
   useEffect(() => { reloadTemplates(kind); }, [kind, reloadTemplates]);
 
+  // 加载当前书已有分卷（用于连贯性 + 卷号/起点建议）
+  const reloadVolumes = useCallback(async () => {
+    if (!bookId) { setPriorVolumes([]); return; }
+    const all = await getAllSummaries();
+    const vols = all
+      .filter((s) => s.bookId === bookId && s.kind === 'volume')
+      .sort((a, b) => (a.volumeNumber ?? 0) - (b.volumeNumber ?? 0));
+    setPriorVolumes(vols);
+    setPriorSelectedIds(vols.map((v) => v.id)); // 默认全选（连贯性关键）
+  }, [bookId]);
+
+  useEffect(() => { reloadVolumes(); }, [reloadVolumes, savedRefresh]);
+
+  // 下一卷卷号 = 已有最大卷号 + 1；起点建议 = 已有卷最大 floorEnd + 1
+  const nextVolumeNumber = useMemo(
+    () => (priorVolumes.length ? Math.max(...priorVolumes.map((v) => v.volumeNumber ?? 0)) + 1 : 1),
+    [priorVolumes]
+  );
+  const suggestedStart = useMemo(
+    () => (priorVolumes.length ? Math.max(...priorVolumes.map((v) => v.floorEnd)) + 1 : undefined),
+    [priorVolumes]
+  );
+
   // 选择模板 → 载入正文
   const handleSelectTemplate = async (id: string) => {
     setTemplateId(id);
@@ -104,20 +146,52 @@ const Summary = () => {
     [session, floorStart, floorEnd]
   );
 
+  // 缓存挂载对象（预设/世界书本体），供引擎组装
+  const [presetMap, setPresetMap] = useState<Map<string, NormalizedPreset>>(new Map());
+  const [worldbookMap, setWorldbookMap] = useState<Map<string, WorldBook>>(new Map());
+  useEffect(() => {
+    getAllPresets().then((ps) => setPresetMap(new Map(ps.map((p) => [p.id, p.preset])))).catch(() => {});
+    getAllWorldBooks().then((ws) => setWorldbookMap(new Map(ws.map((w) => [w.id, w.worldbook])))).catch(() => {});
+  }, []);
+
+  // 组装引擎输入（token 估算与生成共用）
+  const buildEngineInput = useCallback(() => {
+    if (!session) return null;
+    const priors = kind === 'volume'
+      ? priorVolumes.filter((v) => priorSelectedIds.includes(v.id))
+      : [];
+    return {
+      session,
+      floorStart,
+      floorEnd,
+      template: templateContent,
+      preset: attach.presetId ? presetMap.get(attach.presetId) : undefined,
+      worldbook: attach.worldbookId ? worldbookMap.get(attach.worldbookId) : undefined,
+      worldbookMode: attach.worldbookMode,
+      worldbookUids: attach.worldbookUids,
+      priorSummaries: priors,
+      volumeNumber: kind === 'volume' ? nextVolumeNumber : undefined,
+      options: { speakerPrefix: true },
+    };
+  }, [session, kind, priorVolumes, priorSelectedIds, floorStart, floorEnd, templateContent,
+      attach, presetMap, worldbookMap, nextVolumeNumber]);
+
+  // 实时 token 估算
+  const tokenEstimate = useMemo(() => {
+    const input = buildEngineInput();
+    if (!input) return 0;
+    try { return buildSummaryMessages(input).tokenEstimate; } catch { return 0; }
+  }, [buildEngineInput]);
+
   const handleGenerate = async () => {
     if (!session) return;
     if (!config.apiKey) {
       toast({ title: '请先配置 API Key', description: '在上方展开 API 配置填入密钥', variant: 'destructive' });
       return;
     }
-    const { messages, warnings } = buildSummaryMessages({
-      session,
-      floorStart,
-      floorEnd,
-      template: templateContent,
-      volumeNumber: kind === 'volume' ? 1 : undefined,
-      options: { speakerPrefix: true },
-    });
+    const input = buildEngineInput();
+    if (!input) return;
+    const { messages, warnings } = buildSummaryMessages(input);
     if (messages.length === 0) {
       toast({ title: '没有可总结的内容', variant: 'destructive' });
       return;
@@ -164,12 +238,17 @@ const Summary = () => {
     bookTitle: session?.title ?? '(未命名)',
     kind,
     title,
-    volumeNumber: kind === 'volume' ? 1 : undefined,
+    volumeNumber: kind === 'volume' ? nextVolumeNumber : undefined,
     floorStart,
     floorEnd,
     content,
     genParams: {
       model: config.model,
+      presetId: attach.presetId ?? undefined,
+      worldbookId: attach.worldbookId ?? undefined,
+      worldbookMode: attach.worldbookId ? attach.worldbookMode : undefined,
+      worldbookUids: attach.worldbookMode === 'manual' ? attach.worldbookUids : undefined,
+      priorSummaryIds: kind === 'volume' ? priorSelectedIds : undefined,
       templateId,
       templateSnapshot: templateContent,
       speakerPrefix: true,
@@ -185,6 +264,7 @@ const Summary = () => {
     await pruneAutoSavedSummaries();
     setCurrentSummaryId(id);
     setSavedPermanent(false);
+    setSavedRefresh((n) => n + 1);
   };
 
   // 手动保存 → 永久（autoSaved:false）
@@ -194,6 +274,7 @@ const Summary = () => {
     await saveSummary(buildItem(resultContent, resultTitle || SUMMARY_KIND_LABELS[kind], false, id));
     setCurrentSummaryId(id);
     setSavedPermanent(true);
+    setSavedRefresh((n) => n + 1);
     toast({ title: '已永久保存', description: resultTitle || SUMMARY_KIND_LABELS[kind] });
   };
 
@@ -201,6 +282,40 @@ const Summary = () => {
   const handleContentEdit = (c: string) => {
     setResultContent(c);
     if (savedPermanent) setSavedPermanent(false);
+  };
+
+  // 从已存列表载入一条到编辑区（切到对应 kind + 楼层，便于继续编辑/保存）
+  const handleViewSaved = (item: SummaryItem) => {
+    setKind(item.kind);
+    setFloorStart(item.floorStart);
+    setFloorEnd(item.floorEnd);
+    setResultTitle(item.title);
+    setResultContent(item.content);
+    setCurrentSummaryId(item.id);
+    setSavedPermanent(!item.autoSaved);
+    if (item.genParams?.templateSnapshot) setTemplateContent(item.genParams.templateSnapshot);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  // 用相同设置重新生成：回填挂载/楼层/模板/kind，再触发生成
+  const handleRegenerate = (item: SummaryItem) => {
+    setKind(item.kind);
+    setFloorStart(item.floorStart);
+    setFloorEnd(item.floorEnd);
+    const gp = item.genParams;
+    if (gp) {
+      setAttach({
+        presetId: gp.presetId ?? null,
+        worldbookId: gp.worldbookId ?? null,
+        worldbookMode: gp.worldbookMode ?? 'constant',
+        worldbookUids: gp.worldbookUids ?? [],
+      });
+      if (gp.templateSnapshot) setTemplateContent(gp.templateSnapshot);
+    }
+    setCurrentSummaryId(null); // 生成为新条目
+    setSavedPermanent(false);
+    toast({ title: '已回填设置', description: '楼层/挂载/模板已按原条目填好，点「生成」即可重做' });
+    window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
   return (
@@ -261,7 +376,18 @@ const Summary = () => {
                 start={floorStart}
                 end={floorEnd}
                 onChange={(s, e) => { setFloorStart(s); setFloorEnd(e); }}
+                suggestedStart={kind === 'volume' ? suggestedStart : undefined}
               />
+
+              <AttachPanel value={attach} onChange={setAttach} tokenEstimate={tokenEstimate} />
+
+              {kind === 'volume' && (
+                <PriorVolumesPanel
+                  volumes={priorVolumes}
+                  selectedIds={priorSelectedIds}
+                  onChange={setPriorSelectedIds}
+                />
+              )}
 
               <Card>
                 <CardContent className="p-4 space-y-3">
@@ -277,7 +403,8 @@ const Summary = () => {
                   <div className="flex items-center gap-2">
                     {!streaming ? (
                       <Button className="gap-2" onClick={handleGenerate} disabled={floorCount === 0}>
-                        <Sparkles className="w-4 h-4" />生成（{floorCount} 楼）
+                        <Sparkles className="w-4 h-4" />
+                        {kind === 'volume' ? `生成第 ${nextVolumeNumber} 卷（${floorCount} 楼）` : `生成（${floorCount} 楼）`}
                       </Button>
                     ) : (
                       <Button variant="destructive" className="gap-2" onClick={handleStop}>
@@ -301,6 +428,13 @@ const Summary = () => {
                   savedPermanent={savedPermanent}
                 />
               )}
+
+              <SavedSummaryList
+                currentBookId={bookId}
+                refreshKey={savedRefresh}
+                onView={handleViewSaved}
+                onRegenerate={handleRegenerate}
+              />
             </>
           )}
         </div>
