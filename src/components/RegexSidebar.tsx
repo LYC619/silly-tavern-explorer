@@ -95,28 +95,34 @@ export function RegexSidebar({ rules, onRulesChange, isOpen, onClose, sampleMess
     setPresets(deleteRegexPreset(id));
   };
 
-  // 导入 SillyTavern 正则脚本 .json（单脚本 / 数组 / {scripts:[]}）
-  const handleImportST = async (file: File) => {
-    try {
-      const text = await file.text();
-      const json = JSON.parse(text);
-      const imported = parseSTRegexImport(json);
-      if (imported.length === 0) {
-        toast({ title: '未发现可导入的规则', variant: 'destructive' });
-        return;
+  // 导入 SillyTavern 正则脚本 .json（单脚本 / 数组 / {scripts:[]}），支持一次选多个文件
+  const handleImportST = async (files: File[]) => {
+    const imported: RegexRule[] = [];
+    const failed: string[] = [];
+    for (const file of files) {
+      try {
+        const json = JSON.parse(await file.text());
+        imported.push(...parseSTRegexImport(json));
+      } catch {
+        failed.push(file.name);
       }
-      // 按 id 去重合并：已存在的 id 覆盖，新 id 追加
-      const byId = new Map(rules.map((r) => [r.id, r]));
-      imported.forEach((r) => byId.set(r.id, r));
-      onRulesChange(Array.from(byId.values()));
-      toast({ title: '已导入 ST 正则', description: `导入 ${imported.length} 条规则` });
-    } catch (e) {
+    }
+    if (imported.length === 0) {
       toast({
-        title: '导入失败',
-        description: e instanceof Error ? e.message : '文件不是有效的 JSON',
+        title: '未发现可导入的规则',
+        description: failed.length > 0 ? `解析失败：${failed.join('、')}` : undefined,
         variant: 'destructive',
       });
+      return;
     }
+    // 按 id 去重合并：已存在的 id 覆盖，新 id 追加
+    const byId = new Map(rules.map((r) => [r.id, r]));
+    imported.forEach((r) => byId.set(r.id, r));
+    onRulesChange(Array.from(byId.values()));
+    toast({
+      title: '已导入 ST 正则',
+      description: `导入 ${imported.length} 条规则${files.length > 1 ? `（${files.length - failed.length}/${files.length} 个文件）` : ''}${failed.length > 0 ? `；失败：${failed.join('、')}` : ''}`,
+    });
   };
 
   // 导出当前规则为 ST 正则脚本 .json
@@ -496,10 +502,11 @@ export function RegexSidebar({ rules, onRulesChange, isOpen, onClose, sampleMess
             ref={importInputRef}
             type="file"
             accept=".json,application/json"
+            multiple
             className="hidden"
             onChange={(e) => {
-              const file = e.target.files?.[0];
-              if (file) handleImportST(file);
+              const files = Array.from(e.target.files ?? []);
+              if (files.length > 0) handleImportST(files);
               e.target.value = ''; // 允许重复选择同一文件
             }}
           />
@@ -508,7 +515,7 @@ export function RegexSidebar({ rules, onRulesChange, isOpen, onClose, sampleMess
             size="sm"
             className="flex-1 gap-1"
             onClick={() => importInputRef.current?.click()}
-            title="导入 SillyTavern 正则脚本 .json"
+            title="导入 SillyTavern 正则脚本 .json（可一次选多个文件）"
           >
             <Download className="w-3 h-3" />
             导入正则
