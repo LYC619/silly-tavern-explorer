@@ -178,6 +178,30 @@ const Index = () => {
     saveSettings(settings);
   }, [settings]);
 
+  // 自动同步书架：正则规则/楼层编辑/章节标记等处理状态随书保存（防抖），
+  // 否则书架里的书永远停留在导入时的快照，重新打开会丢失之后的全部处理。
+  const bookSyncTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(() => {
+    if (!session || !currentBookId) return;
+    if (bookSyncTimerRef.current) clearTimeout(bookSyncTimerRef.current);
+    bookSyncTimerRef.current = setTimeout(async () => {
+      try {
+        const existing = await getBook(currentBookId);
+        if (!existing) return; // 书已被删除，不复活
+        await saveBook({
+          ...existing,
+          title: session.title || session.character?.name || existing.title,
+          session,
+          markers,
+          favorites,
+          settings,
+          updatedAt: Date.now(),
+        });
+      } catch { /* 自动同步失败不打扰用户，手动保存仍可用 */ }
+    }, 800);
+    return () => { if (bookSyncTimerRef.current) clearTimeout(bookSyncTimerRef.current); };
+  }, [session, markers, favorites, settings, currentBookId]);
+
   const handleImport = async (newSession: ChatSession, stats?: ImportStats) => {
     setSession(newSession);
     // Auto-save to bookshelf on import
