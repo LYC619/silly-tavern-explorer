@@ -114,7 +114,7 @@ export function GlobalSettings({ onDataChanged, ...props }: GlobalSettingsProps)
     try {
       setLoading(true);
       await exportFullBackup();
-      toast({ title: '备份成功', description: '已导出完整备份（作品 + 世界书）' });
+      toast({ title: '备份成功', description: '已导出完整备份（作品/世界书/预设/角色卡/总结）' });
     } catch {
       toast({ title: '备份失败', variant: 'destructive' });
     } finally {
@@ -127,11 +127,13 @@ export function GlobalSettings({ onDataChanged, ...props }: GlobalSettingsProps)
     if (!file) return;
     try {
       setLoading(true);
-      const { books, worldbooks, presets, cards } = await importFullBackup(file);
+      const { books, worldbooks, presets, cards, summaries, summaryTemplates } = await importFullBackup(file);
       const parts = [`${books} 本作品`];
       if (worldbooks > 0) parts.push(`${worldbooks} 本世界书`);
       if (presets > 0) parts.push(`${presets} 份预设`);
       if (cards > 0) parts.push(`${cards} 张角色卡`);
+      if (summaries > 0) parts.push(`${summaries} 份总结`);
+      if (summaryTemplates > 0) parts.push(`${summaryTemplates} 个总结模板`);
       toast({
         title: '恢复成功',
         description: `已导入 ${parts.join('、')}`,
@@ -154,7 +156,7 @@ export function GlobalSettings({ onDataChanged, ...props }: GlobalSettingsProps)
     try {
       setLoading(true);
       await clearAllData();
-      toast({ title: '已清空', description: '所有作品与世界书数据已删除' });
+      toast({ title: '已清空', description: '所有本地数据已删除（作品/世界书/预设/角色卡/总结）' });
       await refreshStorage();
       onDataChanged?.();
     } catch {
@@ -297,8 +299,8 @@ export function GlobalSettings({ onDataChanged, ...props }: GlobalSettingsProps)
                 </Button>
               </div>
               <p className="text-xs text-muted-foreground leading-relaxed">
-                「清除临时缓存」只清页面间的临时编辑态，常用于切页后内容异常时自救，不影响书架与世界书；
-                「清空所有数据」会永久删除全部书架作品与世界书，请先备份。
+                「清除临时缓存」只清页面间的临时编辑态，常用于切页后内容异常时自救，不影响已保存数据；
+                「清空所有数据」会永久删除全部书架作品、世界书、预设、角色卡与总结，请先备份。
               </p>
             </div>
 
@@ -356,7 +358,7 @@ export function GlobalSettings({ onDataChanged, ...props }: GlobalSettingsProps)
           <AlertDialogHeader>
             <AlertDialogTitle>确认清空所有数据</AlertDialogTitle>
             <AlertDialogDescription>
-              此操作不可撤销，所有书架数据将被永久删除。建议先导出备份。
+              此操作不可撤销，所有本地数据（作品/世界书/预设/角色卡/总结）将被永久删除。建议先导出备份。
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

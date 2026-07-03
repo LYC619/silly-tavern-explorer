@@ -14,7 +14,7 @@ export interface BookItem {
 }
 
 const DB_NAME = 'st-chat-beautifier';
-const DB_VERSION = 4;
+const DB_VERSION = 5;
 const STORE_NAME = 'books';
 
 let dbInstance: IDBDatabase | null = null;
@@ -69,6 +69,19 @@ function openDB(): Promise<IDBDatabase> {
           const cStore = db.createObjectStore('cards', { keyPath: 'id' });
           cStore.createIndex('updatedAt', 'updatedAt', { unique: false });
           cStore.createIndex('title', 'title', { unique: false });
+        }
+      }
+
+      if (oldVersion < 5) {
+        if (!db.objectStoreNames.contains('summaries')) {
+          const sStore = db.createObjectStore('summaries', { keyPath: 'id' });
+          sStore.createIndex('updatedAt', 'updatedAt', { unique: false });
+          sStore.createIndex('title', 'title', { unique: false });
+        }
+        if (!db.objectStoreNames.contains('summaryTemplates')) {
+          const stStore = db.createObjectStore('summaryTemplates', { keyPath: 'id' });
+          stStore.createIndex('updatedAt', 'updatedAt', { unique: false });
+          stStore.createIndex('title', 'title', { unique: false });
         }
       }
     };

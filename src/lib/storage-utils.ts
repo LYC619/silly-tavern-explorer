@@ -6,6 +6,7 @@ import type { BookItem } from '@/lib/bookshelf-db';
 import type { WorldBookItem } from '@/types/worldbook';
 import type { PresetItem } from '@/types/preset';
 import type { CardItem } from '@/types/character-card';
+import type { SummaryItem, SummaryTemplate } from '@/types/summary';
 
 const DB_NAME = 'st-chat-beautifier';
 
@@ -30,7 +31,8 @@ export async function estimateStorageUsage(): Promise<{
 
 /**
  * Export entire IndexedDB as a JSON file for backup.
- * 同时备份 books（聊天作品）、worldbooks（世界书）、presets（预设）、cards（角色卡）四个 store，
+ * 同时备份 books（聊天作品）、worldbooks（世界书）、presets（预设）、cards（角色卡）、
+ * summaries（总结）、summaryTemplates（总结模板）六个 store，
  * 它们是独立的 object store，少备份任何一个都会造成"完整备份"名不副实的数据丢失。
  */
 export async function exportFullBackup(): Promise<void> {
@@ -38,7 +40,7 @@ export async function exportFullBackup(): Promise<void> {
 
   const readAll = <T>(storeName: string) =>
     new Promise<T[]>((resolve, reject) => {
-      // 某些旧库可能尚未建出 worldbooks/presets/cards store，缺失时返回空数组而非抛错
+      // 某些旧库可能尚未建出 worldbooks/presets/cards/summaries store，缺失时返回空数组而非抛错
       if (!db.objectStoreNames.contains(storeName)) {
         resolve([]);
         return;
@@ -48,21 +50,25 @@ export async function exportFullBackup(): Promise<void> {
       req.onerror = () => reject(req.error);
     });
 
-  const [allBooks, allWorldbooks, allPresets, allCards] = await Promise.all([
+  const [allBooks, allWorldbooks, allPresets, allCards, allSummaries, allSummaryTemplates] = await Promise.all([
     readAll<BookItem>('books'),
     readAll<WorldBookItem>('worldbooks'),
     readAll<PresetItem>('presets'),
     readAll<CardItem>('cards'),
+    readAll<SummaryItem>('summaries'),
+    readAll<SummaryTemplate>('summaryTemplates'),
   ]);
 
   const backup = {
-    version: 4,
+    version: 5,
     exportedAt: new Date().toISOString(),
     app: 'silly-tavern-explorer',
     books: allBooks,
     worldbooks: allWorldbooks,
     presets: allPresets,
     cards: allCards,
+    summaries: allSummaries,
+    summaryTemplates: allSummaryTemplates,
   };
 
   const blob = new Blob([JSON.stringify(backup)], { type: 'application/json;charset=utf-8' });
@@ -78,10 +84,17 @@ export async function exportFullBackup(): Promise<void> {
 
 /**
  * Import a backup JSON file into IndexedDB.
- * 兼容 v1(books)/v2(+worldbooks)/v3(+presets)/v4(+cards) 备份。
- * 返回写入的书籍数、世界书数、预设数与角色卡数。
+ * 兼容 v1(books)/v2(+worldbooks)/v3(+presets)/v4(+cards)/v5(+summaries/summaryTemplates) 备份。
+ * 返回各类数据的写入条数。
  */
-export async function importFullBackup(file: File): Promise<{ books: number; worldbooks: number; presets: number; cards: number }> {
+export async function importFullBackup(file: File): Promise<{
+  books: number;
+  worldbooks: number;
+  presets: number;
+  cards: number;
+  summaries: number;
+  summaryTemplates: number;
+}> {
   const text = await file.text();
   const data = JSON.parse(text);
 
@@ -122,12 +135,15 @@ export async function importFullBackup(file: File): Promise<{ books: number; wor
   const presets = await putAll('presets', data.presets ?? [], (p) => !!p.id);
   // v1/v2/v3 备份没有 cards 字段，putAll 会安全地返回 0
   const cards = await putAll('cards', data.cards ?? [], (c) => !!c.id && !!c.card);
+  // v1~v4 备份没有 summaries/summaryTemplates 字段，putAll 会安全地返回 0
+  const summaries = await putAll('summaries', data.summaries ?? [], (s) => !!s.id && typeof s.content === 'string');
+  const summaryTemplates = await putAll('summaryTemplates', data.summaryTemplates ?? [], (t) => !!t.id && typeof t.content === 'string');
 
-  return { books, worldbooks, presets, cards };
+  return { books, worldbooks, presets, cards, summaries, summaryTemplates };
 }
 
 /**
- * Clear all data from IndexedDB（books + worldbooks + presets + cards 一并清空）
+ * Clear all data from IndexedDB（books + worldbooks + presets + cards + summaries + summaryTemplates 一并清空）
  */
 export async function clearAllData(): Promise<void> {
   const db = await openDB();
@@ -142,12 +158,19 @@ export async function clearAllData(): Promise<void> {
       req.onsuccess = () => resolve();
       req.onerror = () => reject(req.error);
     });
-  await Promise.all([clearStore('books'), clearStore('worldbooks'), clearStore('presets'), clearStore('cards')]);
+  await Promise.all([
+    clearStore('books'),
+    clearStore('worldbooks'),
+    clearStore('presets'),
+    clearStore('cards'),
+    clearStore('summaries'),
+    clearStore('summaryTemplates'),
+  ]);
 }
 
 function openDB(): Promise<IDBDatabase> {
   return new Promise((resolve, reject) => {
-    const request = indexedDB.open(DB_NAME, 4);
+    const request = indexedDB.open(DB_NAME, 5);
     request.onerror = () => reject(request.error);
     request.onsuccess = () => resolve(request.result);
     request.onupgradeneeded = (event) => {
@@ -171,6 +194,16 @@ function openDB(): Promise<IDBDatabase> {
         const cStore = db.createObjectStore('cards', { keyPath: 'id' });
         cStore.createIndex('updatedAt', 'updatedAt', { unique: false });
         cStore.createIndex('title', 'title', { unique: false });
+      }
+      if (!db.objectStoreNames.contains('summaries')) {
+        const sStore = db.createObjectStore('summaries', { keyPath: 'id' });
+        sStore.createIndex('updatedAt', 'updatedAt', { unique: false });
+        sStore.createIndex('title', 'title', { unique: false });
+      }
+      if (!db.objectStoreNames.contains('summaryTemplates')) {
+        const stStore = db.createObjectStore('summaryTemplates', { keyPath: 'id' });
+        stStore.createIndex('updatedAt', 'updatedAt', { unique: false });
+        stStore.createIndex('title', 'title', { unique: false });
       }
     };
   });
