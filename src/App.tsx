@@ -10,6 +10,7 @@ import { Loader2 } from "lucide-react";
 // 其余页面(世界书/AI工具/阅读器等)按需懒加载，避免全部塞进一个大 bundle。
 const Index = lazy(() => import("./pages/Index"));
 const Bookshelf = lazy(() => import("./pages/Bookshelf"));
+const Summary = lazy(() => import("./pages/Summary"));
 const AITools = lazy(() => import("./pages/AITools"));
 const Reader = lazy(() => import("./pages/Reader"));
 const WorldBook = lazy(() => import("./pages/WorldBook"));
@@ -32,6 +33,7 @@ const App = () => (
         <Suspense fallback={<PageFallback />}>
           <Routes>
             <Route path="/" element={<Index />} />
+            <Route path="/summary" element={<Summary />} />
             <Route path="/bookshelf" element={<Bookshelf />} />
             <Route path="/ai-tools" element={<AITools />} />
             <Route path="/worldbook" element={<WorldBook />} />
