@@ -39,6 +39,7 @@ import { SummaryResultEditor } from '@/components/summary/SummaryResultEditor';
 import { AttachPanel, type AttachState } from '@/components/summary/AttachPanel';
 import { PriorVolumesPanel } from '@/components/summary/PriorVolumesPanel';
 import { SavedSummaryList } from '@/components/summary/SavedSummaryList';
+import { MiniSummaryPanel } from '@/components/summary/MiniSummaryPanel';
 
 const KINDS: SummaryKind[] = ['volume', 'diary', 'diy'];
 
@@ -368,6 +369,9 @@ const Summary = () => {
                 <span>· {session.messages.length} 楼</span>
                 <span>· {session.character?.name} & {session.user?.name}</span>
               </div>
+
+              {/* 小总结：正则提取每楼小结（不调 AI） */}
+              <MiniSummaryPanel session={session} />
 
               {/* 呈现类型 */}
               <Tabs value={kind} onValueChange={(v) => setKind(v as SummaryKind)} data-tour="summary-kind">
