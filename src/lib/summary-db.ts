@@ -1,7 +1,7 @@
 import type { SummaryItem, SummaryTemplate } from '@/types/summary';
 
 const DB_NAME = 'st-chat-beautifier';
-const DB_VERSION = 5;
+const DB_VERSION = 6;
 const SUMMARY_STORE = 'summaries';
 const TEMPLATE_STORE = 'summaryTemplates';
 
@@ -72,6 +72,14 @@ function openDB(): Promise<IDBDatabase> {
           const tStore = db.createObjectStore(TEMPLATE_STORE, { keyPath: 'id' });
           tStore.createIndex('updatedAt', 'updatedAt', { unique: false });
           tStore.createIndex('title', 'title', { unique: false });
+        }
+      }
+
+      if (oldVersion < 6) {
+        if (!db.objectStoreNames.contains('stories')) {
+          const stoStore = db.createObjectStore('stories', { keyPath: 'id' });
+          stoStore.createIndex('updatedAt', 'updatedAt', { unique: false });
+          stoStore.createIndex('title', 'title', { unique: false });
         }
       }
     };
