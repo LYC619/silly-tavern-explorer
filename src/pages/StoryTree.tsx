@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Network, Plus, Trash2, ChevronsDownUp, ChevronsUpDown, Archive } from 'lucide-react';
+import { Network, Plus, Trash2, ChevronsDownUp, ChevronsUpDown, Archive, Sparkles } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -11,6 +11,8 @@ import {
 } from '@/components/ui/alert-dialog';
 import { HelpCard } from '@/components/HelpCard';
 import { AppLayout } from '@/components/AppLayout';
+import { GuidedTour } from '@/components/GuidedTour';
+import { STORY_TREE_TOUR_STEPS, isTourCompleted, setTourCompleted } from '@/lib/tour-steps';
 import { useToast } from '@/hooks/use-toast';
 import { loadActiveSession, loadSessionPointer } from '@/lib/session-storage';
 import type { ChatSession } from '@/types/chat';
@@ -24,6 +26,7 @@ import {
 } from '@/lib/story-tree-db';
 import { StoryTreeView } from '@/components/story-tree/StoryTreeView';
 import { StoryNodeEditor } from '@/components/story-tree/StoryNodeEditor';
+import { AIFillDialog } from '@/components/story-tree/AIFillDialog';
 
 const StoryTree = () => {
   const navigate = useNavigate();
@@ -41,6 +44,8 @@ const StoryTree = () => {
   const [collapsed, setCollapsed] = useState<Set<string>>(new Set());
   const [showArchived, setShowArchived] = useState(false);
   const [deleteTreeOpen, setDeleteTreeOpen] = useState(false);
+  const [aiFillOpen, setAiFillOpen] = useState(false);
+  const [showTour, setShowTour] = useState(false);
 
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -49,6 +54,9 @@ const StoryTree = () => {
     const ptr = loadSessionPointer();
     setBookId(ptr?.currentBookId ?? null);
     loadActiveSession().then((s) => setSession(s));
+    if (!isTourCompleted('story-tree')) {
+      setTimeout(() => setShowTour(true), 500);
+    }
   }, []);
 
   const reloadTrees = useCallback(async () => {
@@ -192,7 +200,7 @@ const StoryTree = () => {
           </div>
 
           {/* 树选择器 */}
-          <Card>
+          <Card data-tour="story-tree-select">
             <CardContent className="p-4 flex items-center gap-2 flex-wrap">
               {trees.length > 0 ? (
                 <Select value={currentTreeId ?? ''} onValueChange={(v) => { const t = trees.find((x) => x.id === v); if (t) loadTree(t); }}>
@@ -233,10 +241,15 @@ const StoryTree = () => {
                 {/* 左：树视图 */}
                 <Card>
                   <CardContent className="p-3 space-y-2">
-                    <div className="flex items-center gap-1 flex-wrap">
+                    <div className="flex items-center gap-1 flex-wrap" data-tour="story-tree-toolbar">
                       <Button variant="outline" size="sm" className="h-7 gap-1" onClick={handleAddRoot}>
                         <Plus className="w-3.5 h-3.5" />根节点
                       </Button>
+                      {session && (
+                        <Button variant="outline" size="sm" className="h-7 gap-1" onClick={() => setAiFillOpen(true)}>
+                          <Sparkles className="w-3.5 h-3.5" />AI 生成
+                        </Button>
+                      )}
                       <Button variant="ghost" size="icon" className="h-7 w-7" title="全部展开" onClick={expandAll}>
                         <ChevronsUpDown className="w-4 h-4" />
                       </Button>
@@ -274,7 +287,7 @@ const StoryTree = () => {
                 </Card>
 
                 {/* 右：节点编辑 */}
-                <Card>
+                <Card data-tour="story-tree-editor">
                   <CardContent className="p-4">
                     {selectedNode ? (
                       <StoryNodeEditor
@@ -325,6 +338,25 @@ const StoryTree = () => {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {session && currentTreeId && (
+        <AIFillDialog
+          open={aiFillOpen}
+          onOpenChange={setAiFillOpen}
+          session={session}
+          nodes={nodes}
+          onApply={(next) => { applyNodes(next); }}
+        />
+      )}
+
+      {showTour && (
+        <GuidedTour
+          steps={STORY_TREE_TOUR_STEPS}
+          module="story-tree"
+          onComplete={() => { setTourCompleted('story-tree'); setShowTour(false); }}
+          onSkip={() => { setTourCompleted('story-tree'); setShowTour(false); }}
+        />
+      )}
     </AppLayout>
   );
 };
