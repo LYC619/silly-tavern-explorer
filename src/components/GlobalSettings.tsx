@@ -127,13 +127,14 @@ export function GlobalSettings({ onDataChanged, ...props }: GlobalSettingsProps)
     if (!file) return;
     try {
       setLoading(true);
-      const { books, worldbooks, presets, cards, summaries, summaryTemplates } = await importFullBackup(file);
+      const { books, worldbooks, presets, cards, summaries, summaryTemplates, stories } = await importFullBackup(file);
       const parts = [`${books} 本作品`];
       if (worldbooks > 0) parts.push(`${worldbooks} 本世界书`);
       if (presets > 0) parts.push(`${presets} 份预设`);
       if (cards > 0) parts.push(`${cards} 张角色卡`);
       if (summaries > 0) parts.push(`${summaries} 份总结`);
       if (summaryTemplates > 0) parts.push(`${summaryTemplates} 个总结模板`);
+      if (stories > 0) parts.push(`${stories} 棵故事树`);
       toast({
         title: '恢复成功',
         description: `已导入 ${parts.join('、')}`,

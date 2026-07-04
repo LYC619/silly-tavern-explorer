@@ -7,6 +7,7 @@ import type { WorldBookItem } from '@/types/worldbook';
 import type { PresetItem } from '@/types/preset';
 import type { CardItem } from '@/types/character-card';
 import type { SummaryItem, SummaryTemplate } from '@/types/summary';
+import type { StoryTree } from '@/types/story-tree';
 
 const DB_NAME = 'st-chat-beautifier';
 
@@ -50,17 +51,18 @@ export async function exportFullBackup(): Promise<void> {
       req.onerror = () => reject(req.error);
     });
 
-  const [allBooks, allWorldbooks, allPresets, allCards, allSummaries, allSummaryTemplates] = await Promise.all([
+  const [allBooks, allWorldbooks, allPresets, allCards, allSummaries, allSummaryTemplates, allStories] = await Promise.all([
     readAll<BookItem>('books'),
     readAll<WorldBookItem>('worldbooks'),
     readAll<PresetItem>('presets'),
     readAll<CardItem>('cards'),
     readAll<SummaryItem>('summaries'),
     readAll<SummaryTemplate>('summaryTemplates'),
+    readAll<StoryTree>('stories'),
   ]);
 
   const backup = {
-    version: 5,
+    version: 6,
     exportedAt: new Date().toISOString(),
     app: 'silly-tavern-explorer',
     books: allBooks,
@@ -69,6 +71,7 @@ export async function exportFullBackup(): Promise<void> {
     cards: allCards,
     summaries: allSummaries,
     summaryTemplates: allSummaryTemplates,
+    stories: allStories,
   };
 
   const blob = new Blob([JSON.stringify(backup)], { type: 'application/json;charset=utf-8' });
@@ -94,6 +97,7 @@ export async function importFullBackup(file: File): Promise<{
   cards: number;
   summaries: number;
   summaryTemplates: number;
+  stories: number;
 }> {
   const text = await file.text();
   const data = JSON.parse(text);
@@ -138,8 +142,10 @@ export async function importFullBackup(file: File): Promise<{
   // v1~v4 备份没有 summaries/summaryTemplates 字段，putAll 会安全地返回 0
   const summaries = await putAll('summaries', data.summaries ?? [], (s) => !!s.id && typeof s.content === 'string');
   const summaryTemplates = await putAll('summaryTemplates', data.summaryTemplates ?? [], (t) => !!t.id && typeof t.content === 'string');
+  // v1~v5 备份没有 stories 字段，putAll 会安全地返回 0
+  const stories = await putAll('stories', data.stories ?? [], (s) => !!s.id && Array.isArray(s.nodes));
 
-  return { books, worldbooks, presets, cards, summaries, summaryTemplates };
+  return { books, worldbooks, presets, cards, summaries, summaryTemplates, stories };
 }
 
 /**
@@ -165,12 +171,13 @@ export async function clearAllData(): Promise<void> {
     clearStore('cards'),
     clearStore('summaries'),
     clearStore('summaryTemplates'),
+    clearStore('stories'),
   ]);
 }
 
 function openDB(): Promise<IDBDatabase> {
   return new Promise((resolve, reject) => {
-    const request = indexedDB.open(DB_NAME, 5);
+    const request = indexedDB.open(DB_NAME, 6);
     request.onerror = () => reject(request.error);
     request.onsuccess = () => resolve(request.result);
     request.onupgradeneeded = (event) => {
@@ -204,6 +211,11 @@ function openDB(): Promise<IDBDatabase> {
         const stStore = db.createObjectStore('summaryTemplates', { keyPath: 'id' });
         stStore.createIndex('updatedAt', 'updatedAt', { unique: false });
         stStore.createIndex('title', 'title', { unique: false });
+      }
+      if (!db.objectStoreNames.contains('stories')) {
+        const stoStore = db.createObjectStore('stories', { keyPath: 'id' });
+        stoStore.createIndex('updatedAt', 'updatedAt', { unique: false });
+        stoStore.createIndex('title', 'title', { unique: false });
       }
     };
   });
