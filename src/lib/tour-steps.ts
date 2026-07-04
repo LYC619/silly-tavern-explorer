@@ -166,9 +166,27 @@ export const SUMMARY_TOUR_STEPS: TourStep[] = [
   },
 ];
 
+export const STORY_TREE_TOUR_STEPS: TourStep[] = [
+  {
+    targetSelector: '[data-tour="story-tree-select"]',
+    content: '每棵故事树关联当前书。可新建多棵、切换、重命名、删除。树会随编辑自动保存。',
+    action: 'next',
+  },
+  {
+    targetSelector: '[data-tour="story-tree-toolbar"]',
+    content: '「根节点」手动加顶层节点；「AI 生成」从选定聊天楼层自动提炼人物/事件/关系等事实节点。左侧树可拖拽移动节点。',
+    action: 'next',
+  },
+  {
+    targetSelector: '[data-tour="story-tree-editor"]',
+    content: '点击节点在右侧编辑标题、正文、标签；可置顶或归档（归档=软删除，可恢复）。',
+    action: 'next',
+  },
+];
+
 // Storage keys
 const PREFIX = 'onboarding-';
-export const TOUR_MODULES = ['home', 'bookshelf', 'summary', 'worldbook', 'aitools', 'cardviewer', 'preset'] as const;
+export const TOUR_MODULES = ['home', 'bookshelf', 'summary', 'story-tree', 'worldbook', 'aitools', 'cardviewer', 'preset'] as const;
 export type TourModule = typeof TOUR_MODULES[number];
 
 export function isTourCompleted(module: TourModule): boolean {
