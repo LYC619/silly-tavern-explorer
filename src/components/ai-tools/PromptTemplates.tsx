@@ -12,6 +12,10 @@ import { callOpenAI } from './useOpenAI';
 import type { APIConfig } from './APIConfigCard';
 import type { ChapterMarker } from '@/types/chat';
 import { loadActiveSession } from '@/lib/session-storage';
+import { getAllSummaryTemplates, saveSummaryTemplate, getSummaryTemplate } from '@/lib/summary-db';
+import { BUILTIN_SUMMARY_TEMPLATES } from '@/lib/summary-templates';
+import { generateSummaryTemplateId, type SummaryTemplate } from '@/types/summary';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
 interface PromptTemplatesProps {
   config: APIConfig;
@@ -149,8 +153,15 @@ export function PromptTemplates({ config, selectedContent, selectedCount }: Prom
   const [copied, setCopied] = useState(false);
   // Editable prompts state
   const [editedPrompts, setEditedPrompts] = useState<Record<string, string>>({});
+  // 总结模板库（内置 + 自定义），供 custom tab 与总结页互通
+  const [libTemplates, setLibTemplates] = useState<SummaryTemplate[]>([]);
   const outputRef = useRef('');
   const abortControllerRef = useRef<AbortController | null>(null);
+
+  const reloadLibTemplates = () => {
+    getAllSummaryTemplates().then(setLibTemplates).catch(() => {});
+  };
+  useEffect(() => { reloadLibTemplates(); }, []);
 
   // Load custom prompts from localStorage on mount
   useEffect(() => {
@@ -181,6 +192,37 @@ export function PromptTemplates({ config, selectedContent, selectedCount }: Prom
     });
     removeStoredPrompt(key);
     toast({ title: '已恢复默认提示词' });
+  };
+
+  // 从模板库（内置 + 总结页自定义模板）加载到 custom tab
+  const handleLoadFromLibrary = async (id: string) => {
+    const builtin = BUILTIN_SUMMARY_TEMPLATES.find(t => t.id === id);
+    if (builtin) { setCustomPrompt(builtin.content); return; }
+    const custom = await getSummaryTemplate(id);
+    if (custom) setCustomPrompt(custom.content);
+  };
+
+  // 把 custom tab 当前提示词保存到模板库（kind=any，总结页各 tab 可见）
+  const handleSaveToLibrary = async () => {
+    const content = customPrompt.trim();
+    if (!content) {
+      toast({ title: '当前提示词为空', variant: 'destructive' });
+      return;
+    }
+    const name = window.prompt('给这个模板起个名字：', '我的提示词模板');
+    if (name === null) return;
+    const title = name.trim() || '未命名模板';
+    const tpl: SummaryTemplate = {
+      id: generateSummaryTemplateId(),
+      title,
+      kind: 'any',
+      content,
+      createdAt: Date.now(),
+      updatedAt: Date.now(),
+    };
+    await saveSummaryTemplate(tpl);
+    reloadLibTemplates();
+    toast({ title: '已保存到模板库', description: `${title}（可在「总结」页使用）` });
   };
 
   const handleGenerate = async () => {
@@ -350,13 +392,36 @@ export function PromptTemplates({ config, selectedContent, selectedCount }: Prom
 
               {key === 'custom' && (
                 <div className="space-y-2">
-                  <Label>System Prompt</Label>
+                  <div className="flex items-center justify-between gap-2 flex-wrap">
+                    <Label>System Prompt</Label>
+                    <div className="flex items-center gap-2">
+                      <Select onValueChange={handleLoadFromLibrary}>
+                        <SelectTrigger className="h-7 w-40 text-xs">
+                          <SelectValue placeholder="从模板库加载" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {BUILTIN_SUMMARY_TEMPLATES.map(t => (
+                            <SelectItem key={t.id} value={t.id}>{t.title}</SelectItem>
+                          ))}
+                          {libTemplates.map(t => (
+                            <SelectItem key={t.id} value={t.id}>{t.title}（自定义）</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <Button variant="outline" size="sm" className="h-7 gap-1 text-xs" onClick={handleSaveToLibrary}>
+                        <BookmarkPlus className="w-3.5 h-3.5" />存入模板库
+                      </Button>
+                    </div>
+                  </div>
                   <Textarea
                     value={customPrompt}
                     onChange={(e) => setCustomPrompt(e.target.value)}
                     placeholder={template.placeholder}
                     rows={4}
                   />
+                  <p className="text-xs text-muted-foreground">
+                    模板库与「总结」页共用：这里存入的模板会出现在总结页，反之亦然，便于反复调优。
+                  </p>
                 </div>
               )}
 

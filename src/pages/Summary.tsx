@@ -6,6 +6,8 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { HelpCard } from '@/components/HelpCard';
 import { AppLayout } from '@/components/AppLayout';
+import { GuidedTour } from '@/components/GuidedTour';
+import { SUMMARY_TOUR_STEPS, isTourCompleted, setTourCompleted } from '@/lib/tour-steps';
 import { useToast } from '@/hooks/use-toast';
 import {
   APIConfigCard,
@@ -74,6 +76,8 @@ const Summary = () => {
   // 已存列表刷新信号
   const [savedRefresh, setSavedRefresh] = useState(0);
 
+  const [showTour, setShowTour] = useState(false);
+
   const abortRef = useRef<AbortController | null>(null);
   const outputRef = useRef('');
 
@@ -89,6 +93,9 @@ const Summary = () => {
       setFloorStart(0);
       setFloorEnd(Math.max(0, active.messages.length - 1));
     });
+    if (!isTourCompleted('summary')) {
+      setTimeout(() => setShowTour(true), 500);
+    }
     return () => { cancelled = true; };
   }, []);
 
@@ -363,7 +370,7 @@ const Summary = () => {
               </div>
 
               {/* 呈现类型 */}
-              <Tabs value={kind} onValueChange={(v) => setKind(v as SummaryKind)}>
+              <Tabs value={kind} onValueChange={(v) => setKind(v as SummaryKind)} data-tour="summary-kind">
                 <TabsList className="grid w-full grid-cols-3">
                   {KINDS.map((k) => (
                     <TabsTrigger key={k} value={k}>{SUMMARY_KIND_LABELS[k]}</TabsTrigger>
@@ -371,15 +378,19 @@ const Summary = () => {
                 </TabsList>
               </Tabs>
 
-              <FloorRangePicker
-                total={session.messages.length}
-                start={floorStart}
-                end={floorEnd}
-                onChange={(s, e) => { setFloorStart(s); setFloorEnd(e); }}
-                suggestedStart={kind === 'volume' ? suggestedStart : undefined}
-              />
+              <div data-tour="summary-floors">
+                <FloorRangePicker
+                  total={session.messages.length}
+                  start={floorStart}
+                  end={floorEnd}
+                  onChange={(s, e) => { setFloorStart(s); setFloorEnd(e); }}
+                  suggestedStart={kind === 'volume' ? suggestedStart : undefined}
+                />
+              </div>
 
-              <AttachPanel value={attach} onChange={setAttach} tokenEstimate={tokenEstimate} />
+              <div data-tour="summary-attach">
+                <AttachPanel value={attach} onChange={setAttach} tokenEstimate={tokenEstimate} />
+              </div>
 
               {kind === 'volume' && (
                 <PriorVolumesPanel
@@ -389,7 +400,7 @@ const Summary = () => {
                 />
               )}
 
-              <Card>
+              <Card data-tour="summary-template">
                 <CardContent className="p-4 space-y-3">
                   <TemplatePicker
                     kind={kind}
@@ -429,16 +440,27 @@ const Summary = () => {
                 />
               )}
 
-              <SavedSummaryList
-                currentBookId={bookId}
-                refreshKey={savedRefresh}
-                onView={handleViewSaved}
-                onRegenerate={handleRegenerate}
-              />
+              <div data-tour="summary-saved">
+                <SavedSummaryList
+                  currentBookId={bookId}
+                  refreshKey={savedRefresh}
+                  onView={handleViewSaved}
+                  onRegenerate={handleRegenerate}
+                />
+              </div>
             </>
           )}
         </div>
       </div>
+
+      {showTour && (
+        <GuidedTour
+          steps={SUMMARY_TOUR_STEPS}
+          module="summary"
+          onComplete={() => { setTourCompleted('summary'); setShowTour(false); }}
+          onSkip={() => { setTourCompleted('summary'); setShowTour(false); }}
+        />
+      )}
     </AppLayout>
   );
 };
