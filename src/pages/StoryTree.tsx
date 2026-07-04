@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Network, Plus, Trash2, ChevronsDownUp, ChevronsUpDown, Archive, Sparkles } from 'lucide-react';
+import { Network, Plus, Trash2, ChevronsDownUp, ChevronsUpDown, Archive, Sparkles, Download } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -27,6 +27,7 @@ import {
 import { StoryTreeView } from '@/components/story-tree/StoryTreeView';
 import { StoryNodeEditor } from '@/components/story-tree/StoryNodeEditor';
 import { AIFillDialog } from '@/components/story-tree/AIFillDialog';
+import { storyTreeToObsidian, downloadMarkdown } from '@/lib/obsidian-export';
 
 const StoryTree = () => {
   const navigate = useNavigate();
@@ -140,6 +141,22 @@ const StoryTree = () => {
     scheduleSave(nodes, v);
   };
 
+  const handleExportObsidian = () => {
+    if (!currentTreeId) return;
+    const existing = trees.find((t) => t.id === currentTreeId);
+    const tree: StoryTreeT = {
+      id: currentTreeId,
+      bookId,
+      bookTitle: session?.title ?? existing?.bookTitle ?? '(未命名)',
+      title: treeTitle || '故事树',
+      nodes,
+      createdAt: existing?.createdAt ?? Date.now(),
+      updatedAt: Date.now(),
+    };
+    downloadMarkdown(tree.title, storyTreeToObsidian(tree, { linkNodes: false }));
+    toast({ title: '已导出故事树', description: 'Obsidian 友好 markdown（含 frontmatter）' });
+  };
+
   // 节点操作
   const handleAddRoot = () => {
     const { nodes: next, node } = addNode(nodes, null, { title: '新节点' });
@@ -217,6 +234,11 @@ const StoryTree = () => {
               <Button variant="outline" size="sm" className="h-8 gap-1" onClick={handleCreateTree}>
                 <Plus className="w-4 h-4" />新建
               </Button>
+              {currentTreeId && (
+                <Button variant="ghost" size="sm" className="h-8 gap-1" onClick={handleExportObsidian}>
+                  <Download className="w-4 h-4" />导出
+                </Button>
+              )}
               {currentTreeId && (
                 <Button variant="ghost" size="sm" className="h-8 gap-1 text-destructive" onClick={() => setDeleteTreeOpen(true)}>
                   <Trash2 className="w-4 h-4" />删除此树

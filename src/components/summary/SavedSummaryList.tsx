@@ -11,6 +11,7 @@ import { useToast } from '@/hooks/use-toast';
 import type { SummaryItem, SummaryKind } from '@/types/summary';
 import { SUMMARY_KIND_LABELS } from '@/types/summary';
 import { getAllSummaries, deleteSummary } from '@/lib/summary-db';
+import { summaryToObsidian, downloadMarkdown } from '@/lib/obsidian-export';
 
 interface SavedSummaryListProps {
   /** 当前书 id，用于「仅当前书」筛选 */
@@ -55,16 +56,14 @@ export function SavedSummaryList({ currentBookId, refreshKey, onView, onRegenera
   };
 
   const handleExport = (item: SummaryItem) => {
-    const safeName = (item.title || SUMMARY_KIND_LABELS[item.kind]).replace(/[\\/:*?"<>|]/g, '_');
-    const blob = new Blob([item.content], { type: 'text/markdown;charset=utf-8' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `${safeName}.md`;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
+    // Obsidian 友好 markdown（带 frontmatter），也可直接当普通 .md 用
+    downloadMarkdown(item.title || SUMMARY_KIND_LABELS[item.kind], summaryToObsidian(item));
+  };
+
+  const handleExportAll = () => {
+    if (filtered.length === 0) return;
+    filtered.forEach((s) => downloadMarkdown(s.title || SUMMARY_KIND_LABELS[s.kind], summaryToObsidian(s)));
+    toast({ title: `已导出 ${filtered.length} 份`, description: 'Obsidian 友好 markdown（含 frontmatter）' });
   };
 
   return (
@@ -99,6 +98,11 @@ export function SavedSummaryList({ currentBookId, refreshKey, onView, onRegenera
                   </Button>
                 ))}
               </div>
+              {filtered.length > 0 && (
+                <Button variant="outline" size="sm" className="h-6 px-2 gap-1 ml-auto" onClick={handleExportAll}>
+                  <Download className="w-3 h-3" />导出全部
+                </Button>
+              )}
             </div>
 
             {filtered.length === 0 ? (
