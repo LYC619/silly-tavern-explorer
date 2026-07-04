@@ -441,6 +441,7 @@ const Summary = () => {
                   streaming={streaming}
                   onSave={handleSave}
                   savedPermanent={savedPermanent}
+                  charName={session.character?.name}
                 />
               )}
 
