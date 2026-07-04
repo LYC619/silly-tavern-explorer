@@ -11,6 +11,7 @@ import { Loader2 } from "lucide-react";
 const Index = lazy(() => import("./pages/Index"));
 const Bookshelf = lazy(() => import("./pages/Bookshelf"));
 const Summary = lazy(() => import("./pages/Summary"));
+const StoryTree = lazy(() => import("./pages/StoryTree"));
 const AITools = lazy(() => import("./pages/AITools"));
 const Reader = lazy(() => import("./pages/Reader"));
 const WorldBook = lazy(() => import("./pages/WorldBook"));
@@ -34,6 +35,7 @@ const App = () => (
           <Routes>
             <Route path="/" element={<Index />} />
             <Route path="/summary" element={<Summary />} />
+            <Route path="/story-tree" element={<StoryTree />} />
             <Route path="/bookshelf" element={<Bookshelf />} />
             <Route path="/ai-tools" element={<AITools />} />
             <Route path="/worldbook" element={<WorldBook />} />
