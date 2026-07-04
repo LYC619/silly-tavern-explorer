@@ -92,7 +92,7 @@ export const AITOOLS_TOUR_STEPS: TourStep[] = [
   },
   {
     targetSelector: '[data-tour="ai-templates"]',
-    content: '四个内置模板：总结剧情（含智能分章）、提取世界书、平行世界、自定义提示词。所有提示词均可自行编辑。',
+    content: '四个内置模板：总结剧情（含智能分章）、提取世界书、平行世界、自定义提示词。自定义标签的模板库与「总结」页互通，便于反复调优。所有提示词均可自行编辑。',
     action: 'next',
   },
   {
@@ -138,9 +138,37 @@ export const PRESET_TOUR_STEPS: TourStep[] = [
   },
 ];
 
+export const SUMMARY_TOUR_STEPS: TourStep[] = [
+  {
+    targetSelector: '[data-tour="summary-kind"]',
+    content: '三种呈现：分卷总结（可跨卷连贯）、角色日记（第一人称）、DIY 自由创作。都用同一套引擎，选好类型再往下配置。',
+    action: 'next',
+  },
+  {
+    targetSelector: '[data-tour="summary-floors"]',
+    content: '选择要总结的楼层范围（与聊天处理页楼层号一致）。分卷时可「续上一卷」自动接上。',
+    action: 'next',
+  },
+  {
+    targetSelector: '[data-tour="summary-attach"]',
+    content: '可选挂载已保存的预设（决定上下文组装顺序）与世界书（默认仅注入常驻条目，避免 token 过大）。右上角实时显示 token 估算。',
+    action: 'next',
+  },
+  {
+    targetSelector: '[data-tour="summary-template"]',
+    content: '选择提示词模板并可查看/编辑/另存。模板库与「AI 工具」页互通，方便反复调优。配置好点「生成」即可。',
+    action: 'next',
+  },
+  {
+    targetSelector: '[data-tour="summary-saved"]',
+    content: '生成的总结会自动暂存、可编辑；点「保存」转为永久留存。这里能查看、重新生成、导出、删除已存总结。',
+    action: 'next',
+  },
+];
+
 // Storage keys
 const PREFIX = 'onboarding-';
-export const TOUR_MODULES = ['home', 'bookshelf', 'worldbook', 'aitools', 'cardviewer', 'preset'] as const;
+export const TOUR_MODULES = ['home', 'bookshelf', 'summary', 'worldbook', 'aitools', 'cardviewer', 'preset'] as const;
 export type TourModule = typeof TOUR_MODULES[number];
 
 export function isTourCompleted(module: TourModule): boolean {
