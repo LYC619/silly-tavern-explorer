@@ -3,19 +3,14 @@ import { useNavigate } from 'react-router-dom';
 import { NotebookText, AlertCircle, Sparkles, Square, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
-import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { HelpCard } from '@/components/HelpCard';
 import { AppLayout } from '@/components/AppLayout';
 import { GuidedTour } from '@/components/GuidedTour';
 import { SUMMARY_TOUR_STEPS, isTourCompleted, setTourCompleted } from '@/lib/tour-steps';
 import { useToast } from '@/hooks/use-toast';
-import {
-  APIConfigCard,
-  loadAPIConfig,
-  DEFAULT_API_URL,
-  DEFAULT_MODEL,
-  type APIConfig,
-} from '@/components/ai-tools';
+import { loadAPIConfig } from '@/components/ai-tools';
+import { ApiStatusLine } from '@/components/ai-tools/ApiStatusLine';
 import { callOpenAIMessages } from '@/components/ai-tools/useOpenAI';
 import { loadActiveSession, loadSessionPointer } from '@/lib/session-storage';
 import type { ChatSession } from '@/types/chat';
@@ -47,7 +42,6 @@ const Summary = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
 
-  const [config, setConfig] = useState<APIConfig>({ apiKey: '', apiUrl: DEFAULT_API_URL, model: DEFAULT_MODEL });
   const [session, setSession] = useState<ChatSession | null>(null);
   const [bookId, setBookId] = useState<string | null>(null);
 
@@ -82,9 +76,8 @@ const Summary = () => {
   const abortRef = useRef<AbortController | null>(null);
   const outputRef = useRef('');
 
-  // 初始加载：API 配置 + 活跃会话
+  // 初始加载：活跃会话（API 配置统一在 AI 工具页维护，生成时即时读取）
   useEffect(() => {
-    setConfig(loadAPIConfig());
     let cancelled = false;
     const ptr = loadSessionPointer();
     setBookId(ptr?.currentBookId ?? null);
@@ -146,9 +139,6 @@ const Summary = () => {
     if (custom) setTemplateContent(custom.content);
   };
 
-  const handleConfigSave = (c: APIConfig) => setConfig(c);
-  const handleConfigClear = () => setConfig({ apiKey: '', apiUrl: DEFAULT_API_URL, model: DEFAULT_MODEL });
-
   const floorCount = useMemo(
     () => (session ? Math.max(0, Math.min(floorEnd, session.messages.length - 1) - Math.max(0, floorStart) + 1) : 0),
     [session, floorStart, floorEnd]
@@ -193,8 +183,9 @@ const Summary = () => {
 
   const handleGenerate = async () => {
     if (!session) return;
+    const config = loadAPIConfig(); // 生成时即时读取（配置在 AI 工具页维护）
     if (!config.apiKey) {
-      toast({ title: '请先配置 API Key', description: '在上方展开 API 配置填入密钥', variant: 'destructive' });
+      toast({ title: '请先配置 API Key', description: '前往「AI 工具」页配置后回来生成', variant: 'destructive' });
       return;
     }
     const input = buildEngineInput();
@@ -251,7 +242,7 @@ const Summary = () => {
     floorEnd,
     content,
     genParams: {
-      model: config.model,
+      model: loadAPIConfig().model,
       presetId: attach.presetId ?? undefined,
       worldbookId: attach.worldbookId ?? undefined,
       worldbookMode: attach.worldbookId ? attach.worldbookMode : undefined,
@@ -328,25 +319,33 @@ const Summary = () => {
 
   return (
     <AppLayout>
-      <div className="container mx-auto px-4 py-6">
-        <div className="max-w-3xl mx-auto space-y-6">
-          {/* 标题 */}
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-lg gold-gradient flex items-center justify-center shadow-card">
-              <NotebookText className="w-5 h-5 text-primary-foreground" />
-            </div>
-            <div>
-              <div className="flex items-center gap-1">
-                <h1 className="font-display text-xl font-semibold">总结</h1>
-                <HelpCard>
-                  从当前书选楼层范围，用提示词模板经 AI 生成分卷总结、角色日记或 DIY 内容。结果可编辑、可保存，永不丢失。需要在下方配置 OpenAI 兼容的 API Key。
-                </HelpCard>
+      <div className="container mx-auto px-4 py-5">
+        <div className="max-w-7xl mx-auto space-y-4">
+          {/* 头部：标题 + 会话信息（右） */}
+          <div className="flex items-start justify-between gap-3 flex-wrap">
+            <div className="flex items-center gap-3">
+              <div className="w-9 h-9 rounded-lg gold-gradient flex items-center justify-center shadow-card">
+                <NotebookText className="w-5 h-5 text-primary-foreground" />
               </div>
-              <p className="text-xs text-muted-foreground">把聊天记录沉淀为可归档的总结</p>
+              <div>
+                <div className="flex items-center gap-1">
+                  <h1 className="font-display text-xl font-semibold">总结</h1>
+                  <HelpCard>
+                    左侧配置：选类型、楼层范围、可选挂载预设/世界书、选择并可编辑提示词模板，点「生成」。右侧管理：生成结果编辑保存、已存总结与小总结提取。API 配置在「AI 工具」页统一维护。
+                  </HelpCard>
+                </div>
+                <p className="text-xs text-muted-foreground">把聊天记录沉淀为可归档的总结</p>
+              </div>
             </div>
+            {session && (
+              <div className="text-xs text-muted-foreground text-right pt-1">
+                <span className="font-medium text-foreground">{session.title}</span>
+                <span> · {session.messages.length} 楼</span>
+              </div>
+            )}
           </div>
 
-          <APIConfigCard savedConfig={config} onConfigSave={handleConfigSave} onConfigClear={handleConfigClear} />
+          <ApiStatusLine />
 
           {!session ? (
             <Card>
@@ -363,97 +362,104 @@ const Summary = () => {
               </CardContent>
             </Card>
           ) : (
-            <>
-              <div className="flex items-center gap-2 text-sm text-muted-foreground flex-wrap">
-                <span className="font-medium text-foreground">{session.title}</span>
-                <span>· {session.messages.length} 楼</span>
-                <span>· {session.character?.name} & {session.user?.name}</span>
-              </div>
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 items-start">
+              {/* 左栏：生成配置 */}
+              <div className="lg:col-span-5 space-y-4">
+                <Tabs value={kind} onValueChange={(v) => setKind(v as SummaryKind)} data-tour="summary-kind">
+                  <TabsList className="flex w-full">
+                    {KINDS.map((k) => (
+                      <TabsTrigger key={k} value={k} className="flex-1 whitespace-nowrap">
+                        {SUMMARY_KIND_LABELS[k]}
+                      </TabsTrigger>
+                    ))}
+                  </TabsList>
+                </Tabs>
 
-              {/* 小总结：正则提取每楼小结（不调 AI） */}
-              <MiniSummaryPanel session={session} />
-
-              {/* 呈现类型 */}
-              <Tabs value={kind} onValueChange={(v) => setKind(v as SummaryKind)} data-tour="summary-kind">
-                <TabsList className="grid w-full grid-cols-3">
-                  {KINDS.map((k) => (
-                    <TabsTrigger key={k} value={k}>{SUMMARY_KIND_LABELS[k]}</TabsTrigger>
-                  ))}
-                </TabsList>
-              </Tabs>
-
-              <div data-tour="summary-floors">
-                <FloorRangePicker
-                  total={session.messages.length}
-                  start={floorStart}
-                  end={floorEnd}
-                  onChange={(s, e) => { setFloorStart(s); setFloorEnd(e); }}
-                  suggestedStart={kind === 'volume' ? suggestedStart : undefined}
-                />
-              </div>
-
-              <div data-tour="summary-attach">
-                <AttachPanel value={attach} onChange={setAttach} tokenEstimate={tokenEstimate} />
-              </div>
-
-              {kind === 'volume' && (
-                <PriorVolumesPanel
-                  volumes={priorVolumes}
-                  selectedIds={priorSelectedIds}
-                  onChange={setPriorSelectedIds}
-                />
-              )}
-
-              <Card data-tour="summary-template">
-                <CardContent className="p-4 space-y-3">
-                  <TemplatePicker
-                    kind={kind}
-                    templates={templates}
-                    selectedId={templateId}
-                    onSelect={handleSelectTemplate}
-                    content={templateContent}
-                    onContentChange={setTemplateContent}
-                    onTemplatesChanged={() => reloadTemplates(kind, templateId)}
+                <div data-tour="summary-floors">
+                  <FloorRangePicker
+                    total={session.messages.length}
+                    start={floorStart}
+                    end={floorEnd}
+                    onChange={(s, e) => { setFloorStart(s); setFloorEnd(e); }}
+                    suggestedStart={kind === 'volume' ? suggestedStart : undefined}
                   />
-                  <div className="flex items-center gap-2">
-                    {!streaming ? (
-                      <Button className="gap-2" onClick={handleGenerate} disabled={floorCount === 0}>
-                        <Sparkles className="w-4 h-4" />
-                        {kind === 'volume' ? `生成第 ${nextVolumeNumber} 卷（${floorCount} 楼）` : `生成（${floorCount} 楼）`}
-                      </Button>
-                    ) : (
-                      <Button variant="destructive" className="gap-2" onClick={handleStop}>
-                        <Square className="w-4 h-4" />停止
-                      </Button>
-                    )}
-                    {streaming && <Loader2 className="w-4 h-4 animate-spin text-muted-foreground" />}
-                  </div>
-                </CardContent>
-              </Card>
+                </div>
 
-              {(streaming || resultContent) && (
-                <SummaryResultEditor
-                  kind={kind}
-                  title={resultTitle}
-                  onTitleChange={setResultTitle}
-                  content={resultContent}
-                  onContentChange={handleContentEdit}
-                  streaming={streaming}
-                  onSave={handleSave}
-                  savedPermanent={savedPermanent}
-                  charName={session.character?.name}
-                />
-              )}
+                <div data-tour="summary-attach">
+                  <AttachPanel value={attach} onChange={setAttach} tokenEstimate={tokenEstimate} />
+                </div>
 
-              <div data-tour="summary-saved">
-                <SavedSummaryList
-                  currentBookId={bookId}
-                  refreshKey={savedRefresh}
-                  onView={handleViewSaved}
-                  onRegenerate={handleRegenerate}
-                />
+                {kind === 'volume' && (
+                  <PriorVolumesPanel
+                    volumes={priorVolumes}
+                    selectedIds={priorSelectedIds}
+                    onChange={setPriorSelectedIds}
+                  />
+                )}
+
+                <Card data-tour="summary-template">
+                  <CardContent className="p-4 space-y-3">
+                    <TemplatePicker
+                      kind={kind}
+                      templates={templates}
+                      selectedId={templateId}
+                      onSelect={handleSelectTemplate}
+                      content={templateContent}
+                      onContentChange={setTemplateContent}
+                      onTemplatesChanged={() => reloadTemplates(kind, templateId)}
+                    />
+                    <div className="flex items-center gap-2">
+                      {!streaming ? (
+                        <Button className="w-full gap-2" onClick={handleGenerate} disabled={floorCount === 0}>
+                          <Sparkles className="w-4 h-4" />
+                          {kind === 'volume' ? `生成第 ${nextVolumeNumber} 卷（${floorCount} 楼）` : `生成（${floorCount} 楼）`}
+                        </Button>
+                      ) : (
+                        <Button variant="destructive" className="w-full gap-2" onClick={handleStop}>
+                          <Square className="w-4 h-4" />停止生成
+                          <Loader2 className="w-4 h-4 animate-spin" />
+                        </Button>
+                      )}
+                    </div>
+                  </CardContent>
+                </Card>
               </div>
-            </>
+
+              {/* 右栏：成果区（结果编辑 + 已存/小总结） */}
+              <div className="lg:col-span-7 space-y-4">
+                {(streaming || resultContent) && (
+                  <SummaryResultEditor
+                    kind={kind}
+                    title={resultTitle}
+                    onTitleChange={setResultTitle}
+                    content={resultContent}
+                    onContentChange={handleContentEdit}
+                    streaming={streaming}
+                    onSave={handleSave}
+                    savedPermanent={savedPermanent}
+                    charName={session.character?.name}
+                  />
+                )}
+
+                <Tabs defaultValue="saved" data-tour="summary-saved">
+                  <TabsList className="flex w-full">
+                    <TabsTrigger value="saved" className="flex-1 whitespace-nowrap">已存总结</TabsTrigger>
+                    <TabsTrigger value="mini" className="flex-1 whitespace-nowrap">小总结提取</TabsTrigger>
+                  </TabsList>
+                  <TabsContent value="saved" className="mt-3">
+                    <SavedSummaryList
+                      currentBookId={bookId}
+                      refreshKey={savedRefresh}
+                      onView={handleViewSaved}
+                      onRegenerate={handleRegenerate}
+                    />
+                  </TabsContent>
+                  <TabsContent value="mini" className="mt-3">
+                    <MiniSummaryPanel session={session} />
+                  </TabsContent>
+                </Tabs>
+              </div>
+            </div>
           )}
         </div>
       </div>

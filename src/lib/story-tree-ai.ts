@@ -26,7 +26,8 @@ export interface TreeOp {
   path?: string;
 }
 
-const SYSTEM_PROMPT = `你是一个「故事事实树」整理助手。用户会给你一段角色扮演聊天记录，以及当前已有的事实树结构。
+/** 默认填树 system prompt（UI 允许用户查看/修改，改后仍需保持 JSON ops 输出约定） */
+export const DEFAULT_TREE_FILL_PROMPT = `你是一个「故事事实树」整理助手。用户会给你一段角色扮演聊天记录，以及当前已有的事实树结构。
 你的任务：从聊天记录中提炼**客观事实**（人物、事件、关系、地点、物品等），整理成对树的增量操作。
 
 规则：
@@ -46,17 +47,18 @@ const SYSTEM_PROMPT = `你是一个「故事事实树」整理助手。用户会
 }
 insert 用 parent(父路径)+title 定位；update/archive 用 path(全路径)定位。父类目不存在时会自动创建。`;
 
-/** 组装 AI 填树请求的 messages */
+/** 组装 AI 填树请求的 messages（systemPrompt 缺省用内置默认，UI 可传用户改过的版本） */
 export function buildTreeFillMessages(
   nodes: StoryNode[],
   floorText: string,
-  extraInstruction?: string
+  extraInstruction?: string,
+  systemPrompt?: string
 ): ChatCompletionMessage[] {
   const outline = buildOutline(nodes, { includeArchived: false }) || '（当前树为空）';
   const instr = extraInstruction?.trim() ? `\n\n【额外要求】\n${extraInstruction.trim()}` : '';
   const userContent = `【当前事实树】\n${outline}\n\n【聊天记录】\n${floorText}${instr}`;
   return [
-    { role: 'system', content: SYSTEM_PROMPT },
+    { role: 'system', content: systemPrompt?.trim() || DEFAULT_TREE_FILL_PROMPT },
     { role: 'user', content: userContent },
   ];
 }

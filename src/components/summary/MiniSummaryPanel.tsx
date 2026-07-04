@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
-import { ListTree, ChevronDown, ChevronUp, Copy, Download } from 'lucide-react';
+import { Copy, Download } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -24,7 +24,6 @@ interface MiniSummaryPanelProps {
  */
 export function MiniSummaryPanel({ session }: MiniSummaryPanelProps) {
   const { toast } = useToast();
-  const [expanded, setExpanded] = useState(false);
   const [regex, setRegex] = useState(DEFAULT_REGEX);
 
   useEffect(() => {
@@ -55,17 +54,8 @@ export function MiniSummaryPanel({ session }: MiniSummaryPanelProps) {
   return (
     <Card>
       <CardContent className="p-4 space-y-3">
-        <button className="flex items-center justify-between w-full" onClick={() => setExpanded(!expanded)}>
-          <span className="text-sm font-medium flex items-center gap-1.5">
-            <ListTree className="w-4 h-4" />小总结（正则提取每楼小结）
-          </span>
-          {expanded ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
-        </button>
-
-        {expanded && (
-          <>
-            <div className="space-y-1">
-              <Label className="text-xs text-muted-foreground">提取正则（匹配 AI 消息里的小结；建议用捕获组框住小结内容）</Label>
+        <div className="space-y-1">
+          <Label className="text-xs text-muted-foreground">提取正则（匹配 AI 消息里的小结；建议用捕获组框住小结内容）</Label>
               <Input
                 value={regex}
                 onChange={(e) => handleRegexChange(e.target.value)}
@@ -115,8 +105,6 @@ export function MiniSummaryPanel({ session }: MiniSummaryPanelProps) {
                 </div>
               </ScrollArea>
             )}
-          </>
-        )}
       </CardContent>
     </Card>
   );
