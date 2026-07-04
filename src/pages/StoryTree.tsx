@@ -198,30 +198,35 @@ const StoryTree = () => {
 
   return (
     <AppLayout>
-      <div className="container mx-auto px-4 py-6">
-        <div className="max-w-5xl mx-auto space-y-6">
-          {/* 标题 */}
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-lg gold-gradient flex items-center justify-center shadow-card">
-              <Network className="w-5 h-5 text-primary-foreground" />
-            </div>
-            <div>
-              <div className="flex items-center gap-1">
-                <h1 className="font-display text-xl font-semibold">故事树</h1>
-                <HelpCard>
-                  用可视化事实树回顾多角色故事：人物、事件、关系、地点等节点手动整理，也可用 AI 从聊天楼层生成。节点可拖拽移动、归档（软删除）。每棵树关联当前书。
-                </HelpCard>
+      <div className="container mx-auto px-4 py-5">
+        <div className="max-w-7xl mx-auto space-y-4">
+          {/* 头部：标题（左） + 未关联提示（右） */}
+          <div className="flex items-start justify-between gap-3 flex-wrap">
+            <div className="flex items-center gap-3">
+              <div className="w-9 h-9 rounded-lg gold-gradient flex items-center justify-center shadow-card">
+                <Network className="w-5 h-5 text-primary-foreground" />
               </div>
-              <p className="text-xs text-muted-foreground">回顾故事的记忆锚点</p>
+              <div>
+                <div className="flex items-center gap-1">
+                  <h1 className="font-display text-xl font-semibold">故事树</h1>
+                  <HelpCard>
+                    用可视化事实树回顾多角色故事：人物、事件、关系、地点等节点手动整理，也可用 AI 从聊天楼层生成。节点可拖拽移动、归档（软删除）。每棵树关联当前书。
+                  </HelpCard>
+                </div>
+                <p className="text-xs text-muted-foreground">回顾故事的记忆锚点</p>
+              </div>
             </div>
+            {!bookId && (
+              <span className="text-xs text-muted-foreground pt-1">未关联书——建议先从聊天处理/书架打开一本书</span>
+            )}
           </div>
 
-          {/* 树选择器 */}
+          {/* 工具行：选树 + 重命名 + 操作（合并为一行，省纵向空间） */}
           <Card data-tour="story-tree-select">
-            <CardContent className="p-4 flex items-center gap-2 flex-wrap">
+            <CardContent className="p-3 flex items-center gap-2 flex-wrap">
               {trees.length > 0 ? (
                 <Select value={currentTreeId ?? ''} onValueChange={(v) => { const t = trees.find((x) => x.id === v); if (t) loadTree(t); }}>
-                  <SelectTrigger className="h-8 w-56"><SelectValue placeholder="选择故事树" /></SelectTrigger>
+                  <SelectTrigger className="h-8 w-52 shrink-0"><SelectValue placeholder="选择故事树" /></SelectTrigger>
                   <SelectContent>
                     {trees.map((t) => (
                       <SelectItem key={t.id} value={t.id}>{t.title}（{t.nodes.length} 节点）</SelectItem>
@@ -231,86 +236,86 @@ const StoryTree = () => {
               ) : (
                 <span className="text-sm text-muted-foreground">还没有故事树</span>
               )}
-              <Button variant="outline" size="sm" className="h-8 gap-1" onClick={handleCreateTree}>
-                <Plus className="w-4 h-4" />新建
-              </Button>
               {currentTreeId && (
-                <Button variant="ghost" size="sm" className="h-8 gap-1" onClick={handleExportObsidian}>
-                  <Download className="w-4 h-4" />导出
+                <Input
+                  value={treeTitle}
+                  onChange={(e) => handleTitleChange(e.target.value)}
+                  className="h-8 flex-1 min-w-[160px]"
+                  placeholder="故事树名称"
+                />
+              )}
+              <div className="flex items-center gap-1 ml-auto">
+                <Button variant="outline" size="sm" className="h-8 gap-1" onClick={handleCreateTree}>
+                  <Plus className="w-4 h-4" />新建
                 </Button>
-              )}
-              {currentTreeId && (
-                <Button variant="ghost" size="sm" className="h-8 gap-1 text-destructive" onClick={() => setDeleteTreeOpen(true)}>
-                  <Trash2 className="w-4 h-4" />删除此树
-                </Button>
-              )}
-              {!bookId && (
-                <span className="text-xs text-muted-foreground ml-auto">未关联书——建议先从聊天处理/书架打开一本书</span>
-              )}
+                {currentTreeId && (
+                  <Button variant="ghost" size="sm" className="h-8 gap-1" onClick={handleExportObsidian}>
+                    <Download className="w-4 h-4" />导出
+                  </Button>
+                )}
+                {currentTreeId && (
+                  <Button variant="ghost" size="sm" className="h-8 gap-1 text-destructive" onClick={() => setDeleteTreeOpen(true)}>
+                    <Trash2 className="w-4 h-4" />删除
+                  </Button>
+                )}
+              </div>
             </CardContent>
           </Card>
 
           {currentTreeId ? (
-            <>
-              <Input
-                value={treeTitle}
-                onChange={(e) => handleTitleChange(e.target.value)}
-                className="h-9 font-medium"
-                placeholder="故事树名称"
-              />
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {/* 左：树视图 */}
-                <Card>
-                  <CardContent className="p-3 space-y-2">
-                    <div className="flex items-center gap-1 flex-wrap" data-tour="story-tree-toolbar">
-                      <Button variant="outline" size="sm" className="h-7 gap-1" onClick={handleAddRoot}>
-                        <Plus className="w-3.5 h-3.5" />根节点
+            <div className="grid grid-cols-1 lg:grid-cols-5 gap-4 items-start">
+              {/* 左：树视图（占 2/5，撑起工作区高度） */}
+              <Card className="lg:col-span-2">
+                <CardContent className="p-3 space-y-2 min-h-[60vh]">
+                  <div className="flex items-center gap-1 flex-wrap" data-tour="story-tree-toolbar">
+                    <Button variant="outline" size="sm" className="h-7 gap-1" onClick={handleAddRoot}>
+                      <Plus className="w-3.5 h-3.5" />根节点
+                    </Button>
+                    {session && (
+                      <Button variant="outline" size="sm" className="h-7 gap-1" onClick={() => setAiFillOpen(true)}>
+                        <Sparkles className="w-3.5 h-3.5" />AI 生成
                       </Button>
-                      {session && (
-                        <Button variant="outline" size="sm" className="h-7 gap-1" onClick={() => setAiFillOpen(true)}>
-                          <Sparkles className="w-3.5 h-3.5" />AI 生成
-                        </Button>
-                      )}
-                      <Button variant="ghost" size="icon" className="h-7 w-7" title="全部展开" onClick={expandAll}>
-                        <ChevronsUpDown className="w-4 h-4" />
-                      </Button>
-                      <Button variant="ghost" size="icon" className="h-7 w-7" title="全部折叠" onClick={collapseAll}>
-                        <ChevronsDownUp className="w-4 h-4" />
-                      </Button>
-                      {archivedCount > 0 && (
-                        <Button
-                          variant={showArchived ? 'default' : 'ghost'}
-                          size="sm"
-                          className="h-7 gap-1 ml-auto"
-                          onClick={() => setShowArchived((s) => !s)}
-                        >
-                          <Archive className="w-3.5 h-3.5" />归档 {archivedCount}
-                        </Button>
-                      )}
-                    </div>
-                    {nodes.length === 0 ? (
-                      <p className="text-sm text-muted-foreground py-8 text-center">
-                        空树。点「根节点」开始，或到聊天有内容时用 AI 从楼层生成（C3）。
-                      </p>
-                    ) : (
-                      <StoryTreeView
-                        forest={forest}
-                        selectedId={selectedId}
-                        collapsed={collapsed}
-                        showArchived={showArchived}
-                        onSelect={setSelectedId}
-                        onToggleCollapse={toggleCollapse}
-                        onAddChild={handleAddChild}
-                        onMove={handleMove}
-                      />
                     )}
-                  </CardContent>
-                </Card>
+                    <Button variant="ghost" size="icon" className="h-7 w-7" title="全部展开" onClick={expandAll}>
+                      <ChevronsUpDown className="w-4 h-4" />
+                    </Button>
+                    <Button variant="ghost" size="icon" className="h-7 w-7" title="全部折叠" onClick={collapseAll}>
+                      <ChevronsDownUp className="w-4 h-4" />
+                    </Button>
+                    {archivedCount > 0 && (
+                      <Button
+                        variant={showArchived ? 'default' : 'ghost'}
+                        size="sm"
+                        className="h-7 gap-1 ml-auto"
+                        onClick={() => setShowArchived((s) => !s)}
+                      >
+                        <Archive className="w-3.5 h-3.5" />归档 {archivedCount}
+                      </Button>
+                    )}
+                  </div>
+                  {nodes.length === 0 ? (
+                    <p className="text-sm text-muted-foreground py-8 text-center">
+                      空树。点「根节点」手动添加，或用「AI 生成」从聊天楼层提炼事实。
+                    </p>
+                  ) : (
+                    <StoryTreeView
+                      forest={forest}
+                      selectedId={selectedId}
+                      collapsed={collapsed}
+                      showArchived={showArchived}
+                      onSelect={setSelectedId}
+                      onToggleCollapse={toggleCollapse}
+                      onAddChild={handleAddChild}
+                      onMove={handleMove}
+                    />
+                  )}
+                </CardContent>
+              </Card>
 
-                {/* 右：节点编辑 */}
+              {/* 右：节点编辑（占 3/5，sticky 跟随滚动） */}
+              <div className="lg:col-span-3 lg:sticky lg:top-4">
                 <Card data-tour="story-tree-editor">
-                  <CardContent className="p-4">
+                  <CardContent className="p-4 min-h-[60vh]">
                     {selectedNode ? (
                       <StoryNodeEditor
                         node={selectedNode}
@@ -318,14 +323,16 @@ const StoryTree = () => {
                         onDelete={handleDeleteNode}
                       />
                     ) : (
-                      <p className="text-sm text-muted-foreground py-8 text-center">
-                        点击左侧节点进行编辑；拖拽节点可移动到别的节点下。
-                      </p>
+                      <div className="flex items-center justify-center h-full min-h-[50vh]">
+                        <p className="text-sm text-muted-foreground text-center">
+                          点击左侧节点进行编辑；拖拽节点可移动到别的节点下。
+                        </p>
+                      </div>
                     )}
                   </CardContent>
                 </Card>
               </div>
-            </>
+            </div>
           ) : (
             trees.length === 0 && (
               <Card>

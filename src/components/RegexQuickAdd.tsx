@@ -148,10 +148,10 @@ export function RegexQuickAdd({ onAddRule }: RegexQuickAddProps) {
         </DialogHeader>
 
         <Tabs value={mode} onValueChange={(v) => setMode(v as QuickMode)}>
-          <TabsList className="grid w-full grid-cols-3">
-            <TabsTrigger value="wrap">标签包裹</TabsTrigger>
-            <TabsTrigger value="replace">内容替换</TabsTrigger>
-            <TabsTrigger value="trim">首尾删除</TabsTrigger>
+          <TabsList className="flex w-full">
+            <TabsTrigger value="wrap" className="flex-1 whitespace-nowrap">标签包裹</TabsTrigger>
+            <TabsTrigger value="replace" className="flex-1 whitespace-nowrap">内容替换</TabsTrigger>
+            <TabsTrigger value="trim" className="flex-1 whitespace-nowrap">首尾删除</TabsTrigger>
           </TabsList>
 
           {/* 模式一：删除「开始标签…结束标签」之间的全部内容 */}

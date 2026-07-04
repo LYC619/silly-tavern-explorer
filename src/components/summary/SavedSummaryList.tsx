@@ -1,5 +1,5 @@
 import { useEffect, useState, useCallback } from 'react';
-import { Eye, RotateCcw, Trash2, Download, ChevronDown, ChevronUp } from 'lucide-react';
+import { Eye, RotateCcw, Trash2, Download } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -32,7 +32,6 @@ export function SavedSummaryList({ currentBookId, refreshKey, onView, onRegenera
   const [all, setAll] = useState<SummaryItem[]>([]);
   const [scope, setScope] = useState<'book' | 'all'>('book');
   const [kindFilter, setKindFilter] = useState<SummaryKind | 'all'>('all');
-  const [expanded, setExpanded] = useState(false);
   const [deleteId, setDeleteId] = useState<string | null>(null);
 
   const load = useCallback(() => {
@@ -69,41 +68,32 @@ export function SavedSummaryList({ currentBookId, refreshKey, onView, onRegenera
   return (
     <Card>
       <CardContent className="p-4 space-y-3">
-        <button
-          className="flex items-center justify-between w-full"
-          onClick={() => setExpanded(!expanded)}
-        >
-          <span className="text-sm font-medium">已存总结（{filtered.length}）</span>
-          {expanded ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
-        </button>
-
-        {expanded && (
-          <>
-            <div className="flex items-center gap-2 flex-wrap text-xs">
-              <div className="flex gap-1">
-                <Button variant={scope === 'book' ? 'default' : 'ghost'} size="sm" className="h-6 px-2" onClick={() => setScope('book')}>当前书</Button>
-                <Button variant={scope === 'all' ? 'default' : 'ghost'} size="sm" className="h-6 px-2" onClick={() => setScope('all')}>全部</Button>
-              </div>
-              <span className="text-muted-foreground">·</span>
-              <div className="flex gap-1">
-                {KIND_FILTERS.map((k) => (
-                  <Button
-                    key={k}
-                    variant={kindFilter === k ? 'default' : 'ghost'}
-                    size="sm"
-                    className="h-6 px-2"
-                    onClick={() => setKindFilter(k)}
-                  >
-                    {k === 'all' ? '全部类型' : SUMMARY_KIND_LABELS[k]}
-                  </Button>
-                ))}
-              </div>
-              {filtered.length > 0 && (
-                <Button variant="outline" size="sm" className="h-6 px-2 gap-1 ml-auto" onClick={handleExportAll}>
-                  <Download className="w-3 h-3" />导出全部
-                </Button>
-              )}
-            </div>
+        <div className="flex items-center gap-2 flex-wrap text-xs">
+          <span className="text-sm font-medium mr-1">共 {filtered.length} 条</span>
+          <div className="flex gap-1">
+            <Button variant={scope === 'book' ? 'default' : 'ghost'} size="sm" className="h-6 px-2" onClick={() => setScope('book')}>当前书</Button>
+            <Button variant={scope === 'all' ? 'default' : 'ghost'} size="sm" className="h-6 px-2" onClick={() => setScope('all')}>全部</Button>
+          </div>
+          <span className="text-muted-foreground">·</span>
+          <div className="flex gap-1">
+            {KIND_FILTERS.map((k) => (
+              <Button
+                key={k}
+                variant={kindFilter === k ? 'default' : 'ghost'}
+                size="sm"
+                className="h-6 px-2"
+                onClick={() => setKindFilter(k)}
+              >
+                {k === 'all' ? '全部类型' : SUMMARY_KIND_LABELS[k]}
+              </Button>
+            ))}
+          </div>
+          {filtered.length > 0 && (
+            <Button variant="outline" size="sm" className="h-6 px-2 gap-1 ml-auto" onClick={handleExportAll}>
+              <Download className="w-3 h-3" />导出全部
+            </Button>
+          )}
+        </div>
 
             {filtered.length === 0 ? (
               <p className="text-sm text-muted-foreground py-4 text-center">暂无总结</p>
@@ -136,11 +126,9 @@ export function SavedSummaryList({ currentBookId, refreshKey, onView, onRegenera
                 ))}
               </div>
             )}
-            <p className="text-xs text-muted-foreground">
-              标「永久」的是手动保存的；其余为自动暂存，仅保留最近若干份。
-            </p>
-          </>
-        )}
+        <p className="text-xs text-muted-foreground">
+          标「永久」的是手动保存的；其余为自动暂存，仅保留最近若干份。
+        </p>
       </CardContent>
 
       <AlertDialog open={!!deleteId} onOpenChange={(o) => !o && setDeleteId(null)}>

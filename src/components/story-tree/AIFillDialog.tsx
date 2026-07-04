@@ -1,19 +1,23 @@
-import { useState, useRef } from 'react';
-import { Sparkles, Square, Loader2, Check } from 'lucide-react';
+import { useState, useRef, useEffect } from 'react';
+import { Sparkles, Square, Loader2, Check, Pencil, RotateCcw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { useToast } from '@/hooks/use-toast';
-import { APIConfigCard, loadAPIConfig, DEFAULT_API_URL, DEFAULT_MODEL, type APIConfig } from '@/components/ai-tools';
+import { loadAPIConfig } from '@/components/ai-tools';
+import { ApiStatusLine } from '@/components/ai-tools/ApiStatusLine';
 import { callOpenAIMessages } from '@/components/ai-tools/useOpenAI';
 import { FloorRangePicker } from '@/components/summary/FloorRangePicker';
 import type { ChatSession } from '@/types/chat';
 import type { StoryNode } from '@/types/story-tree';
 import {
-  buildTreeFillMessages, parseTreeOps, applyTreeOps, floorsToText, describeOps, type TreeOp,
+  buildTreeFillMessages, parseTreeOps, applyTreeOps, floorsToText, describeOps,
+  DEFAULT_TREE_FILL_PROMPT, type TreeOp,
 } from '@/lib/story-tree-ai';
+
+const PROMPT_LS_KEY = 'st-story-tree-fill-prompt';
 
 interface AIFillDialogProps {
   open: boolean;
@@ -24,10 +28,12 @@ interface AIFillDialogProps {
   onApply: (nodes: StoryNode[]) => void;
 }
 
-/** AI 从选定楼层生成事实节点：选楼层 → 生成 ops → 预览 → 确认 apply */
+/**
+ * AI 从选定楼层生成事实节点：选楼层 → 生成 ops → 预览 → 确认 apply。
+ * API 配置在「AI 工具」页统一维护（此处只显示状态）；提示词可查看/编辑（localStorage 记忆）。
+ */
 export function AIFillDialog({ open, onOpenChange, session, nodes, onApply }: AIFillDialogProps) {
   const { toast } = useToast();
-  const [config, setConfig] = useState<APIConfig>(() => loadAPIConfig());
   const [floorStart, setFloorStart] = useState(0);
   const [floorEnd, setFloorEnd] = useState(Math.max(0, session.messages.length - 1));
   const [instruction, setInstruction] = useState('');
@@ -35,12 +41,33 @@ export function AIFillDialog({ open, onOpenChange, session, nodes, onApply }: AI
   const [rawOutput, setRawOutput] = useState('');
   const [ops, setOps] = useState<TreeOp[] | null>(null);
 
+  // 可编辑提示词（改后记忆；空=用默认）
+  const [promptOpen, setPromptOpen] = useState(false);
+  const [customPrompt, setCustomPrompt] = useState(DEFAULT_TREE_FILL_PROMPT);
+
+  useEffect(() => {
+    const saved = localStorage.getItem(PROMPT_LS_KEY);
+    if (saved) setCustomPrompt(saved);
+  }, []);
+
+  const handlePromptChange = (v: string) => {
+    setCustomPrompt(v);
+    localStorage.setItem(PROMPT_LS_KEY, v);
+  };
+
+  const handlePromptReset = () => {
+    setCustomPrompt(DEFAULT_TREE_FILL_PROMPT);
+    localStorage.removeItem(PROMPT_LS_KEY);
+    toast({ title: '已恢复默认提示词' });
+  };
+
   const abortRef = useRef<AbortController | null>(null);
   const outputRef = useRef('');
 
   const handleGenerate = async () => {
+    const config = loadAPIConfig(); // 即时读取全局配置
     if (!config.apiKey) {
-      toast({ title: '请先配置 API Key', variant: 'destructive' });
+      toast({ title: '请先配置 API Key', description: '前往「AI 工具」页配置后回来生成', variant: 'destructive' });
       return;
     }
     const floorText = floorsToText(session, floorStart, floorEnd);
@@ -48,7 +75,7 @@ export function AIFillDialog({ open, onOpenChange, session, nodes, onApply }: AI
       toast({ title: '选中的楼层没有内容', variant: 'destructive' });
       return;
     }
-    const messages = buildTreeFillMessages(nodes, floorText, instruction);
+    const messages = buildTreeFillMessages(nodes, floorText, instruction, customPrompt);
     setStreaming(true);
     setRawOutput('');
     setOps(null);
@@ -90,17 +117,13 @@ export function AIFillDialog({ open, onOpenChange, session, nodes, onApply }: AI
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="!max-w-2xl">
+      <DialogContent className="!max-w-2xl max-h-[85vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>AI 从楼层生成事实节点</DialogTitle>
         </DialogHeader>
 
         <div className="space-y-3">
-          <APIConfigCard
-            savedConfig={config}
-            onConfigSave={setConfig}
-            onConfigClear={() => setConfig({ apiKey: '', apiUrl: DEFAULT_API_URL, model: DEFAULT_MODEL })}
-          />
+          <ApiStatusLine />
 
           <FloorRangePicker
             total={session.messages.length}
@@ -117,6 +140,34 @@ export function AIFillDialog({ open, onOpenChange, session, nodes, onApply }: AI
               placeholder="例如：只关注角色关系变化；或：重点整理地点设定"
               className="min-h-[60px] text-sm"
             />
+          </div>
+
+          {/* 提示词查看/编辑 */}
+          <div className="space-y-1">
+            <button
+              className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground"
+              onClick={() => setPromptOpen((o) => !o)}
+            >
+              <Pencil className="w-3 h-3" />
+              {promptOpen ? '收起提示词' : '查看/编辑提示词'}
+            </button>
+            {promptOpen && (
+              <div className="space-y-1.5">
+                <Textarea
+                  value={customPrompt}
+                  onChange={(e) => handlePromptChange(e.target.value)}
+                  className="min-h-[30vh] font-mono text-xs"
+                />
+                <div className="flex items-center justify-between">
+                  <p className="text-xs text-muted-foreground">
+                    修改会自动记住。注意保留 JSON ops 输出格式约定，否则无法解析。
+                  </p>
+                  <Button variant="ghost" size="sm" className="h-6 gap-1 text-xs" onClick={handlePromptReset}>
+                    <RotateCcw className="w-3 h-3" />恢复默认
+                  </Button>
+                </div>
+              </div>
+            )}
           </div>
 
           <div className="flex items-center gap-2">
