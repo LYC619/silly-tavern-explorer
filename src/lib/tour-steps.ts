@@ -161,7 +161,7 @@ export const SUMMARY_TOUR_STEPS: TourStep[] = [
   },
   {
     targetSelector: '[data-tour="summary-saved"]',
-    content: '生成的总结会自动暂存、可编辑；点「保存」转为永久留存。这里能查看、重新生成、导出、删除已存总结。',
+    content: '生成的总结会自动暂存、可编辑；点「保存」转为永久留存。这里能查看、重新生成、导出、删除已存总结；筛选行切「小总结」可按正则提取每楼小结。点「查看」后编辑器在列表下方展开。',
     action: 'next',
   },
 ];
