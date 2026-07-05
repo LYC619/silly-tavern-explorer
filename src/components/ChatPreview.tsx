@@ -282,22 +282,26 @@ const MessageRow = memo(function MessageRow({
           </span>
         )}
         {/* 非编辑模式：每楼右上角常驻铅笔，点击直接打开本楼编辑窗口（所见即点，不必先切「编辑模式」）。
-            常驻显示而非 hover 才出现——避免用户不知道哪里能编辑。章节标记模式下让位给整行点击设章节。 */}
+            常驻显示而非 hover 才出现——避免用户不知道哪里能编辑。章节标记模式下让位给整行点击设章节。
+            右对齐用「全宽覆盖层 + flex justify-end」而非 right 偏移：翻译插件等注入式样式
+            即使干掉 right 属性也不会把按钮挤到左侧压住正文。 */}
         {!editMode && onEditMessage && (
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <button
-                type="button"
-                data-tour="msg-edit-pencil"
-                onClick={(e) => { e.stopPropagation(); onEditMessage(message.id, index); }}
-                className="absolute right-1 top-1 z-10 flex h-7 w-7 items-center justify-center rounded-md bg-background/70 text-muted-foreground shadow-sm backdrop-blur-sm transition-colors hover:bg-primary/10 hover:text-primary"
-                aria-label={`编辑第 ${index} 楼`}
-              >
-                <Pencil className="h-3.5 w-3.5" />
-              </button>
-            </TooltipTrigger>
-            <TooltipContent side="left">编辑本楼</TooltipContent>
-          </Tooltip>
+          <div className="pointer-events-none absolute top-1 z-10 flex w-full justify-end pr-1">
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <button
+                  type="button"
+                  data-tour="msg-edit-pencil"
+                  onClick={(e) => { e.stopPropagation(); onEditMessage(message.id, index); }}
+                  className="pointer-events-auto flex h-7 w-7 items-center justify-center rounded-md bg-background/70 text-muted-foreground shadow-sm backdrop-blur-sm transition-colors hover:bg-primary/10 hover:text-primary"
+                  aria-label={`编辑第 ${index} 楼`}
+                >
+                  <Pencil className="h-3.5 w-3.5" />
+                </button>
+              </TooltipTrigger>
+              <TooltipContent side="left">编辑本楼</TooltipContent>
+            </Tooltip>
+          </div>
         )}
         {theme === 'social' ? (
           <>

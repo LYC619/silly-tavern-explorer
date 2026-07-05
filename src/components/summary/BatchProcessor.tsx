@@ -5,10 +5,11 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Progress } from '@/components/ui/progress';
+import { Checkbox } from '@/components/ui/checkbox';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { useToast } from '@/hooks/use-toast';
 import { loadAPIConfig } from '@/components/ai-tools';
-import { callOpenAIMessages } from '@/components/ai-tools/useOpenAI';
+import { callOpenAIMessages, type ChatCompletionMessage } from '@/components/ai-tools/useOpenAI';
 import type { ChatSession, ChatMessage } from '@/types/chat';
 
 interface BatchProcessorProps {
@@ -16,10 +17,18 @@ interface BatchProcessorProps {
   /** 0-based 闭区间，与总结页楼层范围共用 */
   floorStart: number;
   floorEnd: number;
-  /** 系统提示词 = 当前模板正文（宏已替换）。轻量直调：不挂预设/世界书/前情。 */
+  /** 轻量直调时的系统提示词 = 当前模板正文（宏已替换） */
   systemPrompt: string;
+  /** 挂载模式：由父组件用完整引擎为某段楼层组装 messages（预设/世界书与左栏一致） */
+  buildFullMessages?: (start: number, end: number) => ChatCompletionMessage[] | null;
   /** 把合并结果送入右栏结果编辑器（走既有编辑/保存/导出流） */
   onMergeToEditor?: (text: string) => void;
+}
+
+interface Segment {
+  start: number;
+  end: number;
+  text: string;
 }
 
 interface SegmentResult {
@@ -30,10 +39,11 @@ interface SegmentResult {
 }
 
 /** 批量分段生成：把所选楼层范围按每段 N 楼拆开并行调用，适合超长范围的分段总结。 */
-export function BatchProcessor({ session, floorStart, floorEnd, systemPrompt, onMergeToEditor }: BatchProcessorProps) {
+export function BatchProcessor({ session, floorStart, floorEnd, systemPrompt, buildFullMessages, onMergeToEditor }: BatchProcessorProps) {
   const { toast } = useToast();
   const [segmentSize, setSegmentSize] = useState(10);
   const [concurrency, setConcurrency] = useState(3);
+  const [attachContext, setAttachContext] = useState(false);
   const [processing, setProcessing] = useState(false);
   const [results, setResults] = useState<SegmentResult[]>([]);
   const [progress, setProgress] = useState(0);
@@ -53,14 +63,15 @@ export function BatchProcessor({ session, floorStart, floorEnd, systemPrompt, on
   };
 
   // 直接按消息数组切段（楼号用真实楼层号，与聊天处理页一致）
-  const buildSegments = (size: number): string[] => {
-    const segs: string[] = [];
+  const buildSegments = (size: number): Segment[] => {
+    const segs: Segment[] = [];
     for (let i = lo; i <= hi; i += size) {
-      const chunk = session.messages.slice(i, Math.min(i + size, hi + 1));
+      const end = Math.min(i + size - 1, hi);
+      const chunk = session.messages.slice(i, end + 1);
       const text = chunk
         .map((m, j) => `[#${i + j + 1} ${speakerName(m)}]\n${m.content}`)
         .join('\n\n');
-      if (text.trim()) segs.push(text);
+      if (text.trim()) segs.push({ start: i, end, text });
     }
     return segs;
   };
@@ -107,10 +118,13 @@ export function BatchProcessor({ session, floorStart, floorEnd, systemPrompt, on
         if (!item) break;
         const { seg, i } = item;
         try {
-          const result = await callOpenAIMessages(config, [
+          // 挂载模式：该段用完整引擎组装（预设/世界书与左栏一致）；组装失败回落轻量直调
+          const fullMessages = attachContext && buildFullMessages ? buildFullMessages(seg.start, seg.end) : null;
+          const messages: ChatCompletionMessage[] = fullMessages ?? [
             { role: 'system', content: systemPrompt },
-            { role: 'user', content: seg },
-          ]);
+            { role: 'user', content: seg.text },
+          ];
+          const result = await callOpenAIMessages(config, messages);
           resultArr[i] = { ...resultArr[i], content: result, done: true };
         } catch (e) {
           resultArr[i] = {
@@ -170,10 +184,10 @@ export function BatchProcessor({ session, floorStart, floorEnd, systemPrompt, on
         <CollapsibleContent>
           <CardContent className="space-y-4">
             <p className="text-sm text-muted-foreground">
-              楼层很多时，把上方所选范围按每段 N 楼拆开并行生成。轻量直调：提示词=当前模板，不挂预设/世界书/前情分卷。
+              楼层很多时，把上方所选范围按每段 N 楼拆开并行生成。默认<strong>轻量直调</strong>：每段只发送「当前提示词模板 + 该段楼层文本」；勾选「挂载左栏设定」后每段按完整引擎组装（预设/世界书与左栏一致；前情分卷与卷号不参与，避免逐段重复）。
             </p>
 
-            <div className="flex flex-wrap gap-4">
+            <div className="flex flex-wrap gap-4 items-end">
               <div className="space-y-1">
                 <Label className="text-xs">每段楼数</Label>
                 <Input
@@ -195,6 +209,16 @@ export function BatchProcessor({ session, floorStart, floorEnd, systemPrompt, on
                   onChange={(e) => setConcurrency(Math.max(1, Math.min(10, parseInt(e.target.value) || 3)))}
                   className="w-24 h-8"
                 />
+              </div>
+              <div className="flex items-center gap-2 h-8">
+                <Checkbox
+                  id="batch-attach"
+                  checked={attachContext}
+                  onCheckedChange={(v) => setAttachContext(v === true)}
+                />
+                <Label htmlFor="batch-attach" className="text-xs cursor-pointer">
+                  挂载左栏设定（预设/世界书）
+                </Label>
               </div>
             </div>
 
