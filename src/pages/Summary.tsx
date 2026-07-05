@@ -34,6 +34,8 @@ import { SummaryResultEditor } from '@/components/summary/SummaryResultEditor';
 import { AttachPanel, type AttachState } from '@/components/summary/AttachPanel';
 import { PriorVolumesPanel } from '@/components/summary/PriorVolumesPanel';
 import { SavedSummaryList } from '@/components/summary/SavedSummaryList';
+import { BatchProcessor } from '@/components/summary/BatchProcessor';
+import { substituteVars } from '@/lib/preset-parser';
 import { DemoData, demoSession } from '@/components/DemoData';
 import { Badge } from '@/components/ui/badge';
 
@@ -215,11 +217,28 @@ const Summary = () => {
     try { return buildSummaryMessages(input).tokenEstimate; } catch { return 0; }
   }, [buildEngineInput]);
 
+  // 批量分段的系统提示词：当前模板正文做宏替换（轻量直调，不走完整引擎）
+  const batchSystemPrompt = useMemo(() => {
+    if (!session) return '';
+    const base = substituteVars(templateContent, session.character?.name || '角色', session.user?.name || '用户');
+    return base.replace(/\{\{volume\}\}/gi, String(nextVolumeNumber));
+  }, [session, templateContent, nextVolumeNumber]);
+
+  // 批量合并结果送入右栏编辑器（走既有编辑/保存/导出流）
+  const handleBatchMerge = (text: string) => {
+    setResultTitle(`${SUMMARY_KIND_LABELS[kind]} · 批量合并 ${new Date().toLocaleDateString()}`);
+    setResultContent(text);
+    setCurrentSummaryId(null);
+    setSavedPermanent(false);
+    scrollEditorIntoView();
+    toast({ title: '已送入结果编辑器', description: '可继续编辑后保存' });
+  };
+
   const handleGenerate = async () => {
     if (!session) return;
     const config = loadAPIConfig(); // 生成时即时读取（配置在 AI 工具页维护）
     if (!config.apiKey) {
-      toast({ title: '请先配置 API Key', description: '前往「AI 工具」页配置后回来生成', variant: 'destructive' });
+      toast({ title: '请先配置 API Key', description: '前往「AI 配置」页配置后回来生成', variant: 'destructive' });
       return;
     }
     const input = buildEngineInput();
@@ -366,7 +385,7 @@ const Summary = () => {
                 <div className="flex items-center gap-1">
                   <h1 className="font-display text-xl font-semibold">总结</h1>
                   <HelpCard>
-                    左侧配置：选类型、楼层范围、可选挂载预设/世界书、选择并可编辑提示词模板，点「生成」。右侧管理：生成结果编辑保存、已存总结与小总结提取。API 配置在「AI 工具」页统一维护。
+                    左侧配置：选类型、楼层范围、可选挂载预设/世界书、选择并可编辑提示词模板，点「生成」；楼层很多时用「批量分段生成」。右侧管理：已存总结与小总结提取，点「查看」在列表下方展开编辑。API 配置在「AI 配置」页统一维护。
                   </HelpCard>
                 </div>
                 <p className="text-xs text-muted-foreground">把聊天记录沉淀为可归档的总结</p>
@@ -460,6 +479,16 @@ const Summary = () => {
                     </div>
                   </CardContent>
                 </Card>
+
+                <div data-tour="summary-batch">
+                  <BatchProcessor
+                    session={session}
+                    floorStart={floorStart}
+                    floorEnd={floorEnd}
+                    systemPrompt={batchSystemPrompt}
+                    onMergeToEditor={handleBatchMerge}
+                  />
+                </div>
               </div>
 
               {/* 右栏：成果区（列表总控在上，结果编辑器在列表下方就地展开） */}

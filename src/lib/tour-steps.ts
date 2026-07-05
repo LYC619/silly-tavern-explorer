@@ -18,7 +18,7 @@ export const HOME_TOUR_STEPS: TourStep[] = [
   },
   {
     targetSelector: '[data-tour="chapter-mark-btn"]',
-    content: '章节标记可以为长对话划分章节。您也可以用 AI 工具自动生成智能分章。',
+    content: '章节标记可以为长对话划分章节，导出 TXT 与沉浸阅读的目录都会用到；也可以用书签收藏重要楼层。',
     action: 'next',
   },
   {
@@ -74,7 +74,7 @@ export const WORLDBOOK_TOUR_STEPS: TourStep[] = [
   },
   {
     targetSelector: '[data-tour="wb-ai"]',
-    content: 'AI 辅助：「AI 追加」可按当前聊天记录提炼新设定、追加为新条目；编辑某条目时还能用「AI 改写」精修这一条内容。需先在「AI 工具」页配置 API。',
+    content: 'AI 辅助：「AI 追加」可按当前聊天记录提炼新设定、追加为新条目（提示词可编辑）；编辑某条目时还能用「AI 改写」精修这一条内容。需先在「AI 配置」页配置 API。',
     action: 'next',
   },
 ];
@@ -82,22 +82,12 @@ export const WORLDBOOK_TOUR_STEPS: TourStep[] = [
 export const AITOOLS_TOUR_STEPS: TourStep[] = [
   {
     targetSelector: '[data-tour="ai-config"]',
-    content: '首先配置 OpenAI 兼容的 API 地址和密钥。支持自动获取模型列表。',
+    content: '全应用的 AI 能力都从这里读取配置。可保存多个提供商（OpenAI 兼容），一键切换、拉取模型列表、测试连通；密钥仅保存在本地浏览器。',
     action: 'next',
   },
   {
-    targetSelector: '[data-tour="ai-floor-selector"]',
-    content: '选择要发送给 AI 的聊天记录范围：全部、最近 N 条、或自定义勾选。',
-    action: 'next',
-  },
-  {
-    targetSelector: '[data-tour="ai-templates"]',
-    content: '四个内置模板：总结剧情（含智能分章）、提取世界书、平行世界、自定义提示词。自定义标签的模板库与「总结」页互通，便于反复调优。所有提示词均可自行编辑。',
-    action: 'next',
-  },
-  {
-    targetSelector: '[data-tour="ai-batch"]',
-    content: '批量模式可以按段落并行处理长对话，加速分析。',
+    targetSelector: '[data-tour="ai-moved"]',
+    content: '原「AI 工具箱」的分析功能已就近迁移：批量分段生成在「总结」页左栏，提示词模板在「总结」页模板库，世界书提取用「世界书」页的「AI 追加」。',
     action: 'next',
   },
 ];
@@ -156,7 +146,12 @@ export const SUMMARY_TOUR_STEPS: TourStep[] = [
   },
   {
     targetSelector: '[data-tour="summary-template"]',
-    content: '选择提示词模板并可查看/编辑/另存。模板库与「AI 工具」页互通，方便反复调优。配置好点「生成」即可。',
+    content: '选择提示词模板，可查看/编辑/另存为自定义、删除不用的模板。配置好点「生成」即可。',
+    action: 'next',
+  },
+  {
+    targetSelector: '[data-tour="summary-batch"]',
+    content: '「批量分段生成」适合超长范围：按每段 N 楼拆开并行调用，逐段复制或合并送入编辑器（轻量直调，不挂预设/世界书）。',
     action: 'next',
   },
   {

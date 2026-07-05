@@ -30,7 +30,7 @@ interface AIFillDialogProps {
 
 /**
  * AI 从选定楼层生成事实节点：选楼层 → 生成 ops → 预览 → 确认 apply。
- * API 配置在「AI 工具」页统一维护（此处只显示状态）；提示词可查看/编辑（localStorage 记忆）。
+ * API 配置在「AI 配置」页统一维护（此处只显示状态）；提示词可查看/编辑（localStorage 记忆）。
  */
 export function AIFillDialog({ open, onOpenChange, session, nodes, onApply }: AIFillDialogProps) {
   const { toast } = useToast();
@@ -67,7 +67,7 @@ export function AIFillDialog({ open, onOpenChange, session, nodes, onApply }: AI
   const handleGenerate = async () => {
     const config = loadAPIConfig(); // 即时读取全局配置
     if (!config.apiKey) {
-      toast({ title: '请先配置 API Key', description: '前往「AI 工具」页配置后回来生成', variant: 'destructive' });
+      toast({ title: '请先配置 API Key', description: '前往「AI 配置」页配置后回来生成', variant: 'destructive' });
       return;
     }
     const floorText = floorsToText(session, floorStart, floorEnd);

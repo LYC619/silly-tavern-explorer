@@ -1,81 +1,29 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Sparkles, AlertCircle } from 'lucide-react';
+import { KeyRound, ArrowRight } from 'lucide-react';
 import { GuidedTour } from '@/components/GuidedTour';
 import { AITOOLS_TOUR_STEPS, isTourCompleted, setTourCompleted } from '@/lib/tour-steps';
 import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { HelpCard } from '@/components/HelpCard';
 import { AppLayout } from '@/components/AppLayout';
-import {
-  APIConfigCard,
-  loadAPIConfig,
-  DEFAULT_API_URL,
-  DEFAULT_MODEL,
-  type APIConfig,
-} from '@/components/ai-tools';
-import { FloorSelector } from '@/components/ai-tools/FloorSelector';
-import { PromptTemplates } from '@/components/ai-tools/PromptTemplates';
-import { BatchProcessor } from '@/components/ai-tools/BatchProcessor';
-import { loadActiveSession } from '@/lib/session-storage';
-import type { ChatSession } from '@/types/chat';
+import { APIConfigCard } from '@/components/ai-tools';
+import { APP_VERSION } from '@/components/GlobalSettings';
 
-// Need to access the active system prompt from PromptTemplates
-// We'll lift it via a simple approach: duplicate the default prompts here for batch processor
-const DEFAULT_PROMPTS_SYSTEM: Record<string, string> = {
-  summarize: `你是一个故事分析专家。用户会提供一段对话/角色扮演记录，请将其总结为结构化的剧情概要。\n\n输出格式（使用 Markdown）：\n## 场景\n描述故事发生的场景和背景\n\n## 主要人物\n列出出场的主要人物及其特征\n\n## 关键事件\n按时间顺序列出关键事件，每个事件一行，使用编号列表\n\n## 剧情走向\n总结当前剧情的发展方向和未解决的悬念\n\n## 章节标记\n在上述分析基础上，将对话按剧情转折点划分为若干章节，输出一个 JSON 代码块。\n\n请用中文回复。`,
-  worldbook: `你是一个世界观设定提取专家。请从对话记录中提取世界观设定，输出为世界书 JSON 格式。`,
-  parallel: `你是一个创意写作专家。请基于对话记录生成平行世界分支续写提纲。`,
-  custom: '',
-};
-
+/**
+ * AI 配置页：全应用唯一的 API 提供商管理中心。
+ * 原「AI 工具箱」的分析功能已就近迁移——批量分段在总结页、模板库在总结页、世界书提取在世界书页。
+ */
 const AITools = () => {
   const navigate = useNavigate();
-  const [config, setConfig] = useState<APIConfig>({
-    apiKey: '',
-    apiUrl: DEFAULT_API_URL,
-    model: DEFAULT_MODEL,
-  });
-  const [session, setSession] = useState<ChatSession | null>(null);
-  const [selectedIndices, setSelectedIndices] = useState<Set<number>>(new Set());
-  const [activeTab, setActiveTab] = useState('summarize');
   const [showTour, setShowTour] = useState(false);
 
   useEffect(() => {
-    setConfig(loadAPIConfig());
-    let cancelled = false;
-    loadActiveSession().then(active => {
-      if (cancelled || !active) return;
-      setSession(active);
-      setSelectedIndices(new Set(active.messages.map((_, i) => i)));
-    });
     if (!isTourCompleted('aitools')) {
-      setTimeout(() => setShowTour(true), 500);
+      const timer = setTimeout(() => setShowTour(true), 500);
+      return () => clearTimeout(timer);
     }
-    return () => { cancelled = true; };
   }, []);
-
-  const handleConfigSave = (newConfig: APIConfig) => setConfig(newConfig);
-  const handleConfigClear = () => setConfig({ apiKey: '', apiUrl: DEFAULT_API_URL, model: DEFAULT_MODEL });
-
-  const selectedContent = useMemo(() => {
-    if (!session) return '';
-    const msgs = session.messages
-      .filter((_, i) => selectedIndices.has(i))
-      .map((m, idx) => {
-        const name = m.role === 'user'
-          ? (session.user?.name || m.name || 'User')
-          : (session.character?.name || m.name || 'Character');
-        return `[#${idx + 1} ${name}]\n${m.content}`;
-      });
-    return msgs.join('\n\n');
-  }, [session, selectedIndices]);
-
-  // Get active system prompt for batch processor
-  const batchSystemPrompt = useMemo(() => {
-    if (activeTab === 'custom') return '';
-    const stored = localStorage.getItem(`ai-prompt-${activeTab}`);
-    return stored || DEFAULT_PROMPTS_SYSTEM[activeTab] || '';
-  }, [activeTab]);
 
   return (
     <AppLayout>
@@ -84,70 +32,42 @@ const AITools = () => {
           {/* 页内标题 */}
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-lg gold-gradient flex items-center justify-center shadow-card">
-              <Sparkles className="w-5 h-5 text-primary-foreground" />
+              <KeyRound className="w-5 h-5 text-primary-foreground" />
             </div>
             <div>
               <div className="flex items-center gap-1">
-                <h1 className="font-display text-xl font-semibold">AI 工具箱</h1>
+                <h1 className="font-display text-xl font-semibold">AI 配置</h1>
                 <HelpCard>
-                  需要 OpenAI 兼容的 API Key。从主页导入聊天记录后，选择需要分析的楼层范围，使用内置模板或自定义提示词发送给 AI。支持剧情总结、世界书提取、平行世界续写等功能。
+                  全应用的 AI 能力（总结、故事树、世界书追加/改写、批量分段）都从这里读取配置。支持保存多个提供商（OpenAI 兼容格式）并随时切换，可拉取模型列表、测试连通。密钥仅保存在本地浏览器。
                 </HelpCard>
               </div>
-              <p className="text-xs text-muted-foreground">聊天记录智能分析</p>
+              <p className="text-xs text-muted-foreground">全局 API 提供商管理</p>
             </div>
           </div>
 
           <div data-tour="ai-config">
-            <APIConfigCard savedConfig={config} onConfigSave={handleConfigSave} onConfigClear={handleConfigClear} />
+            <APIConfigCard />
           </div>
 
-          {!session ? (
-            <div className="p-8 text-center border-2 border-dashed border-border rounded-lg">
-              <AlertCircle className="w-8 h-8 mx-auto mb-3 text-muted-foreground" />
-              <p className="text-muted-foreground mb-3">尚未导入聊天记录</p>
-              <p className="text-sm text-muted-foreground mb-4">
-                请先在主页导入聊天记录，然后返回此页面使用 AI 工具
-              </p>
-              <Button variant="outline" onClick={() => navigate('/')}>
-                前往主页导入
-              </Button>
-            </div>
-          ) : (
-            <>
-              <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                <span className="font-medium text-foreground">{session.title}</span>
-                <span>· {session.messages.length} 条消息</span>
-                <span>· {session.character?.name} & {session.user?.name}</span>
+          {/* 功能迁移说明 */}
+          <Card data-tour="ai-moved">
+            <CardHeader>
+              <CardTitle className="text-base">找原来的 AI 工具？功能已就近迁移</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-2 text-sm text-muted-foreground">
+              <p>· <strong className="text-foreground">批量分段生成</strong>：在「总结」页左栏（生成按钮下方），与楼层范围、提示词模板同处一屏。</p>
+              <p>· <strong className="text-foreground">提示词模板</strong>：由「总结」页的模板库统一管理，可查看/编辑/另存为/删除自定义模板。</p>
+              <p>· <strong className="text-foreground">提取世界书</strong>：用「世界书」页的「AI 追加」按聊天提炼新条目，提示词同样可编辑。</p>
+              <div className="flex gap-2 pt-1 flex-wrap">
+                <Button variant="outline" size="sm" className="gap-1" onClick={() => navigate('/summary')}>
+                  去总结页<ArrowRight className="w-3.5 h-3.5" />
+                </Button>
+                <Button variant="outline" size="sm" className="gap-1" onClick={() => navigate('/worldbook')}>
+                  去世界书页<ArrowRight className="w-3.5 h-3.5" />
+                </Button>
               </div>
-
-              <div data-tour="ai-floor-selector">
-                <FloorSelector
-                  messages={session.messages}
-                  characterName={session.character?.name}
-                  userName={session.user?.name}
-                  selectedIndices={selectedIndices}
-                  onSelectionChange={setSelectedIndices}
-                />
-              </div>
-
-              <div data-tour="ai-batch">
-                <BatchProcessor
-                  config={config}
-                  selectedContent={selectedContent}
-                  selectedCount={selectedIndices.size}
-                  systemPrompt={batchSystemPrompt}
-                />
-              </div>
-
-              <div data-tour="ai-templates">
-                <PromptTemplates
-                  config={config}
-                  selectedContent={selectedContent}
-                  selectedCount={selectedIndices.size}
-                />
-              </div>
-            </>
-          )}
+            </CardContent>
+          </Card>
         </div>
       </div>
 
@@ -162,7 +82,7 @@ const AITools = () => {
       )}
 
       <footer className="border-t border-border py-6 text-center text-sm text-muted-foreground flex-shrink-0">
-        <p>ST 聊天记录处理器 v0.13.3</p>
+        <p>ST 聊天记录处理器 {APP_VERSION}</p>
         <p className="mt-1">
           <a href="https://github.com/LYC619/silly-tavern-explorer" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">GitHub</a>
           {' · MIT License'}

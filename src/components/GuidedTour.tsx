@@ -173,7 +173,7 @@ export function GuidedTour({ steps, module, onComplete, onSkip }: GuidedTourProp
           <h3 className="font-display text-xl font-semibold mb-2">恭喜！引导完成 🎉</h3>
           <p className="text-sm text-muted-foreground mb-6">
             {module === 'home'
-              ? '您已掌握聊天记录处理的核心流程。可以继续探索书架、世界书编辑器和 AI 工具。'
+              ? '您已掌握聊天记录处理的核心流程。可以继续探索总结、故事树、世界书编辑器和书架。'
               : '您已了解此模块的基本功能。'}
           </p>
           <Button onClick={onComplete} className="gap-2">

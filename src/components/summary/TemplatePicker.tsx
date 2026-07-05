@@ -1,11 +1,15 @@
 import { useState } from 'react';
-import { Pencil, Save, Plus } from 'lucide-react';
+import { Pencil, Save, Plus, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import { useToast } from '@/hooks/use-toast';
 import type { SummaryKind, SummaryTemplate } from '@/types/summary';
 import { generateSummaryTemplateId } from '@/types/summary';
@@ -13,7 +17,7 @@ import {
   type AnySummaryTemplate,
   isBuiltinTemplate,
 } from '@/lib/summary-templates';
-import { saveSummaryTemplate } from '@/lib/summary-db';
+import { saveSummaryTemplate, deleteSummaryTemplate } from '@/lib/summary-db';
 
 interface TemplatePickerProps {
   kind: SummaryKind;
@@ -38,6 +42,7 @@ export function TemplatePicker({
   const [editOpen, setEditOpen] = useState(false);
   const [saveAsOpen, setSaveAsOpen] = useState(false);
   const [saveAsName, setSaveAsName] = useState('');
+  const [deleteOpen, setDeleteOpen] = useState(false);
 
   const selected = templates.find((t) => t.id === selectedId);
   const isBuiltin = selected ? isBuiltinTemplate(selected) : false;
@@ -71,6 +76,16 @@ export function TemplatePicker({
     setEditOpen(false);
     onTemplatesChanged();
     toast({ title: '模板已更新', description: selected.title });
+  };
+
+  // 删除自定义模板（内置只读不可删）；父组件重载列表后会自动回落到默认模板
+  const handleDeleteCustom = async () => {
+    if (!selected || isBuiltinTemplate(selected)) return;
+    await deleteSummaryTemplate(selected.id);
+    setDeleteOpen(false);
+    setEditOpen(false);
+    onTemplatesChanged();
+    toast({ title: '已删除自定义模板', description: selected.title });
   };
 
   return (
@@ -113,6 +128,11 @@ export function TemplatePicker({
               : '编辑后点「保存修改」更新此自定义模板；也可另存为新模板。'}
           </p>
           <DialogFooter className="gap-2">
+            {!isBuiltin && (
+              <Button variant="ghost" className="text-destructive gap-1 mr-auto" onClick={() => setDeleteOpen(true)}>
+                <Trash2 className="w-4 h-4" />删除模板
+              </Button>
+            )}
             <Button variant="outline" className="gap-1" onClick={() => { setSaveAsName(selected ? `${selected.title} 副本` : ''); setSaveAsOpen(true); }}>
               <Plus className="w-4 h-4" />另存为自定义
             </Button>
@@ -124,6 +144,20 @@ export function TemplatePicker({
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* 删除自定义模板确认 */}
+      <AlertDialog open={deleteOpen} onOpenChange={setDeleteOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>删除模板「{selected?.title}」？</AlertDialogTitle>
+            <AlertDialogDescription>此操作不可撤销。已用该模板生成的总结不受影响。</AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>取消</AlertDialogCancel>
+            <AlertDialogAction onClick={handleDeleteCustom}>删除</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       {/* 另存为 */}
       <Dialog open={saveAsOpen} onOpenChange={setSaveAsOpen}>
