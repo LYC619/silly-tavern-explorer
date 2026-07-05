@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { NotebookText, AlertCircle, Sparkles, Square, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
-import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { HelpCard } from '@/components/HelpCard';
 import { AppLayout } from '@/components/AppLayout';
 import { GuidedTour } from '@/components/GuidedTour';
@@ -34,7 +34,6 @@ import { SummaryResultEditor } from '@/components/summary/SummaryResultEditor';
 import { AttachPanel, type AttachState } from '@/components/summary/AttachPanel';
 import { PriorVolumesPanel } from '@/components/summary/PriorVolumesPanel';
 import { SavedSummaryList } from '@/components/summary/SavedSummaryList';
-import { MiniSummaryPanel } from '@/components/summary/MiniSummaryPanel';
 import { DemoData, demoSession } from '@/components/DemoData';
 import { Badge } from '@/components/ui/badge';
 
@@ -78,6 +77,14 @@ const Summary = () => {
 
   const abortRef = useRef<AbortController | null>(null);
   const outputRef = useRef('');
+  const editorRef = useRef<HTMLDivElement | null>(null);
+
+  // 结果编辑器在列表下方就地展开：等条件渲染提交后再滚到可视区（双 rAF）
+  const scrollEditorIntoView = useCallback(() => {
+    requestAnimationFrame(() => requestAnimationFrame(() => {
+      editorRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    }));
+  }, []);
 
   // 示例会话：纯内存注入（不入书架/不落库），空态下保证引导锚点存在
   const loadDemo = useCallback(() => {
@@ -230,6 +237,7 @@ const Summary = () => {
     outputRef.current = '';
     const controller = new AbortController();
     abortRef.current = controller;
+    scrollEditorIntoView();
 
     try {
       await callOpenAIMessages(config, messages, {
@@ -320,7 +328,7 @@ const Summary = () => {
     setCurrentSummaryId(item.id);
     setSavedPermanent(!item.autoSaved);
     if (item.genParams?.templateSnapshot) setTemplateContent(item.genParams.templateSnapshot);
-    window.scrollTo({ top: 0, behavior: 'smooth' });
+    scrollEditorIntoView();
   };
 
   // 用相同设置重新生成：回填挂载/楼层/模板/kind，再触发生成
@@ -341,7 +349,7 @@ const Summary = () => {
     setCurrentSummaryId(null); // 生成为新条目
     setSavedPermanent(false);
     toast({ title: '已回填设置', description: '楼层/挂载/模板已按原条目填好，点「生成」即可重做' });
-    window.scrollTo({ top: 0, behavior: 'smooth' });
+    document.querySelector('[data-tour="summary-template"]')?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
   };
 
   return (
@@ -454,39 +462,34 @@ const Summary = () => {
                 </Card>
               </div>
 
-              {/* 右栏：成果区（结果编辑 + 已存/小总结） */}
+              {/* 右栏：成果区（列表总控在上，结果编辑器在列表下方就地展开） */}
               <div className="lg:col-span-7 space-y-4">
-                {(streaming || resultContent) && (
-                  <SummaryResultEditor
-                    kind={kind}
-                    title={resultTitle}
-                    onTitleChange={setResultTitle}
-                    content={resultContent}
-                    onContentChange={handleContentEdit}
-                    streaming={streaming}
-                    onSave={handleSave}
-                    savedPermanent={savedPermanent}
-                    charName={session.character?.name}
+                <div data-tour="summary-saved">
+                  <SavedSummaryList
+                    currentBookId={bookId}
+                    refreshKey={savedRefresh}
+                    session={session}
+                    onView={handleViewSaved}
+                    onRegenerate={handleRegenerate}
+                    onChanged={() => setSavedRefresh((n) => n + 1)}
                   />
-                )}
+                </div>
 
-                <Tabs defaultValue="saved" data-tour="summary-saved">
-                  <TabsList className="flex w-full">
-                    <TabsTrigger value="saved" className="flex-1 whitespace-nowrap">已存总结</TabsTrigger>
-                    <TabsTrigger value="mini" className="flex-1 whitespace-nowrap">小总结提取</TabsTrigger>
-                  </TabsList>
-                  <TabsContent value="saved" className="mt-3">
-                    <SavedSummaryList
-                      currentBookId={bookId}
-                      refreshKey={savedRefresh}
-                      onView={handleViewSaved}
-                      onRegenerate={handleRegenerate}
+                {(streaming || resultContent) && (
+                  <div ref={editorRef}>
+                    <SummaryResultEditor
+                      kind={kind}
+                      title={resultTitle}
+                      onTitleChange={setResultTitle}
+                      content={resultContent}
+                      onContentChange={handleContentEdit}
+                      streaming={streaming}
+                      onSave={handleSave}
+                      savedPermanent={savedPermanent}
+                      charName={session.character?.name}
                     />
-                  </TabsContent>
-                  <TabsContent value="mini" className="mt-3">
-                    <MiniSummaryPanel session={session} />
-                  </TabsContent>
-                </Tabs>
+                  </div>
+                )}
               </div>
             </div>
           )}
