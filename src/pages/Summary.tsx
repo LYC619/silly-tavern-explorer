@@ -224,6 +224,17 @@ const Summary = () => {
     return base.replace(/\{\{volume\}\}/gi, String(nextVolumeNumber));
   }, [session, templateContent, nextVolumeNumber]);
 
+  // 批量分段（挂载模式）：对某段楼层用完整引擎组装 messages（预设/世界书与左栏一致；不带前情/卷号，避免逐段重复）
+  const buildSegmentMessages = useCallback((s: number, e: number) => {
+    const input = buildEngineInput();
+    if (!input) return null;
+    try {
+      return buildSummaryMessages({ ...input, floorStart: s, floorEnd: e, priorSummaries: [], volumeNumber: undefined }).messages;
+    } catch {
+      return null;
+    }
+  }, [buildEngineInput]);
+
   // 批量合并结果送入右栏编辑器（走既有编辑/保存/导出流）
   const handleBatchMerge = (text: string) => {
     setResultTitle(`${SUMMARY_KIND_LABELS[kind]} · 批量合并 ${new Date().toLocaleDateString()}`);
@@ -418,9 +429,9 @@ const Summary = () => {
               </CardContent>
             </Card>
           ) : (
-            <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 items-start">
+            <div className="grid grid-cols-1 md:grid-cols-12 gap-4 items-start">
               {/* 左栏：生成配置 */}
-              <div className="lg:col-span-5 space-y-4">
+              <div className="md:col-span-5 space-y-4">
                 <Tabs value={kind} onValueChange={(v) => setKind(v as SummaryKind)} data-tour="summary-kind">
                   <TabsList className="flex w-full">
                     {KINDS.map((k) => (
@@ -486,13 +497,14 @@ const Summary = () => {
                     floorStart={floorStart}
                     floorEnd={floorEnd}
                     systemPrompt={batchSystemPrompt}
+                    buildFullMessages={buildSegmentMessages}
                     onMergeToEditor={handleBatchMerge}
                   />
                 </div>
               </div>
 
               {/* 右栏：成果区（列表总控在上，结果编辑器在列表下方就地展开） */}
-              <div className="lg:col-span-7 space-y-4">
+              <div className="md:col-span-7 space-y-4">
                 <div data-tour="summary-saved">
                   <SavedSummaryList
                     currentBookId={bookId}

@@ -27,7 +27,7 @@ import { getAllBooks } from '@/lib/bookshelf-db';
 import { getAllWorldBooks } from '@/lib/worldbook-db';
 import { resetAllTours } from '@/lib/tour-steps';
 
-export const APP_VERSION = 'v0.14.0';
+export const APP_VERSION = 'v0.14.1';
 
 interface StorageDetail {
   label: string;

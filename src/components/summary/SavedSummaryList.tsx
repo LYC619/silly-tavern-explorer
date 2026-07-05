@@ -79,16 +79,14 @@ export function SavedSummaryList({ currentBookId, refreshKey, session, onView, o
   return (
     <Card>
       <CardContent className="p-4 space-y-3">
-        {/* 筛选行 = 右栏总控 */}
+        {/* 筛选行 = 右栏总控。小总结视图下保持同一行结构不重排，仅灰置不适用的控件 */}
         <div className="flex items-center gap-2 flex-wrap text-xs">
-          {!isMini && <span className="text-sm font-medium mr-1">共 {filtered.length} 条</span>}
-          {!isMini && (
-            <div className="flex gap-1">
-              <Button variant={scope === 'book' ? 'default' : 'ghost'} size="sm" className="h-6 px-2" onClick={() => setScope('book')}>当前书</Button>
-              <Button variant={scope === 'all' ? 'default' : 'ghost'} size="sm" className="h-6 px-2" onClick={() => setScope('all')}>全部</Button>
-            </div>
-          )}
-          {!isMini && <span className="text-muted-foreground">·</span>}
+          <span className={`text-sm font-medium mr-1 ${isMini ? 'opacity-40' : ''}`}>共 {filtered.length} 条</span>
+          <div className={isMini ? 'flex gap-1 opacity-40' : 'flex gap-1'}>
+            <Button variant={scope === 'book' ? 'default' : 'ghost'} size="sm" className="h-6 px-2" disabled={isMini} onClick={() => setScope('book')}>当前书</Button>
+            <Button variant={scope === 'all' ? 'default' : 'ghost'} size="sm" className="h-6 px-2" disabled={isMini} onClick={() => setScope('all')}>全部</Button>
+          </div>
+          <span className="text-muted-foreground">·</span>
           <div className="flex gap-1 flex-wrap">
             {VIEW_FILTERS.map((k) => (
               <Button
@@ -102,8 +100,8 @@ export function SavedSummaryList({ currentBookId, refreshKey, session, onView, o
               </Button>
             ))}
           </div>
-          {!isMini && filtered.length > 0 && (
-            <Button variant="outline" size="sm" className="h-6 px-2 gap-1 ml-auto" onClick={handleExportAll}>
+          {filtered.length > 0 && (
+            <Button variant="outline" size="sm" className={`h-6 px-2 gap-1 ml-auto ${isMini ? 'opacity-40' : ''}`} disabled={isMini} onClick={handleExportAll}>
               <Download className="w-3 h-3" />导出全部
             </Button>
           )}
