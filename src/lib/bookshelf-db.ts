@@ -1,4 +1,5 @@
 import type { ChatSession, ChapterMarker, ExportSettings } from '@/types/chat';
+import { openDB } from '@/lib/idb';
 
 export interface BookItem {
   id: string;
@@ -13,88 +14,7 @@ export interface BookItem {
   updatedAt: number;
 }
 
-const DB_NAME = 'st-chat-beautifier';
-const DB_VERSION = 6;
 const STORE_NAME = 'books';
-
-let dbInstance: IDBDatabase | null = null;
-
-function openDB(): Promise<IDBDatabase> {
-  if (dbInstance) return Promise.resolve(dbInstance);
-
-  return new Promise((resolve, reject) => {
-    const request = indexedDB.open(DB_NAME, DB_VERSION);
-
-    request.onerror = () => reject(request.error);
-    request.onsuccess = () => {
-      dbInstance = request.result;
-      dbInstance.onversionchange = () => {
-        dbInstance?.close();
-        dbInstance = null;
-      };
-      dbInstance.onclose = () => {
-        dbInstance = null;
-      };
-      resolve(dbInstance);
-    };
-
-    request.onupgradeneeded = (event) => {
-      const db = (event.target as IDBOpenDBRequest).result;
-      const oldVersion = event.oldVersion;
-
-      if (oldVersion < 1) {
-        const store = db.createObjectStore(STORE_NAME, { keyPath: 'id' });
-        store.createIndex('updatedAt', 'updatedAt', { unique: false });
-        store.createIndex('title', 'title', { unique: false });
-      }
-
-      if (oldVersion < 2) {
-        if (!db.objectStoreNames.contains('worldbooks')) {
-          const wbStore = db.createObjectStore('worldbooks', { keyPath: 'id' });
-          wbStore.createIndex('updatedAt', 'updatedAt', { unique: false });
-          wbStore.createIndex('title', 'title', { unique: false });
-        }
-      }
-
-      if (oldVersion < 3) {
-        if (!db.objectStoreNames.contains('presets')) {
-          const pStore = db.createObjectStore('presets', { keyPath: 'id' });
-          pStore.createIndex('updatedAt', 'updatedAt', { unique: false });
-          pStore.createIndex('title', 'title', { unique: false });
-        }
-      }
-
-      if (oldVersion < 4) {
-        if (!db.objectStoreNames.contains('cards')) {
-          const cStore = db.createObjectStore('cards', { keyPath: 'id' });
-          cStore.createIndex('updatedAt', 'updatedAt', { unique: false });
-          cStore.createIndex('title', 'title', { unique: false });
-        }
-      }
-
-      if (oldVersion < 5) {
-        if (!db.objectStoreNames.contains('summaries')) {
-          const sStore = db.createObjectStore('summaries', { keyPath: 'id' });
-          sStore.createIndex('updatedAt', 'updatedAt', { unique: false });
-          sStore.createIndex('title', 'title', { unique: false });
-        }
-        if (!db.objectStoreNames.contains('summaryTemplates')) {
-          const stStore = db.createObjectStore('summaryTemplates', { keyPath: 'id' });
-          stStore.createIndex('updatedAt', 'updatedAt', { unique: false });
-          stStore.createIndex('title', 'title', { unique: false });
-        }
-      }
-
-      if (oldVersion < 6) {
-        if (!db.objectStoreNames.contains('stories')) {
-          const stoStore = db.createObjectStore('stories', { keyPath: 'id' });
-          stoStore.createIndex('updatedAt', 'updatedAt', { unique: false });
-          stoStore.createIndex('title', 'title', { unique: false });
-        }
-      }
-    };
-  });
-}
 
 export async function getAllBooks(): Promise<BookItem[]> {
   const db = await openDB();

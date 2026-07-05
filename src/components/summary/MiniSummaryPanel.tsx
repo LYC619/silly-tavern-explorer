@@ -5,7 +5,6 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
-import { ScrollArea } from '@/components/ui/scroll-area';
 import { useToast } from '@/hooks/use-toast';
 import type { ChatSession } from '@/types/chat';
 import { extractMiniSummaries, miniSummariesToText } from '@/lib/mini-summary';
@@ -86,7 +85,7 @@ export function MiniSummaryPanel({ session }: MiniSummaryPanelProps) {
                 没匹配到小结。检查正则是否符合你聊天里的小结标记格式。
               </p>
             ) : (
-              <ScrollArea className="max-h-[50vh]">
+              <div className="max-h-[50vh] overflow-y-auto">
                 <div className="space-y-2 pr-2">
                   {pairs.map((p) => (
                     <div key={p.floor} className="rounded-md border overflow-hidden text-sm">
@@ -103,7 +102,7 @@ export function MiniSummaryPanel({ session }: MiniSummaryPanelProps) {
                     </div>
                   ))}
                 </div>
-              </ScrollArea>
+              </div>
             )}
       </CardContent>
     </Card>
