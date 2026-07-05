@@ -1,44 +1,7 @@
 import type { StoryTree } from '@/types/story-tree';
+import { openDB } from '@/lib/idb';
 
-const DB_NAME = 'st-chat-beautifier';
-const DB_VERSION = 6;
 const STORE = 'stories';
-
-let dbInstance: IDBDatabase | null = null;
-
-function openDB(): Promise<IDBDatabase> {
-  if (dbInstance) return Promise.resolve(dbInstance);
-
-  return new Promise((resolve, reject) => {
-    const request = indexedDB.open(DB_NAME, DB_VERSION);
-
-    request.onerror = () => reject(request.error);
-    request.onsuccess = () => {
-      dbInstance = request.result;
-      dbInstance.onversionchange = () => { dbInstance?.close(); dbInstance = null; };
-      dbInstance.onclose = () => { dbInstance = null; };
-      resolve(dbInstance);
-    };
-
-    request.onupgradeneeded = (event) => {
-      const db = (event.target as IDBOpenDBRequest).result;
-      const oldVersion = event.oldVersion;
-      const ensure = (name: string) => {
-        if (!db.objectStoreNames.contains(name)) {
-          const s = db.createObjectStore(name, { keyPath: 'id' });
-          s.createIndex('updatedAt', 'updatedAt', { unique: false });
-          s.createIndex('title', 'title', { unique: false });
-        }
-      };
-      if (oldVersion < 1) ensure('books');
-      if (oldVersion < 2) ensure('worldbooks');
-      if (oldVersion < 3) ensure('presets');
-      if (oldVersion < 4) ensure('cards');
-      if (oldVersion < 5) { ensure('summaries'); ensure('summaryTemplates'); }
-      if (oldVersion < 6) ensure('stories');
-    };
-  });
-}
 
 export async function getAllStoryTrees(): Promise<StoryTree[]> {
   const db = await openDB();

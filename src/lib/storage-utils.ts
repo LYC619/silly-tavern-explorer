@@ -8,8 +8,7 @@ import type { PresetItem } from '@/types/preset';
 import type { CardItem } from '@/types/character-card';
 import type { SummaryItem, SummaryTemplate } from '@/types/summary';
 import type { StoryTree } from '@/types/story-tree';
-
-const DB_NAME = 'st-chat-beautifier';
+import { openDB, ALL_STORES, DB_VERSION } from '@/lib/idb';
 
 /**
  * Estimate IndexedDB storage usage
@@ -62,7 +61,7 @@ export async function exportFullBackup(): Promise<void> {
   ]);
 
   const backup = {
-    version: 6,
+    version: DB_VERSION,
     exportedAt: new Date().toISOString(),
     app: 'silly-tavern-explorer',
     books: allBooks,
@@ -164,61 +163,7 @@ export async function clearAllData(): Promise<void> {
       req.onsuccess = () => resolve();
       req.onerror = () => reject(req.error);
     });
-  await Promise.all([
-    clearStore('books'),
-    clearStore('worldbooks'),
-    clearStore('presets'),
-    clearStore('cards'),
-    clearStore('summaries'),
-    clearStore('summaryTemplates'),
-    clearStore('stories'),
-  ]);
-}
-
-function openDB(): Promise<IDBDatabase> {
-  return new Promise((resolve, reject) => {
-    const request = indexedDB.open(DB_NAME, 6);
-    request.onerror = () => reject(request.error);
-    request.onsuccess = () => resolve(request.result);
-    request.onupgradeneeded = (event) => {
-      const db = (event.target as IDBOpenDBRequest).result;
-      if (!db.objectStoreNames.contains('books')) {
-        const store = db.createObjectStore('books', { keyPath: 'id' });
-        store.createIndex('updatedAt', 'updatedAt', { unique: false });
-        store.createIndex('title', 'title', { unique: false });
-      }
-      if (!db.objectStoreNames.contains('worldbooks')) {
-        const wbStore = db.createObjectStore('worldbooks', { keyPath: 'id' });
-        wbStore.createIndex('updatedAt', 'updatedAt', { unique: false });
-        wbStore.createIndex('title', 'title', { unique: false });
-      }
-      if (!db.objectStoreNames.contains('presets')) {
-        const pStore = db.createObjectStore('presets', { keyPath: 'id' });
-        pStore.createIndex('updatedAt', 'updatedAt', { unique: false });
-        pStore.createIndex('title', 'title', { unique: false });
-      }
-      if (!db.objectStoreNames.contains('cards')) {
-        const cStore = db.createObjectStore('cards', { keyPath: 'id' });
-        cStore.createIndex('updatedAt', 'updatedAt', { unique: false });
-        cStore.createIndex('title', 'title', { unique: false });
-      }
-      if (!db.objectStoreNames.contains('summaries')) {
-        const sStore = db.createObjectStore('summaries', { keyPath: 'id' });
-        sStore.createIndex('updatedAt', 'updatedAt', { unique: false });
-        sStore.createIndex('title', 'title', { unique: false });
-      }
-      if (!db.objectStoreNames.contains('summaryTemplates')) {
-        const stStore = db.createObjectStore('summaryTemplates', { keyPath: 'id' });
-        stStore.createIndex('updatedAt', 'updatedAt', { unique: false });
-        stStore.createIndex('title', 'title', { unique: false });
-      }
-      if (!db.objectStoreNames.contains('stories')) {
-        const stoStore = db.createObjectStore('stories', { keyPath: 'id' });
-        stoStore.createIndex('updatedAt', 'updatedAt', { unique: false });
-        stoStore.createIndex('title', 'title', { unique: false });
-      }
-    };
-  });
+  await Promise.all(ALL_STORES.map((name) => clearStore(name)));
 }
 
 export function formatBytes(bytes: number): string {
