@@ -1,5 +1,5 @@
 import { useNavigate, useLocation } from 'react-router-dom';
-import { ScrollText, Globe, Library, Sparkles, Moon, Sun, IdCard, SlidersHorizontal, NotebookText, Network } from 'lucide-react';
+import { ScrollText, Globe, Library, KeyRound, Moon, Sun, IdCard, SlidersHorizontal, NotebookText, Network } from 'lucide-react';
 import { useTheme } from 'next-themes';
 import { Button } from '@/components/ui/button';
 import { GlobalSettings } from '@/components/GlobalSettings';
@@ -21,7 +21,7 @@ const NAV_ITEMS = [
   { label: '角色卡', icon: IdCard, path: '/card-viewer' },
   { label: '预设', icon: SlidersHorizontal, path: '/preset' },
   { label: '书架', icon: Library, path: '/bookshelf' },
-  { label: 'AI 工具', icon: Sparkles, path: '/ai-tools' },
+  { label: 'AI 配置', icon: KeyRound, path: '/ai-tools' },
 ];
 
 /**

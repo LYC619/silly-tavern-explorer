@@ -1,5 +1,5 @@
-import { useState, useRef, useCallback } from 'react';
-import { Layers, Play, Loader2, Merge, ChevronDown, Copy, Check, Square } from 'lucide-react';
+import { useState, useRef } from 'react';
+import { Layers, Play, Loader2, Merge, ChevronDown, Copy, Check, Square, FileInput } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -7,14 +7,19 @@ import { Label } from '@/components/ui/label';
 import { Progress } from '@/components/ui/progress';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { useToast } from '@/hooks/use-toast';
-import { callOpenAI } from './useOpenAI';
-import type { APIConfig } from './APIConfigCard';
+import { loadAPIConfig } from '@/components/ai-tools';
+import { callOpenAIMessages } from '@/components/ai-tools/useOpenAI';
+import type { ChatSession, ChatMessage } from '@/types/chat';
 
 interface BatchProcessorProps {
-  config: APIConfig;
-  selectedContent: string;
-  selectedCount: number;
+  session: ChatSession;
+  /** 0-based 闭区间，与总结页楼层范围共用 */
+  floorStart: number;
+  floorEnd: number;
+  /** 系统提示词 = 当前模板正文（宏已替换）。轻量直调：不挂预设/世界书/前情。 */
   systemPrompt: string;
+  /** 把合并结果送入右栏结果编辑器（走既有编辑/保存/导出流） */
+  onMergeToEditor?: (text: string) => void;
 }
 
 interface SegmentResult {
@@ -24,46 +29,64 @@ interface SegmentResult {
   done: boolean;
 }
 
-export function BatchProcessor({ config, selectedContent, selectedCount, systemPrompt }: BatchProcessorProps) {
+/** 批量分段生成：把所选楼层范围按每段 N 楼拆开并行调用，适合超长范围的分段总结。 */
+export function BatchProcessor({ session, floorStart, floorEnd, systemPrompt, onMergeToEditor }: BatchProcessorProps) {
   const { toast } = useToast();
   const [segmentSize, setSegmentSize] = useState(10);
   const [concurrency, setConcurrency] = useState(3);
   const [processing, setProcessing] = useState(false);
   const [results, setResults] = useState<SegmentResult[]>([]);
   const [progress, setProgress] = useState(0);
-  const [totalSegments, setTotalSegments] = useState(0);
   const [merged, setMerged] = useState('');
   const [copied, setCopied] = useState(false);
   const abortRef = useRef(false);
 
-  const splitContent = useCallback((content: string, size: number): string[] => {
-    // Split by message blocks (each starts with [#N ...])
-    const msgBlocks = content.split(/(?=\[#\d+\s)/);
-    const segments: string[] = [];
-    for (let i = 0; i < msgBlocks.length; i += size) {
-      segments.push(msgBlocks.slice(i, i + size).join('\n\n'));
+  const lo = Math.max(0, Math.min(floorStart, floorEnd));
+  const hi = Math.min(session.messages.length - 1, Math.max(floorStart, floorEnd));
+  const floorCount = Math.max(0, hi - lo + 1);
+
+  const speakerName = (m: ChatMessage) => {
+    const isUser = m.role === 'user' || m.is_user === true;
+    return isUser
+      ? (session.user?.name || m.name || 'User')
+      : (session.character?.name || m.name || 'Character');
+  };
+
+  // 直接按消息数组切段（楼号用真实楼层号，与聊天处理页一致）
+  const buildSegments = (size: number): string[] => {
+    const segs: string[] = [];
+    for (let i = lo; i <= hi; i += size) {
+      const chunk = session.messages.slice(i, Math.min(i + size, hi + 1));
+      const text = chunk
+        .map((m, j) => `[#${i + j + 1} ${speakerName(m)}]\n${m.content}`)
+        .join('\n\n');
+      if (text.trim()) segs.push(text);
     }
-    return segments.filter(s => s.trim());
-  }, []);
+    return segs;
+  };
 
   const handleStart = async () => {
-    if (!selectedContent.trim()) {
-      toast({ title: '请先选择聊天楼层', variant: 'destructive' });
+    const config = loadAPIConfig(); // 生成时即时读取（配置在「AI 配置」页维护）
+    if (!config.apiKey) {
+      toast({ title: '请先配置 API Key', description: '前往「AI 配置」页配置后回来生成', variant: 'destructive' });
+      return;
+    }
+    if (floorCount === 0) {
+      toast({ title: '请先选择楼层范围', variant: 'destructive' });
       return;
     }
     if (!systemPrompt.trim()) {
-      toast({ title: '请先选择或输入提示词模板', variant: 'destructive' });
+      toast({ title: '请先选择或编辑提示词模板', variant: 'destructive' });
       return;
     }
 
-    const segments = splitContent(selectedContent, segmentSize);
+    const segments = buildSegments(segmentSize);
     if (segments.length === 0) return;
 
     setProcessing(true);
     setResults([]);
     setMerged('');
     setProgress(0);
-    setTotalSegments(segments.length);
     abortRef.current = false;
 
     const resultArr: SegmentResult[] = segments.map((_, i) => ({
@@ -75,8 +98,6 @@ export function BatchProcessor({ config, selectedContent, selectedCount, systemP
     setResults([...resultArr]);
 
     let completed = 0;
-
-    // Concurrent execution with limit
     const queue = [...segments.map((seg, i) => ({ seg, i }))];
     const workers: Promise<void>[] = [];
 
@@ -86,7 +107,10 @@ export function BatchProcessor({ config, selectedContent, selectedCount, systemP
         if (!item) break;
         const { seg, i } = item;
         try {
-          const result = await callOpenAI(config, seg, systemPrompt);
+          const result = await callOpenAIMessages(config, [
+            { role: 'system', content: systemPrompt },
+            { role: 'user', content: seg },
+          ]);
           resultArr[i] = { ...resultArr[i], content: result, done: true };
         } catch (e) {
           resultArr[i] = {
@@ -110,7 +134,7 @@ export function BatchProcessor({ config, selectedContent, selectedCount, systemP
     if (abortRef.current) {
       toast({ title: `已取消，已完成 ${completed}/${segments.length} 段` });
     } else {
-      toast({ title: `批量处理完成，共 ${segments.length} 段` });
+      toast({ title: `批量生成完成，共 ${segments.length} 段` });
     }
   };
 
@@ -135,10 +159,10 @@ export function BatchProcessor({ config, selectedContent, selectedCount, systemP
     <Collapsible>
       <Card>
         <CollapsibleTrigger asChild>
-          <CardHeader className="cursor-pointer hover:bg-accent/50 transition-colors">
+          <CardHeader className="cursor-pointer hover:bg-accent/50 transition-colors py-4">
             <CardTitle className="text-base flex items-center gap-2">
               <Layers className="w-4 h-4" />
-              批量处理
+              批量分段生成
               <ChevronDown className="w-4 h-4 ml-auto text-muted-foreground" />
             </CardTitle>
           </CardHeader>
@@ -146,12 +170,12 @@ export function BatchProcessor({ config, selectedContent, selectedCount, systemP
         <CollapsibleContent>
           <CardContent className="space-y-4">
             <p className="text-sm text-muted-foreground">
-              将选中消息分段，并行调用 API 处理，适合大量内容的批量分析
+              楼层很多时，把上方所选范围按每段 N 楼拆开并行生成。轻量直调：提示词=当前模板，不挂预设/世界书/前情分卷。
             </p>
 
             <div className="flex flex-wrap gap-4">
               <div className="space-y-1">
-                <Label className="text-xs">每段消息数</Label>
+                <Label className="text-xs">每段楼数</Label>
                 <Input
                   type="number"
                   min={5}
@@ -174,16 +198,16 @@ export function BatchProcessor({ config, selectedContent, selectedCount, systemP
               </div>
             </div>
 
-            <div className="flex items-center gap-3">
-              <Button onClick={handleStart} disabled={processing || selectedCount === 0}>
+            <div className="flex items-center gap-3 flex-wrap">
+              <Button onClick={handleStart} disabled={processing || floorCount === 0}>
                 {processing ? (
-                  <><Loader2 className="w-4 h-4 animate-spin mr-1" />处理中...</>
+                  <><Loader2 className="w-4 h-4 animate-spin mr-1" />生成中...</>
                 ) : (
-                  <><Play className="w-4 h-4 mr-1" />开始批量处理</>
+                  <><Play className="w-4 h-4 mr-1" />开始批量生成</>
                 )}
               </Button>
               <span className="text-xs text-muted-foreground">
-                {selectedCount} 条消息，约 {Math.ceil(selectedCount / segmentSize)} 段
+                {floorCount} 楼，约 {Math.ceil(floorCount / segmentSize)} 段
               </span>
             </div>
 
@@ -246,9 +270,16 @@ export function BatchProcessor({ config, selectedContent, selectedCount, systemP
                   <div className="space-y-2">
                     <div className="flex items-center justify-between">
                       <Label>合并结果</Label>
-                      <Button variant="ghost" size="sm" onClick={() => handleCopy(merged)}>
-                        {copied ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
-                      </Button>
+                      <div className="flex items-center gap-1">
+                        <Button variant="ghost" size="sm" onClick={() => handleCopy(merged)}>
+                          {copied ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
+                        </Button>
+                        {onMergeToEditor && (
+                          <Button size="sm" className="gap-1" onClick={() => onMergeToEditor(merged)}>
+                            <FileInput className="w-3.5 h-3.5" />送入结果编辑器
+                          </Button>
+                        )}
+                      </div>
                     </div>
                     <div className="p-4 bg-muted rounded-lg text-sm whitespace-pre-wrap max-h-96 overflow-auto">
                       {merged}

@@ -118,7 +118,7 @@ export default function WorldBookPage() {
         if (parsed && parsed.entries) {
           setWorldbook(parsed);
           setFilename('AI 提取的世界书');
-          toast({ title: '已从 AI 工具导入世界书' });
+          toast({ title: '已导入 AI 生成的世界书数据' });
           return;
         }
       } catch { /* ignore */ }

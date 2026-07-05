@@ -45,7 +45,7 @@ export function AIRewriteContent({ content, onResult, compact, systemPrompt, qui
   const run = async () => {
     const config = loadAPIConfig();
     if (!config.apiKey) {
-      toast({ title: '请先配置 API Key', description: '到「AI 工具」页填入 API Key 后再用', variant: 'destructive' });
+      toast({ title: '请先配置 API Key', description: '到「AI 配置」页填入 API Key 后再用', variant: 'destructive' });
       return;
     }
     if (!content.trim()) {

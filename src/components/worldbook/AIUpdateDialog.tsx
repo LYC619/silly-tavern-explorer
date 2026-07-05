@@ -103,7 +103,7 @@ export function AIUpdateDialog({ open, onOpenChange, existingEntries, onAppend }
   const handleGenerate = useCallback(async () => {
     const config = loadAPIConfig(); // 生成时即时读取（配置在 AI 工具页维护）
     if (!config.apiKey) {
-      toast({ title: '请先配置 API Key', description: '前往「AI 工具」页配置后回来生成', variant: 'destructive' });
+      toast({ title: '请先配置 API Key', description: '前往「AI 配置」页配置后回来生成', variant: 'destructive' });
       return;
     }
     if (!session || floorCount === 0) {
