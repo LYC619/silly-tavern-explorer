@@ -1,6 +1,7 @@
 import { Button } from '@/components/ui/button';
 import { Wand2 } from 'lucide-react';
 import type { ChatSession } from '@/types/chat';
+import type { StoryTree } from '@/types/story-tree';
 
 interface DemoDataProps {
   onLoad: (session: ChatSession) => void;
@@ -69,6 +70,28 @@ export const demoSession: ChatSession = {
     color: '#5B8FA8',
   },
   createdAt: Date.now(),
+};
+
+/**
+ * 示例故事树：与示例会话同题材。仅内存展示（不写 IndexedDB），
+ * 供故事树页空态时保证新手引导锚点存在。
+ */
+export const demoStoryTree: StoryTree = {
+  id: 'demo-story-tree',
+  bookId: null,
+  bookTitle: '月下花园的邂逅',
+  title: '月下花园 · 示例树',
+  nodes: [
+    { id: 'demo-n1', parentId: null, title: '人物', hint: '', content: '', tags: [], pinned: false, archived: false, order: 0 },
+    { id: 'demo-n2', parentId: 'demo-n1', title: '樱', hint: '百年樱树下的神秘少女', content: '在庭院百年老樱下赏月的少女，与树同名。喜欢有人来欣赏樱花，说话温柔。', tags: ['主角'], pinned: false, archived: false, order: 0 },
+    { id: 'demo-n3', parentId: 'demo-n1', title: '旅人', hint: '被景色吸引的过客', content: '偶然造访庭院的旅人，与樱在月下相识、互通姓名。', tags: [], pinned: false, archived: false, order: 1 },
+    { id: 'demo-n4', parentId: null, title: '地点', hint: '', content: '', tags: [], pinned: false, archived: false, order: 1 },
+    { id: 'demo-n5', parentId: 'demo-n4', title: '月下庭院', hint: '百年老樱所在', content: '青石板铺地的庭院，月光下樱花如云似雾，花瓣像会发光。', tags: [], pinned: false, archived: false, order: 0 },
+    { id: 'demo-n6', parentId: null, title: '事件', hint: '', content: '', tags: [], pinned: false, archived: false, order: 2 },
+    { id: 'demo-n7', parentId: 'demo-n6', title: '月下初遇', hint: '第 1-7 楼', content: '旅人被樱花吸引来到庭院，与樱交谈并接过她递来的花瓣，两人互通姓名。', tags: ['起点'], pinned: false, archived: false, order: 0 },
+  ],
+  createdAt: Date.now(),
+  updatedAt: Date.now(),
 };
 
 export function DemoData({ onLoad }: DemoDataProps) {
