@@ -1,9 +1,10 @@
 import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Network, Plus, Trash2, ChevronsDownUp, ChevronsUpDown, Archive, Sparkles, Download } from 'lucide-react';
+import { Network, Plus, Trash2, ChevronsDownUp, ChevronsUpDown, Archive, Sparkles, Download, Wand2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
+import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
@@ -28,6 +29,7 @@ import { StoryTreeView } from '@/components/story-tree/StoryTreeView';
 import { StoryNodeEditor } from '@/components/story-tree/StoryNodeEditor';
 import { AIFillDialog } from '@/components/story-tree/AIFillDialog';
 import { storyTreeToObsidian, downloadMarkdown } from '@/lib/obsidian-export';
+import { demoStoryTree } from '@/components/DemoData';
 
 const StoryTree = () => {
   const navigate = useNavigate();
@@ -47,6 +49,7 @@ const StoryTree = () => {
   const [deleteTreeOpen, setDeleteTreeOpen] = useState(false);
   const [aiFillOpen, setAiFillOpen] = useState(false);
   const [showTour, setShowTour] = useState(false);
+  const [isDemo, setIsDemo] = useState(false);
 
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -70,6 +73,8 @@ const StoryTree = () => {
   useEffect(() => {
     reloadTrees().then((mine) => {
       if (mine.length && !currentTreeId) loadTree(mine[0]);
+      // 首次引导且没有任何树：注入示例树保证引导锚点存在（纯内存，不落库）
+      else if (!mine.length && !currentTreeId && !isTourCompleted('story-tree')) loadDemoTree();
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [reloadTrees]);
@@ -81,9 +86,35 @@ const StoryTree = () => {
     setSelectedId(null);
   };
 
+  // 示例树：纯内存注入（不写 IndexedDB），空态下保证引导锚点存在
+  const loadDemoTree = () => {
+    setIsDemo(true);
+    setCurrentTreeId(demoStoryTree.id);
+    setNodes(demoStoryTree.nodes);
+    setTreeTitle(demoStoryTree.title);
+    setSelectedId(demoStoryTree.nodes.find((n) => n.parentId !== null)?.id ?? null);
+  };
+
+  const exitDemo = async () => {
+    setIsDemo(false);
+    setCurrentTreeId(null);
+    setNodes([]);
+    setTreeTitle('');
+    setSelectedId(null);
+    const mine = await reloadTrees();
+    if (mine.length) loadTree(mine[0]);
+  };
+
+  // 引导结束：示例树只为引导服务，结束后让位
+  const handleTourEnd = () => {
+    setTourCompleted('story-tree');
+    setShowTour(false);
+    if (isDemo) exitDemo();
+  };
+
   // 防抖自动保存当前树
   const scheduleSave = useCallback((nextNodes: StoryNode[], nextTitle: string) => {
-    if (!currentTreeId) return;
+    if (!currentTreeId || isDemo) return; // 示例树只在内存，不落库
     if (saveTimer.current) clearTimeout(saveTimer.current);
     saveTimer.current = setTimeout(async () => {
       const existing = trees.find((t) => t.id === currentTreeId);
@@ -100,7 +131,7 @@ const StoryTree = () => {
       await saveStoryTree(item);
       reloadTrees();
     }, 600);
-  }, [currentTreeId, trees, bookId, session, reloadTrees]);
+  }, [currentTreeId, isDemo, trees, bookId, session, reloadTrees]);
 
   const applyNodes = (next: StoryNode[]) => {
     setNodes(next);
@@ -108,6 +139,7 @@ const StoryTree = () => {
   };
 
   const handleCreateTree = async () => {
+    setIsDemo(false); // 从示例切到真实树
     const item: StoryTreeT = {
       id: generateStoryTreeId(),
       bookId,
@@ -224,7 +256,9 @@ const StoryTree = () => {
           {/* 工具行：选树 + 重命名 + 操作（合并为一行，省纵向空间） */}
           <Card data-tour="story-tree-select">
             <CardContent className="p-3 flex items-center gap-2 flex-wrap">
-              {trees.length > 0 ? (
+              {isDemo ? (
+                <Badge variant="outline" className="font-normal shrink-0">示例树 · 不会保存</Badge>
+              ) : trees.length > 0 ? (
                 <Select value={currentTreeId ?? ''} onValueChange={(v) => { const t = trees.find((x) => x.id === v); if (t) loadTree(t); }}>
                   <SelectTrigger className="h-8 w-52 shrink-0"><SelectValue placeholder="选择故事树" /></SelectTrigger>
                   <SelectContent>
@@ -248,12 +282,12 @@ const StoryTree = () => {
                 <Button variant="outline" size="sm" className="h-8 gap-1" onClick={handleCreateTree}>
                   <Plus className="w-4 h-4" />新建
                 </Button>
-                {currentTreeId && (
+                {currentTreeId && !isDemo && (
                   <Button variant="ghost" size="sm" className="h-8 gap-1" onClick={handleExportObsidian}>
                     <Download className="w-4 h-4" />导出
                   </Button>
                 )}
-                {currentTreeId && (
+                {currentTreeId && !isDemo && (
                   <Button variant="ghost" size="sm" className="h-8 gap-1 text-destructive" onClick={() => setDeleteTreeOpen(true)}>
                     <Trash2 className="w-4 h-4" />删除
                   </Button>
@@ -339,9 +373,14 @@ const StoryTree = () => {
                 <CardContent className="p-8 text-center space-y-3">
                   <Network className="w-8 h-8 mx-auto text-muted-foreground" />
                   <p className="text-muted-foreground">用一棵事实树梳理这本书的人物、事件、关系。</p>
-                  <Button onClick={handleCreateTree} className="gap-1">
-                    <Plus className="w-4 h-4" />新建故事树
-                  </Button>
+                  <div className="flex gap-2 justify-center flex-wrap">
+                    <Button onClick={handleCreateTree} className="gap-1">
+                      <Plus className="w-4 h-4" />新建故事树
+                    </Button>
+                    <Button variant="outline" className="gap-2" onClick={loadDemoTree}>
+                      <Wand2 className="w-4 h-4" />加载示例
+                    </Button>
+                  </div>
                   {!session && (
                     <div className="flex gap-2 justify-center pt-2">
                       <Button variant="outline" size="sm" onClick={() => navigate('/')}>前往聊天处理</Button>
@@ -382,8 +421,8 @@ const StoryTree = () => {
         <GuidedTour
           steps={STORY_TREE_TOUR_STEPS}
           module="story-tree"
-          onComplete={() => { setTourCompleted('story-tree'); setShowTour(false); }}
-          onSkip={() => { setTourCompleted('story-tree'); setShowTour(false); }}
+          onComplete={handleTourEnd}
+          onSkip={handleTourEnd}
         />
       )}
     </AppLayout>

@@ -35,6 +35,8 @@ import { AttachPanel, type AttachState } from '@/components/summary/AttachPanel'
 import { PriorVolumesPanel } from '@/components/summary/PriorVolumesPanel';
 import { SavedSummaryList } from '@/components/summary/SavedSummaryList';
 import { MiniSummaryPanel } from '@/components/summary/MiniSummaryPanel';
+import { DemoData, demoSession } from '@/components/DemoData';
+import { Badge } from '@/components/ui/badge';
 
 const KINDS: SummaryKind[] = ['volume', 'diary', 'diy'];
 
@@ -72,25 +74,50 @@ const Summary = () => {
   const [savedRefresh, setSavedRefresh] = useState(0);
 
   const [showTour, setShowTour] = useState(false);
+  const [isDemo, setIsDemo] = useState(false);
 
   const abortRef = useRef<AbortController | null>(null);
   const outputRef = useRef('');
+
+  // 示例会话：纯内存注入（不入书架/不落库），空态下保证引导锚点存在
+  const loadDemo = useCallback(() => {
+    setIsDemo(true);
+    setSession(demoSession);
+    setFloorStart(0);
+    setFloorEnd(demoSession.messages.length - 1);
+  }, []);
+
+  // 引导结束：示例只为引导服务，结束后让位（有真实会话时不会注入示例）
+  const handleTourEnd = () => {
+    setTourCompleted('summary');
+    setShowTour(false);
+    if (isDemo) {
+      setIsDemo(false);
+      setSession(null);
+    }
+  };
 
   // 初始加载：活跃会话（API 配置统一在 AI 工具页维护，生成时即时读取）
   useEffect(() => {
     let cancelled = false;
     const ptr = loadSessionPointer();
     setBookId(ptr?.currentBookId ?? null);
+    const firstVisit = !isTourCompleted('summary');
     loadActiveSession().then((active) => {
-      if (cancelled || !active) return;
-      setSession(active);
-      setFloorStart(0);
-      setFloorEnd(Math.max(0, active.messages.length - 1));
+      if (cancelled) return;
+      if (active) {
+        setSession(active);
+        setFloorStart(0);
+        setFloorEnd(Math.max(0, active.messages.length - 1));
+      } else if (firstVisit) {
+        loadDemo();
+      }
     });
-    if (!isTourCompleted('summary')) {
+    if (firstVisit) {
       setTimeout(() => setShowTour(true), 500);
     }
     return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // 切换 kind → 重载模板列表并选中默认模板
@@ -339,6 +366,7 @@ const Summary = () => {
             </div>
             {session && (
               <div className="text-xs text-muted-foreground text-right pt-1">
+                {isDemo && <Badge variant="outline" className="font-normal mr-2">示例数据 · 不会保存</Badge>}
                 <span className="font-medium text-foreground">{session.title}</span>
                 <span> · {session.messages.length} 楼</span>
               </div>
@@ -355,9 +383,10 @@ const Summary = () => {
                 <p className="text-sm text-muted-foreground mb-4">
                   请先在「聊天处理」页导入并处理聊天，或从「书架」打开一本书，再回到这里总结。
                 </p>
-                <div className="flex gap-2 justify-center">
+                <div className="flex gap-2 justify-center flex-wrap">
                   <Button variant="outline" onClick={() => navigate('/')}>前往聊天处理</Button>
                   <Button variant="outline" onClick={() => navigate('/bookshelf')}>打开书架</Button>
+                  <DemoData onLoad={loadDemo} />
                 </div>
               </CardContent>
             </Card>
@@ -468,8 +497,8 @@ const Summary = () => {
         <GuidedTour
           steps={SUMMARY_TOUR_STEPS}
           module="summary"
-          onComplete={() => { setTourCompleted('summary'); setShowTour(false); }}
-          onSkip={() => { setTourCompleted('summary'); setShowTour(false); }}
+          onComplete={handleTourEnd}
+          onSkip={handleTourEnd}
         />
       )}
     </AppLayout>
