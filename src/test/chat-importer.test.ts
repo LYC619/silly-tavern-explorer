@@ -1,4 +1,5 @@
 import { describe, it, expect } from 'vitest';
+import { isTrueSystemMessage } from '@/components/ChatImporter';
 
 // Test the JSONL parsing logic directly
 function parseJsonl(content: string) {
@@ -117,5 +118,31 @@ describe('JSONL Parser', () => {
 
     const { messages } = parseJsonl(content);
     expect((messages[0].content as string).length).toBe(100000);
+  });
+});
+
+describe('isTrueSystemMessage (Hide vs 真系统提示)', () => {
+  it('被 Hide 的真实开场白（有 name+mes+is_user）不是真系统 → 应导入', () => {
+    // ST 的 Hide 把 is_system 置 true，但这是一条 785 字的角色开场白
+    expect(isTrueSystemMessage({
+      name: 'Seraphina', is_user: false, mes: '很长的开场白……',
+    })).toBe(false);
+  });
+
+  it('空 mes 的注入是真系统 → 应跳过', () => {
+    expect(isTrueSystemMessage({ name: 'System', is_user: false, mes: '' })).toBe(true);
+  });
+
+  it('既无 name 又无 is_user 的纯注入是真系统', () => {
+    expect(isTrueSystemMessage({ mes: '一些系统注入文本' })).toBe(true);
+  });
+
+  it('extra.type = narrator / system 是真系统（/sys、/comment）', () => {
+    expect(isTrueSystemMessage({ name: 'X', is_user: false, mes: 'x', extra: { type: 'narrator' } })).toBe(true);
+    expect(isTrueSystemMessage({ name: 'X', is_user: false, mes: 'x', extra: { type: 'system' } })).toBe(true);
+  });
+
+  it('用户楼层被 Hide（is_user:true + 有 mes）不是真系统 → 应导入', () => {
+    expect(isTrueSystemMessage({ name: '我', is_user: true, mes: '一条被隐藏的用户发言' })).toBe(false);
   });
 });

@@ -1,5 +1,7 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { useLocation } from 'react-router-dom';
+import { Eye, EyeOff, Pencil } from 'lucide-react';
+import { Input } from '@/components/ui/input';
 import { AppLayout } from '@/components/AppLayout';
 import { ChatImporter, type ImportStats } from '@/components/ChatImporter';
 import { ChatPreview, type ChatPreviewHandle } from '@/components/ChatPreview';
@@ -73,6 +75,8 @@ const Index = () => {
     setSearchResult({ total, current });
   }, []);
   const [editMode, setEditMode] = useState(false);
+  // 是否展示被 ST 隐藏(Hide)的楼层（默认展示；有隐藏楼层时顶部出开关）
+  const [showHidden, setShowHidden] = useState(true);
   const [markerDialogOpen, setMarkerDialogOpen] = useState(false);
   const [messageEditDialogOpen, setMessageEditDialogOpen] = useState(false);
   const [selectedMessage, setSelectedMessage] = useState<{ id: string; index: number } | null>(null);
@@ -398,6 +402,28 @@ const Index = () => {
       .sort((a, b) => (a.floor ?? Infinity) - (b.floor ?? Infinity));
   }, [favorites, floorMap, session]);
 
+  // 被 ST 隐藏的楼层数（决定是否显示显隐开关）
+  const hiddenCount = useMemo(
+    () => session?.messages.filter(m => m.hidden).length ?? 0,
+    [session]
+  );
+
+  // 标题就地重命名（书架同步会随 session.title 自动保存）
+  const [titleEditing, setTitleEditing] = useState(false);
+  const [titleDraft, setTitleDraft] = useState('');
+  const startTitleEdit = () => {
+    if (!session) return;
+    setTitleDraft(session.title);
+    setTitleEditing(true);
+  };
+  const commitTitleEdit = () => {
+    setTitleEditing(false);
+    const next = titleDraft.trim();
+    if (!session || !next || next === session.title) return;
+    setSession({ ...session, title: next });
+    toast({ title: '已重命名', description: next });
+  };
+
   const handleSaveMarker = (marker: ChapterMarker) => {
     setMarkers(prev => {
       const existing = prev.findIndex(m => m.messageId === marker.messageId);
@@ -508,10 +534,43 @@ const Index = () => {
               {/* Preview Area */}
               <div className="flex-1 min-w-0">
                 <div className="mb-3 flex items-center justify-between gap-3">
-                  <div className="text-sm text-muted-foreground shrink-0">
-                    共 {session.messages.length} 条消息
+                  <div className="flex items-center gap-2 text-sm text-muted-foreground min-w-0 flex-wrap">
+                    {titleEditing ? (
+                      <Input
+                        autoFocus
+                        value={titleDraft}
+                        onChange={(e) => setTitleDraft(e.target.value)}
+                        onBlur={commitTitleEdit}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') commitTitleEdit();
+                          if (e.key === 'Escape') setTitleEditing(false);
+                        }}
+                        className="h-7 w-64 max-w-full"
+                        placeholder="作品标题"
+                      />
+                    ) : (
+                      <button
+                        onClick={startTitleEdit}
+                        className="group flex items-center gap-1 min-w-0"
+                        title="点击重命名（标题会随书架自动保存，并用于导出文件名）"
+                      >
+                        <span className="truncate max-w-[16rem] font-medium text-foreground">{session.title || '未命名作品'}</span>
+                        <Pencil className="w-3 h-3 shrink-0 opacity-40 group-hover:opacity-100 transition-opacity" />
+                      </button>
+                    )}
+                    <span className="shrink-0">共 {session.messages.length} 条消息</span>
                     {markers.length > 0 && (
-                      <span className="ml-2 text-primary">· {markers.length} 个章节标记</span>
+                      <span className="text-primary shrink-0">· {markers.length} 个章节标记</span>
+                    )}
+                    {hiddenCount > 0 && (
+                      <button
+                        onClick={() => setShowHidden(v => !v)}
+                        className="inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-xs text-muted-foreground hover:bg-accent hover:text-foreground transition-colors shrink-0"
+                        title="这些楼层在 SillyTavern 里被 Hide，仍会正常导入；点击切换是否展示"
+                      >
+                        {showHidden ? <Eye className="w-3.5 h-3.5" /> : <EyeOff className="w-3.5 h-3.5" />}
+                        {showHidden ? '隐藏' : '显示'} {hiddenCount} 个隐藏楼层
+                      </button>
                     )}
                   </div>
                   {editMode && (
@@ -557,6 +616,7 @@ const Index = () => {
                         onFloorMapChange={handleFloorMapChange}
                         searchQuery={searchQuery}
                         onSearchResult={handleSearchResult}
+                        showHidden={showHidden}
                       />
                     </div>
                   </div>

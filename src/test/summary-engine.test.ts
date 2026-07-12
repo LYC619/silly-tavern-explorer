@@ -4,6 +4,7 @@ import {
   insertAtDepth,
   collectWorldbookEntries,
   buildPriorBlock,
+  inferVolumeNumber,
   extractTitle,
   type SummaryEngineInput,
 } from '@/lib/summary-engine';
@@ -280,5 +281,25 @@ describe('buildPriorBlock', () => {
     const block = buildPriorBlock(priors);
     expect(block).toContain('第1卷 - 开端 | 楼层 0~9');
     expect(block).toContain('第2卷 - 发展 | 楼层 10~19');
+  });
+});
+
+describe('inferVolumeNumber（卷号按实际情况推断）', () => {
+  const vols = [
+    { volumeNumber: 1, floorStart: 0 },
+    { volumeNumber: 2, floorStart: 50 },
+  ];
+  it('无已有卷 → 第 1 卷', () => {
+    expect(inferVolumeNumber([], 0)).toBe(1);
+  });
+  it('新起点（续写）→ 最大卷号 + 1', () => {
+    expect(inferVolumeNumber(vols, 100)).toBe(3);
+  });
+  it('起点与已有卷一致 → 重做该卷，沿用卷号（生成/保存不再各自 +1）', () => {
+    expect(inferVolumeNumber(vols, 0)).toBe(1);
+    expect(inferVolumeNumber(vols, 50)).toBe(2);
+  });
+  it('已有卷缺 volumeNumber 时按 0 参与 max，不匹配起点', () => {
+    expect(inferVolumeNumber([{ volumeNumber: undefined, floorStart: 0 }], 0)).toBe(1);
   });
 });

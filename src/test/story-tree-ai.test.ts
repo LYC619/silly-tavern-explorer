@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import {
-  buildTreeFillMessages, parseTreeOps, applyTreeOps, floorsToText, describeOps, type TreeOp,
+  buildTreeFillMessages, parseTreeOps, applyTreeOps, floorsToText, describeOps,
+  splitContentSections, appendToSection, type TreeOp,
 } from '@/lib/story-tree-ai';
 import { childrenOf, findById } from '@/lib/story-tree-model';
 import type { StoryNode } from '@/types/story-tree';
@@ -105,6 +106,56 @@ describe('applyTreeOps', () => {
     const start = [node('A', null, '角色', 0)];
     applyTreeOps(start, [{ op: 'insert', parent: '角色', title: 'X' }]);
     expect(start).toHaveLength(1);
+  });
+
+  it('带 sectionLabel：insert 正文进 `## 卷` 小节，update 追加到同卷小节', () => {
+    // 第一卷生成：新节点正文带小节标题
+    const r1 = applyTreeOps(emptyNodes, [
+      { op: 'insert', parent: '角色', title: '爱丽丝', content: '初登场，见习骑士' },
+    ], { sectionLabel: '第1卷 · 楼层 0~49' });
+    const alice1 = childrenOf(r1.nodes, childrenOf(r1.nodes, null)[0].id)[0];
+    expect(alice1.content).toBe('## 第1卷 · 楼层 0~49\n初登场，见习骑士');
+
+    // 第二卷生成：update 追加为新的小节
+    const r2 = applyTreeOps(r1.nodes, [
+      { op: 'update', path: '角色/爱丽丝', content: '晋升正式骑士' },
+    ], { sectionLabel: '第2卷 · 楼层 50~99' });
+    const alice2 = childrenOf(r2.nodes, childrenOf(r2.nodes, null)[0].id)[0];
+    expect(alice2.content).toBe(
+      '## 第1卷 · 楼层 0~49\n初登场，见习骑士\n\n## 第2卷 · 楼层 50~99\n晋升正式骑士'
+    );
+
+    // 同卷重复生成：并入已有小节，不新建重复标题
+    const r3 = applyTreeOps(r2.nodes, [
+      { op: 'update', path: '角色/爱丽丝', content: '获得佩剑' },
+    ], { sectionLabel: '第2卷 · 楼层 50~99' });
+    const alice3 = childrenOf(r3.nodes, childrenOf(r3.nodes, null)[0].id)[0];
+    expect(alice3.content).toContain('## 第2卷 · 楼层 50~99\n晋升正式骑士\n获得佩剑');
+    expect(alice3.content.match(/## 第2卷/g)).toHaveLength(1);
+  });
+
+  it('无 sectionLabel 保持旧行为（直接换行追加）', () => {
+    const start = [node('A', null, '角色', 0), node('A1', 'A', '爱丽丝', 0, '原有')];
+    const r = applyTreeOps(start, [{ op: 'update', path: '角色/爱丽丝', content: '新增' }]);
+    expect(findById(r.nodes, 'A1')!.content).toBe('原有\n新增');
+  });
+});
+
+describe('splitContentSections / appendToSection', () => {
+  it('无小节标题 → 单段 label:null', () => {
+    expect(splitContentSections('普通正文')).toEqual([{ label: null, body: '普通正文' }]);
+  });
+  it('引言 + 多小节切分', () => {
+    const s = splitContentSections('引言\n## 第1卷\n甲\n乙\n## 第2卷\n丙');
+    expect(s).toEqual([
+      { label: null, body: '引言' },
+      { label: '第1卷', body: '甲\n乙' },
+      { label: '第2卷', body: '丙' },
+    ]);
+  });
+  it('appendToSection：空正文 + label 直接建段；空 addition 原样返回', () => {
+    expect(appendToSection('', '第1卷', '事实')).toBe('## 第1卷\n事实');
+    expect(appendToSection('原文', '第1卷', '  ')).toBe('原文');
   });
 });
 

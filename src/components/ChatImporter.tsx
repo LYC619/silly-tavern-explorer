@@ -42,6 +42,25 @@ export function parseSTDate(value: unknown): number | undefined {
   return Number.isFinite(t) ? t : undefined;
 }
 
+/**
+ * 区分「真·系统提示」和「被 Hide 的真实楼层」。
+ * ST 的「Hide message」是把 is_system 置 true 持久化的（不是加 extra.hidden），
+ * 与 /sys、/comment 等注入型系统消息共用 is_system 字段。一刀切丢弃 is_system 会连
+ * 被隐藏的开场白/正常楼层一起丢掉（表现为「导入缺失、后面内容看似顶掉前面」）。
+ * 返回 true = 真系统提示，应跳过；false = 只是被隐藏的真实楼层，应导入并标 hidden。
+ * 判据（满足任一即真系统）：mes 为空 / 既无 name 又无 is_user（纯注入）/ extra.type ∈ {narrator,system}。
+ */
+export function isTrueSystemMessage(raw: {
+  mes?: string; content?: string; message?: string;
+  is_user?: unknown; name?: unknown; extra?: { type?: unknown } | null;
+}): boolean {
+  const content = raw.mes || raw.content || raw.message || '';
+  if (!content) return true;
+  if (raw.is_user == null && raw.name == null) return true;
+  const type = raw.extra?.type;
+  return type === 'narrator' || type === 'system';
+}
+
 export interface ImportStats {
   totalMessages: number;
   swipesRemoved: number;
@@ -97,7 +116,7 @@ export function ChatImporter({ onImport }: ChatImporterProps) {
           metadata = parsed as STMetadata;
           continue;
         }
-        if (parsed.is_system) continue;
+        if (parsed.is_system && isTrueSystemMessage(parsed)) continue;
         const messageContent = parsed.mes || parsed.content || parsed.message || '';
         if (!messageContent) continue;
         messages.push({
@@ -106,6 +125,7 @@ export function ChatImporter({ onImport }: ChatImporterProps) {
           content: messageContent,
           name: parsed.name || (parsed.is_user ? 'User' : 'Character'),
           timestamp: parseSTDate(parsed.send_date),
+          hidden: parsed.is_system === true,
           rawData: parsed,
         });
       } catch {
@@ -119,13 +139,14 @@ export function ChatImporter({ onImport }: ChatImporterProps) {
     const data = JSON.parse(content);
     if (Array.isArray(data)) {
       const messages = data
-        .filter((item: any) => !item.is_system)
+        .filter((item: any) => !(item.is_system && isTrueSystemMessage(item)))
         .map((item: any) => ({
           id: crypto.randomUUID(),
           role: (item.is_user || item.role === 'user' ? 'user' : 'assistant') as 'user' | 'assistant',
           content: item.mes || item.content || item.message || '',
           name: item.name || (item.is_user ? 'User' : 'Character'),
           timestamp: parseSTDate(item.send_date),
+          hidden: item.is_system === true,
           rawData: item as STRawMessage,
         }))
         .filter((m: ChatMessage) => m.content);
@@ -134,13 +155,14 @@ export function ChatImporter({ onImport }: ChatImporterProps) {
     if (data.messages || data.chat) {
       const msgs = data.messages || data.chat;
       const messages = msgs
-        .filter((item: any) => !item.is_system)
+        .filter((item: any) => !(item.is_system && isTrueSystemMessage(item)))
         .map((item: any) => ({
           id: crypto.randomUUID(),
           role: (item.is_user || item.role === 'user' ? 'user' : 'assistant') as 'user' | 'assistant',
           content: item.mes || item.content || item.message || '',
           name: item.name,
           timestamp: parseSTDate(item.send_date),
+          hidden: item.is_system === true,
           rawData: item as STRawMessage,
         }))
         .filter((m: ChatMessage) => m.content);
