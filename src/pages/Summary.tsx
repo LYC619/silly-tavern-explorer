@@ -429,9 +429,10 @@ const Summary = () => {
               </CardContent>
             </Card>
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-12 gap-4 items-start">
+            <div className="grid grid-cols-1 sm:grid-cols-12 gap-4 items-start">
+              {/* 内容区分栏用 sm: 而非 md:——左侧导航占 80px+，Edge 等窄视口(≈675px)下 md 不触发会退化成单列 */}
               {/* 左栏：生成配置 */}
-              <div className="md:col-span-5 space-y-4">
+              <div className="sm:col-span-5 space-y-4">
                 <Tabs value={kind} onValueChange={(v) => setKind(v as SummaryKind)} data-tour="summary-kind">
                   <TabsList className="flex w-full">
                     {KINDS.map((k) => (
@@ -504,7 +505,7 @@ const Summary = () => {
               </div>
 
               {/* 右栏：成果区（列表总控在上，结果编辑器在列表下方就地展开） */}
-              <div className="md:col-span-7 space-y-4">
+              <div className="sm:col-span-7 space-y-4">
                 <div data-tour="summary-saved">
                   <SavedSummaryList
                     currentBookId={bookId}

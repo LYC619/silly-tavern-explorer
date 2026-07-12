@@ -464,9 +464,10 @@ const StoryTree = () => {
           </Card>
 
           {currentTreeId ? (
-            <div className="grid grid-cols-1 md:grid-cols-5 gap-4 items-start">
+            <div className="grid grid-cols-1 sm:grid-cols-5 gap-4 items-start">
+              {/* 内容区分栏用 sm: 而非 md:——左侧导航占 80px+，Edge 等窄视口(≈675px)下 md 不触发会退化成单列 */}
               {/* 左：树视图（占 2/5，撑起工作区高度） */}
-              <Card className="md:col-span-2">
+              <Card className="sm:col-span-2">
                 <CardContent className="p-3 space-y-2 min-h-[60vh]">
                   <div className="flex items-center gap-1 flex-wrap" data-tour="story-tree-toolbar">
                     <Button variant="outline" size="sm" className="h-7 gap-1" onClick={handleAddRoot}>
@@ -558,7 +559,7 @@ const StoryTree = () => {
               </Card>
 
               {/* 右：节点编辑（占 3/5，sticky 跟随滚动） */}
-              <div className="md:col-span-3 md:sticky md:top-4">
+              <div className="sm:col-span-3 sm:sticky sm:top-4">
                 <Card data-tour="story-tree-editor">
                   <CardContent className="p-4 min-h-[60vh]">
                     {selectedNode ? (
