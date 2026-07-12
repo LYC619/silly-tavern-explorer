@@ -35,6 +35,8 @@ export interface SummaryGenParams {
   templateSnapshot?: string;
   /** 楼层消息是否带「名字: 」前缀 */
   speakerPrefix?: boolean;
+  /** kind=diary 时「生成谁的日记」填的角色名（自动附加进提示词） */
+  diaryOwner?: string;
 }
 
 export interface SummaryItem {

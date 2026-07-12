@@ -564,6 +564,7 @@ const StoryTree = () => {
                   <CardContent className="p-4 min-h-[60vh]">
                     {selectedNode ? (
                       <StoryNodeEditor
+                        key={selectedNode.id}
                         node={selectedNode}
                         onChange={handleUpdateNode}
                         onDelete={() => setDeleteNodeOpen(true)}

@@ -89,6 +89,62 @@ const toTags = (kw: string | string[] | undefined): string[] => {
   return arr.map((s) => s.trim()).filter(Boolean);
 };
 
+/** 卷/阶段小节标题前缀：节点正文里用 `## <label>` 分段，切视图时按卷展现状态变化 */
+const SECTION_PREFIX = '## ';
+
+export interface ContentSection {
+  /** 小节标题（不含 `## ` 前缀）；null = 小节标题之前的引言部分 */
+  label: string | null;
+  body: string;
+}
+
+/**
+ * 把节点正文按 `## <标题>` 切成小节（供分卷展示）。
+ * 无任何小节标题时返回单个 {label:null, body:全文}。纯函数，便于单测与渲染复用。
+ */
+export function splitContentSections(content: string): ContentSection[] {
+  const text = content ?? '';
+  const lines = text.split('\n');
+  const sections: ContentSection[] = [];
+  let cur: ContentSection = { label: null, body: '' };
+  const buf: string[] = [];
+  const flush = () => { cur.body = buf.join('\n').trim(); if (cur.body || cur.label) sections.push(cur); buf.length = 0; };
+  for (const line of lines) {
+    if (line.startsWith(SECTION_PREFIX)) {
+      flush();
+      cur = { label: line.slice(SECTION_PREFIX.length).trim(), body: '' };
+    } else {
+      buf.push(line);
+    }
+  }
+  flush();
+  return sections.length ? sections : [{ label: null, body: text.trim() }];
+}
+
+/**
+ * 把新事实并入正文：给定卷/阶段 label 时，追加到该卷小节下（小节已存在则续写，不存在则新建 `## label` 段）；
+ * 无 label 时退化为整体追加（保持旧行为）。返回新正文，不改入参。
+ */
+export function appendToSection(content: string, label: string | undefined, addition: string): string {
+  const add = addition.trim();
+  if (!add) return content;
+  const base = (content ?? '').trim();
+  if (!label?.trim()) {
+    return base ? `${base}\n${add}` : add;
+  }
+  const heading = `${SECTION_PREFIX}${label.trim()}`;
+  const sections = splitContentSections(base);
+  const hit = sections.find((s) => s.label === label.trim());
+  if (hit) {
+    hit.body = hit.body ? `${hit.body}\n${add}` : add;
+    return sections
+      .map((s) => (s.label == null ? s.body : `${SECTION_PREFIX}${s.label}\n${s.body}`))
+      .filter(Boolean)
+      .join('\n\n');
+  }
+  return base ? `${base}\n\n${heading}\n${add}` : `${heading}\n${add}`;
+}
+
 /** 按 path 找节点 id（沿路径逐段匹配 title；找不到返回 undefined） */
 function findIdByPath(nodes: StoryNode[], path: string): string | undefined {
   const segs = path.split('/').map((s) => s.trim()).filter(Boolean);
@@ -132,15 +188,21 @@ export interface ApplyResult {
  * - insert：确保父路径存在；若父下已有同名节点则合并（正文追加、标签并集）而非重复建。
  * - update：按 path 定位（找不到跳过），正文追加、标签并集。
  * - archive：按 path 定位，置 archived=true。
+ * - opts.sectionLabel：给定时，本批新增/追加的正文都归到 `## <label>` 小节下
+ *   （如「第2卷 · 楼层 50~99」），条目正文按卷分段，切视图时可见状态演变。
  */
-export function applyTreeOps(nodes: StoryNode[], ops: TreeOp[]): ApplyResult {
+export function applyTreeOps(
+  nodes: StoryNode[],
+  ops: TreeOp[],
+  opts: { sectionLabel?: string } = {}
+): ApplyResult {
   let cur = nodes;
   let inserted = 0, updated = 0, archived = 0, skipped = 0;
 
   const mergeInto = (id: string, content: string | undefined, tags: string[]) => {
     const node = findById(cur, id)!;
     const newContent = content?.trim()
-      ? (node.content.trim() ? `${node.content.trim()}\n${content.trim()}` : content.trim())
+      ? appendToSection(node.content, opts.sectionLabel, content)
       : node.content;
     const newTags = Array.from(new Set([...node.tags, ...tags]));
     cur = updateNode(cur, id, { content: newContent, tags: newTags });
@@ -159,7 +221,10 @@ export function applyTreeOps(nodes: StoryNode[], ops: TreeOp[]): ApplyResult {
         updated++;
       } else {
         const { nodes: next, node } = addNode(cur, ensured.parentId, {
-          title, hint: op.hint ?? '', content: op.content ?? '', tags: toTags(op.keywords),
+          title,
+          hint: op.hint ?? '',
+          content: appendToSection('', opts.sectionLabel, op.content ?? ''),
+          tags: toTags(op.keywords),
         });
         cur = next;
         void node;

@@ -1,6 +1,6 @@
 import { forwardRef, useMemo, useState, useEffect, useRef, useImperativeHandle, memo } from 'react';
 import { useWindowVirtualizer } from '@tanstack/react-virtual';
-import { User, Bot, Bookmark, BookmarkPlus, Pencil } from 'lucide-react';
+import { User, Bot, Bookmark, BookmarkPlus, Pencil, EyeOff } from 'lucide-react';
 import type { ChatSession, ThemeStyle, RegexRule, ChapterMarker } from '@/types/chat';
 import { applyRegexRules, parseRegex } from '@/lib/regex-processor';
 import { parseSTDate } from '@/components/ChatImporter';
@@ -45,6 +45,8 @@ interface ChatPreviewProps {
   searchQuery?: string;
   /** 搜索结果变化回调：命中楼层数 + 当前定位到第几个命中(1-based，0 表示无) */
   onSearchResult?: (total: number, current: number) => void;
+  /** 是否展示被 ST 隐藏(Hide)的楼层；false 时过滤掉（默认 true，归档场景倾向全展示） */
+  showHidden?: boolean;
 }
 
 /**
@@ -126,6 +128,7 @@ interface ProcessedMessage {
   content: string;
   name?: string;
   timestamp?: number;
+  hidden?: boolean;
   rawData?: unknown;
   paragraphs: string[];
   /** 是否与上一条不同说话人——预算进 memo，虚拟化后行不连续渲染也正确 */
@@ -242,10 +245,15 @@ const MessageRow = memo(function MessageRow({
       <div
         className={`${classes.message} ${isUser ? classes.userBubble : classes.charBubble} animate-fade-in group relative w-full ${
           editMode ? 'cursor-pointer hover:bg-primary/5 rounded-lg transition-colors pt-9 px-2' : ''
-        } ${isActiveMatch ? 'rounded-lg ring-2 ring-primary/60 ring-offset-2 ring-offset-background' : ''}`}
+        } ${isActiveMatch ? 'rounded-lg ring-2 ring-primary/60 ring-offset-2 ring-offset-background' : ''} ${message.hidden ? 'opacity-70' : ''}`}
         onClick={() => editMode && onMessageClick?.(message.id, index)}
       >
-        {/* 章节标记模式：每条消息左上角常驻楼层号+书签按钮，清晰可点 */}
+        {/* ST 隐藏楼层标识：正常导入展示，但标明它在 ST 里是被 Hide 的（导出会原样保留 is_system） */}
+        {message.hidden && (
+          <div className="mb-1.5 inline-flex items-center gap-1 rounded bg-muted/70 px-1.5 py-0.5 text-xs text-muted-foreground">
+            <EyeOff className="w-3 h-3" />ST 中已隐藏
+          </div>
+        )}        {/* 章节标记模式：每条消息左上角常驻楼层号+书签按钮，清晰可点 */}
         {editMode && (
           <div className="absolute left-1 top-1 flex items-center gap-1 z-10">
             <span className="text-xs text-muted-foreground font-mono">
@@ -370,7 +378,7 @@ const MessageRow = memo(function MessageRow({
 });
 
 export const ChatPreview = memo(forwardRef<ChatPreviewHandle, ChatPreviewProps>(
-  ({ session, theme, showTimestamp, showAvatar, fontSize, regexRules, markers = [], onMessageClick, onEditMessage, editMode = false, fontFamily, previewRule = null, onVisibleFloorChange, onFloorMapChange, searchQuery = '', onSearchResult }, ref) => {
+  ({ session, theme, showTimestamp, showAvatar, fontSize, regexRules, markers = [], onMessageClick, onEditMessage, editMode = false, fontFamily, previewRule = null, onVisibleFloorChange, onFloorMapChange, searchQuery = '', onSearchResult, showHidden = true }, ref) => {
     const markerMap = useMemo(() => {
       const map = new Map<string, ChapterMarker>();
       markers.forEach(m => map.set(m.messageId, m));
@@ -393,6 +401,7 @@ export const ChatPreview = memo(forwardRef<ChatPreviewHandle, ChatPreviewProps>(
       const out: ProcessedMessage[] = [];
       let prevRole: string | null = null; // 记录上一条已保留消息的 role，预算 isNewSpeaker
       for (const msg of session.messages) {
+        if (msg.hidden && !showHidden) continue; // ST 隐藏楼层：开关关闭时不渲染
         const isUser = msg.role === 'user';
         // 去除首尾空白：正则删除开头/结尾的标签块后常残留换行，
         // 否则 text-indent 会缩进到这条残留空行上，导致正文看起来没缩进、缩进忽有忽无。
@@ -411,7 +420,7 @@ export const ChatPreview = memo(forwardRef<ChatPreviewHandle, ChatPreviewProps>(
         prevRole = msg.role;
       }
       return out;
-    }, [session.messages, debouncedRules, previewRule]);
+    }, [session.messages, debouncedRules, previewRule, showHidden]);
 
     const classes = useMemo(() => getThemeClasses(theme), [theme]);
 

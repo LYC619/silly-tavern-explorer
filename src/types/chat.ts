@@ -32,6 +32,8 @@ export interface ChatMessage {
   name?: string;
   timestamp?: number;
   is_user?: boolean;
+  /** ST「Hide message」把 is_system 置 true 持久化——这类有真实内容的隐藏楼层导入时保留并打此标记，UI 可切换显隐 */
+  hidden?: boolean;
   rawData?: STRawMessage; // 保留原始数据用于导出
 }
 

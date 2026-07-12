@@ -10,6 +10,8 @@ import { loadAPIConfig } from '@/components/ai-tools';
 import { ApiStatusLine } from '@/components/ai-tools/ApiStatusLine';
 import { callOpenAIMessages } from '@/components/ai-tools/useOpenAI';
 import { FloorRangePicker } from '@/components/summary/FloorRangePicker';
+import { loadSessionPointer } from '@/lib/session-storage';
+import { getAllSummaries } from '@/lib/summary-db';
 import type { ChatSession } from '@/types/chat';
 import type { StoryNode } from '@/types/story-tree';
 import {
@@ -100,9 +102,22 @@ export function AIFillDialog({ open, onOpenChange, session, nodes, onApply }: AI
     }
   };
 
-  const handleConfirm = () => {
+  const handleConfirm = async () => {
     if (!ops || ops.length === 0) return;
-    const result = applyTreeOps(nodes, ops);
+    // 本批事实归到 `## <卷/楼层>` 小节下：条目正文按卷分段，切视图可见状态演变。
+    // 选中范围完整落在某个已存分卷内时用「第N卷」，否则用楼层区间。
+    const lo = Math.min(floorStart, floorEnd);
+    const hi = Math.max(floorStart, floorEnd);
+    let sectionLabel = `楼层 ${lo}~${hi}`;
+    try {
+      const bid = loadSessionPointer()?.currentBookId ?? null;
+      const vol = (await getAllSummaries()).find((s) =>
+        s.kind === 'volume' && s.volumeNumber != null && s.bookId === bid
+        && lo >= s.floorStart && hi <= s.floorEnd
+      );
+      if (vol) sectionLabel = `第${vol.volumeNumber}卷 · 楼层 ${lo}~${hi}`;
+    } catch { /* 查不到分卷就用楼层区间 */ }
+    const result = applyTreeOps(nodes, ops, { sectionLabel });
     onApply(result.nodes);
     toast({
       title: '已应用到故事树',
@@ -124,6 +139,11 @@ export function AIFillDialog({ open, onOpenChange, session, nodes, onApply }: AI
 
         <div className="space-y-3">
           <ApiStatusLine />
+
+          <p className="text-xs text-muted-foreground">
+            累加式生成：当前树的结构（含之前各卷生成的节点）会随请求一并发给 AI，AI 只输出增量更新——
+            按第二卷楼层生成时无需重选第一卷。新事实会按卷/楼层归入节点正文的对应小节。
+          </p>
 
           <FloorRangePicker
             total={session.messages.length}

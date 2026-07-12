@@ -149,6 +149,22 @@ export function buildPriorBlock(priors: SummaryItem[]): string {
   return parts.join('\n\n---\n\n');
 }
 
+/**
+ * 按「实际情况」推断本次生成的卷号：起始楼层与已有某卷一致 → 视为重做该卷（沿用其卷号）；
+ * 否则 = 已有最大卷号 + 1。卷号由楼层范围与已存分卷决定，而非生成/保存的操作次数
+ * （旧逻辑每次生成、保存都会 +1，卷号脱离实际）。
+ */
+export function inferVolumeNumber(
+  priorVolumes: Pick<SummaryItem, 'volumeNumber' | 'floorStart'>[],
+  floorStart: number
+): number {
+  const matched = priorVolumes.find((v) => v.floorStart === floorStart && v.volumeNumber != null);
+  if (matched) return matched.volumeNumber!;
+  return priorVolumes.length
+    ? Math.max(...priorVolumes.map((v) => v.volumeNumber ?? 0)) + 1
+    : 1;
+}
+
 /** 从 AI 输出提取标题：分卷取「第X卷 - 卷名」，日记取首个 **标题**，失败返回空串（回退手输） */
 export function extractTitle(kind: 'volume' | 'diary' | 'diy', output: string): string {
   if (kind === 'volume') {

@@ -1,8 +1,10 @@
 import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { NotebookText, AlertCircle, Sparkles, Square, Loader2 } from 'lucide-react';
+import { NotebookText, AlertCircle, Sparkles, Square, Loader2, BookOpen, Wrench } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { HelpCard } from '@/components/HelpCard';
 import { AppLayout } from '@/components/AppLayout';
@@ -13,7 +15,7 @@ import { loadAPIConfig } from '@/components/ai-tools';
 import { ApiStatusLine } from '@/components/ai-tools/ApiStatusLine';
 import { callOpenAIMessages } from '@/components/ai-tools/useOpenAI';
 import { loadActiveSession, loadSessionPointer } from '@/lib/session-storage';
-import type { ChatSession } from '@/types/chat';
+import type { ChatSession, ChapterMarker } from '@/types/chat';
 import type { NormalizedPreset } from '@/types/preset';
 import type { WorldBook } from '@/types/worldbook';
 import type { SummaryKind, SummaryItem } from '@/types/summary';
@@ -27,19 +29,30 @@ import {
 import { getSummaryTemplate, saveSummary, pruneAutoSavedSummaries, getAllSummaries } from '@/lib/summary-db';
 import { getAllPresets } from '@/lib/preset-db';
 import { getAllWorldBooks } from '@/lib/worldbook-db';
-import { buildSummaryMessages, extractTitle } from '@/lib/summary-engine';
-import { FloorRangePicker } from '@/components/summary/FloorRangePicker';
+import { buildSummaryMessages, extractTitle, inferVolumeNumber } from '@/lib/summary-engine';
+import { FloorRangePicker, type FloorAnchor } from '@/components/summary/FloorRangePicker';
 import { TemplatePicker } from '@/components/summary/TemplatePicker';
 import { SummaryResultEditor } from '@/components/summary/SummaryResultEditor';
 import { AttachPanel, type AttachState } from '@/components/summary/AttachPanel';
 import { PriorVolumesPanel } from '@/components/summary/PriorVolumesPanel';
 import { SavedSummaryList } from '@/components/summary/SavedSummaryList';
+import { SummaryGallery } from '@/components/summary/SummaryGallery';
 import { BatchProcessor } from '@/components/summary/BatchProcessor';
 import { substituteVars } from '@/lib/preset-parser';
 import { DemoData, demoSession } from '@/components/DemoData';
 import { Badge } from '@/components/ui/badge';
 
 const KINDS: SummaryKind[] = ['volume', 'diary', 'diy'];
+
+/** 跨页轻量态（sessionStorage）：记住楼层区间/类型/日记主角——修复「切到聊天页确认范围再回来，改过的楼层变回默认」 */
+const UI_STATE_KEY = 'st-summary-ui-state';
+interface SummaryUiState {
+  bookId: string | null;
+  kind?: SummaryKind;
+  floorStart?: number;
+  floorEnd?: number;
+  diaryOwner?: string;
+}
 
 const Summary = () => {
   const navigate = useNavigate();
@@ -48,9 +61,16 @@ const Summary = () => {
   const [session, setSession] = useState<ChatSession | null>(null);
   const [bookId, setBookId] = useState<string | null>(null);
 
+  // 顶层视图：生成工作台 / 展示页（阅读向，生成与阅读分离）
+  const [view, setView] = useState<'workshop' | 'gallery'>('workshop');
+
   const [kind, setKind] = useState<SummaryKind>('volume');
   const [floorStart, setFloorStart] = useState(0);
   const [floorEnd, setFloorEnd] = useState(0);
+  // 书签锚点（章节标记 + 收藏楼层），供楼层选择器快捷填入
+  const [anchors, setAnchors] = useState<FloorAnchor[]>([]);
+  // 日记专用：「生成谁的日记」，非空时自动附加进提示词
+  const [diaryOwner, setDiaryOwner] = useState('');
 
   const [templates, setTemplates] = useState<AnySummaryTemplate[]>([]);
   const [templateId, setTemplateId] = useState<string>(defaultTemplateIdForKind('volume'));
@@ -61,6 +81,11 @@ const Summary = () => {
   const [streaming, setStreaming] = useState(false);
   const [currentSummaryId, setCurrentSummaryId] = useState<string | null>(null);
   const [savedPermanent, setSavedPermanent] = useState(false);
+  // 当前编辑器里这份结果所属的卷号（生成时盖章 / 载入已存条目时回填）。
+  // 保存必须用它而非实时的 nextVolumeNumber——否则生成完自动落库后 priors 变化，保存时卷号被顶到下一卷。
+  const [resultVolume, setResultVolume] = useState<number | null>(null);
+  // 手动添加：让空内容的结果编辑器也展开
+  const [manualDraft, setManualDraft] = useState(false);
 
   // 挂载预设/世界书
   const [attach, setAttach] = useState<AttachState>({
@@ -116,8 +141,36 @@ const Summary = () => {
       if (cancelled) return;
       if (active) {
         setSession(active);
-        setFloorStart(0);
-        setFloorEnd(Math.max(0, active.messages.length - 1));
+        const maxIdx = Math.max(0, active.messages.length - 1);
+        // 恢复跨页轻量态（同一本书才恢复；楼层夹到合法区间）
+        let s = 0, e = maxIdx;
+        try {
+          const saved = JSON.parse(sessionStorage.getItem(UI_STATE_KEY) ?? 'null') as SummaryUiState | null;
+          if (saved && saved.bookId === (ptr?.currentBookId ?? null)) {
+            if (typeof saved.floorStart === 'number') s = Math.max(0, Math.min(maxIdx, saved.floorStart));
+            if (typeof saved.floorEnd === 'number') e = Math.max(0, Math.min(maxIdx, saved.floorEnd));
+            if (saved.kind && KINDS.includes(saved.kind)) setKind(saved.kind);
+            if (saved.diaryOwner) setDiaryOwner(saved.diaryOwner);
+          }
+        } catch { /* 坏数据按默认处理 */ }
+        setFloorStart(Math.min(s, e));
+        setFloorEnd(Math.max(s, e));
+        // 书签锚点：聊天页的章节标记 + 收藏楼层 → 楼层号（供楼层选择器快捷填入）
+        const indexById = new Map(active.messages.map((m, i) => [m.id, i]));
+        const anchorList: FloorAnchor[] = [];
+        (ptr?.markers ?? []).forEach((mk: ChapterMarker) => {
+          const idx = indexById.get(mk.messageId);
+          if (idx != null) anchorList.push({ floor: idx, label: `章节 · ${mk.title}` });
+        });
+        (ptr?.favorites ?? []).forEach((id) => {
+          const idx = indexById.get(id);
+          if (idx != null) {
+            const snippet = active.messages[idx].content.replace(/\s+/g, ' ').trim().slice(0, 24);
+            anchorList.push({ floor: idx, label: `收藏 · ${snippet}` });
+          }
+        });
+        anchorList.sort((a, b) => a.floor - b.floor);
+        setAnchors(anchorList);
       } else if (firstVisit) {
         loadDemo();
       }
@@ -128,6 +181,13 @@ const Summary = () => {
     return () => { cancelled = true; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // 楼层/类型/日记主角变化时写入跨页轻量态（示例数据不记）
+  useEffect(() => {
+    if (!session || isDemo) return;
+    const state: SummaryUiState = { bookId, kind, floorStart, floorEnd, diaryOwner };
+    try { sessionStorage.setItem(UI_STATE_KEY, JSON.stringify(state)); } catch { /* 极小，不会失败 */ }
+  }, [session, isDemo, bookId, kind, floorStart, floorEnd, diaryOwner]);
 
   // 切换 kind → 重载模板列表并选中默认模板
   const reloadTemplates = useCallback(async (k: SummaryKind, keepSelected?: string) => {
@@ -156,10 +216,11 @@ const Summary = () => {
 
   useEffect(() => { reloadVolumes(); }, [reloadVolumes, savedRefresh]);
 
-  // 下一卷卷号 = 已有最大卷号 + 1；起点建议 = 已有卷最大 floorEnd + 1
+  // 下一卷卷号按实际情况推断（见 inferVolumeNumber：重做同起点的卷沿用其卷号，否则 = 最大 + 1）；
+  // 起点建议 = 已有卷最大 floorEnd + 1
   const nextVolumeNumber = useMemo(
-    () => (priorVolumes.length ? Math.max(...priorVolumes.map((v) => v.volumeNumber ?? 0)) + 1 : 1),
-    [priorVolumes]
+    () => inferVolumeNumber(priorVolumes, floorStart),
+    [priorVolumes, floorStart]
   );
   const suggestedStart = useMemo(
     () => (priorVolumes.length ? Math.max(...priorVolumes.map((v) => v.floorEnd)) + 1 : undefined),
@@ -188,6 +249,15 @@ const Summary = () => {
     getAllWorldBooks().then((ws) => setWorldbookMap(new Map(ws.map((w) => [w.id, w.worldbook])))).catch(() => {});
   }, []);
 
+  // 日记主角非空时，自动在模板末尾附加定向指令（生成与批量共用）
+  const effectiveTemplate = useMemo(() => {
+    const owner = diaryOwner.trim();
+    if (kind === 'diary' && owner) {
+      return `${templateContent.trimEnd()}\n\n请根据以上故事内容，以「${owner}」的第一人称视角生成${owner}的日记。`;
+    }
+    return templateContent;
+  }, [kind, diaryOwner, templateContent]);
+
   // 组装引擎输入（token 估算与生成共用）
   const buildEngineInput = useCallback(() => {
     if (!session) return null;
@@ -198,7 +268,7 @@ const Summary = () => {
       session,
       floorStart,
       floorEnd,
-      template: templateContent,
+      template: effectiveTemplate,
       preset: attach.presetId ? presetMap.get(attach.presetId) : undefined,
       worldbook: attach.worldbookId ? worldbookMap.get(attach.worldbookId) : undefined,
       worldbookMode: attach.worldbookMode,
@@ -207,7 +277,7 @@ const Summary = () => {
       volumeNumber: kind === 'volume' ? nextVolumeNumber : undefined,
       options: { speakerPrefix: true },
     };
-  }, [session, kind, priorVolumes, priorSelectedIds, floorStart, floorEnd, templateContent,
+  }, [session, kind, priorVolumes, priorSelectedIds, floorStart, floorEnd, effectiveTemplate,
       attach, presetMap, worldbookMap, nextVolumeNumber]);
 
   // 实时 token 估算
@@ -220,9 +290,9 @@ const Summary = () => {
   // 批量分段的系统提示词：当前模板正文做宏替换（轻量直调，不走完整引擎）
   const batchSystemPrompt = useMemo(() => {
     if (!session) return '';
-    const base = substituteVars(templateContent, session.character?.name || '角色', session.user?.name || '用户');
+    const base = substituteVars(effectiveTemplate, session.character?.name || '角色', session.user?.name || '用户');
     return base.replace(/\{\{volume\}\}/gi, String(nextVolumeNumber));
-  }, [session, templateContent, nextVolumeNumber]);
+  }, [session, effectiveTemplate, nextVolumeNumber]);
 
   // 批量分段（挂载模式）：对某段楼层用完整引擎组装 messages（预设/世界书与左栏一致；不带前情/卷号，避免逐段重复）
   const buildSegmentMessages = useCallback((s: number, e: number) => {
@@ -241,6 +311,8 @@ const Summary = () => {
     setResultContent(text);
     setCurrentSummaryId(null);
     setSavedPermanent(false);
+    setResultVolume(null); // 保存时按当前楼层现算卷号
+    setManualDraft(false);
     scrollEditorIntoView();
     toast({ title: '已送入结果编辑器', description: '可继续编辑后保存' });
   };
@@ -260,6 +332,11 @@ const Summary = () => {
       return;
     }
     warnings.forEach((w) => toast({ title: '提示', description: w }));
+
+    // 盖章本次生成的卷号：保存时用它，不再受 priors 变化影响（修复生成/保存各 +1 的卷号乱跳）
+    const vol = kind === 'volume' ? nextVolumeNumber : undefined;
+    setResultVolume(vol ?? null);
+    setManualDraft(false);
 
     setStreaming(true);
     setResultContent('');
@@ -281,7 +358,7 @@ const Summary = () => {
       const autoTitle = extractTitle(kind, finalText) || `${SUMMARY_KIND_LABELS[kind]} · ${new Date().toLocaleDateString()}`;
       setResultTitle(autoTitle);
       // 自动落库（autoSaved:true）
-      await autoSave(finalText, autoTitle);
+      await autoSave(finalText, autoTitle, vol);
     } catch (err) {
       if (err instanceof DOMException && err.name === 'AbortError') {
         toast({ title: '已停止生成' });
@@ -296,13 +373,13 @@ const Summary = () => {
 
   const handleStop = () => abortRef.current?.abort();
 
-  const buildItem = (content: string, title: string, autoSaved: boolean, id: string): SummaryItem => ({
+  const buildItem = (content: string, title: string, autoSaved: boolean, id: string, volume?: number): SummaryItem => ({
     id,
     bookId,
     bookTitle: session?.title ?? '(未命名)',
     kind,
     title,
-    volumeNumber: kind === 'volume' ? nextVolumeNumber : undefined,
+    volumeNumber: kind === 'volume' ? volume : undefined,
     floorStart,
     floorEnd,
     content,
@@ -316,26 +393,27 @@ const Summary = () => {
       templateId,
       templateSnapshot: templateContent,
       speakerPrefix: true,
+      diaryOwner: kind === 'diary' && diaryOwner.trim() ? diaryOwner.trim() : undefined,
     },
     createdAt: Date.now(),
     updatedAt: Date.now(),
     autoSaved,
   });
 
-  const autoSave = async (content: string, title: string) => {
+  const autoSave = async (content: string, title: string, volume?: number) => {
     const id = generateSummaryId();
-    await saveSummary(buildItem(content, title, true, id));
+    await saveSummary(buildItem(content, title, true, id, volume));
     await pruneAutoSavedSummaries();
     setCurrentSummaryId(id);
     setSavedPermanent(false);
     setSavedRefresh((n) => n + 1);
   };
 
-  // 手动保存 → 永久（autoSaved:false）
+  // 手动保存 → 永久（autoSaved:false）。卷号沿用本结果的盖章卷号（无盖章才现算）
   const handleSave = async () => {
     if (!resultContent) return;
     const id = currentSummaryId ?? generateSummaryId();
-    await saveSummary(buildItem(resultContent, resultTitle || SUMMARY_KIND_LABELS[kind], false, id));
+    await saveSummary(buildItem(resultContent, resultTitle || SUMMARY_KIND_LABELS[kind], false, id, resultVolume ?? nextVolumeNumber));
     setCurrentSummaryId(id);
     setSavedPermanent(true);
     setSavedRefresh((n) => n + 1);
@@ -357,7 +435,10 @@ const Summary = () => {
     setResultContent(item.content);
     setCurrentSummaryId(item.id);
     setSavedPermanent(!item.autoSaved);
+    setResultVolume(item.volumeNumber ?? null); // 保存时沿用原卷号
+    setManualDraft(false);
     if (item.genParams?.templateSnapshot) setTemplateContent(item.genParams.templateSnapshot);
+    if (item.kind === 'diary') setDiaryOwner(item.genParams?.diaryOwner ?? '');
     scrollEditorIntoView();
   };
 
@@ -375,11 +456,29 @@ const Summary = () => {
         worldbookUids: gp.worldbookUids ?? [],
       });
       if (gp.templateSnapshot) setTemplateContent(gp.templateSnapshot);
+      if (item.kind === 'diary') setDiaryOwner(gp.diaryOwner ?? '');
     }
-    setCurrentSummaryId(null); // 生成为新条目
+    setCurrentSummaryId(null); // 生成为新条目（卷号由起始楼层匹配自动沿用原卷）
     setSavedPermanent(false);
     toast({ title: '已回填设置', description: '楼层/挂载/模板已按原条目填好，点「生成」即可重做' });
     document.querySelector('[data-tour="summary-template"]')?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  };
+
+  // 手动添加一条总结：展开空白编辑器，写完点「保存」即入库（不经 AI）
+  const handleManualCreate = () => {
+    setResultTitle('');
+    setResultContent('');
+    setCurrentSummaryId(null);
+    setSavedPermanent(false);
+    setResultVolume(null);
+    setManualDraft(true);
+    scrollEditorIntoView();
+  };
+
+  // 展示页点「去编辑」：切回工作台并载入该条
+  const handleGalleryEdit = (item: SummaryItem) => {
+    setView('workshop');
+    handleViewSaved(item);
   };
 
   return (
@@ -411,9 +510,30 @@ const Summary = () => {
             )}
           </div>
 
-          <ApiStatusLine />
+          {/* 顶层视图切换：生成工作台 / 展示页（生成与阅读分离） */}
+          <div className="flex items-center justify-between gap-3 flex-wrap">
+            <Tabs value={view} onValueChange={(v) => setView(v as 'workshop' | 'gallery')}>
+              <TabsList className="flex">
+                <TabsTrigger value="workshop" className="gap-1.5 whitespace-nowrap">
+                  <Wrench className="w-3.5 h-3.5" />生成工作台
+                </TabsTrigger>
+                <TabsTrigger value="gallery" className="gap-1.5 whitespace-nowrap">
+                  <BookOpen className="w-3.5 h-3.5" />展示页
+                </TabsTrigger>
+              </TabsList>
+            </Tabs>
+          </div>
 
-          {!session ? (
+          {view === 'workshop' && <ApiStatusLine />}
+
+          {view === 'gallery' ? (
+            <SummaryGallery
+              currentBookId={bookId}
+              refreshKey={savedRefresh}
+              charName={session?.character?.name}
+              onEdit={handleGalleryEdit}
+            />
+          ) : !session ? (
             <Card>
               <CardContent className="p-8 text-center">
                 <AlertCircle className="w-8 h-8 mx-auto mb-3 text-muted-foreground" />
@@ -450,6 +570,7 @@ const Summary = () => {
                     end={floorEnd}
                     onChange={(s, e) => { setFloorStart(s); setFloorEnd(e); }}
                     suggestedStart={kind === 'volume' ? suggestedStart : undefined}
+                    anchors={anchors}
                   />
                 </div>
 
@@ -467,6 +588,20 @@ const Summary = () => {
 
                 <Card data-tour="summary-template">
                   <CardContent className="p-4 space-y-3">
+                    {kind === 'diary' && (
+                      <div className="space-y-1">
+                        <Label htmlFor="diary-owner" className="text-xs text-muted-foreground">
+                          生成谁的日记（自动附加到提示词，留空则按模板默认视角）
+                        </Label>
+                        <Input
+                          id="diary-owner"
+                          value={diaryOwner}
+                          onChange={(e) => setDiaryOwner(e.target.value)}
+                          placeholder={session.character?.name || '角色名'}
+                          className="h-8"
+                        />
+                      </div>
+                    )}
                     <TemplatePicker
                       kind={kind}
                       templates={templates}
@@ -506,6 +641,11 @@ const Summary = () => {
 
               {/* 右栏：成果区（列表总控在上，结果编辑器在列表下方就地展开） */}
               <div className="sm:col-span-7 space-y-4">
+                <div className="flex justify-end">
+                  <Button variant="outline" size="sm" className="gap-1.5" onClick={handleManualCreate}>
+                    <NotebookText className="w-3.5 h-3.5" />手动添加总结
+                  </Button>
+                </div>
                 <div data-tour="summary-saved">
                   <SavedSummaryList
                     currentBookId={bookId}
@@ -517,7 +657,7 @@ const Summary = () => {
                   />
                 </div>
 
-                {(streaming || resultContent) && (
+                {(streaming || resultContent || manualDraft) && (
                   <div ref={editorRef}>
                     <SummaryResultEditor
                       kind={kind}

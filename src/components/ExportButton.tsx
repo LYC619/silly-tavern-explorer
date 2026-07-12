@@ -226,6 +226,9 @@ export function ExportButton({ session, settings, markers = [], onSettingsChange
           };
         }
 
+        // 隐藏楼层 round-trip：按应用内当前 hidden 状态写回 is_system（ST 用它持久化 Hide）
+        exportMessage.is_system = message.hidden === true;
+
         // P0: Clean swipes
         exportMessage.swipes = [];
         exportMessage.swipe_id = 0;
