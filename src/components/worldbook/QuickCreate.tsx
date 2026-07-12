@@ -251,7 +251,8 @@ export function QuickCreate({ existingWorldbook, onAddToWorldbook }: Props) {
   }
 
   return (
-    <div className="p-4 flex flex-col md:flex-row gap-4 h-full">
+    // 分栏用 sm: 而非 md:——左侧导航占宽后窄视口(≈675px)下 md 不触发，见 v0.15.1 全局分栏断点统一
+    <div className="p-4 flex flex-col sm:flex-row gap-4 h-full">
       {/* Left: text input */}
       <div className="flex-1 flex flex-col gap-2">
         <Label className="text-sm font-medium">粘贴或输入世界观设定文本</Label>
@@ -259,7 +260,7 @@ export function QuickCreate({ existingWorldbook, onAddToWorldbook }: Props) {
           value={text}
           onChange={(e) => setText(e.target.value)}
           placeholder="粘贴或输入世界观设定文本，用空行分隔不同条目"
-          className="flex-1 min-h-[50vh] md:min-h-0 text-sm"
+          className="flex-1 min-h-[50vh] sm:min-h-0 text-sm"
         />
         <p className="text-xs text-muted-foreground">每段空行分隔的文本会被拆分为一个独立的世界书条目</p>
         <Button onClick={handleSplit} disabled={!text.trim()} className="w-full sm:w-auto">
@@ -268,12 +269,12 @@ export function QuickCreate({ existingWorldbook, onAddToWorldbook }: Props) {
       </div>
 
       {/* Right: global defaults */}
-      <Collapsible defaultOpen className="md:w-72 shrink-0">
-        <CollapsibleTrigger className="flex items-center gap-1 text-sm font-medium text-foreground md:hidden mb-2">
+      <Collapsible defaultOpen className="sm:w-72 shrink-0">
+        <CollapsibleTrigger className="flex items-center gap-1 text-sm font-medium text-foreground sm:hidden mb-2">
           <ChevronDown className="w-4 h-4" /> 全局默认设置
         </CollapsibleTrigger>
         <CollapsibleContent className="space-y-3" forceMount>
-          <h4 className="text-sm font-medium text-foreground hidden md:block">全局默认设置</h4>
+          <h4 className="text-sm font-medium text-foreground hidden sm:block">全局默认设置</h4>
 
           <div className="space-y-1">
             <Label className="text-xs">默认插入位置</Label>
