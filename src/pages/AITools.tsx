@@ -1,10 +1,7 @@
 import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { KeyRound, ArrowRight } from 'lucide-react';
+import { KeyRound } from 'lucide-react';
 import { GuidedTour } from '@/components/GuidedTour';
 import { AITOOLS_TOUR_STEPS, isTourCompleted, setTourCompleted } from '@/lib/tour-steps';
-import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { HelpCard } from '@/components/HelpCard';
 import { AppLayout } from '@/components/AppLayout';
 import { APIConfigCard } from '@/components/ai-tools';
@@ -12,10 +9,9 @@ import { APP_VERSION } from '@/components/GlobalSettings';
 
 /**
  * AI 配置页：全应用唯一的 API 提供商管理中心。
- * 原「AI 工具箱」的分析功能已就近迁移——批量分段在总结页、模板库在总结页、世界书提取在世界书页。
+ * 分析功能就近放在使用场景里——批量分段在总结页、模板库在总结页、世界书提取在世界书页。
  */
 const AITools = () => {
-  const navigate = useNavigate();
   const [showTour, setShowTour] = useState(false);
 
   useEffect(() => {
@@ -48,26 +44,6 @@ const AITools = () => {
           <div data-tour="ai-config">
             <APIConfigCard />
           </div>
-
-          {/* 功能迁移说明 */}
-          <Card data-tour="ai-moved">
-            <CardHeader>
-              <CardTitle className="text-base">找原来的 AI 工具？功能已就近迁移</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-2 text-sm text-muted-foreground">
-              <p>· <strong className="text-foreground">批量分段生成</strong>：在「总结」页左栏（生成按钮下方），与楼层范围、提示词模板同处一屏。</p>
-              <p>· <strong className="text-foreground">提示词模板</strong>：由「总结」页的模板库统一管理，可查看/编辑/另存为/删除自定义模板。</p>
-              <p>· <strong className="text-foreground">提取世界书</strong>：用「世界书」页的「AI 追加」按聊天提炼新条目，提示词同样可编辑。</p>
-              <div className="flex gap-2 pt-1 flex-wrap">
-                <Button variant="outline" size="sm" className="gap-1" onClick={() => navigate('/summary')}>
-                  去总结页<ArrowRight className="w-3.5 h-3.5" />
-                </Button>
-                <Button variant="outline" size="sm" className="gap-1" onClick={() => navigate('/worldbook')}>
-                  去世界书页<ArrowRight className="w-3.5 h-3.5" />
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
         </div>
       </div>
 

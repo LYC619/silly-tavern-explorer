@@ -76,34 +76,39 @@ function buildExtensions(np: NormalizedPreset): Record<string, unknown> | undefi
 
 /**
  * 导出为 ST 兼容预设 JSON 字符串。
- * - mode='full'：保留全部条目与顺序（默认）
- * - mode='smart'：只保留当前角色组里 enabled 的条目，prompt_order 压成单组
+ * - mode='full'：保留全部分组与条目（默认）
+ * - mode='group'：只保留所选分组（含禁用条目），prompt_order 压成单组
+ * - mode='smart'：只保留所选分组里 enabled 的条目，prompt_order 压成单组
+ * 选组优先 groupIndex（能区分 character_id 重复的分组），否则按 activeCharacterId 匹配，兜底第一组。
  */
 export function exportPreset(
   np: NormalizedPreset,
-  options: { mode?: 'full' | 'smart'; activeCharacterId?: number } = {}
+  options: { mode?: 'full' | 'group' | 'smart'; activeCharacterId?: number; groupIndex?: number } = {}
 ): string {
-  const { mode = 'full', activeCharacterId } = options;
+  const { mode = 'full', activeCharacterId, groupIndex } = options;
 
   let prompts = np.prompts;
   let promptOrder = np.promptOrder;
 
-  if (mode === 'smart') {
-    const charId = activeCharacterId ?? np.promptOrder[0]?.character_id ?? DEFAULT_CHARACTER_ID;
-    const group = np.promptOrder.find((g) => g.character_id === charId) ?? np.promptOrder[0];
-    const enabledOrder = (group?.order ?? []).filter((o) => o.enabled);
-    const enabledIds = new Set(enabledOrder.map((o) => o.identifier));
+  if (mode !== 'full') {
+    const group = (groupIndex !== undefined ? np.promptOrder[groupIndex] : undefined)
+      ?? np.promptOrder.find((g) => g.character_id === activeCharacterId)
+      ?? np.promptOrder[0];
+    const keptOrder = mode === 'group'
+      ? (group?.order ?? [])
+      : (group?.order ?? []).filter((o) => o.enabled);
+    const keptIds = new Set(keptOrder.map((o) => o.identifier));
     // ST 内置 marker（chatHistory/worldInfo/charDescription 等）即便未启用也必须保留，
     // 否则 ST 重新加载预设时会判定缺失并重置为默认，破坏用户配置。
-    prompts = np.prompts.filter((p) => enabledIds.has(p.identifier) || p.marker === true);
+    prompts = np.prompts.filter((p) => keptIds.has(p.identifier) || p.marker === true);
     // prompt_order 也要保留 marker 条目（以原启用状态），否则块在 prompts 里却不在 order 里，
     // 与 ST 原生行为（禁用块以 enabled:false 留在 order）不一致，导致插槽位置丢失。
     const markerOrder = (group?.order ?? []).filter((o) => {
-      if (enabledIds.has(o.identifier)) return false; // 已在 enabledOrder 里
+      if (keptIds.has(o.identifier)) return false; // 已在 keptOrder 里
       const block = np.prompts.find((p) => p.identifier === o.identifier);
       return block?.marker === true;
     });
-    promptOrder = [{ character_id: group?.character_id ?? charId, order: [...enabledOrder, ...markerOrder] }];
+    promptOrder = [{ character_id: group?.character_id ?? activeCharacterId ?? DEFAULT_CHARACTER_ID, order: [...keptOrder, ...markerOrder] }];
   }
 
   const extensions = buildExtensions(np);

@@ -85,11 +85,6 @@ export const AITOOLS_TOUR_STEPS: TourStep[] = [
     content: '全应用的 AI 能力都从这里读取配置。可保存多个提供商（OpenAI 兼容），一键切换、拉取模型列表、测试连通；密钥仅保存在本地浏览器。',
     action: 'next',
   },
-  {
-    targetSelector: '[data-tour="ai-moved"]',
-    content: '原「AI 工具箱」的分析功能已就近迁移：批量分段生成在「总结」页左栏，提示词模板在「总结」页模板库，世界书提取用「世界书」页的「AI 追加」。',
-    action: 'next',
-  },
 ];
 
 export const CARDVIEWER_TOUR_STEPS: TourStep[] = [
@@ -169,7 +164,7 @@ export const STORY_TREE_TOUR_STEPS: TourStep[] = [
   },
   {
     targetSelector: '[data-tour="story-tree-toolbar"]',
-    content: '「根节点」手动加顶层节点；「AI 生成」从选定聊天楼层自动提炼人物/事件/关系等事实节点。左侧树可拖拽移动节点。',
+    content: '「根节点」手动加顶层节点；「AI 生成」从选定聊天楼层自动提炼人物/事件/关系等事实节点。可撤销/重做、切换树/导图视图、搜索定位。左侧树可拖拽移动节点（上下插入或作为子节点）。',
     action: 'next',
   },
   {
