@@ -13,6 +13,7 @@ import {
 } from '@/lib/preset-parser';
 
 /** 基于真实 Default.json 结构构造的 fixture（含 marker / 未引用 / 空条目 / regex / 多组 / 未知顶层字段） */
+type FixturePrompt = { identifier: string; name: string } & Record<string, unknown>;
 const makePreset = () => ({
   // 未知/全局字段（应进 originalData 并原样 round-trip）
   temperature: 0.9,
@@ -28,7 +29,7 @@ const makePreset = () => ({
     { identifier: 'chatHistory', name: 'Chat History', system_prompt: true, marker: true },
     { identifier: 'emptyBlock', name: 'Empty', role: 'system', content: '' }, // 空内容
     { identifier: 'orphan', name: 'Orphan', role: 'user', content: 'not in any order' }, // 未引用
-  ],
+  ] as FixturePrompt[],
   prompt_order: [
     {
       character_id: 100000,
@@ -137,6 +138,57 @@ describe('exportPreset (round-trip)', () => {
     expect(ids).toEqual(['main', 'chatHistory']); // jailbreak/emptyBlock 被禁用，过滤掉
     const promptIds = out.prompts.map((p: { identifier: string }) => p.identifier).sort();
     expect(promptIds).toEqual(['chatHistory', 'main']);
+  });
+
+  it('smart export honors groupIndex (库/完整结构双分组，选第二组)', () => {
+    // 模拟社区常见结构：第一组是条目库（全启用），第二组才是真正的预设结构
+    const p = makePreset();
+    p.prompt_order = [
+      { character_id: 100000, order: [
+        { identifier: 'main', enabled: true },
+        { identifier: 'jailbreak', enabled: true },
+        { identifier: 'emptyBlock', enabled: true },
+      ] },
+      { character_id: 100001, order: [
+        { identifier: 'main', enabled: true },
+        { identifier: 'chatHistory', enabled: true },
+        { identifier: 'jailbreak', enabled: false },
+      ] },
+    ];
+    const np = parsePreset(p);
+    const out = JSON.parse(exportPreset(np, { mode: 'smart', groupIndex: 1 }));
+    expect(out.prompt_order).toHaveLength(1);
+    expect(out.prompt_order[0].character_id).toBe(100001);
+    const ids = out.prompt_order[0].order.map((o: { identifier: string }) => o.identifier);
+    // 第二组里禁用的 jailbreak 不导出；第一组独有的 emptyBlock 也不导出
+    expect(ids).toEqual(['main', 'chatHistory']);
+    expect(out.prompts.some((b: { identifier: string }) => b.identifier === 'jailbreak')).toBe(false);
+    expect(out.prompts.some((b: { identifier: string }) => b.identifier === 'emptyBlock')).toBe(false);
+  });
+
+  it('groupIndex disambiguates duplicate character_id groups', () => {
+    const p = makePreset();
+    p.prompt_order = [
+      { character_id: 100000, order: [{ identifier: 'jailbreak', enabled: true }] },
+      { character_id: 100000, order: [{ identifier: 'main', enabled: true }] },
+    ];
+    const np = parsePreset(p);
+    // 按 character_id 匹配永远命中第一组；groupIndex 能选到第二组
+    const out = JSON.parse(exportPreset(np, { mode: 'smart', groupIndex: 1 }));
+    const ids = out.prompt_order[0].order.map((o: { identifier: string }) => o.identifier);
+    expect(ids).toEqual(['main']);
+  });
+
+  it('group mode keeps disabled entries of selected group, drops other groups', () => {
+    const np = parsePreset(makePreset());
+    const out = JSON.parse(exportPreset(np, { mode: 'group', groupIndex: 0 }));
+    expect(out.prompt_order).toHaveLength(1);
+    const order = out.prompt_order[0].order;
+    // 分组导出保留该组全部条目（含禁用），启用状态原样
+    expect(order.map((o: { identifier: string }) => o.identifier)).toEqual(['main', 'chatHistory', 'jailbreak', 'emptyBlock']);
+    expect(order.find((o: { identifier: string }) => o.identifier === 'jailbreak').enabled).toBe(false);
+    // 不属于任何 order 的 orphan 被裁掉
+    expect(out.prompts.some((b: { identifier: string }) => b.identifier === 'orphan')).toBe(false);
   });
 
   it('smart export keeps DISABLED marker blocks in both prompts and prompt_order', () => {

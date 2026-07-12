@@ -43,43 +43,75 @@ function download(content: string, filename: string, mime: string) {
 }
 
 export function PresetExport({ preset, originalPreset, activeCharacterId, fileName }: PresetExportProps) {
-  const [mode, setMode] = useState<'full' | 'smart'>('full');
+  const [mode, setMode] = useState<'full' | 'group' | 'smart'>('full');
   const [showDiff, setShowDiff] = useState(false);
+  const groups = preset.promptOrder;
+  const hasMultiGroups = groups.length > 1;
+  // 按下标选组（character_id 可能重复，下标才能唯一定位），默认当前编辑中的分组
+  const [groupIndex, setGroupIndex] = useState(() => {
+    const i = groups.findIndex((g) => g.character_id === activeCharacterId);
+    return i >= 0 ? i : 0;
+  });
+  const safeGroupIndex = Math.min(groupIndex, Math.max(groups.length - 1, 0));
 
   const exportedJson = useMemo(
-    () => exportPreset(preset, { mode, activeCharacterId }),
-    [preset, mode, activeCharacterId]
+    () => exportPreset(preset, { mode, activeCharacterId, groupIndex: safeGroupIndex }),
+    [preset, mode, activeCharacterId, safeGroupIndex]
   );
 
   const diffParts = useMemo(() => {
     if (!showDiff || !originalPreset) return null;
     // 左右两侧用同一导出模式对比，避免 smart 模式把裁剪掉的条目全算成"删除"淹没真实改动
-    const before = exportPreset(originalPreset, { mode, activeCharacterId });
+    const before = exportPreset(originalPreset, { mode, activeCharacterId, groupIndex: safeGroupIndex });
     // 行级 diff：改一个字段就是几行红/几行绿，比整段 JSON 字符流易定位
     return diffLines(before, exportedJson);
-  }, [showDiff, originalPreset, exportedJson, mode, activeCharacterId]);
+  }, [showDiff, originalPreset, exportedJson, mode, activeCharacterId, safeGroupIndex]);
 
   const base = sanitizeFilename(fileName || 'preset');
+  const suffix = mode === 'smart' ? '_smart' : mode === 'group' ? `_group${safeGroupIndex + 1}` : '';
 
   return (
     <div className="space-y-4 max-w-3xl">
       <div className="flex items-center gap-3 flex-wrap">
         <div className="flex items-center gap-2">
           <Label className="text-sm">导出模式</Label>
-          <Select value={mode} onValueChange={(v) => setMode(v as 'full' | 'smart')}>
+          <Select value={mode} onValueChange={(v) => setMode(v as 'full' | 'group' | 'smart')}>
             <SelectTrigger className="h-8 w-auto text-sm">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="full">完整导出（保留全部条目与字段）</SelectItem>
-              <SelectItem value="smart">智能导出（仅当前组启用条目）</SelectItem>
+              <SelectItem value="full">完整导出（全部分组与条目）</SelectItem>
+              {hasMultiGroups && <SelectItem value="group">分组导出（所选分组全部条目，含禁用）</SelectItem>}
+              <SelectItem value="smart">智能导出（{hasMultiGroups ? '所选分组' : ''}仅启用条目）</SelectItem>
             </SelectContent>
           </Select>
         </div>
+        {hasMultiGroups && mode !== 'full' && (
+          <div className="flex items-center gap-2">
+            <Label className="text-sm">分组</Label>
+            <Select value={String(safeGroupIndex)} onValueChange={(v) => setGroupIndex(Number(v))}>
+              <SelectTrigger className="h-8 w-auto text-sm">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {groups.map((g, i) => (
+                  <SelectItem key={i} value={String(i)}>
+                    分组 {i + 1}（ID {g.character_id}，{g.order.filter((o) => o.enabled).length}/{g.order.length} 启用）
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        )}
       </div>
+      {hasMultiGroups && mode !== 'full' && (
+        <p className="text-xs text-muted-foreground">
+          该预设含 {groups.length} 个分组。有的作者用第一个分组做条目库、后面的分组才是完整结构，导出前请确认选对了分组。
+        </p>
+      )}
 
       <div className="flex items-center gap-2 flex-wrap">
-        <Button onClick={() => download(exportedJson, `${base}${mode === 'smart' ? '_smart' : ''}.json`, 'application/json;charset=utf-8')}>
+        <Button onClick={() => download(exportedJson, `${base}${suffix}.json`, 'application/json;charset=utf-8')}>
           <Download className="w-4 h-4 mr-1.5" /> 导出 JSON
         </Button>
         <Button variant="outline" onClick={() => download(exportPresetMarkdown(preset, fileName), `${base}.md`, 'text/markdown;charset=utf-8')}>
@@ -94,7 +126,7 @@ export function PresetExport({ preset, originalPreset, activeCharacterId, fileNa
 
       {showDiff && originalPreset && (
         <div>
-          <h3 className="text-sm font-medium mb-1">变更对比（导入时 ↔ 当前{mode === 'smart' ? '智能' : '完整'}导出）</h3>
+          <h3 className="text-sm font-medium mb-1">变更对比（导入时 ↔ 当前{mode === 'smart' ? '智能' : mode === 'group' ? '分组' : '完整'}导出）</h3>
           <p className="text-xs text-muted-foreground mb-2">
             <span className="text-emerald-600 dark:text-emerald-400">绿色 = 新增/改后</span>，
             <span className="text-red-600 dark:text-red-400">红色 = 原值/删除</span>；灰色为未变行

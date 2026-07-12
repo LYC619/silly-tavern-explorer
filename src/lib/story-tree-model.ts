@@ -142,3 +142,36 @@ export function nodePath(nodes: StoryNode[], id: string): string {
   }
   return parts.join('/');
 }
+
+export interface TreeSearchResult {
+  /** 直接命中的节点 */
+  hitIds: Set<string>;
+  /** 需要展开才能看到命中节点的祖先 */
+  expandIds: Set<string>;
+}
+
+/**
+ * 全文搜索：标题/提示/正文/标签 小写包含匹配。
+ * 返回命中集合与「命中节点的全部祖先」（供树视图自动展开定位）；query 为空返回 null。
+ */
+export function searchNodes(nodes: StoryNode[], query: string): TreeSearchResult | null {
+  const q = query.trim().toLowerCase();
+  if (!q) return null;
+  const hitIds = new Set<string>();
+  for (const n of nodes) {
+    const haystack = `${n.title}\n${n.hint}\n${n.content}\n${n.tags.join(',')}`.toLowerCase();
+    if (haystack.includes(q)) hitIds.add(n.id);
+  }
+  const byId = new Map(nodes.map((n) => [n.id, n]));
+  const expandIds = new Set<string>();
+  for (const id of hitIds) {
+    let cur = byId.get(id);
+    const seen = new Set<string>();
+    while (cur?.parentId && !seen.has(cur.parentId)) {
+      seen.add(cur.parentId);
+      expandIds.add(cur.parentId);
+      cur = byId.get(cur.parentId);
+    }
+  }
+  return { hitIds, expandIds };
+}

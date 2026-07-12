@@ -1,9 +1,10 @@
 import { describe, it, expect } from 'vitest';
 import {
   findById, childrenOf, collectSubtreeIds, addNode, removeNode,
-  updateNode, moveNode, toForest, buildOutline, nodePath,
+  updateNode, moveNode, toForest, buildOutline, nodePath, searchNodes,
 } from '@/lib/story-tree-model';
-import type { StoryNode } from '@/types/story-tree';
+import { storyTreeToJSON, parseStoryTreeJSON } from '@/lib/story-tree-io';
+import type { StoryNode, StoryTree } from '@/types/story-tree';
 
 /** 构造固定 id 的树，便于断言（绕过随机 id 生成器） */
 function fixture(): StoryNode[] {
@@ -104,5 +105,75 @@ describe('story-tree-model 转换/大纲', () => {
 
   it('nodePath 派生全路径', () => {
     expect(nodePath(fixture(), 'A1')).toBe('角色/爱丽丝');
+  });
+});
+
+describe('searchNodes 搜索', () => {
+  it('空查询返回 null', () => {
+    expect(searchNodes(fixture(), '')).toBeNull();
+    expect(searchNodes(fixture(), '   ')).toBeNull();
+  });
+
+  it('命中标题/提示/正文/标签（大小写不敏感）', () => {
+    let n = fixture();
+    n = updateNode(n, 'A1', { content: '药剂师，来自 River Valley' });
+    n = updateNode(n, 'A2', { tags: ['铁匠'] });
+    expect([...searchNodes(n, '爱丽丝')!.hitIds]).toEqual(['A1']);
+    expect([...searchNodes(n, 'river')!.hitIds]).toEqual(['A1']); // 正文、忽略大小写
+    expect([...searchNodes(n, '铁匠')!.hitIds]).toEqual(['A2']); // 标签
+  });
+
+  it('expandIds 收集命中节点的全部祖先', () => {
+    // 加一层：A1 下再挂孙节点
+    const { nodes } = addNode(fixture(), 'A1', { title: '童年经历' });
+    const r = searchNodes(nodes, '童年')!;
+    expect(r.hitIds.size).toBe(1);
+    expect(r.expandIds.has('A1')).toBe(true);
+    expect(r.expandIds.has('A')).toBe(true);
+    expect(r.expandIds.has('B')).toBe(false);
+  });
+});
+
+describe('story-tree-io JSON 导入导出', () => {
+  const mkTree = (): StoryTree => ({
+    id: 't1', bookId: null, bookTitle: '书', title: '我的树',
+    nodes: fixture(), createdAt: 1, updatedAt: 2,
+  });
+
+  it('round-trip：导出再导入还原节点与标题', () => {
+    const json = storyTreeToJSON(mkTree());
+    const parsed = parseStoryTreeJSON(json);
+    expect(parsed.ok).toBe(true);
+    if (parsed.ok) {
+      expect(parsed.title).toBe('我的树');
+      expect(parsed.nodes).toHaveLength(4);
+      expect(parsed.nodes.find((n) => n.id === 'A1')?.parentId).toBe('A');
+    }
+  });
+
+  it('拒绝坏数据：非 JSON / 缺 nodes / id 重复', () => {
+    expect(parseStoryTreeJSON('not json').ok).toBe(false);
+    expect(parseStoryTreeJSON('{"title":"x"}').ok).toBe(false);
+    const dup = JSON.stringify({ title: 'x', nodes: [
+      { id: 'a', title: '1' }, { id: 'a', title: '2' },
+    ] });
+    expect(parseStoryTreeJSON(dup).ok).toBe(false);
+  });
+
+  it('字段兜底：缺省字段补默认值，悬空 parentId 归根', () => {
+    const raw = JSON.stringify({ nodes: [
+      { id: 'a', title: '甲', parentId: 'ghost', tags: ['x', 1] },
+    ] });
+    const parsed = parseStoryTreeJSON(raw);
+    expect(parsed.ok).toBe(true);
+    if (parsed.ok) {
+      const n = parsed.nodes[0];
+      expect(n.parentId).toBeNull(); // ghost 不存在 → 归根
+      expect(n.tags).toEqual(['x']); // 非字符串标签剔除
+      expect(n.hint).toBe('');
+      expect(n.archived).toBe(false);
+      expect(n.order).toBe(0);
+      expect(parsed.title).toBe('导入的故事树');
+    }
   });
 });

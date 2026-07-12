@@ -32,6 +32,24 @@ function getElementRect(selector: string): Rect | null {
 
 type BubblePos = 'top' | 'bottom' | 'left' | 'right';
 
+/** 目标可能比视口还大或部分在屏外（如导入长聊天后的消息列表）——气泡定位一律以视口内可见部分为锚 */
+function clampRectToViewport(rect: Rect): Rect {
+  const top = Math.min(Math.max(rect.top, 0), window.innerHeight);
+  const left = Math.min(Math.max(rect.left, 0), window.innerWidth);
+  const bottom = Math.min(Math.max(rect.top + rect.height, 0), window.innerHeight);
+  const right = Math.min(Math.max(rect.left + rect.width, 0), window.innerWidth);
+  return { top, left, width: Math.max(0, right - left), height: Math.max(0, bottom - top) };
+}
+
+/** 兜底：无论前面怎么算，气泡永远整体落在视口内 */
+function clampStyleToViewport(style: React.CSSProperties, bw: number, bh: number): React.CSSProperties {
+  return {
+    ...style,
+    top: Math.max(8, Math.min(style.top as number, window.innerHeight - bh - 8)),
+    left: Math.max(8, Math.min(style.left as number, window.innerWidth - bw - 8)),
+  };
+}
+
 function calcBubblePosition(rect: Rect, bw: number, bh: number): { pos: BubblePos; style: React.CSSProperties } {
   const pad = 16;
 
@@ -124,6 +142,17 @@ export function GuidedTour({ steps, module, onComplete, onSkip }: GuidedTourProp
       setBubbleSize({ width: r.width, height: r.height });
     }
   }, [currentStep]);
+
+  // 步骤切换时把屏外目标滚进视口（导入长聊天后目标可能在列表深处）
+  useEffect(() => {
+    if (!step) return;
+    const el = document.querySelector(step.targetSelector);
+    if (!el) return;
+    const r = el.getBoundingClientRect();
+    if (r.top < 0 || r.bottom > window.innerHeight) {
+      el.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+    }
+  }, [step]);
 
   useEffect(() => {
     if (!step || step.action !== 'click') return;
@@ -233,8 +262,14 @@ export function GuidedTour({ steps, module, onComplete, onSkip }: GuidedTourProp
     height: targetRect.height + TOUR_PAD * 2,
   };
 
-  const { style: rawStyle } = calcBubblePosition(targetRect, bubbleSize.width, bubbleSize.height);
-  const bubbleStyle = ensureNoOverlap(rawStyle, cutout, bubbleSize.width, bubbleSize.height);
+  // 气泡以目标的可见部分为锚（目标可能高于视口），最终位置再钳回视口，保证不超界
+  const anchorRect = clampRectToViewport(targetRect);
+  const { style: rawStyle } = calcBubblePosition(anchorRect, bubbleSize.width, bubbleSize.height);
+  const bubbleStyle = clampStyleToViewport(
+    ensureNoOverlap(rawStyle, cutout, bubbleSize.width, bubbleSize.height),
+    bubbleSize.width,
+    bubbleSize.height,
+  );
 
   return (
     <div className="fixed inset-0 z-[9999] pointer-events-none">

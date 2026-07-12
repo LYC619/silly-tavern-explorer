@@ -36,6 +36,8 @@ _reference/st-source/
 _reference/projects/
 _reference/_archived-deadcode/
 _reference/summary/
+_reference/故事树优化参考/
+_reference/故事树优化.zip
 
 # bun 锁文件：本项目用 npm(package-lock.json)，bun.lock 由 Lovable 环境产生，不纳入仓库
 bun.lock
