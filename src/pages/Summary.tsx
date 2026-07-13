@@ -549,10 +549,12 @@ const Summary = () => {
               </CardContent>
             </Card>
           ) : (
-            <div className="grid grid-cols-1 sm:grid-cols-12 gap-4 items-start">
-              {/* 内容区分栏用 sm: 而非 md:——左侧导航占 80px+，Edge 等窄视口(≈675px)下 md 不触发会退化成单列 */}
+            <div className="flex flex-wrap gap-4 items-start">
+              {/* 分栏不再用视口断点（sm:/md: 已在用户环境三次失效——高缩放/高分屏下媒体查询与预期不符）。
+                  改为 flex-wrap + 行内 flex-basis：容器放得下两栏(240+260+gap)就 5:7 分栏，放不下自动换行成单列；
+                  行内样式不走 Tailwind 生成/清除链，也不受注入式插件的类覆盖影响。世界书页同款思路（其两栏从未出过问题）。 */}
               {/* 左栏：生成配置 */}
-              <div className="sm:col-span-5 space-y-4">
+              <div className="min-w-0 space-y-4" style={{ flex: '5 1 240px' }}>
                 <Tabs value={kind} onValueChange={(v) => setKind(v as SummaryKind)} data-tour="summary-kind">
                   <TabsList className="flex w-full">
                     {KINDS.map((k) => (
@@ -640,7 +642,7 @@ const Summary = () => {
               </div>
 
               {/* 右栏：成果区（列表总控在上，结果编辑器在列表下方就地展开） */}
-              <div className="sm:col-span-7 space-y-4">
+              <div className="min-w-0 space-y-4" style={{ flex: '7 1 260px' }}>
                 <div className="flex justify-end">
                   <Button variant="outline" size="sm" className="gap-1.5" onClick={handleManualCreate}>
                     <NotebookText className="w-3.5 h-3.5" />手动添加总结

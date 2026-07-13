@@ -464,10 +464,11 @@ const StoryTree = () => {
           </Card>
 
           {currentTreeId ? (
-            <div className="grid grid-cols-1 sm:grid-cols-5 gap-4 items-start">
-              {/* 内容区分栏用 sm: 而非 md:——左侧导航占 80px+，Edge 等窄视口(≈675px)下 md 不触发会退化成单列 */}
+            <div className="flex flex-wrap gap-4 items-start">
+              {/* 分栏不再用视口断点（sm:/md: 在用户环境反复失效）：flex-wrap + 行内 flex-basis，
+                  容器放得下(230+270+gap)就 2:3 分栏，放不下自动换行；与视口/缩放/类覆盖解耦，同总结页 */}
               {/* 左：树视图（占 2/5，撑起工作区高度） */}
-              <Card className="sm:col-span-2">
+              <Card className="min-w-0" style={{ flex: '2 1 230px' }}>
                 <CardContent className="p-3 space-y-2 min-h-[60vh]">
                   <div className="flex items-center gap-1 flex-wrap" data-tour="story-tree-toolbar">
                     <Button variant="outline" size="sm" className="h-7 gap-1" onClick={handleAddRoot}>
@@ -559,7 +560,7 @@ const StoryTree = () => {
               </Card>
 
               {/* 右：节点编辑（占 3/5，sticky 跟随滚动） */}
-              <div className="sm:col-span-3 sm:sticky sm:top-4">
+              <div className="min-w-0 sm:sticky sm:top-4" style={{ flex: '3 1 270px' }}>
                 <Card data-tour="story-tree-editor">
                   <CardContent className="p-4 min-h-[60vh]">
                     {selectedNode ? (

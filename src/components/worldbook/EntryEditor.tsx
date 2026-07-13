@@ -200,9 +200,13 @@ export function EntryEditor({ entry, onChange }: Props) {
         <Textarea value={entry.content} onChange={(e) => update('content', e.target.value)} rows={8} className="text-sm" />
       </div>
 
-      {/* 放大编辑内容弹窗 */}
+      {/* 放大编辑内容弹窗。宽度加行内样式兜底：个别环境（Edge 实测）下 !max-w 类规则不生效，
+          弹窗缩回 shadcn 底座的 max-w-lg(512px) 小窗；行内样式不依赖类规则存活，稳压 max-w-lg */}
       <Dialog open={contentExpanded} onOpenChange={setContentExpanded}>
-        <DialogContent className="!max-w-[min(110rem,94vw)] h-[85vh] flex flex-col">
+        <DialogContent
+          className="!max-w-[min(110rem,94vw)] h-[85vh] flex flex-col"
+          style={{ maxWidth: 'min(110rem, 94vw)' }}
+        >
           <DialogHeader className="shrink-0">
             <DialogTitle className="text-base flex items-center justify-between gap-2 pr-8">
               <span>编辑内容{entry.comment ? ` — ${entry.comment}` : ''}</span>
