@@ -75,9 +75,10 @@ export function SummaryGallery({ currentBookId, refreshKey, charName, onEdit }: 
   };
 
   return (
-    <div className="grid grid-cols-1 sm:grid-cols-12 gap-4 items-start">
+    <div className="flex flex-wrap gap-4 items-start">
+      {/* 分栏同工作台：flex-wrap + 行内 flex-basis，不依赖视口断点（用户环境下 sm:/md: 反复失效） */}
       {/* 左：条目列表 */}
-      <Card className="sm:col-span-4">
+      <Card className="min-w-0" style={{ flex: '4 1 230px' }}>
         <CardContent className="p-3 space-y-2">
           <div className="flex items-center gap-1 flex-wrap text-xs">
             <Button variant={scope === 'book' ? 'default' : 'ghost'} size="sm" className="h-6 px-2" onClick={() => setScope('book')}>当前书</Button>
@@ -114,7 +115,7 @@ export function SummaryGallery({ currentBookId, refreshKey, charName, onEdit }: 
       </Card>
 
       {/* 右：阅读区 */}
-      <Card className="sm:col-span-8">
+      <Card className="min-w-0" style={{ flex: '8 1 270px' }}>
         <CardContent className="p-4 sm:p-6">
           {!active ? (
             <div className="flex items-center justify-center min-h-[40vh] text-sm text-muted-foreground">
