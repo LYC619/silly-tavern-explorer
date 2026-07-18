@@ -1,19 +1,24 @@
 // SillyTavern 原始消息格式
+// 注：以下 any 是刻意的——ST 各版本/插件会往原始数据里塞未知字段，
+// 必须原样保留才能无损导出回 ST，不能收紧类型或丢弃未知字段。
 export interface STRawMessage {
   name?: string;
   is_user?: boolean;
   is_system?: boolean;
   send_date?: string | number;
   mes?: string;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- 保留 ST 插件扩展字段
   extra?: Record<string, any>;
   title?: string;
   gen_started?: string;
   gen_finished?: string;
   swipe_id?: number;
   swipes?: string[];
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- ST 各版本结构不一，原样保留
   swipe_info?: any[];
   force_avatar?: string;
-  [key: string]: any; // 保留其他未知字段
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- 保留其他未知字段用于无损导出
+  [key: string]: any;
 }
 
 // SillyTavern JSONL 第一行的元数据
@@ -21,7 +26,9 @@ export interface STMetadata {
   user_name?: string;
   character_name?: string;
   create_date?: string;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- 保留 ST 未知元数据字段
   chat_metadata?: Record<string, any>;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- 保留其他未知字段用于无损导出
   [key: string]: any;
 }
 
