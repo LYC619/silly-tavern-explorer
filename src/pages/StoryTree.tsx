@@ -438,7 +438,7 @@ const StoryTree = () => {
                 </Button>
                 <label>
                   <Button variant="ghost" size="sm" className="h-8 gap-1" asChild>
-                    <span><Upload className="w-4 h-4" />导入</span>
+                    <span><Download className="w-4 h-4" />导入</span>
                   </Button>
                   <input type="file" accept=".json,application/json" className="hidden"
                     onChange={(e) => { const f = e.target.files?.[0]; if (f) handleImportJSON(f); e.target.value = ''; }} />
@@ -447,7 +447,7 @@ const StoryTree = () => {
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
                       <Button variant="ghost" size="sm" className="h-8 gap-1">
-                        <Download className="w-4 h-4" />导出
+                        <Upload className="w-4 h-4" />导出
                       </Button>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end">
@@ -469,8 +469,8 @@ const StoryTree = () => {
             <div className="flex flex-wrap gap-4 items-start">
               {/* 分栏不再用视口断点（sm:/md: 在用户环境反复失效）：flex-wrap + 行内 flex-basis，
                   容器放得下(230+270+gap)就 2:3 分栏，放不下自动换行；与视口/缩放/类覆盖解耦，同总结页 */}
-              {/* 左：树视图（占 2/5，撑起工作区高度） */}
-              <Card className="min-w-0" style={{ flex: '2 1 230px' }}>
+              {/* 左：树视图（默认占 2/5；导图模式独占一整行，下方整行放编辑器） */}
+              <Card className="min-w-0" style={{ flex: viewMode === 'mindmap' ? '1 1 100%' : '2 1 230px' }}>
                 <CardContent className="p-3 space-y-2 min-h-[60vh]">
                   <div className="flex items-center gap-1 flex-wrap" data-tour="story-tree-toolbar">
                     <Button variant="outline" size="sm" className="h-7 gap-1" onClick={handleAddRoot}>
@@ -548,7 +548,7 @@ const StoryTree = () => {
                       空树。点「根节点」手动添加，或用「AI 生成」从聊天楼层提炼事实。
                     </p>
                   ) : viewMode === 'mindmap' ? (
-                    <StoryMindmap forest={forest} selectedId={selectedId} onSelect={setSelectedId} />
+                    <StoryMindmap forest={forest} selectedId={selectedId} onSelect={setSelectedId} title={treeTitle} />
                   ) : viewMode === 'cards' ? (
                     <StoryCardView
                       nodes={nodes}
@@ -579,27 +579,32 @@ const StoryTree = () => {
                 </CardContent>
               </Card>
 
-              {/* 右：节点编辑（占 3/5，sticky 跟随滚动） */}
-              <div className="min-w-0 sm:sticky sm:top-4" style={{ flex: '3 1 270px' }}>
-                <Card data-tour="story-tree-editor">
-                  <CardContent className="p-4 min-h-[60vh]">
-                    {selectedNode ? (
-                      <StoryNodeEditor
-                        key={selectedNode.id}
-                        node={selectedNode}
-                        onChange={handleUpdateNode}
-                        onDelete={() => setDeleteNodeOpen(true)}
-                      />
-                    ) : (
-                      <div className="flex items-center justify-center h-full min-h-[50vh]">
-                        <p className="text-sm text-muted-foreground text-center">
-                          点击左侧节点进行编辑；拖拽节点可移动到别的节点下。
-                        </p>
-                      </div>
-                    )}
-                  </CardContent>
-                </Card>
-              </div>
+              {/* 右：节点编辑（默认占 3/5 且 sticky；导图模式整行铺在导图下方，未选中时不占位） */}
+              {(viewMode !== 'mindmap' || selectedNode) && (
+                <div
+                  className={viewMode === 'mindmap' ? 'min-w-0' : 'min-w-0 sm:sticky sm:top-4'}
+                  style={{ flex: viewMode === 'mindmap' ? '1 1 100%' : '3 1 270px' }}
+                >
+                  <Card data-tour="story-tree-editor">
+                    <CardContent className={viewMode === 'mindmap' ? 'p-4' : 'p-4 min-h-[60vh]'}>
+                      {selectedNode ? (
+                        <StoryNodeEditor
+                          key={selectedNode.id}
+                          node={selectedNode}
+                          onChange={handleUpdateNode}
+                          onDelete={() => setDeleteNodeOpen(true)}
+                        />
+                      ) : (
+                        <div className="flex items-center justify-center h-full min-h-[50vh]">
+                          <p className="text-sm text-muted-foreground text-center">
+                            点击左侧节点进行编辑；拖拽节点可移动到别的节点下。
+                          </p>
+                        </div>
+                      )}
+                    </CardContent>
+                  </Card>
+                </div>
+              )}
             </div>
           ) : (
             trees.length === 0 && (

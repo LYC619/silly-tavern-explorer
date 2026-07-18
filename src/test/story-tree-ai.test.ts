@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import {
   buildTreeFillMessages, parseTreeOps, applyTreeOps, floorsToText, describeOps,
-  splitContentSections, appendToSection, type TreeOp,
+  splitContentSections, appendToSection, DEFAULT_TREE_FILL_PROMPT, type TreeOp,
 } from '@/lib/story-tree-ai';
 import { childrenOf, findById } from '@/lib/story-tree-model';
 import type { StoryNode } from '@/types/story-tree';
@@ -108,10 +108,10 @@ describe('applyTreeOps', () => {
     expect(start).toHaveLength(1);
   });
 
-  it('带 sectionLabel：insert 正文进 `## 卷` 小节，update 追加到同卷小节', () => {
-    // 第一卷生成：新节点正文带小节标题
+  it('带 sectionLabel：character 节点正文进 `## 卷` 小节并逐卷累积', () => {
+    // 第一卷生成：新角色节点正文带小节标题
     const r1 = applyTreeOps(emptyNodes, [
-      { op: 'insert', parent: '角色', title: '爱丽丝', content: '初登场，见习骑士' },
+      { op: 'insert', parent: '角色', title: '爱丽丝', content: '初登场，见习骑士', type: 'character' },
     ], { sectionLabel: '第1卷 · 楼层 0~49' });
     const alice1 = childrenOf(r1.nodes, childrenOf(r1.nodes, null)[0].id)[0];
     expect(alice1.content).toBe('## 第1卷 · 楼层 0~49\n初登场，见习骑士');
@@ -132,6 +132,29 @@ describe('applyTreeOps', () => {
     const alice3 = childrenOf(r3.nodes, childrenOf(r3.nodes, null)[0].id)[0];
     expect(alice3.content).toContain('## 第2卷 · 楼层 50~99\n晋升正式骑士\n获得佩剑');
     expect(alice3.content.match(/## 第2卷/g)).toHaveLength(1);
+  });
+
+  it('带 sectionLabel：事件等非角色类型平文追加，不产生卷小节（保持线性）', () => {
+    const r1 = applyTreeOps(emptyNodes, [
+      { op: 'insert', parent: '事件', title: '初次相遇', content: '两人在集市相遇', type: 'event' },
+    ], { sectionLabel: '第1卷 · 楼层 0~49' });
+    const ev1 = r1.nodes.find((n) => n.title === '初次相遇')!;
+    expect(ev1.content).toBe('两人在集市相遇');
+
+    const r2 = applyTreeOps(r1.nodes, [
+      { op: 'update', path: '事件/初次相遇', content: '补充：当时下着雨' },
+    ], { sectionLabel: '第2卷 · 楼层 50~99' });
+    expect(r2.nodes.find((n) => n.title === '初次相遇')!.content).toBe('两人在集市相遇\n补充：当时下着雨');
+  });
+
+  it('insert 撞同名且旧节点无 type 时补上 type（分卷随之生效）', () => {
+    const start = [node('A', null, '角色', 0), node('A1', 'A', '爱丽丝', 0, '原有')];
+    const r = applyTreeOps(start, [
+      { op: 'insert', parent: '角色', title: '爱丽丝', content: '新事实', type: 'character' },
+    ], { sectionLabel: '第2卷' });
+    const n = findById(r.nodes, 'A1')!;
+    expect(n.type).toBe('character');
+    expect(n.content).toBe('原有\n\n## 第2卷\n新事实');
   });
 
   it('无 sectionLabel 保持旧行为（直接换行追加）', () => {
@@ -200,5 +223,21 @@ describe('applyTreeOps 节点类型', () => {
     const bob = r.nodes.find((n) => n.title === '鲍勃');
     expect(alice?.type).toBe('character');
     expect(bob?.type).toBeUndefined();
+  });
+});
+
+describe('DEFAULT_TREE_FILL_PROMPT 输出契约', () => {
+  it('提示词内嵌的 JSON 示例可被 parseTreeOps 解析并 apply（角色分卷、事件平文）', () => {
+    const m = DEFAULT_TREE_FILL_PROMPT.match(/\{\s*"ops":[\s\S]*?\n\}/);
+    expect(m).toBeTruthy();
+    const ops = parseTreeOps(m![0]);
+    expect(ops.length).toBeGreaterThanOrEqual(3);
+    const r = applyTreeOps([], ops, { sectionLabel: '第1卷 · 楼层 0~40' });
+    const alice = r.nodes.find((n) => n.title === '爱丽丝')!;
+    expect(alice.type).toBe('character');
+    expect(alice.content.startsWith('## 第1卷')).toBe(true); // 角色按卷归档
+    const event = r.nodes.find((n) => n.title === '契约之夜')!;
+    expect(event.type).toBe('event');
+    expect(event.content).not.toContain('##'); // 事件平文，保持线性
   });
 });

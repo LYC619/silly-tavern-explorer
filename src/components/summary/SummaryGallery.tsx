@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { BookOpen, Copy, Download, Pencil } from 'lucide-react';
+import { BookOpen, Copy, Upload, Pencil, PanelLeftClose, PanelLeftOpen } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -7,6 +7,7 @@ import { useToast } from '@/hooks/use-toast';
 import type { SummaryItem, SummaryKind } from '@/types/summary';
 import { SUMMARY_KIND_LABELS } from '@/types/summary';
 import { getAllSummaries } from '@/lib/summary-db';
+import { MarkdownLite } from '@/components/MarkdownLite';
 import { DiaryView } from './DiaryView';
 
 interface SummaryGalleryProps {
@@ -34,6 +35,8 @@ export function SummaryGallery({ currentBookId, refreshKey, charName, onEdit }: 
   const [scope, setScope] = useState<'book' | 'all'>('book');
   const [kindFilter, setKindFilter] = useState<KindFilter>('all');
   const [activeId, setActiveId] = useState<string | null>(null);
+  // 收起条目列表，把整行宽度让给正文（阅读时最常用）
+  const [listOpen, setListOpen] = useState(true);
 
   useEffect(() => { getAllSummaries().then(setAll).catch(() => {}); }, [refreshKey]);
 
@@ -77,9 +80,10 @@ export function SummaryGallery({ currentBookId, refreshKey, charName, onEdit }: 
   return (
     <div className="flex flex-wrap gap-4 items-start">
       {/* 分栏同工作台：flex-wrap + 行内 flex-basis，不依赖视口断点（用户环境下 sm:/md: 反复失效） */}
-      {/* 左：条目列表 */}
-      <Card className="min-w-0" style={{ flex: '4 1 230px' }}>
-        <CardContent className="p-3 space-y-2">
+      {/* 左：条目列表（可收起，把宽度让给正文） */}
+      {listOpen && (
+        <Card className="min-w-0" style={{ flex: '3 1 210px' }}>
+          <CardContent className="p-3 space-y-2">
           <div className="flex items-center gap-1 flex-wrap text-xs">
             <Button variant={scope === 'book' ? 'default' : 'ghost'} size="sm" className="h-6 px-2" onClick={() => setScope('book')}>当前书</Button>
             <Button variant={scope === 'all' ? 'default' : 'ghost'} size="sm" className="h-6 px-2" onClick={() => setScope('all')}>全部</Button>
@@ -112,10 +116,11 @@ export function SummaryGallery({ currentBookId, refreshKey, charName, onEdit }: 
             </div>
           )}
         </CardContent>
-      </Card>
+        </Card>
+      )}
 
       {/* 右：阅读区 */}
-      <Card className="min-w-0" style={{ flex: '8 1 270px' }}>
+      <Card className="min-w-0" style={{ flex: '9 1 280px' }}>
         <CardContent className="p-4 sm:p-6">
           {!active ? (
             <div className="flex items-center justify-center min-h-[40vh] text-sm text-muted-foreground">
@@ -124,20 +129,31 @@ export function SummaryGallery({ currentBookId, refreshKey, charName, onEdit }: 
           ) : (
             <div className="space-y-4">
               <div className="flex items-start justify-between gap-2 flex-wrap">
-                <div className="min-w-0">
-                  <h2 className="font-display text-xl font-semibold truncate">
-                    {active.title || SUMMARY_KIND_LABELS[active.kind]}
-                  </h2>
-                  <p className="text-xs text-muted-foreground mt-0.5">
-                    {active.bookTitle} · 楼层 {active.floorStart}~{active.floorEnd} · {new Date(active.updatedAt).toLocaleDateString()}
-                  </p>
+                <div className="min-w-0 flex items-start gap-1.5">
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-7 w-7 shrink-0 mt-0.5"
+                    onClick={() => setListOpen((v) => !v)}
+                    title={listOpen ? '收起列表，正文占满整行' : '展开条目列表'}
+                  >
+                    {listOpen ? <PanelLeftClose className="w-4 h-4" /> : <PanelLeftOpen className="w-4 h-4" />}
+                  </Button>
+                  <div className="min-w-0">
+                    <h2 className="font-display text-xl font-semibold truncate">
+                      {active.title || SUMMARY_KIND_LABELS[active.kind]}
+                    </h2>
+                    <p className="text-xs text-muted-foreground mt-0.5">
+                      {active.bookTitle} · 楼层 {active.floorStart}~{active.floorEnd} · {new Date(active.updatedAt).toLocaleDateString()}
+                    </p>
+                  </div>
                 </div>
                 <div className="flex items-center gap-1 shrink-0">
                   <Button variant="ghost" size="sm" className="h-7 gap-1" onClick={handleCopy}>
                     <Copy className="w-3.5 h-3.5" />复制
                   </Button>
                   <Button variant="ghost" size="sm" className="h-7 gap-1" onClick={handleDownload}>
-                    <Download className="w-3.5 h-3.5" />.md
+                    <Upload className="w-3.5 h-3.5" />.md
                   </Button>
                   {onEdit && (
                     <Button variant="outline" size="sm" className="h-7 gap-1" onClick={() => onEdit(active)}>
@@ -149,9 +165,10 @@ export function SummaryGallery({ currentBookId, refreshKey, charName, onEdit }: 
               {active.kind === 'diary' ? (
                 <DiaryView content={active.content} charName={charName} />
               ) : (
-                <div className="rounded-lg border paper-bg p-5 sm:p-6 font-serif text-[15px] leading-relaxed whitespace-pre-wrap">
-                  {active.content}
-                </div>
+                <MarkdownLite
+                  text={active.content}
+                  className="rounded-lg border paper-bg px-5 sm:px-8 py-6 font-serif text-[15px] max-w-[75ch] mx-auto"
+                />
               )}
             </div>
           )}

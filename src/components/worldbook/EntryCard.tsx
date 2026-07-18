@@ -4,6 +4,7 @@ import { Badge } from '@/components/ui/badge';
 import { Trash2 } from 'lucide-react';
 import type { WorldBookEntry } from '@/types/worldbook';
 import { POSITION_LABELS } from '@/types/worldbook';
+import { estimateTokens } from '@/lib/preset-parser';
 import { cn } from '@/lib/utils';
 
 interface Props {
@@ -126,6 +127,12 @@ export function EntryCard({ entry, selected, onClick, onToggleEnabled, onDelete,
             <>
               <span>·</span>
               <span>{entry.probability}%</span>
+            </>
+          )}
+          {entry.content && (
+            <>
+              <span>·</span>
+              <span title="粗略估算，仅供预算参考">≈{estimateTokens(entry.content)} tok</span>
             </>
           )}
         </div>

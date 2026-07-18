@@ -1,5 +1,5 @@
 import { useEffect, useState, useCallback } from 'react';
-import { Eye, RotateCcw, Trash2, Download } from 'lucide-react';
+import { Eye, RotateCcw, Trash2, Upload } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -102,7 +102,7 @@ export function SavedSummaryList({ currentBookId, refreshKey, session, onView, o
           </div>
           {filtered.length > 0 && (
             <Button variant="outline" size="sm" className={`h-6 px-2 gap-1 ml-auto ${isMini ? 'opacity-40' : ''}`} disabled={isMini} onClick={handleExportAll}>
-              <Download className="w-3 h-3" />导出全部
+              <Upload className="w-3 h-3" />导出全部
             </Button>
           )}
         </div>
@@ -134,7 +134,7 @@ export function SavedSummaryList({ currentBookId, refreshKey, session, onView, o
                     <RotateCcw className="w-3.5 h-3.5" />
                   </Button>
                   <Button variant="ghost" size="icon" className="h-7 w-7" title="导出 .md" onClick={() => handleExport(s)}>
-                    <Download className="w-3.5 h-3.5" />
+                    <Upload className="w-3.5 h-3.5" />
                   </Button>
                   <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" title="删除" onClick={() => setDeleteId(s.id)}>
                     <Trash2 className="w-3.5 h-3.5" />

@@ -1,6 +1,17 @@
 import { useState, useEffect, useMemo, useRef } from 'react';
-import { X, Plus, Trash2, RotateCcw, ChevronDown, ChevronUp, Regex, GripVertical, Eye, Bookmark, Upload, Download } from 'lucide-react';
+import { X, Plus, Trash2, RotateCcw, ChevronDown, ChevronUp, Regex, GripVertical, Eye, Bookmark, Upload, Download, Stamp } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from '@/components/ui/alert-dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
@@ -35,9 +46,11 @@ interface RegexSidebarProps {
   onPreviewChange?: (rule: RegexRule | null) => void;
   /** 当前正在预览的规则 id（由父级持有，便于跨组件高亮按钮状态） */
   previewId?: string | null;
+  /** 把当前启用规则的处理结果写回消息原文（持久化到书架）。由父级实现，未传则不显示按钮。 */
+  onApplyToOriginal?: () => void;
 }
 
-export function RegexSidebar({ rules, onRulesChange, isOpen, onClose, sampleMessages = [], onPreviewChange, previewId = null }: RegexSidebarProps) {
+export function RegexSidebar({ rules, onRulesChange, isOpen, onClose, sampleMessages = [], onPreviewChange, previewId = null, onApplyToOriginal }: RegexSidebarProps) {
   const { toast } = useToast();
   const [editingId, setEditingId] = useState<string | null>(null);
   const [dragIndex, setDragIndex] = useState<number | null>(null);
@@ -531,6 +544,35 @@ export function RegexSidebar({ rules, onRulesChange, isOpen, onClose, sampleMess
             导出正则
           </Button>
         </div>
+        {onApplyToOriginal && (
+          <AlertDialog>
+            <AlertDialogTrigger asChild>
+              <Button
+                variant="secondary"
+                size="sm"
+                className="w-full gap-1"
+                disabled={enabledCount === 0}
+                title={enabledCount === 0 ? '先启用至少一条规则' : '把当前处理效果永久写入原文'}
+              >
+                <Stamp className="w-3 h-3" />
+                应用到原文
+              </Button>
+            </AlertDialogTrigger>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>把正则处理结果写入原文？</AlertDialogTitle>
+                <AlertDialogDescription>
+                  将用当前启用的 {enabledCount} 条规则处理全部楼层并覆盖原始文本，随书架自动保存——之后换正则或重新打开这本书，看到的都是处理后的文本。
+                  应用后这些规则会自动停用，避免二次处理。操作完成后可立即点「撤销」恢复，错过则无法找回原文。
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel>取消</AlertDialogCancel>
+                <AlertDialogAction onClick={onApplyToOriginal}>应用</AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
+        )}
         <Button
           variant="ghost"
           size="sm"

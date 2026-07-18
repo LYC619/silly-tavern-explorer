@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
-import { Copy, Download } from 'lucide-react';
+import { Copy, Upload } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -73,7 +73,7 @@ export function MiniSummaryPanel({ session }: MiniSummaryPanelProps) {
               <Copy className="w-3.5 h-3.5" />复制
             </Button>
             <Button variant="ghost" size="sm" className="h-7 gap-1" onClick={handleExport}>
-              <Download className="w-3.5 h-3.5" />导出
+              <Upload className="w-3.5 h-3.5" />导出
             </Button>
           </div>
         )}

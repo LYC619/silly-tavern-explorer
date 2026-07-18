@@ -1,5 +1,5 @@
 import { useMemo, useState, useEffect } from 'react';
-import { IdCard, User, FileText, MessageSquare, Tag, BookOpen, Sparkles, Info, Upload, Plus, X, Regex, ArrowUpRight } from 'lucide-react';
+import { IdCard, User, FileText, MessageSquare, Tag, BookOpen, Sparkles, Info, Download, Plus, X, Regex, ArrowUpRight } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
@@ -91,7 +91,7 @@ export function CharacterCardEditor({ card, edits, onEditChange, onLoadFile, por
             onDrop={(e) => { e.preventDefault(); const f = e.dataTransfer.files?.[0]; if (f) onLoadFile(f); }}
             className="flex flex-col items-center justify-center gap-2 rounded-lg border-2 border-dashed border-border hover:border-primary/50 p-6 cursor-pointer transition-colors"
           >
-            <Upload className="w-7 h-7 text-muted-foreground" />
+            <Download className="w-7 h-7 text-muted-foreground" />
             <span className="text-sm text-muted-foreground">拖入或点击选择角色卡（.png / .json，V1/V2/V3）</span>
             <span className="text-xs text-muted-foreground/70">可编辑核心字段并导出；PNG 导入可回写图片</span>
             <input type="file" accept=".png,.json,image/png,application/json" className="hidden"

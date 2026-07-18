@@ -12,6 +12,7 @@ import { Button } from '@/components/ui/button';
 import { ChevronDown, X, Maximize2 } from 'lucide-react';
 import type { WorldBookEntry } from '@/types/worldbook';
 import { POSITION_LABELS, SELECTIVE_LOGIC_LABELS, ROLE_LABELS } from '@/types/worldbook';
+import { estimateTokens } from '@/lib/preset-parser';
 import { AIRewriteContent } from '@/components/worldbook/AIRewriteContent';
 
 interface Props {
@@ -182,7 +183,12 @@ export function EntryEditor({ entry, onChange }: Props) {
       {/* Content */}
       <div className="space-y-1">
         <div className="flex items-center justify-between">
-          <Label>内容 (Content)</Label>
+          <div className="flex items-center gap-2">
+            <Label>内容 (Content)</Label>
+            <span className="text-[10px] text-muted-foreground" title="粗略估算（CJK≈1字1token），仅供预算参考">
+              {entry.content.length} 字 · ≈{estimateTokens(entry.content)} tokens
+            </span>
+          </div>
           <div className="flex items-center gap-1">
             <AIRewriteContent content={entry.content} onResult={(text) => update('content', text)} compact />
             <Button

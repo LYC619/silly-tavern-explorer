@@ -28,6 +28,7 @@ import { QuickCreate } from '@/components/worldbook/QuickCreate';
 import type { WorldBook, WorldBookEntry } from '@/types/worldbook';
 import { DEFAULT_ENTRY, POSITION_LABELS, generateWorldBookId } from '@/types/worldbook';
 import { saveWorldBook, getAllWorldBooks, deleteWorldBook, pruneAutoSavedWorldBooks } from '@/lib/worldbook-db';
+import { estimateTokens } from '@/lib/preset-parser';
 import type { WorldBookItem } from '@/types/worldbook';
 import { useToast } from '@/hooks/use-toast';
 import { ToastAction } from '@/components/ui/toast';
@@ -104,6 +105,18 @@ export default function WorldBookPage() {
     [worldbook]
   );
   const selectedEntry = selectedUid && worldbook ? worldbook.entries[selectedUid] : null;
+
+  // token 汇总（粗估）：启用条目才会注入上下文，故分开给启用/全部两个数
+  const tokenStats = useMemo(() => {
+    let enabled = 0;
+    let total = 0;
+    for (const [, e] of allEntries) {
+      const t = estimateTokens(e.content);
+      total += t;
+      if (e.enabled) enabled += t;
+    }
+    return { enabled, total };
+  }, [allEntries]);
 
   const hasFilters = searchQuery || filterConstant || filterKeyword || filterVector || filterEnabled || filterDisabled || filterPosition !== 'all';
 
@@ -596,12 +609,17 @@ export default function WorldBookPage() {
           <Globe className="w-5 h-5 text-primary" />
           <h1 className="font-semibold text-foreground text-lg mr-2 hidden sm:block">世界书编辑器</h1>
 
-          {/* 条目计数 + 世界书名（从置顶栏移到顶部） */}
+          {/* 条目计数 + token 粗估 + 世界书名（从置顶栏移到顶部） */}
           {worldbook && (
-            <span className="text-xs text-muted-foreground truncate max-w-[280px] hidden md:inline">
+            <span
+              className="text-xs text-muted-foreground truncate max-w-[340px] hidden md:inline"
+              title={`token 为粗略估算（CJK≈1字1token）。启用条目 ≈${tokenStats.enabled.toLocaleString()} / 全部 ≈${tokenStats.total.toLocaleString()} tokens`}
+            >
               {hasFilters
-                ? `${filteredEntries.length} / ${allEntries.length} 条 · ${filename}`
-                : `${allEntries.length} 条 · ${filename}`}
+                ? `${filteredEntries.length} / ${allEntries.length} 条`
+                : `${allEntries.length} 条`}
+              {` · ≈${tokenStats.enabled >= 10000 ? `${(tokenStats.enabled / 1000).toFixed(1)}k` : tokenStats.enabled.toLocaleString()} tok(启用)`}
+              {` · ${filename}`}
             </span>
           )}
 
