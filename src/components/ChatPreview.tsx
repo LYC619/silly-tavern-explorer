@@ -342,9 +342,9 @@ const MessageRow = memo(function MessageRow({
           </>
         ) : (
           <div>
-            {/* 阅读流主题(elegant/novel)下，同一说话人连续发言时省略重复名字，
-                让正文更连贯，贴近小说阅读体验；minimal 仍每条都标名 */}
-            {(theme === 'minimal' || isNewSpeaker) && (
+            {/* novel 主题下同一说话人连续发言时省略重复名字，贴近小说阅读体验；
+                elegant(典雅)与 minimal 每楼都标名——多说话人 TXT 导入时省略名字会分不清谁在说话 */}
+            {(theme === 'minimal' || theme === 'elegant' || isNewSpeaker) && (
               <div className={classes.name}>
                 {message.name || (isUser ? userName : charName)}
                 {(() => {

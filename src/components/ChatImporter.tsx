@@ -16,6 +16,7 @@ import {
 } from '@/components/ui/dialog';
 import type { ChatMessage, ChatSession, CharacterInfo, STMetadata, STRawMessage } from '@/types/chat';
 import { extractCharacterFromPng, getCharacterName, getFirstMessage } from '@/lib/png-parser';
+import { scanTxtSpeakers, parseTxtDialogue } from '@/lib/txt-import';
 
 /**
  * 解析 SillyTavern 的 send_date 为时间戳（毫秒）。ST 有两种字符串格式 JS 原生 Date 解析不了：
@@ -73,26 +74,6 @@ interface ChatImporterProps {
 
 type TxtFormat = 'dialogue' | 'novel';
 
-/** Pre-scan TXT content to extract speaker names from first 20 lines */
-function preScanSpeakers(content: string): { userName: string; charName: string } {
-  const lines = content.split('\n').slice(0, 20);
-  const names: string[] = [];
-  for (const line of lines) {
-    const colonIdx = line.indexOf(':');
-    if (colonIdx > 0 && colonIdx < 30) {
-      const name = line.slice(0, colonIdx).trim();
-      if (name && !names.includes(name)) {
-        names.push(name);
-        if (names.length >= 2) break;
-      }
-    }
-  }
-  return {
-    userName: names[0] || 'User',
-    charName: names[1] || 'Character',
-  };
-}
-
 export function ChatImporter({ onImport }: ChatImporterProps) {
   const { toast } = useToast();
   const [isDragging, setIsDragging] = useState(false);
@@ -101,7 +82,8 @@ export function ChatImporter({ onImport }: ChatImporterProps) {
   const [pendingTxtFile, setPendingTxtFile] = useState<File | null>(null);
   const [txtFormat, setTxtFormat] = useState<TxtFormat>('dialogue');
   const [dialogueUserName, setDialogueUserName] = useState('User');
-  const [dialogueCharName, setDialogueCharName] = useState('Character');
+  /** TXT 预扫描出的全部说话人姓名；由用户在弹窗里选择哪个是用户，其余归 assistant */
+  const [txtSpeakers, setTxtSpeakers] = useState<string[]>([]);
 
   const parseJsonl = (content: string): { messages: ChatMessage[]; metadata?: STMetadata } => {
     const lines = content.trim().split('\n');
@@ -139,7 +121,9 @@ export function ChatImporter({ onImport }: ChatImporterProps) {
     const data = JSON.parse(content);
     if (Array.isArray(data)) {
       const messages = data
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any -- ST 原始 JSON 字段随版本/插件变化，保持宽松以免丢字段
         .filter((item: any) => !(item.is_system && isTrueSystemMessage(item)))
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any -- 同上，rawData 需原样保留
         .map((item: any) => ({
           id: crypto.randomUUID(),
           role: (item.is_user || item.role === 'user' ? 'user' : 'assistant') as 'user' | 'assistant',
@@ -155,7 +139,9 @@ export function ChatImporter({ onImport }: ChatImporterProps) {
     if (data.messages || data.chat) {
       const msgs = data.messages || data.chat;
       const messages = msgs
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any -- ST 原始 JSON 字段随版本/插件变化，保持宽松以免丢字段
         .filter((item: any) => !(item.is_system && isTrueSystemMessage(item)))
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any -- 同上，rawData 需原样保留
         .map((item: any) => ({
           id: crypto.randomUUID(),
           role: (item.is_user || item.role === 'user' ? 'user' : 'assistant') as 'user' | 'assistant',
@@ -171,49 +157,6 @@ export function ChatImporter({ onImport }: ChatImporterProps) {
     throw new Error('无法识别的 JSON 格式（应为消息数组，或含 messages / chat 字段的对象）');
   };
 
-  const parseTxtDialogue = (content: string, userNameOverride?: string): ChatMessage[] => {
-    const lines = content.split('\n').filter(l => l.trim());
-    const messages: ChatMessage[] = [];
-    const targetUserName = userNameOverride || 'User';
-    
-    for (const line of lines) {
-      const colonIdx = line.indexOf(':');
-      if (colonIdx > 0 && colonIdx < 30) {
-        const name = line.slice(0, colonIdx).trim();
-        const text = line.slice(colonIdx + 1).trim();
-        // Filter attribute lines: lowercase_only names are properties, not dialogue
-        if (name && text && /^[a-z_]+$/.test(name)) {
-          // Attribute line — append to last message
-          if (messages.length > 0) {
-            messages[messages.length - 1].content += '\n' + line.trim();
-          }
-          continue;
-        }
-        if (name && text) {
-          messages.push({
-            id: crypto.randomUUID(),
-            role: name === targetUserName ? 'user' : 'assistant',
-            content: text,
-            name,
-          });
-          continue;
-        }
-      }
-      // Lines without colon: append to last message or create new
-      if (messages.length > 0) {
-        messages[messages.length - 1].content += '\n' + line.trim();
-      } else {
-        messages.push({
-          id: crypto.randomUUID(),
-          role: 'assistant',
-          content: line.trim(),
-          name: 'Narrator',
-        });
-      }
-    }
-    return messages;
-  };
-
   const parseTxtNovel = (content: string): ChatMessage[] => {
     // Split by blank lines (double newline)
     const paragraphs = content.split(/\n\s*\n/).map(p => p.trim()).filter(Boolean);
@@ -225,7 +168,8 @@ export function ChatImporter({ onImport }: ChatImporterProps) {
     }));
   };
 
-  const processFile = useCallback(async (file: File, forceTxtFormat?: TxtFormat) => {
+  // txtUserName 由确认弹窗显式传入，不读 state——useCallback 闭包里的 state 是打开弹窗前的旧值
+  const processFile = useCallback(async (file: File, forceTxtFormat?: TxtFormat, txtUserName?: string) => {
     setError(null);
     try {
       // Handle PNG character cards
@@ -263,6 +207,9 @@ export function ChatImporter({ onImport }: ChatImporterProps) {
       const content = await file.text();
       let messages: ChatMessage[] = [];
       let metadata: STMetadata | undefined;
+      // TXT 对话导入时的强制命名：user=用户选中的姓名，char=第一位非用户说话人
+      let txtUser: string | undefined;
+      let txtChar: string | undefined;
       const isTxt = file.name.endsWith('.txt');
 
       if (isTxt && !forceTxtFormat) {
@@ -277,15 +224,21 @@ export function ChatImporter({ onImport }: ChatImporterProps) {
         } catch {
           // It's a real TXT file, ask for format
           setPendingTxtFile(file);
-          // Pre-scan for speaker names
-          const speakers = preScanSpeakers(content);
-          setDialogueUserName(speakers.userName);
-          setDialogueCharName(speakers.charName);
+          // 预扫描全部说话人，让用户在弹窗中选择哪个是用户（不预设「第一个是用户」）
+          const speakers = scanTxtSpeakers(content);
+          setTxtSpeakers(speakers);
+          setDialogueUserName(speakers.length > 0 ? '' : 'User');
           setTxtFormatDialog(true);
           return;
         }
       } else if (isTxt && forceTxtFormat) {
-        messages = forceTxtFormat === 'dialogue' ? parseTxtDialogue(content, dialogueUserName) : parseTxtNovel(content);
+        if (forceTxtFormat === 'dialogue') {
+          txtUser = txtUserName || 'User';
+          messages = parseTxtDialogue(content, txtUser);
+          txtChar = scanTxtSpeakers(content).find(n => n !== txtUser);
+        } else {
+          messages = parseTxtNovel(content);
+        }
       } else if (file.name.endsWith('.jsonl')) {
         const result = parseJsonl(content);
         messages = result.messages;
@@ -337,11 +290,11 @@ export function ChatImporter({ onImport }: ChatImporterProps) {
       const userMessages = messages.filter(m => m.role === 'user');
 
       const character: CharacterInfo = {
-        name: metadata?.character_name || charMessages[0]?.name || 'Character',
+        name: metadata?.character_name || txtChar || charMessages[0]?.name || 'Character',
         color: '#8B5A2B',
       };
       const user: CharacterInfo = {
-        name: metadata?.user_name || userMessages[0]?.name || 'User',
+        name: metadata?.user_name || txtUser || userMessages[0]?.name || 'User',
         color: '#4A90A4',
       };
 
@@ -366,7 +319,8 @@ export function ChatImporter({ onImport }: ChatImporterProps) {
   const handleTxtFormatConfirm = () => {
     setTxtFormatDialog(false);
     if (pendingTxtFile) {
-      processFile(pendingTxtFile, txtFormat);
+      // 把当前选择的用户名显式传给解析，避免 useCallback 闭包用到旧值
+      processFile(pendingTxtFile, txtFormat, dialogueUserName);
       setPendingTxtFile(null);
     }
   };
@@ -442,27 +396,35 @@ export function ChatImporter({ onImport }: ChatImporterProps) {
             </div>
             {txtFormat === 'dialogue' && (
               <div className="space-y-3 pl-4 border-l-2 border-border ml-3">
-                <div className="space-y-1">
-                  <Label className="text-xs">用户名称（匹配此名称的行设为 user）</Label>
-                  <Input
-                    value={dialogueUserName}
-                    onChange={(e) => setDialogueUserName(e.target.value)}
-                    placeholder="User"
-                    className="h-8"
-                  />
-                </div>
-                <div className="space-y-1">
-                  <Label className="text-xs">角色名称（其余行设为 assistant）</Label>
-                  <Input
-                    value={dialogueCharName}
-                    onChange={(e) => setDialogueCharName(e.target.value)}
-                    placeholder="Character"
-                    className="h-8"
-                  />
-                </div>
-                <p className="text-xs text-muted-foreground">
-                  已从文件前 20 行预扫描提取，可手动修改
-                </p>
+                {txtSpeakers.length > 0 ? (
+                  <div className="space-y-1">
+                    <Label className="text-xs">检测到以下说话人，请选择哪个是用户（你）</Label>
+                    <RadioGroup value={dialogueUserName} onValueChange={setDialogueUserName} className="space-y-1">
+                      {txtSpeakers.map((name) => (
+                        <div key={name} className="flex items-center gap-2">
+                          <RadioGroupItem value={name} id={`speaker-${name}`} />
+                          <Label htmlFor={`speaker-${name}`} className="cursor-pointer text-sm font-normal">{name}</Label>
+                        </div>
+                      ))}
+                    </RadioGroup>
+                    <p className="text-xs text-muted-foreground">
+                      其余说话人一律作为角色（assistant），每楼保留其原始姓名
+                    </p>
+                  </div>
+                ) : (
+                  <div className="space-y-1">
+                    <Label className="text-xs">用户名称（匹配此名称的行设为 user）</Label>
+                    <Input
+                      value={dialogueUserName}
+                      onChange={(e) => setDialogueUserName(e.target.value)}
+                      placeholder="User"
+                      className="h-8"
+                    />
+                    <p className="text-xs text-muted-foreground">
+                      未从文件中检测到「姓名: 内容」样式的说话人，可手动指定
+                    </p>
+                  </div>
+                )}
               </div>
             )}
             <div className="flex items-start gap-3 p-3 rounded-lg border border-border hover:bg-accent/50 cursor-pointer" onClick={() => setTxtFormat('novel')}>
@@ -478,7 +440,10 @@ export function ChatImporter({ onImport }: ChatImporterProps) {
           </RadioGroup>
           <DialogFooter>
             <Button variant="outline" onClick={() => { setTxtFormatDialog(false); setPendingTxtFile(null); }}>取消</Button>
-            <Button onClick={handleTxtFormatConfirm}>确认导入</Button>
+            <Button
+              onClick={handleTxtFormatConfirm}
+              disabled={txtFormat === 'dialogue' && txtSpeakers.length > 0 && !dialogueUserName}
+            >确认导入</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
