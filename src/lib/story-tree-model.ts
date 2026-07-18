@@ -34,7 +34,7 @@ export function collectSubtreeIds(nodes: StoryNode[], id: string): string[] {
 export function addNode(
   nodes: StoryNode[],
   parentId: string | null,
-  fields: Partial<Pick<StoryNode, 'title' | 'hint' | 'content' | 'tags'>> = {}
+  fields: Partial<Pick<StoryNode, 'title' | 'hint' | 'content' | 'tags' | 'type'>> = {}
 ): { nodes: StoryNode[]; node: StoryNode } {
   const siblings = childrenOf(nodes, parentId);
   const maxOrder = siblings.length ? Math.max(...siblings.map((s) => s.order)) : -1;
@@ -48,6 +48,7 @@ export function addNode(
     pinned: false,
     archived: false,
     order: maxOrder + 1,
+    ...(fields.type ? { type: fields.type } : {}),
   };
   return { nodes: [...nodes, node], node };
 }

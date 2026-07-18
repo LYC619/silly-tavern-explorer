@@ -5,6 +5,7 @@
  */
 
 import type { StoryNode, StoryTree } from '@/types/story-tree';
+import { isStoryNodeType } from '@/types/story-tree';
 
 export const STORY_TREE_JSON_FORMAT = 'st-explorer-story-tree';
 
@@ -37,6 +38,7 @@ function sanitizeNode(raw: Record<string, unknown>): StoryNode {
     pinned: raw.pinned === true,
     archived: raw.archived === true,
     order: typeof raw.order === 'number' && Number.isFinite(raw.order) ? raw.order : 0,
+    ...(isStoryNodeType(raw.type) ? { type: raw.type } : {}),
   };
 }
 

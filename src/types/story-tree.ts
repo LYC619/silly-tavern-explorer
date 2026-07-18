@@ -8,6 +8,43 @@
  *   是其最大技术债）——path 仅在需要时由 buildOutline 派生，支持无痛拖拽移动。
  */
 
+/** 节点类型（移植自参考项目的六类语义标注；可选字段，老数据无 type = 未分类） */
+export type StoryNodeType = 'category' | 'character' | 'location' | 'item' | 'event' | 'custom';
+
+export const STORY_NODE_TYPES: StoryNodeType[] = ['category', 'character', 'location', 'item', 'event', 'custom'];
+
+export const NODE_TYPE_LABELS: Record<StoryNodeType, string> = {
+  category: '分类',
+  character: '角色',
+  location: '地点',
+  item: '物品',
+  event: '事件',
+  custom: '自定义',
+};
+
+/** 六色贯穿：树行小圆点 / 卡片左边条（完整类名字面量，Tailwind JIT 需要） */
+export const NODE_TYPE_DOT: Record<StoryNodeType, string> = {
+  category: 'bg-violet-500',
+  character: 'bg-sky-500',
+  location: 'bg-emerald-500',
+  item: 'bg-amber-500',
+  event: 'bg-rose-500',
+  custom: 'bg-slate-400',
+};
+
+export const NODE_TYPE_BORDER: Record<StoryNodeType, string> = {
+  category: 'border-l-violet-500',
+  character: 'border-l-sky-500',
+  location: 'border-l-emerald-500',
+  item: 'border-l-amber-500',
+  event: 'border-l-rose-500',
+  custom: 'border-l-slate-400',
+};
+
+export function isStoryNodeType(v: unknown): v is StoryNodeType {
+  return typeof v === 'string' && (STORY_NODE_TYPES as string[]).includes(v);
+}
+
 export interface StoryNode {
   id: string;
   /** 父节点 id；null=根节点 */
@@ -25,6 +62,8 @@ export interface StoryNode {
   archived: boolean;
   /** 同级排序权重，小者在前 */
   order: number;
+  /** 节点类型（可选；undefined=未分类，兼容老数据） */
+  type?: StoryNodeType;
 }
 
 export interface StoryTree {

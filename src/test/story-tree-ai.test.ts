@@ -189,3 +189,16 @@ describe('describeOps', () => {
     expect(lines[2]).toContain('归档');
   });
 });
+
+describe('applyTreeOps 节点类型', () => {
+  it('insert 合法 type 落到节点、非法 type 忽略', () => {
+    const r = applyTreeOps([], [
+      { op: 'insert', parent: '角色', title: '爱丽丝', type: 'character' },
+      { op: 'insert', parent: '角色', title: '鲍勃', type: 'dragon' },
+    ]);
+    const alice = r.nodes.find((n) => n.title === '爱丽丝');
+    const bob = r.nodes.find((n) => n.title === '鲍勃');
+    expect(alice?.type).toBe('character');
+    expect(bob?.type).toBeUndefined();
+  });
+});

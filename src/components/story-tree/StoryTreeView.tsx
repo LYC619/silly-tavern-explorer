@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { ChevronRight, ChevronDown, Plus, Pin, Archive, GripVertical } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import type { StoryNodeTree } from '@/types/story-tree';
+import { NODE_TYPE_DOT, NODE_TYPE_LABELS } from '@/types/story-tree';
 
 export type DropZone = 'before' | 'after' | 'inside';
 
@@ -89,6 +90,12 @@ export function StoryTreeView({
             </button>
           ) : (
             <span className="w-4 shrink-0" />
+          )}
+          {node.type && (
+            <span
+              className={cn('w-2 h-2 rounded-full shrink-0', NODE_TYPE_DOT[node.type])}
+              title={NODE_TYPE_LABELS[node.type]}
+            />
           )}
           <span className="truncate flex-1">{node.title || '(未命名)'}</span>
           {node.pinned && <Pin className="w-3 h-3 text-primary shrink-0" />}

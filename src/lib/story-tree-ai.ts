@@ -7,6 +7,7 @@
 
 import type { ChatSession } from '@/types/chat';
 import type { StoryNode } from '@/types/story-tree';
+import { isStoryNodeType } from '@/types/story-tree';
 import type { ChatCompletionMessage } from '@/components/ai-tools/useOpenAI';
 import { addNode, updateNode, childrenOf, buildOutline, findById } from '@/lib/story-tree-model';
 
@@ -24,6 +25,8 @@ export interface TreeOp {
   keywords?: string | string[];
   /** update/archive: 目标节点路径 */
   path?: string;
+  /** insert: 节点类型（character/location/item/event，非法值忽略） */
+  type?: string;
 }
 
 /** 默认填树 system prompt（UI 允许用户查看/修改，改后仍需保持 JSON ops 输出约定） */
@@ -40,12 +43,13 @@ export const DEFAULT_TREE_FILL_PROMPT = `你是一个「故事事实树」整理
 严格输出如下 JSON（不要输出任何其它文字、不要 markdown 围栏）：
 {
   "ops": [
-    {"op":"insert","parent":"角色","title":"爱丽丝","hint":"女主","content":"……","keywords":"人物,主角"},
+    {"op":"insert","parent":"角色","title":"爱丽丝","hint":"女主","content":"……","keywords":"人物,主角","type":"character"},
     {"op":"update","path":"角色/爱丽丝","content":"追加的新事实","keywords":"新标签"},
     {"op":"archive","path":"事件/旧设定"}
   ]
 }
-insert 用 parent(父路径)+title 定位；update/archive 用 path(全路径)定位。父类目不存在时会自动创建。`;
+insert 用 parent(父路径)+title 定位；update/archive 用 path(全路径)定位。父类目不存在时会自动创建。
+insert 请尽量带 type 标注实体类型，可选值：character(角色)/location(地点)/item(物品)/event(事件)。`;
 
 /** 组装 AI 填树请求的 messages（systemPrompt 缺省用内置默认，UI 可传用户改过的版本） */
 export function buildTreeFillMessages(
@@ -225,6 +229,7 @@ export function applyTreeOps(
           hint: op.hint ?? '',
           content: appendToSection('', opts.sectionLabel, op.content ?? ''),
           tags: toTags(op.keywords),
+          ...(isStoryNodeType(op.type) ? { type: op.type } : {}),
         });
         cur = next;
         void node;
