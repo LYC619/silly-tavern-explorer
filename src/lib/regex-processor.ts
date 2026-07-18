@@ -184,7 +184,7 @@ export function convertMessagesToTxt(
     }
     
     // 应用正则规则
-    let content = applyRegexRules(message.content, rules, isUser);
+    const content = applyRegexRules(message.content, rules, isUser);
     
     // 跳过空内容
     if (!content.trim()) continue;

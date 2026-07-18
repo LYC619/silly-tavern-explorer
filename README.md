@@ -1,10 +1,10 @@
-# ST 聊天记录处理器 v0.14.0
+# ST 聊天记录处理器 v0.16.1
 
 SillyTavern Chat Beautifier - 将 SillyTavern 的聊天记录转换为精美格式，支持编辑、书架管理、世界书编辑、角色卡编辑、预设编辑和 AI 辅助功能。
 
 [![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https://github.com/LYC619/silly-tavern-explorer)
 
-> 🔒 **隐私安全**：所有数据完全保存在本地浏览器，不会上传到任何服务器。
+> 🔒 **隐私安全**：业务数据（聊天记录、世界书、角色卡、预设、总结、书架等）默认保存在本地浏览器，不上传任何服务器。仅当你主动使用 AI 功能时，才会把所选内容（如选中的聊天/世界书/提示词）发送到**你自己配置**的第三方 API 提供商；API Key 也仅明文保存在本地浏览器（不等于加密，同源脚本可读），请确保接口地址与密钥属于同一可信提供商。
 
 ## 🧭 这是什么
 
