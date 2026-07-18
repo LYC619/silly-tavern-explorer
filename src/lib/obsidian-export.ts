@@ -12,7 +12,7 @@ import { childrenOf, nodePath } from '@/lib/story-tree-model';
 /** YAML 值转义：含特殊字符时加引号 */
 function yamlValue(v: string): string {
   if (v === '') return '""';
-  if (/[:#\[\]{}",&*?|<>=!%@`\n]/.test(v)) {
+  if (/[:#[\]{}",&*?|<>=!%@`\n]/.test(v)) {
     return `"${v.replace(/"/g, '\\"')}"`;
   }
   return v;

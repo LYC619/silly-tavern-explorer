@@ -290,7 +290,7 @@ const StoryTree = () => {
     applyNodes(next);
   };
   const toggleCollapse = (id: string) => {
-    setCollapsed((c) => { const n = new Set(c); n.has(id) ? n.delete(id) : n.add(id); return n; });
+    setCollapsed((c) => { const n = new Set(c); if (n.has(id)) n.delete(id); else n.add(id); return n; });
   };
 
   // 撤销/重做
@@ -320,7 +320,7 @@ const StoryTree = () => {
       if (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.isContentEditable)) return;
       if (!(e.ctrlKey || e.metaKey)) return;
       const k = e.key.toLowerCase();
-      if (k === 'z') { e.preventDefault(); e.shiftKey ? redo() : undo(); }
+      if (k === 'z') { e.preventDefault(); if (e.shiftKey) redo(); else undo(); }
       else if (k === 'y') { e.preventDefault(); redo(); }
     };
     window.addEventListener('keydown', onKey);
