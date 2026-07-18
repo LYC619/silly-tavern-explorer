@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Network, Plus, Trash2, ChevronsDownUp, ChevronsUpDown, Archive, Sparkles, Download, Wand2,
-  Search, Upload, Undo2, Redo2, ListTree, X,
+  Search, Upload, Undo2, Redo2, X,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
@@ -35,6 +35,8 @@ import {
 } from '@/lib/story-tree-db';
 import { StoryTreeView, type DropZone } from '@/components/story-tree/StoryTreeView';
 import { StoryMindmap } from '@/components/story-tree/StoryMindmap';
+import { StoryCardView } from '@/components/story-tree/StoryCardView';
+import { StoryTimeline } from '@/components/story-tree/StoryTimeline';
 import { StoryNodeEditor } from '@/components/story-tree/StoryNodeEditor';
 import { AIFillDialog } from '@/components/story-tree/AIFillDialog';
 import { storyTreeToObsidian, downloadMarkdown } from '@/lib/obsidian-export';
@@ -76,7 +78,7 @@ const StoryTree = () => {
   const [showTour, setShowTour] = useState(false);
   const [isDemo, setIsDemo] = useState(false);
   const [query, setQuery] = useState('');
-  const [viewMode, setViewMode] = useState<'tree' | 'mindmap'>('tree');
+  const [viewMode, setViewMode] = useState<'tree' | 'mindmap' | 'cards' | 'timeline'>('tree');
 
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -485,13 +487,17 @@ const StoryTree = () => {
                     <Button variant="ghost" size="icon" className="h-7 w-7" title="重做 (Ctrl+Shift+Z)" onClick={redo} disabled={!canRedo}>
                       <Redo2 className="w-4 h-4" />
                     </Button>
-                    <Button
-                      variant="ghost" size="icon" className="h-7 w-7"
-                      title={viewMode === 'tree' ? '切换到导图视图' : '切换到树视图'}
-                      onClick={() => setViewMode((m) => (m === 'tree' ? 'mindmap' : 'tree'))}
-                    >
-                      {viewMode === 'tree' ? <Network className="w-4 h-4" /> : <ListTree className="w-4 h-4" />}
-                    </Button>
+                    <Select value={viewMode} onValueChange={(v) => setViewMode(v as typeof viewMode)}>
+                      <SelectTrigger className="h-7 w-[92px] text-xs" title="切换视图">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="tree">树视图</SelectItem>
+                        <SelectItem value="mindmap">导图</SelectItem>
+                        <SelectItem value="cards">卡片</SelectItem>
+                        <SelectItem value="timeline">时间轴</SelectItem>
+                      </SelectContent>
+                    </Select>
                     {viewMode === 'tree' && (
                       <>
                         <Button variant="ghost" size="icon" className="h-7 w-7" title="全部展开" onClick={expandAll}>
@@ -543,6 +549,20 @@ const StoryTree = () => {
                     </p>
                   ) : viewMode === 'mindmap' ? (
                     <StoryMindmap forest={forest} selectedId={selectedId} onSelect={setSelectedId} />
+                  ) : viewMode === 'cards' ? (
+                    <StoryCardView
+                      nodes={nodes}
+                      selectedId={selectedId}
+                      hitIds={searchResult ? searchResult.hitIds : null}
+                      onSelect={setSelectedId}
+                    />
+                  ) : viewMode === 'timeline' ? (
+                    <StoryTimeline
+                      nodes={nodes}
+                      selectedId={selectedId}
+                      hitIds={searchResult ? searchResult.hitIds : null}
+                      onSelect={setSelectedId}
+                    />
                   ) : (
                     <StoryTreeView
                       forest={forest}

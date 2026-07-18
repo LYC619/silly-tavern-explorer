@@ -4,8 +4,10 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Pin, Archive, Trash2, Layers, Pencil } from 'lucide-react';
-import type { StoryNode } from '@/types/story-tree';
+import type { StoryNode, StoryNodeType } from '@/types/story-tree';
+import { STORY_NODE_TYPES, NODE_TYPE_LABELS, NODE_TYPE_DOT } from '@/types/story-tree';
 import { splitContentSections } from '@/lib/story-tree-ai';
 
 interface StoryNodeEditorProps {
@@ -24,14 +26,38 @@ export function StoryNodeEditor({ node, onChange, onDelete }: StoryNodeEditorPro
 
   return (
     <div className="space-y-3">
-      <div className="space-y-1">
-        <Label htmlFor="node-title" className="text-xs text-muted-foreground">标题</Label>
-        <Input
-          id="node-title"
-          value={node.title}
-          onChange={(e) => onChange({ title: e.target.value })}
-          className="h-8"
-        />
+      <div className="flex items-end gap-2">
+        <div className="space-y-1 flex-1 min-w-0">
+          <Label htmlFor="node-title" className="text-xs text-muted-foreground">标题</Label>
+          <Input
+            id="node-title"
+            value={node.title}
+            onChange={(e) => onChange({ title: e.target.value })}
+            className="h-8"
+          />
+        </div>
+        <div className="space-y-1 w-28 shrink-0">
+          <Label className="text-xs text-muted-foreground">类型</Label>
+          <Select
+            value={node.type ?? 'none'}
+            onValueChange={(v) => onChange({ type: v === 'none' ? undefined : (v as StoryNodeType) })}
+          >
+            <SelectTrigger className="h-8">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="none">未分类</SelectItem>
+              {STORY_NODE_TYPES.map((t) => (
+                <SelectItem key={t} value={t}>
+                  <span className="flex items-center gap-1.5">
+                    <span className={`w-2 h-2 rounded-full ${NODE_TYPE_DOT[t]}`} />
+                    {NODE_TYPE_LABELS[t]}
+                  </span>
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
       </div>
       <div className="space-y-1">
         <Label htmlFor="node-hint" className="text-xs text-muted-foreground">提示 / 别名（大纲里跟在标题后）</Label>

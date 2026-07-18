@@ -177,3 +177,25 @@ describe('story-tree-io JSON 导入导出', () => {
     }
   });
 });
+
+describe('节点类型系统', () => {
+  it('io：合法 type 保留、非法 type 丢弃', () => {
+    const raw = JSON.stringify({ nodes: [
+      { id: 'a', title: '甲', type: 'character' },
+      { id: 'b', title: '乙', type: 'dragon' },
+    ] });
+    const parsed = parseStoryTreeJSON(raw);
+    expect(parsed.ok).toBe(true);
+    if (parsed.ok) {
+      expect(parsed.nodes[0].type).toBe('character');
+      expect(parsed.nodes[1].type).toBeUndefined();
+    }
+  });
+
+  it('addNode：带 type 创建', () => {
+    const { node } = addNode([], null, { title: 'x', type: 'event' });
+    expect(node.type).toBe('event');
+    const { node: plain } = addNode([], null, { title: 'y' });
+    expect(plain.type).toBeUndefined();
+  });
+});
