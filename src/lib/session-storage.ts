@@ -25,6 +25,8 @@ export interface SessionPointer {
   markers: ChapterMarker[];
   /** 收藏的楼层（存 messageId，轻量个人书签，不进导出，区别于会进 TXT 标题的章节标记） */
   favorites?: string[];
+  /** 离开聊天页时顶部可见的楼层号，切回时恢复滚动位置（window 虚拟滚动切路由必回顶） */
+  lastFloor?: number;
 }
 
 // Session storage (临时，页面间导航)

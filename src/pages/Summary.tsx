@@ -216,12 +216,13 @@ const Summary = () => {
 
   useEffect(() => { reloadVolumes(); }, [reloadVolumes, savedRefresh]);
 
-  // 下一卷卷号按实际情况推断（见 inferVolumeNumber：重做同起点的卷沿用其卷号，否则 = 最大 + 1）；
-  // 起点建议 = 已有卷最大 floorEnd + 1
+  // 下一卷卷号 = 已有最大卷号 + 1；用户可在卷号输入框覆盖（volumeOverride），保存后清除回自动
   const nextVolumeNumber = useMemo(
-    () => inferVolumeNumber(priorVolumes, floorStart),
-    [priorVolumes, floorStart]
+    () => inferVolumeNumber(priorVolumes),
+    [priorVolumes]
   );
+  const [volumeOverride, setVolumeOverride] = useState<number | null>(null);
+  const effectiveVolume = volumeOverride ?? nextVolumeNumber;
   const suggestedStart = useMemo(
     () => (priorVolumes.length ? Math.max(...priorVolumes.map((v) => v.floorEnd)) + 1 : undefined),
     [priorVolumes]
@@ -274,11 +275,11 @@ const Summary = () => {
       worldbookMode: attach.worldbookMode,
       worldbookUids: attach.worldbookUids,
       priorSummaries: priors,
-      volumeNumber: kind === 'volume' ? nextVolumeNumber : undefined,
+      volumeNumber: kind === 'volume' ? effectiveVolume : undefined,
       options: { speakerPrefix: true },
     };
   }, [session, kind, priorVolumes, priorSelectedIds, floorStart, floorEnd, effectiveTemplate,
-      attach, presetMap, worldbookMap, nextVolumeNumber]);
+      attach, presetMap, worldbookMap, effectiveVolume]);
 
   // 实时 token 估算
   const tokenEstimate = useMemo(() => {
@@ -291,8 +292,8 @@ const Summary = () => {
   const batchSystemPrompt = useMemo(() => {
     if (!session) return '';
     const base = substituteVars(effectiveTemplate, session.character?.name || '角色', session.user?.name || '用户');
-    return base.replace(/\{\{volume\}\}/gi, String(nextVolumeNumber));
-  }, [session, effectiveTemplate, nextVolumeNumber]);
+    return base.replace(/\{\{volume\}\}/gi, String(effectiveVolume));
+  }, [session, effectiveTemplate, effectiveVolume]);
 
   // 批量分段（挂载模式）：对某段楼层用完整引擎组装 messages（预设/世界书与左栏一致；不带前情/卷号，避免逐段重复）
   const buildSegmentMessages = useCallback((s: number, e: number) => {
@@ -334,7 +335,7 @@ const Summary = () => {
     warnings.forEach((w) => toast({ title: '提示', description: w }));
 
     // 盖章本次生成的卷号：保存时用它，不再受 priors 变化影响（修复生成/保存各 +1 的卷号乱跳）
-    const vol = kind === 'volume' ? nextVolumeNumber : undefined;
+    const vol = kind === 'volume' ? effectiveVolume : undefined;
     setResultVolume(vol ?? null);
     setManualDraft(false);
 
@@ -407,16 +408,18 @@ const Summary = () => {
     setCurrentSummaryId(id);
     setSavedPermanent(false);
     setSavedRefresh((n) => n + 1);
+    setVolumeOverride(null); // 保存后清除手改卷号，下次回到自动顺延
   };
 
   // 手动保存 → 永久（autoSaved:false）。卷号沿用本结果的盖章卷号（无盖章才现算）
   const handleSave = async () => {
     if (!resultContent) return;
     const id = currentSummaryId ?? generateSummaryId();
-    await saveSummary(buildItem(resultContent, resultTitle || SUMMARY_KIND_LABELS[kind], false, id, resultVolume ?? nextVolumeNumber));
+    await saveSummary(buildItem(resultContent, resultTitle || SUMMARY_KIND_LABELS[kind], false, id, resultVolume ?? effectiveVolume));
     setCurrentSummaryId(id);
     setSavedPermanent(true);
     setSavedRefresh((n) => n + 1);
+    setVolumeOverride(null);
     toast({ title: '已永久保存', description: resultTitle || SUMMARY_KIND_LABELS[kind] });
   };
 
@@ -458,7 +461,10 @@ const Summary = () => {
       if (gp.templateSnapshot) setTemplateContent(gp.templateSnapshot);
       if (item.kind === 'diary') setDiaryOwner(gp.diaryOwner ?? '');
     }
-    setCurrentSummaryId(null); // 生成为新条目（卷号由起始楼层匹配自动沿用原卷）
+    setCurrentSummaryId(null); // 生成为新条目
+    if (item.kind === 'volume' && item.volumeNumber != null) {
+      setVolumeOverride(item.volumeNumber); // 重做该卷：沿用原卷号（输入框可再改）
+    }
     setSavedPermanent(false);
     toast({ title: '已回填设置', description: '楼层/挂载/模板已按原条目填好，点「生成」即可重做' });
     document.querySelector('[data-tour="summary-template"]')?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
@@ -614,13 +620,33 @@ const Summary = () => {
                       onTemplatesChanged={() => reloadTemplates(kind, templateId)}
                     />
                     <div className="flex items-center gap-2">
+                      {kind === 'volume' && (
+                        <div
+                          className="flex items-center gap-1 shrink-0"
+                          title="本次生成的卷号：默认 = 已有最大卷号 + 1，可直接改"
+                        >
+                          <Label htmlFor="volume-num" className="text-xs text-muted-foreground">第</Label>
+                          <Input
+                            id="volume-num"
+                            type="number"
+                            min={1}
+                            value={effectiveVolume}
+                            onChange={(e) => {
+                              const n = parseInt(e.target.value, 10);
+                              setVolumeOverride(Number.isFinite(n) && n >= 1 ? n : null);
+                            }}
+                            className="h-9 w-16 text-center"
+                          />
+                          <Label htmlFor="volume-num" className="text-xs text-muted-foreground">卷</Label>
+                        </div>
+                      )}
                       {!streaming ? (
-                        <Button className="w-full gap-2" onClick={handleGenerate} disabled={floorCount === 0}>
+                        <Button className="flex-1 gap-2" onClick={handleGenerate} disabled={floorCount === 0}>
                           <Sparkles className="w-4 h-4" />
-                          {kind === 'volume' ? `生成第 ${nextVolumeNumber} 卷（${floorCount} 楼）` : `生成（${floorCount} 楼）`}
+                          {kind === 'volume' ? `生成第 ${effectiveVolume} 卷（${floorCount} 楼）` : `生成（${floorCount} 楼）`}
                         </Button>
                       ) : (
-                        <Button variant="destructive" className="w-full gap-2" onClick={handleStop}>
+                        <Button variant="destructive" className="flex-1 gap-2" onClick={handleStop}>
                           <Square className="w-4 h-4" />停止生成
                           <Loader2 className="w-4 h-4 animate-spin" />
                         </Button>

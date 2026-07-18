@@ -150,16 +150,13 @@ export function buildPriorBlock(priors: SummaryItem[]): string {
 }
 
 /**
- * 按「实际情况」推断本次生成的卷号：起始楼层与已有某卷一致 → 视为重做该卷（沿用其卷号）；
- * 否则 = 已有最大卷号 + 1。卷号由楼层范围与已存分卷决定，而非生成/保存的操作次数
- * （旧逻辑每次生成、保存都会 +1，卷号脱离实际）。
+ * 下一卷卷号 = 已有最大卷号 + 1（无已存卷 → 1）。
+ * 旧版把「起始楼层相同」视为重做同卷并沿用其卷号，实测反直觉：用户生成第一卷后不改楼层
+ * 再点生成，得到的还是"第一卷"。现在永远顺延；重做某卷/自定义号时在页面的卷号输入框手改。
  */
 export function inferVolumeNumber(
-  priorVolumes: Pick<SummaryItem, 'volumeNumber' | 'floorStart'>[],
-  floorStart: number
+  priorVolumes: Pick<SummaryItem, 'volumeNumber'>[]
 ): number {
-  const matched = priorVolumes.find((v) => v.floorStart === floorStart && v.volumeNumber != null);
-  if (matched) return matched.volumeNumber!;
   return priorVolumes.length
     ? Math.max(...priorVolumes.map((v) => v.volumeNumber ?? 0)) + 1
     : 1;

@@ -284,22 +284,21 @@ describe('buildPriorBlock', () => {
   });
 });
 
-describe('inferVolumeNumber（卷号按实际情况推断）', () => {
+describe('inferVolumeNumber（下一卷 = 已有最大卷号 + 1）', () => {
   const vols = [
-    { volumeNumber: 1, floorStart: 0 },
-    { volumeNumber: 2, floorStart: 50 },
+    { volumeNumber: 1 },
+    { volumeNumber: 2 },
   ];
   it('无已有卷 → 第 1 卷', () => {
-    expect(inferVolumeNumber([], 0)).toBe(1);
+    expect(inferVolumeNumber([])).toBe(1);
   });
-  it('新起点（续写）→ 最大卷号 + 1', () => {
-    expect(inferVolumeNumber(vols, 100)).toBe(3);
+  it('已有 1、2 卷 → 第 3 卷（不再按起始楼层判定"重做同卷"，重做时用户手改卷号）', () => {
+    expect(inferVolumeNumber(vols)).toBe(3);
   });
-  it('起点与已有卷一致 → 重做该卷，沿用卷号（生成/保存不再各自 +1）', () => {
-    expect(inferVolumeNumber(vols, 0)).toBe(1);
-    expect(inferVolumeNumber(vols, 50)).toBe(2);
+  it('卷号乱序/有跳号也取最大 + 1', () => {
+    expect(inferVolumeNumber([{ volumeNumber: 5 }, { volumeNumber: 2 }])).toBe(6);
   });
-  it('已有卷缺 volumeNumber 时按 0 参与 max，不匹配起点', () => {
-    expect(inferVolumeNumber([{ volumeNumber: undefined, floorStart: 0 }], 0)).toBe(1);
+  it('已有卷缺 volumeNumber 时按 0 参与 max', () => {
+    expect(inferVolumeNumber([{ volumeNumber: undefined }])).toBe(1);
   });
 });

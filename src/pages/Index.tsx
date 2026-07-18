@@ -26,6 +26,8 @@ import {
   loadSettings,
 } from '@/lib/session-storage';
 import { SettingsPanel } from '@/components/SettingsPanel';
+import { APP_VERSION } from '@/components/GlobalSettings';
+import { applyRegexRules } from '@/lib/regex-processor';
 import { useToast } from '@/hooks/use-toast';
 import { ToastAction } from '@/components/ui/toast';
 
@@ -68,6 +70,8 @@ const Index = () => {
   const [currentFloorMsgId, setCurrentFloorMsgId] = useState<string | null>(null);
   const [floorCount, setFloorCount] = useState(0);
   const [floorMap, setFloorMap] = useState<Map<string, number>>(new Map());
+  // 从指针恢复会话时待跳转的楼层号；等 ChatPreview 首次上报楼层映射后消费一次
+  const pendingRestoreFloorRef = useRef<number | null>(null);
   // 全文搜索
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResult, setSearchResult] = useState({ total: 0, current: 0 });
@@ -131,6 +135,10 @@ const Index = () => {
           setMarkers(pointer.markers ?? []);
           setFavorites(pointer.favorites ?? []);
           setCurrentBookId(pointer.currentBookId);
+          // 记下离开时的楼层，等虚拟列表挂载后恢复一次（切路由页面整棵卸载，滚动必回顶）
+          if (typeof pointer.lastFloor === 'number' && pointer.lastFloor > 0) {
+            pendingRestoreFloorRef.current = pointer.lastFloor;
+          }
         });
         return () => { cancelled = true; };
       }
@@ -171,11 +179,23 @@ const Index = () => {
     if (session) {
       if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
       saveTimerRef.current = setTimeout(() => {
-        saveSessionPointer({ currentBookId, markers, favorites });
+        saveSessionPointer({ currentBookId, markers, favorites, lastFloor: currentFloor });
       }, 500);
     }
     return () => { if (saveTimerRef.current) clearTimeout(saveTimerRef.current); };
-  }, [session, markers, currentBookId, favorites]);
+  }, [session, markers, currentBookId, favorites, currentFloor]);
+
+  // 恢复滚动位置：楼层映射首次就绪（虚拟列表已挂载）后跳一次，
+  // 稍作延迟等首帧布局/scrollMargin 测量稳定，否则 scrollToIndex 会落点偏移。
+  useEffect(() => {
+    const floor = pendingRestoreFloorRef.current;
+    if (floor == null || floorCount === 0) return;
+    pendingRestoreFloorRef.current = null;
+    const t = setTimeout(() => {
+      previewRef.current?.scrollToFloor(Math.min(floor, floorCount - 1));
+    }, 150);
+    return () => clearTimeout(t);
+  }, [floorCount]);
 
   // 保存设置变更到 localStorage
   useEffect(() => {
@@ -462,6 +482,48 @@ const Index = () => {
     setEditMode(!editMode);
   };
 
+  // 正则「应用到原文」：把当前启用规则的处理结果写回消息原文（含 rawData.mes，保证导回 ST 也生效），
+  // 书架自动同步随 setSession 落库；应用后自动停用这些规则，避免对已处理文本二次套用。
+  const handleApplyRegexToOriginal = () => {
+    if (!session) return;
+    const activeRules = settings.regexRules.filter(r => !r.disabled);
+    if (activeRules.length === 0) {
+      toast({ title: '没有已启用的正则规则', variant: 'destructive' });
+      return;
+    }
+    const prevMessages = session.messages;
+    const prevRules = settings.regexRules;
+    let changed = 0;
+    const nextMessages = session.messages.map(msg => {
+      const next = applyRegexRules(msg.content, activeRules, msg.role === 'user').trim();
+      if (next === msg.content) return msg;
+      changed++;
+      return {
+        ...msg,
+        content: next,
+        rawData: msg.rawData ? { ...msg.rawData, mes: next } : msg.rawData,
+      };
+    });
+    if (changed === 0) {
+      toast({ title: '没有需要修改的楼层', description: '当前启用的规则对原文没有产生改动' });
+      return;
+    }
+    setSession({ ...session, messages: nextMessages });
+    setSettings({ ...settings, regexRules: prevRules.map(r => (r.disabled ? r : { ...r, disabled: true })) });
+    toast({
+      title: `已将正则结果写入 ${changed} 个楼层的原文`,
+      description: '用过的规则已自动停用；书架与导出均使用新文本',
+      action: (
+        <ToastAction altText="撤销应用" onClick={() => {
+          setSession(cur => (cur ? { ...cur, messages: prevMessages } : cur));
+          setSettings(cur => ({ ...cur, regexRules: prevRules }));
+        }}>
+          撤销
+        </ToastAction>
+      ),
+    });
+  };
+
   const selectedMarker = selectedMessage 
     ? markers.find(m => m.messageId === selectedMessage.id)
     : undefined;
@@ -632,6 +694,7 @@ const Index = () => {
                 sampleMessages={session.messages}
                 onPreviewChange={setPreviewRule}
                 previewId={previewRule?.id ?? null}
+                onApplyToOriginal={handleApplyRegexToOriginal}
               />
             </div>
           </div>
@@ -681,7 +744,7 @@ const Index = () => {
 
       {/* Footer */}
       <footer className="border-t border-border py-6 text-center text-sm text-muted-foreground flex-shrink-0">
-        <p>ST 聊天记录处理器 v0.10.2</p>
+        <p>ST 聊天记录处理器 {APP_VERSION}</p>
         <p className="mt-1">
           <a href="https://github.com/LYC619/silly-tavern-explorer" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">GitHub</a>
           {' · MIT License'}

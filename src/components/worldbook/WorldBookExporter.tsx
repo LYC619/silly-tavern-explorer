@@ -1,4 +1,4 @@
-import { Download } from 'lucide-react';
+import { Upload } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import type { WorldBook } from '@/types/worldbook';
 import { exportWorldBook } from '@/types/worldbook';
@@ -22,7 +22,7 @@ export function WorldBookExporter({ worldbook, filename = 'worldbook' }: Props) 
 
   return (
     <Button variant="outline" size="sm" onClick={handleExport}>
-      <Download className="w-4 h-4 mr-2" />
+      <Upload className="w-4 h-4 mr-2" />
       导出世界书
     </Button>
   );

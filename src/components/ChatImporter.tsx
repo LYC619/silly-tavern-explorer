@@ -1,5 +1,5 @@
 import { useState, useCallback, useEffect } from 'react';
-import { Upload, FileText, AlertCircle } from 'lucide-react';
+import { Download, FileText, AlertCircle } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
@@ -82,8 +82,8 @@ export function ChatImporter({ onImport }: ChatImporterProps) {
   const [pendingTxtFile, setPendingTxtFile] = useState<File | null>(null);
   const [txtFormat, setTxtFormat] = useState<TxtFormat>('dialogue');
   const [dialogueUserName, setDialogueUserName] = useState('User');
-  /** TXT 预扫描出的全部说话人姓名；由用户在弹窗里选择哪个是用户，其余归 assistant */
-  const [txtSpeakers, setTxtSpeakers] = useState<string[]>([]);
+  /** TXT 对话导入的角色名（Assistant）。与用户名一样从文件开头预扫描自动填入，最终以输入框里的值为准 */
+  const [dialogueCharName, setDialogueCharName] = useState('AI');
 
   const parseJsonl = (content: string): { messages: ChatMessage[]; metadata?: STMetadata } => {
     const lines = content.trim().split('\n');
@@ -168,8 +168,8 @@ export function ChatImporter({ onImport }: ChatImporterProps) {
     }));
   };
 
-  // txtUserName 由确认弹窗显式传入，不读 state——useCallback 闭包里的 state 是打开弹窗前的旧值
-  const processFile = useCallback(async (file: File, forceTxtFormat?: TxtFormat, txtUserName?: string) => {
+  // txtUserName/txtCharName 由确认弹窗显式传入，不读 state——useCallback 闭包里的 state 是打开弹窗前的旧值
+  const processFile = useCallback(async (file: File, forceTxtFormat?: TxtFormat, txtUserName?: string, txtCharName?: string) => {
     setError(null);
     try {
       // Handle PNG character cards
@@ -224,18 +224,19 @@ export function ChatImporter({ onImport }: ChatImporterProps) {
         } catch {
           // It's a real TXT file, ask for format
           setPendingTxtFile(file);
-          // 预扫描全部说话人，让用户在弹窗中选择哪个是用户（不预设「第一个是用户」）
+          // ponytail: 预扫描只取前两位说话人做默认值——ST 导出首楼通常是角色开场白，
+          // 故第 1 位预填角色、第 2 位预填用户；猜反了用户在输入框里对调即可，最终以输入框为准。
           const speakers = scanTxtSpeakers(content);
-          setTxtSpeakers(speakers);
-          setDialogueUserName(speakers.length > 0 ? '' : 'User');
+          setDialogueCharName(speakers[0] ?? 'AI');
+          setDialogueUserName(speakers[1] ?? 'User');
           setTxtFormatDialog(true);
           return;
         }
       } else if (isTxt && forceTxtFormat) {
         if (forceTxtFormat === 'dialogue') {
-          txtUser = txtUserName || 'User';
+          txtUser = txtUserName?.trim() || 'User';
           messages = parseTxtDialogue(content, txtUser);
-          txtChar = scanTxtSpeakers(content).find(n => n !== txtUser);
+          txtChar = txtCharName?.trim() || scanTxtSpeakers(content).find(n => n !== txtUser);
         } else {
           messages = parseTxtNovel(content);
         }
@@ -319,8 +320,8 @@ export function ChatImporter({ onImport }: ChatImporterProps) {
   const handleTxtFormatConfirm = () => {
     setTxtFormatDialog(false);
     if (pendingTxtFile) {
-      // 把当前选择的用户名显式传给解析，避免 useCallback 闭包用到旧值
-      processFile(pendingTxtFile, txtFormat, dialogueUserName);
+      // 把两个输入框的值显式传给解析，避免 useCallback 闭包用到旧值
+      processFile(pendingTxtFile, txtFormat, dialogueUserName, dialogueCharName);
       setPendingTxtFile(null);
     }
   };
@@ -349,7 +350,7 @@ export function ChatImporter({ onImport }: ChatImporterProps) {
       >
         <div className="flex flex-col items-center justify-center gap-4 text-center">
           <div className={`p-4 rounded-full transition-colors ${isDragging ? 'bg-primary/20' : 'bg-secondary'}`}>
-            <Upload className={`w-8 h-8 transition-colors ${isDragging ? 'text-primary' : 'text-muted-foreground'}`} />
+            <Download className={`w-8 h-8 transition-colors ${isDragging ? 'text-primary' : 'text-muted-foreground'}`} />
           </div>
           <div className="space-y-2">
             <h3 className="font-display text-xl font-semibold">导入聊天记录</h3>
@@ -395,36 +396,32 @@ export function ChatImporter({ onImport }: ChatImporterProps) {
               </div>
             </div>
             {txtFormat === 'dialogue' && (
-              <div className="space-y-3 pl-4 border-l-2 border-border ml-3">
-                {txtSpeakers.length > 0 ? (
+              <div className="space-y-2 pl-4 border-l-2 border-border ml-3">
+                <div className="grid grid-cols-2 gap-3">
                   <div className="space-y-1">
-                    <Label className="text-xs">检测到以下说话人，请选择哪个是用户（你）</Label>
-                    <RadioGroup value={dialogueUserName} onValueChange={setDialogueUserName} className="space-y-1">
-                      {txtSpeakers.map((name) => (
-                        <div key={name} className="flex items-center gap-2">
-                          <RadioGroupItem value={name} id={`speaker-${name}`} />
-                          <Label htmlFor={`speaker-${name}`} className="cursor-pointer text-sm font-normal">{name}</Label>
-                        </div>
-                      ))}
-                    </RadioGroup>
-                    <p className="text-xs text-muted-foreground">
-                      其余说话人一律作为角色（assistant），每楼保留其原始姓名
-                    </p>
-                  </div>
-                ) : (
-                  <div className="space-y-1">
-                    <Label className="text-xs">用户名称（匹配此名称的行设为 user）</Label>
+                    <Label htmlFor="txt-user-name" className="text-xs">User 用户名（你）</Label>
                     <Input
+                      id="txt-user-name"
                       value={dialogueUserName}
                       onChange={(e) => setDialogueUserName(e.target.value)}
                       placeholder="User"
                       className="h-8"
                     />
-                    <p className="text-xs text-muted-foreground">
-                      未从文件中检测到「姓名: 内容」样式的说话人，可手动指定
-                    </p>
                   </div>
-                )}
+                  <div className="space-y-1">
+                    <Label htmlFor="txt-char-name" className="text-xs">Assistant 角色名</Label>
+                    <Input
+                      id="txt-char-name"
+                      value={dialogueCharName}
+                      onChange={(e) => setDialogueCharName(e.target.value)}
+                      placeholder="AI"
+                      className="h-8"
+                    />
+                  </div>
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  已从文件开头自动识别，认反了可直接改。姓名与 User 一致的行归为用户消息，其余楼层保留原始姓名并归为角色。
+                </p>
               </div>
             )}
             <div className="flex items-start gap-3 p-3 rounded-lg border border-border hover:bg-accent/50 cursor-pointer" onClick={() => setTxtFormat('novel')}>
@@ -442,7 +439,7 @@ export function ChatImporter({ onImport }: ChatImporterProps) {
             <Button variant="outline" onClick={() => { setTxtFormatDialog(false); setPendingTxtFile(null); }}>取消</Button>
             <Button
               onClick={handleTxtFormatConfirm}
-              disabled={txtFormat === 'dialogue' && txtSpeakers.length > 0 && !dialogueUserName}
+              disabled={txtFormat === 'dialogue' && !dialogueUserName.trim()}
             >确认导入</Button>
           </DialogFooter>
         </DialogContent>

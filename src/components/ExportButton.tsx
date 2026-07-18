@@ -1,5 +1,5 @@
 import { useState, useMemo } from 'react';
-import { Download, FileText, FileJson } from 'lucide-react';
+import { Upload, FileText, FileJson } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -261,7 +261,7 @@ export function ExportButton({ session, settings, markers = [], onSettingsChange
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
         <Button className="gold-gradient text-primary-foreground" data-tour="export-button">
-          <Download className="w-4 h-4 mr-2" />
+          <Upload className="w-4 h-4 mr-2" />
           导出
         </Button>
       </DialogTrigger>

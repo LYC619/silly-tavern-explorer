@@ -278,9 +278,12 @@ describe('preview helpers', () => {
   it('substituteVars replaces {{char}}/{{user}} case-insensitively', () => {
     expect(substituteVars('{{char}} and {{USER}}', 'Seraphina', 'Alex')).toBe('Seraphina and Alex');
   });
-  it('estimateTokens ~len/4', () => {
+  it('estimateTokens CJK≈1字1token、其余≈4字符1token', () => {
     expect(estimateTokens('abcd')).toBe(1);
     expect(estimateTokens('')).toBe(0);
+    expect(estimateTokens('你好世界')).toBe(4); // 纯中文按字数计
+    expect(estimateTokens('你好ab')).toBe(3); // 2 CJK + ceil(2/4)
+    expect(estimateTokens('，。')).toBe(2); // 全角标点按 CJK 计
   });
   it('detectSourceModel resolves source-specific model', () => {
     const { source, model } = detectSourceModel({ chat_completion_source: 'openai', openai_model: 'gpt-4o' });

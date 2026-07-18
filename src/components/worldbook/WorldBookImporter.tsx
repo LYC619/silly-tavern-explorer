@@ -1,5 +1,5 @@
 import { useRef, useState } from 'react';
-import { Upload } from 'lucide-react';
+import { Download } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
   AlertDialog,
@@ -72,7 +72,7 @@ export function WorldBookImporter({ onImport, onAppend, hasExisting }: Props) {
     <>
       <input ref={inputRef} type="file" accept=".json" className="hidden" onChange={handleFile} />
       <Button variant="outline" size="sm" onClick={() => inputRef.current?.click()}>
-        <Upload className="w-4 h-4 mr-2" />
+        <Download className="w-4 h-4 mr-2" />
         导入
       </Button>
 

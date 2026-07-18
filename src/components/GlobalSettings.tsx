@@ -27,7 +27,7 @@ import { getAllBooks } from '@/lib/bookshelf-db';
 import { getAllWorldBooks } from '@/lib/worldbook-db';
 import { resetAllTours } from '@/lib/tour-steps';
 
-export const APP_VERSION = 'v0.16.1';
+export const APP_VERSION = 'v0.17.0';
 
 interface StorageDetail {
   label: string;
@@ -251,7 +251,7 @@ export function GlobalSettings({ onDataChanged, ...props }: GlobalSettingsProps)
                   onClick={handleExport}
                   disabled={loading}
                 >
-                  <Download className="w-4 h-4" />
+                  <Upload className="w-4 h-4" />
                   导出完整备份
                 </Button>
 
@@ -271,7 +271,7 @@ export function GlobalSettings({ onDataChanged, ...props }: GlobalSettingsProps)
                     disabled={loading}
                   >
                     <span>
-                      <Upload className="w-4 h-4" />
+                      <Download className="w-4 h-4" />
                       从备份恢复
                     </span>
                   </Button>

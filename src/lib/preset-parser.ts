@@ -217,9 +217,16 @@ export function substituteVars(text: string, charName: string, userName: string)
     .replace(/\{\{user\}\}/gi, userName);
 }
 
-/** 粗略 token 估算（~4 chars/token，仅供参考） */
+/**
+ * 粗略 token 估算（仅供参考，无 tokenizer 依赖）：
+ * CJK（汉字/假名/谚文）按 ~1 字 1 token，其余字符按 ~4 字符 1 token。
+ * 纯 len/4 对中文会低估 3~4 倍，中文世界书/预设的预算参考意义全无，故分开计。
+ */
 export function estimateTokens(text: string): number {
-  return Math.ceil((text?.length ?? 0) / 4);
+  if (!text) return 0;
+  // \u3000-\u9FFF CJK标点/假名/汉字+ExtA；\uF900-\uFAFF 兼容汉字；\uAC00-\uD7AF 谚文；\uFF00-\uFFEF 全角标点
+  const cjk = text.match(/[\u3000-\u9fff\uf900-\ufaff\uac00-\ud7af\uff00-\uffef]/g)?.length ?? 0;
+  return cjk + Math.ceil((text.length - cjk) / 4);
 }
 
 /** 取当前角色组的 order */

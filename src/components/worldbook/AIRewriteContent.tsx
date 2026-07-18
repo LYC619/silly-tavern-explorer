@@ -1,8 +1,17 @@
-import { useState, useRef } from 'react';
-import { Wand2, Loader2, StopCircle } from 'lucide-react';
+import { useState, useRef, useMemo } from 'react';
+import { Wand2, Loader2, StopCircle, Check, X } from 'lucide-react';
+import { diffChars } from 'diff';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
 import { useToast } from '@/hooks/use-toast';
 import { callOpenAI, loadAPIConfig } from '@/components/ai-tools';
 
@@ -30,17 +39,25 @@ interface Props {
   title?: string;
 }
 
-/** 通用 AI 改写：输入要求 → 喂当前内容+要求 → 直接替换内容。世界书条目 / 预设块等均可复用 */
+/** 通用 AI 改写：输入要求 → 喂当前内容+要求 → 左右对照确认后替换。世界书条目 / 预设块等均可复用 */
 export function AIRewriteContent({ content, onResult, compact, systemPrompt, quickPresets, title }: Props) {
   const { toast } = useToast();
   const [open, setOpen] = useState(false);
   const [instruction, setInstruction] = useState('');
   const [loading, setLoading] = useState(false);
+  // AI 改写结果：先进对照弹窗由用户确认，不直接替换
+  const [pendingResult, setPendingResult] = useState<string | null>(null);
   const abortRef = useRef<AbortController | null>(null);
 
   const sysPrompt = systemPrompt ?? WB_SYSTEM_PROMPT;
   const presets = quickPresets ?? WB_PRESETS;
   const popTitle = title ?? 'AI 改写本条内容';
+
+  // 对照高亮：字符级 diff，左侧标删除、右侧标新增（中文按字比对比按词准）
+  const diffParts = useMemo(
+    () => (pendingResult == null ? [] : diffChars(content, pendingResult)),
+    [content, pendingResult]
+  );
 
   const run = async () => {
     const config = loadAPIConfig();
@@ -65,10 +82,7 @@ export function AIRewriteContent({ content, onResult, compact, systemPrompt, qui
       await callOpenAI(config, userContent, sysPrompt, (chunk) => { acc += chunk; }, controller.signal);
       const result = acc.replace(/^```[a-z]*\s*\n?/i, '').replace(/\n?```\s*$/i, '').trim();
       if (result) {
-        onResult(result);
-        toast({ title: 'AI 已改写', description: '可继续编辑或 Ctrl+Z 撤销' });
-        setOpen(false);
-        setInstruction('');
+        setPendingResult(result); // 进对照弹窗，由用户决定是否替换
       } else {
         toast({ title: 'AI 未返回内容', description: '请调整要求后重试', variant: 'destructive' });
       }
@@ -81,55 +95,118 @@ export function AIRewriteContent({ content, onResult, compact, systemPrompt, qui
     }
   };
 
+  const handleApply = () => {
+    if (pendingResult == null) return;
+    onResult(pendingResult);
+    toast({ title: '已替换内容', description: '可继续编辑或 Ctrl+Z 撤销' });
+    setPendingResult(null);
+    setOpen(false);
+    setInstruction('');
+  };
+
   return (
-    <Popover open={open} onOpenChange={(o) => { if (!loading) setOpen(o); }}>
-      <PopoverTrigger asChild>
-        <Button
-          type="button"
-          variant="ghost"
-          size="sm"
-          className={compact ? 'h-6 px-2 text-xs text-muted-foreground hover:text-foreground' : 'h-7 px-2 text-xs'}
-          title="用 AI 改写当前内容"
-        >
-          <Wand2 className="w-3.5 h-3.5 mr-1" /> AI 改写
-        </Button>
-      </PopoverTrigger>
-      <PopoverContent className="w-80" align="end">
-        <div className="space-y-2">
-          <p className="text-xs font-medium">{popTitle}</p>
-          <Textarea
-            value={instruction}
-            onChange={(e) => setInstruction(e.target.value)}
-            placeholder="填写改写要求，如：优化措辞 / 精简 / 扩写 / 改成第三人称…"
-            className="text-xs min-h-[60px]"
-          />
-          <div className="flex flex-wrap gap-1">
-            {presets.map((p) => (
-              <button
-                key={p}
-                type="button"
-                onClick={() => setInstruction(p)}
-                className="text-[10px] px-1.5 py-0.5 rounded border border-border text-muted-foreground hover:bg-accent"
-              >
-                {p.slice(0, 6)}
-              </button>
-            ))}
+    <>
+      <Popover open={open} onOpenChange={(o) => { if (!loading) setOpen(o); }}>
+        <PopoverTrigger asChild>
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            className={compact ? 'h-6 px-2 text-xs text-muted-foreground hover:text-foreground' : 'h-7 px-2 text-xs'}
+            title="用 AI 改写当前内容"
+          >
+            <Wand2 className="w-3.5 h-3.5 mr-1" /> AI 改写
+          </Button>
+        </PopoverTrigger>
+        <PopoverContent className="w-80" align="end">
+          <div className="space-y-2">
+            <p className="text-xs font-medium">{popTitle}</p>
+            <Textarea
+              value={instruction}
+              onChange={(e) => setInstruction(e.target.value)}
+              placeholder="填写改写要求，如：优化措辞 / 精简 / 扩写 / 改成第三人称…"
+              className="text-xs min-h-[60px]"
+            />
+            <div className="flex flex-wrap gap-1">
+              {presets.map((p) => (
+                <button
+                  key={p}
+                  type="button"
+                  onClick={() => setInstruction(p)}
+                  className="text-[10px] px-1.5 py-0.5 rounded border border-border text-muted-foreground hover:bg-accent"
+                >
+                  {p.slice(0, 6)}
+                </button>
+              ))}
+            </div>
+            <div className="flex items-center gap-2">
+              {!loading ? (
+                <Button size="sm" className="h-7 text-xs gap-1" onClick={run}>
+                  <Wand2 className="w-3.5 h-3.5" /> 生成改写
+                </Button>
+              ) : (
+                <Button size="sm" variant="destructive" className="h-7 text-xs gap-1" onClick={() => abortRef.current?.abort()}>
+                  <StopCircle className="w-3.5 h-3.5" /> 停止
+                </Button>
+              )}
+              {loading && <Loader2 className="w-4 h-4 animate-spin text-muted-foreground" />}
+            </div>
+            <p className="text-[10px] text-muted-foreground">生成后先左右对照确认，不会直接替换</p>
           </div>
-          <div className="flex items-center gap-2">
-            {!loading ? (
-              <Button size="sm" className="h-7 text-xs gap-1" onClick={run}>
-                <Wand2 className="w-3.5 h-3.5" /> 改写并替换
-              </Button>
-            ) : (
-              <Button size="sm" variant="destructive" className="h-7 text-xs gap-1" onClick={() => abortRef.current?.abort()}>
-                <StopCircle className="w-3.5 h-3.5" /> 停止
-              </Button>
-            )}
-            {loading && <Loader2 className="w-4 h-4 animate-spin text-muted-foreground" />}
+        </PopoverContent>
+      </Popover>
+
+      {/* 对照确认弹窗：左=当前内容（标删除），右=AI 结果（标新增） */}
+      <Dialog open={pendingResult != null} onOpenChange={(o) => { if (!o) setPendingResult(null); }}>
+        <DialogContent className="max-w-3xl max-h-[85vh] flex flex-col">
+          <DialogHeader>
+            <DialogTitle>对照确认改写结果</DialogTitle>
+            <DialogDescription>
+              左侧为当前内容（红色为将被删除的部分），右侧为 AI 改写结果（绿色为新增部分）。确认无误再替换。
+            </DialogDescription>
+          </DialogHeader>
+          <div className="flex gap-3 flex-1 min-h-0 flex-wrap">
+            <div className="flex-1 basis-[240px] min-w-0 flex flex-col min-h-0">
+              <p className="text-xs font-medium text-muted-foreground mb-1">当前内容</p>
+              <div className="flex-1 min-h-0 max-h-[50vh] overflow-y-auto rounded-md border border-border bg-muted/30 p-2.5 text-xs whitespace-pre-wrap leading-relaxed">
+                {diffParts.map((part, i) =>
+                  part.added ? null : (
+                    <span
+                      key={i}
+                      className={part.removed ? 'bg-destructive/15 text-destructive line-through decoration-destructive/60' : undefined}
+                    >
+                      {part.value}
+                    </span>
+                  )
+                )}
+              </div>
+            </div>
+            <div className="flex-1 basis-[240px] min-w-0 flex flex-col min-h-0">
+              <p className="text-xs font-medium text-muted-foreground mb-1">AI 改写结果</p>
+              <div className="flex-1 min-h-0 max-h-[50vh] overflow-y-auto rounded-md border border-primary/30 bg-primary/5 p-2.5 text-xs whitespace-pre-wrap leading-relaxed">
+                {diffParts.map((part, i) =>
+                  part.removed ? null : (
+                    <span
+                      key={i}
+                      className={part.added ? 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-400' : undefined}
+                    >
+                      {part.value}
+                    </span>
+                  )
+                )}
+              </div>
+            </div>
           </div>
-          <p className="text-[10px] text-muted-foreground">改写后直接替换内容，可用 Ctrl+Z 撤销</p>
-        </div>
-      </PopoverContent>
-    </Popover>
+          <DialogFooter className="gap-2">
+            <Button variant="outline" size="sm" className="gap-1" onClick={() => setPendingResult(null)}>
+              <X className="w-3.5 h-3.5" /> 放弃（回到要求编辑）
+            </Button>
+            <Button size="sm" className="gap-1" onClick={handleApply}>
+              <Check className="w-3.5 h-3.5" /> 应用替换
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </>
   );
 }

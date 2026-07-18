@@ -30,26 +30,32 @@ export interface TreeOp {
 }
 
 /** 默认填树 system prompt（UI 允许用户查看/修改，改后仍需保持 JSON ops 输出约定） */
-export const DEFAULT_TREE_FILL_PROMPT = `你是一个「故事事实树」整理助手。用户会给你一段角色扮演聊天记录，以及当前已有的事实树结构。
-你的任务：从聊天记录中提炼**客观事实**（人物、事件、关系、地点、物品等），整理成对树的增量操作。
+export const DEFAULT_TREE_FILL_PROMPT = `你是「SillyTavern 聊天记录归档工具」的故事树整理助手。故事树是一份长期档案：把角色扮演聊天里的客观设定与剧情事实按 角色/地点/物品/事件 分类沉淀，供玩家回顾与续写时查阅。
+用户会给你：当前故事树大纲 + 一段楼层聊天记录（可能是全书中段，前文事实多半已在树里）。
+你的任务：输出对树的**增量操作**——只补新信息，绝不复述树里已有的事实。
 
-规则：
-- **一个实体 = 一个节点**，绝不把多个角色/事件塞进一个节点。
-- 同类节点归到共享父类目下（如「角色/爱丽丝」「事件/初次相遇」）。
-- **优先 update 已有节点**（在其正文追加新事实），而非重复 insert。
-- 只记录聊天中确实发生/提及的事实，不虚构、不脑补。
-- archive 仅用于明确被推翻/废弃的旧事实。
+各类节点的整理方式不同：
+- 角色(character)：一个角色 = 一个节点，挂在「角色」类目下。正文只写这段楼层里**新发生**的身份/关系/心境变化，写成一到三句凝练的事实句。系统会自动把内容按卷次归档到该角色名下、逐卷呈现成长轨迹，所以不要重复旧卷内容，也不要自己写"第X卷"之类的标题。
+- 事件(event)：一个关键剧情节点 = 一个**独立**节点，按发生顺序挂在「事件」类目下，标题用短句概括（如「初次相遇」「别墅夜谈」）。每个事件写成完整独立的一段，不要往旧事件节点追加内容。日常琐事不记，只记推动剧情或关系的关键转折。
+- 地点(location)/物品(item)：客观设定描述；已有节点出现新信息时用 update 追加一句即可。
+- 世界观等背景设定可用 custom 类型或挂到合适类目。
+
+通用规则：
+- 只记录聊天中确实发生/明确提及的客观事实；不虚构、不推测、不加评价。
+- 一个实体 = 一个节点；树里已有的实体用 update（按路径定位），绝不重复 insert。
+- archive 仅用于被剧情明确推翻的旧事实节点。
+- 全部用简体中文。
 
 严格输出如下 JSON（不要输出任何其它文字、不要 markdown 围栏）：
 {
   "ops": [
-    {"op":"insert","parent":"角色","title":"爱丽丝","hint":"女主","content":"……","keywords":"人物,主角","type":"character"},
-    {"op":"update","path":"角色/爱丽丝","content":"追加的新事实","keywords":"新标签"},
+    {"op":"insert","parent":"角色","title":"爱丽丝","hint":"银发女佣","content":"与主角缔结契约，搬入别墅同住。","keywords":"女佣,契约","type":"character"},
+    {"op":"insert","parent":"事件","title":"契约之夜","content":"月圆之夜，爱丽丝与主角在地下室缔结血契，条件是三年内不得离开别墅。","keywords":"转折","type":"event"},
+    {"op":"update","path":"地点/别墅","content":"地下室藏有先代主人留下的封印阵。"},
     {"op":"archive","path":"事件/旧设定"}
   ]
 }
-insert 用 parent(父路径)+title 定位；update/archive 用 path(全路径)定位。父类目不存在时会自动创建。
-insert 请尽量带 type 标注实体类型，可选值：character(角色)/location(地点)/item(物品)/event(事件)。`;
+insert 用 parent(父路径)+title 定位；update/archive 用 path(完整路径，如「角色/爱丽丝」)定位；父类目不存在会自动创建。每个 insert 都必须带 type，可选值：character(角色)/location(地点)/item(物品)/event(事件)/custom(其他)。`;
 
 /** 组装 AI 填树请求的 messages（systemPrompt 缺省用内置默认，UI 可传用户改过的版本） */
 export function buildTreeFillMessages(
@@ -192,8 +198,9 @@ export interface ApplyResult {
  * - insert：确保父路径存在；若父下已有同名节点则合并（正文追加、标签并集）而非重复建。
  * - update：按 path 定位（找不到跳过），正文追加、标签并集。
  * - archive：按 path 定位，置 archived=true。
- * - opts.sectionLabel：给定时，本批新增/追加的正文都归到 `## <label>` 小节下
- *   （如「第2卷 · 楼层 50~99」），条目正文按卷分段，切视图时可见状态演变。
+ * - opts.sectionLabel：给定时，**仅角色(character)节点**的新增/追加正文归到 `## <label>` 小节下
+ *   （如「第2卷 · 楼层 50~99」）——角色需要逐卷呈现变化过程；事件/地点/物品等
+ *   保持平文追加，避免一条事实被卷标题切碎、时间轴/卡片显示乱序。
  */
 export function applyTreeOps(
   nodes: StoryNode[],
@@ -205,8 +212,10 @@ export function applyTreeOps(
 
   const mergeInto = (id: string, content: string | undefined, tags: string[]) => {
     const node = findById(cur, id)!;
+    // 分卷小节只给角色节点用；其余类型平文追加
+    const label = node.type === 'character' ? opts.sectionLabel : undefined;
     const newContent = content?.trim()
-      ? appendToSection(node.content, opts.sectionLabel, content)
+      ? appendToSection(node.content, label, content)
       : node.content;
     const newTags = Array.from(new Set([...node.tags, ...tags]));
     cur = updateNode(cur, id, { content: newContent, tags: newTags });
@@ -220,16 +229,19 @@ export function applyTreeOps(
       cur = ensured.nodes;
       const twin = childrenOf(cur, ensured.parentId).find((n) => n.title === title);
       if (twin) {
-        // 同名已存在 → 合并而非重复插入
+        // 同名已存在 → 合并而非重复插入；顺带补上缺失的类型标注（影响分卷判定）
+        const type = isStoryNodeType(op.type) ? op.type : undefined;
+        if (type && !twin.type) cur = updateNode(cur, twin.id, { type });
         mergeInto(twin.id, op.content, toTags(op.keywords));
         updated++;
       } else {
+        const type = isStoryNodeType(op.type) ? op.type : undefined;
         const { nodes: next, node } = addNode(cur, ensured.parentId, {
           title,
           hint: op.hint ?? '',
-          content: appendToSection('', opts.sectionLabel, op.content ?? ''),
+          content: appendToSection('', type === 'character' ? opts.sectionLabel : undefined, op.content ?? ''),
           tags: toTags(op.keywords),
-          ...(isStoryNodeType(op.type) ? { type: op.type } : {}),
+          ...(type ? { type } : {}),
         });
         cur = next;
         void node;

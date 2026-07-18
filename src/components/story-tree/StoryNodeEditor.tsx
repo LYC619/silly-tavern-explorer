@@ -111,7 +111,7 @@ export function StoryNodeEditor({ node, onChange, onDelete }: StoryNodeEditorPro
           />
         )}
         {hasSections && byVolume && (
-          <p className="text-xs text-muted-foreground">按 AI 生成时的卷/楼层分段展示，点「编辑」可改原文（含 ## 小节标题）。</p>
+          <p className="text-xs text-muted-foreground">按卷/楼层分段展示（角色节点由 AI 生成时自动归档），点「编辑」可改原文（含 ## 小节标题）。</p>
         )}
       </div>
       <div className="space-y-1">

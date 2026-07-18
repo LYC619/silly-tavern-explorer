@@ -26,7 +26,17 @@ function flattenEvents(nodes: StoryNode[]): StoryNode[] {
   return out;
 }
 
-/** 时间轴视图（移植自参考项目 timeline-view）：纵向时间线展示事件类节点 */
+/** 旧数据的事件正文可能残留 `## 卷` 小节标题（现在事件不再分卷），剥掉标题行按顺序平铺 */
+function plainEventContent(content: string): string {
+  return content
+    .split('\n')
+    .filter((l) => !l.startsWith('## '))
+    .join('\n')
+    .replace(/\n{3,}/g, '\n\n')
+    .trim();
+}
+
+/** 时间轴视图：纵向时间线展示事件类节点。卡片自含全文，无需右侧详情即可读完 */
 export function StoryTimeline({ nodes, selectedId, hitIds, onSelect }: StoryTimelineProps) {
   const events = useMemo(
     () => flattenEvents(nodes).filter((n) => !hitIds || hitIds.has(n.id)),
@@ -44,12 +54,12 @@ export function StoryTimeline({ nodes, selectedId, hitIds, onSelect }: StoryTime
   }
 
   return (
-    <ol className="relative flex flex-col gap-3 border-l border-border pl-5 ml-2 py-1">
+    <ol className="relative flex flex-col gap-3 border-l-2 border-rose-200 dark:border-rose-900/50 pl-5 ml-2 py-1">
       {events.map((event, i) => (
         <li key={event.id} className="relative">
           <span
             className={cn(
-              'absolute -left-[26px] top-2 w-2.5 h-2.5 rounded-full border-2 border-background',
+              'absolute -left-[27px] top-2.5 w-3 h-3 rounded-full border-2 border-background',
               selectedId === event.id ? 'bg-primary' : 'bg-rose-500'
             )}
             aria-hidden
@@ -58,20 +68,20 @@ export function StoryTimeline({ nodes, selectedId, hitIds, onSelect }: StoryTime
             type="button"
             onClick={() => onSelect(event.id)}
             className={cn(
-              'flex w-full flex-col gap-1 rounded-lg border bg-card p-2.5 text-left transition-colors hover:bg-accent/50',
+              'flex w-full flex-col gap-1.5 rounded-lg border bg-card p-3 text-left transition-colors hover:bg-accent/40',
               selectedId === event.id && 'ring-1 ring-primary'
             )}
           >
             <span className="flex items-baseline gap-2 min-w-0">
-              <span className="font-mono text-[10px] text-muted-foreground shrink-0">
+              <span className="font-mono text-[11px] text-rose-500/80 shrink-0 font-semibold">
                 {String(i + 1).padStart(2, '0')}
               </span>
-              <span className="text-sm font-medium truncate">{event.title || '(未命名)'}</span>
+              <span className="text-sm font-semibold truncate">{event.title || '(未命名)'}</span>
+              {event.hint && <span className="text-xs text-muted-foreground truncate">{event.hint}</span>}
             </span>
-            {event.hint && <span className="text-xs text-muted-foreground">{event.hint}</span>}
             {event.content && (
-              <span className="line-clamp-4 whitespace-pre-line text-xs leading-relaxed text-muted-foreground">
-                {event.content}
+              <span className="whitespace-pre-line text-sm leading-relaxed text-foreground/85">
+                {plainEventContent(event.content)}
               </span>
             )}
             {event.tags.length > 0 && (
