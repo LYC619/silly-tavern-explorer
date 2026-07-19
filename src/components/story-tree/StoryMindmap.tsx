@@ -1,6 +1,5 @@
-import { useMemo, useRef } from 'react';
-import { Upload, Loader2 } from 'lucide-react';
-import { useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
+import { Upload, Loader2, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
 import type { StoryNodeTree, StoryNodeType } from '@/types/story-tree';
@@ -39,7 +38,7 @@ const TYPE_COLOR: Record<StoryNodeType, string> = {
   custom: '#94a3b8',
 };
 
-/** 布局盒：真实节点，或角色节点的分卷小节子块 */
+/** 布局盒：真实节点，或角色节点的分卷小节子块（子块正文优先展示，点击弹出全文） */
 interface LaidBox {
   key: string;
   /** 点击选中的节点 id（小节块选中其所属角色） */
@@ -50,6 +49,10 @@ interface LaidBox {
   isSection: boolean;
   isRoot: boolean;
   archived: boolean;
+  /** 小节块专用：卷标签 / 全文 / 所属角色名（供点击展开面板） */
+  sectionLabel?: string;
+  sectionBody?: string;
+  sectionOwner?: string;
   x: number;
   y: number;
 }
@@ -66,6 +69,16 @@ function fitText(text: string, maxUnits: number): string {
   return text;
 }
 
+/** 按显示宽度切成两截：前一截正好占满预算（不加省略号），剩余给第二行继续截 */
+function cutByUnits(text: string, maxUnits: number): { head: string; rest: string } {
+  let units = 0;
+  for (let i = 0; i < text.length; i++) {
+    units += text.charCodeAt(i) > 0x2e7f ? 1 : 0.55;
+    if (units > maxUnits) return { head: text.slice(0, i), rest: text.slice(i) };
+  }
+  return { head: text, rest: '' };
+}
+
 /** 内部布局树：真实子节点 + 角色的分卷小节伪子块 */
 interface LayoutTree {
   key: string;
@@ -75,23 +88,30 @@ interface LayoutTree {
   type?: StoryNodeType;
   isSection: boolean;
   archived: boolean;
+  sectionLabel?: string;
+  sectionBody?: string;
+  sectionOwner?: string;
   children: LayoutTree[];
 }
 
 function toLayoutTree(n: StoryNodeTree): LayoutTree {
   const children = n.children.map(toLayoutTree);
-  // 角色节点：把正文的 `## 卷` 小节铺成子块，导图上直接看到变化轨迹
+  // 角色节点：把正文的 `## 卷` 小节铺成子块，导图上直接看到各卷变化摘要（点击看全文）
   if (n.type === 'character') {
     const sections = splitContentSections(n.content).filter((s) => s.label);
     for (let i = 0; i < sections.length; i++) {
       const s = sections[i];
+      const body = s.body.replace(/\s+/g, ' ').trim();
       children.push({
         key: `${n.id}-sec-${i}`,
         nodeId: n.id,
-        title: s.label ?? '',
-        sub: s.body.replace(/\s+/g, ' ').trim(),
+        title: body,
+        sub: '',
         isSection: true,
         archived: n.archived,
+        sectionLabel: s.label ?? '',
+        sectionBody: s.body.trim(),
+        sectionOwner: n.title,
         children: [],
       });
     }
@@ -127,7 +147,9 @@ function layoutMindmap(forest: LayoutTree[]): { boxes: LaidBox[]; edges: Edge[];
     const x = depth * (NODE_W + GAP_X) + 8;
     boxes.push({
       key: n.key, nodeId: n.nodeId, title: n.title, sub: n.sub,
-      type: n.type, isSection: n.isSection, isRoot, archived: n.archived, x, y,
+      type: n.type, isSection: n.isSection, isRoot, archived: n.archived,
+      sectionLabel: n.sectionLabel, sectionBody: n.sectionBody, sectionOwner: n.sectionOwner,
+      x, y,
     });
     let childTop = top;
     for (const c of n.children) {
@@ -161,13 +183,15 @@ interface StoryMindmapProps {
 }
 
 /**
- * 导图视图：纯 SVG 绘制（样式全内联），单占一整行；角色节点按分卷小节铺出变化子块；
- * 支持一键导出 PNG / SVG。点击节点选中（编辑器在下方）。
+ * 导图视图：纯 SVG 绘制（样式全内联），单占一整行；角色节点右侧铺出各卷变化摘要子块，
+ * 点子块弹出该卷全文；支持一键导出 PNG / SVG。点击节点选中（编辑器在下方）。
  */
 export function StoryMindmap({ forest, selectedId, onSelect, title }: StoryMindmapProps) {
   const { toast } = useToast();
   const svgRef = useRef<SVGSVGElement>(null);
   const [exporting, setExporting] = useState(false);
+  // 点开的分卷子块（弹出全文面板）
+  const [activeSection, setActiveSection] = useState<{ owner: string; label: string; body: string } | null>(null);
   const layoutForest = useMemo(() => forest.map(toLayoutTree), [forest]);
   const { boxes, edges, width, height } = useMemo(() => layoutMindmap(layoutForest), [layoutForest]);
 
@@ -200,7 +224,7 @@ export function StoryMindmap({ forest, selectedId, onSelect, title }: StoryMindm
     <div className="space-y-2">
       <div className="flex items-center gap-1.5 flex-wrap">
         <p className="text-xs text-muted-foreground flex-1 min-w-0">
-          角色节点右侧的浅色子块 = 各卷的变化轨迹；点击任意节点在下方编辑。
+          角色右侧的浅色子块 = 各卷变化摘要，点子块看该卷全文；点击节点在下方编辑。
         </p>
         <Button variant="outline" size="sm" className="h-7 gap-1 text-xs" onClick={handleExportPng} disabled={exporting}>
           {exporting ? <Loader2 className="w-3 h-3 animate-spin" /> : <Upload className="w-3 h-3" />}导出 PNG
@@ -209,6 +233,28 @@ export function StoryMindmap({ forest, selectedId, onSelect, title }: StoryMindm
           <Upload className="w-3 h-3" />导出 SVG
         </Button>
       </div>
+
+      {/* 点开的分卷全文面板 */}
+      {activeSection && (
+        <div className="rounded-md border border-primary/30 bg-card p-3 space-y-1 animate-fade-in">
+          <div className="flex items-start justify-between gap-2">
+            <p className="text-xs font-medium text-primary">
+              {activeSection.owner} · {activeSection.label}
+            </p>
+            <button
+              onClick={() => setActiveSection(null)}
+              className="text-muted-foreground hover:text-foreground shrink-0"
+              aria-label="关闭全文"
+            >
+              <X className="w-3.5 h-3.5" />
+            </button>
+          </div>
+          <p className="text-sm leading-relaxed whitespace-pre-wrap max-h-44 overflow-y-auto">
+            {activeSection.body}
+          </p>
+        </div>
+      )}
+
       <div className="overflow-auto rounded-md border max-h-[72vh]" style={{ background: PAPER }}>
         <svg ref={svgRef} width={width} height={height} role="img" aria-label="故事树导图">
           <rect x={0} y={0} width={width} height={height} fill={PAPER} />
@@ -224,13 +270,25 @@ export function StoryMindmap({ forest, selectedId, onSelect, title }: StoryMindm
           {boxes.map((b) => {
             const selected = selectedId === b.nodeId && !b.isSection;
             const accent = b.type ? TYPE_COLOR[b.type] : null;
+            // 小节子块：正文摘要占两行（点击弹全文）；普通节点：标题 + 提示
+            const line1 = b.isSection ? cutByUnits(b.title, 12.5).head : fitText(b.title || '(未命名)', 12.5);
+            const line2 = b.isSection ? fitText(cutByUnits(b.title, 12.5).rest, 15) : (b.sub ? fitText(b.sub, 15) : '');
             return (
               <g
                 key={b.key}
-                onClick={() => onSelect(b.nodeId)}
+                onClick={() => {
+                  onSelect(b.nodeId);
+                  if (b.isSection) {
+                    setActiveSection({ owner: b.sectionOwner ?? '', label: b.sectionLabel ?? '', body: b.sectionBody ?? '' });
+                  } else {
+                    setActiveSection(null);
+                  }
+                }}
                 style={{ cursor: 'pointer' }}
                 opacity={b.archived ? 0.45 : 1}
               >
+                {/* 悬停原生提示：小节显示卷标签+全文开头 */}
+                <title>{b.isSection ? `${b.sectionLabel}\n${b.sectionBody}` : (b.sub ? `${b.title}｜${b.sub}` : b.title)}</title>
                 <rect
                   x={b.x} y={b.y} width={NODE_W} height={NODE_H} rx={7}
                   fill={b.isSection ? SECTION_FILL : b.isRoot ? ROOT_FILL : BOX_FILL}
@@ -240,14 +298,18 @@ export function StoryMindmap({ forest, selectedId, onSelect, title }: StoryMindm
                 {accent && !b.isSection && (
                   <rect x={b.x} y={b.y + 6} width={3} height={NODE_H - 12} rx={1.5} fill={accent} />
                 )}
-                <text x={b.x + 12} y={b.y + 19} fontSize={12} fontWeight={600}
-                  fill={b.isSection ? SECTION_LABEL : INK}>
-                  {fitText(b.title || '(未命名)', 12.5)}
-                </text>
-                {b.sub && (
-                  <text x={b.x + 12} y={b.y + 36} fontSize={10} fill={INK_SUB}>
-                    {fitText(b.sub, 15)}
-                  </text>
+                {b.isSection ? (
+                  <>
+                    <text x={b.x + 10} y={b.y + 18} fontSize={11} fill={INK}>{line1}</text>
+                    {line2
+                      ? <text x={b.x + 10} y={b.y + 34} fontSize={10} fill={INK_SUB}>{line2}</text>
+                      : <text x={b.x + 10} y={b.y + 34} fontSize={9} fill={SECTION_LABEL}>{fitText(b.sectionLabel ?? '', 16)}</text>}
+                  </>
+                ) : (
+                  <>
+                    <text x={b.x + 12} y={b.y + 19} fontSize={12} fontWeight={600} fill={INK}>{line1}</text>
+                    {line2 && <text x={b.x + 12} y={b.y + 36} fontSize={10} fill={INK_SUB}>{line2}</text>}
+                  </>
                 )}
               </g>
             );

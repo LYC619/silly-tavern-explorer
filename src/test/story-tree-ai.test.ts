@@ -54,10 +54,11 @@ describe('applyTreeOps', () => {
     const ops: TreeOp[] = [{ op: 'insert', parent: '角色', title: '爱丽丝', content: '主角' }];
     const r = applyTreeOps(emptyNodes, ops);
     expect(r.inserted).toBe(1);
-    // 建了「角色」父 + 「爱丽丝」子
+    // 建了「角色」父 + 「爱丽丝」子；自动建的父类目标 category（不进卡片等实体视图）
     const roots = childrenOf(r.nodes, null);
     expect(roots).toHaveLength(1);
     expect(roots[0].title).toBe('角色');
+    expect(roots[0].type).toBe('category');
     const kids = childrenOf(r.nodes, roots[0].id);
     expect(kids[0].title).toBe('爱丽丝');
     expect(kids[0].content).toBe('主角');

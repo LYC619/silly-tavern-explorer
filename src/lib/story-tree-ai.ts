@@ -170,7 +170,7 @@ function findIdByPath(nodes: StoryNode[], path: string): string | undefined {
   return curId;
 }
 
-/** 确保父路径存在（逐段创建缺失类目），返回末段 id（parent 为空=根，返回 null） */
+/** 确保父路径存在（逐段创建缺失类目，标 category 类型——它们是结构容器，不该出现在卡片等实体视图里），返回末段 id（parent 为空=根，返回 null） */
 function ensureParentPath(nodes: StoryNode[], parentPath: string | undefined): { nodes: StoryNode[]; parentId: string | null } {
   const segs = (parentPath ?? '').split('/').map((s) => s.trim()).filter(Boolean);
   let cur = nodes;
@@ -178,7 +178,7 @@ function ensureParentPath(nodes: StoryNode[], parentPath: string | undefined): {
   for (const seg of segs) {
     const existing = childrenOf(cur, parentId).find((n) => n.title === seg);
     if (existing) { parentId = existing.id; continue; }
-    const { nodes: next, node } = addNode(cur, parentId, { title: seg });
+    const { nodes: next, node } = addNode(cur, parentId, { title: seg, type: 'category' });
     cur = next;
     parentId = node.id;
   }
