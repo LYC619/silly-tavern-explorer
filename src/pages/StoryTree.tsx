@@ -79,6 +79,8 @@ const StoryTree = () => {
   const [isDemo, setIsDemo] = useState(false);
   const [query, setQuery] = useState('');
   const [viewMode, setViewMode] = useState<'tree' | 'mindmap' | 'cards' | 'timeline'>('tree');
+  // 导图/时间轴内容自含全文，独占一整行；编辑器整行铺在下方（未选中不占位）
+  const fullRowView = viewMode === 'mindmap' || viewMode === 'timeline';
 
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -469,8 +471,8 @@ const StoryTree = () => {
             <div className="flex flex-wrap gap-4 items-start">
               {/* 分栏不再用视口断点（sm:/md: 在用户环境反复失效）：flex-wrap + 行内 flex-basis，
                   容器放得下(230+270+gap)就 2:3 分栏，放不下自动换行；与视口/缩放/类覆盖解耦，同总结页 */}
-              {/* 左：树视图（默认占 2/5；导图模式独占一整行，下方整行放编辑器） */}
-              <Card className="min-w-0" style={{ flex: viewMode === 'mindmap' ? '1 1 100%' : '2 1 230px' }}>
+              {/* 左：树视图（默认占 2/5；导图/时间轴模式独占一整行，下方整行放编辑器） */}
+              <Card className="min-w-0" style={{ flex: fullRowView ? '1 1 100%' : '2 1 230px' }}>
                 <CardContent className="p-3 space-y-2 min-h-[60vh]">
                   <div className="flex items-center gap-1 flex-wrap" data-tour="story-tree-toolbar">
                     <Button variant="outline" size="sm" className="h-7 gap-1" onClick={handleAddRoot}>
@@ -557,12 +559,14 @@ const StoryTree = () => {
                       onSelect={setSelectedId}
                     />
                   ) : viewMode === 'timeline' ? (
-                    <StoryTimeline
-                      nodes={nodes}
-                      selectedId={selectedId}
-                      hitIds={searchResult ? searchResult.hitIds : null}
-                      onSelect={setSelectedId}
-                    />
+                    <div className="max-w-3xl mx-auto">
+                      <StoryTimeline
+                        nodes={nodes}
+                        selectedId={selectedId}
+                        hitIds={searchResult ? searchResult.hitIds : null}
+                        onSelect={setSelectedId}
+                      />
+                    </div>
                   ) : (
                     <StoryTreeView
                       forest={forest}
@@ -579,14 +583,14 @@ const StoryTree = () => {
                 </CardContent>
               </Card>
 
-              {/* 右：节点编辑（默认占 3/5 且 sticky；导图模式整行铺在导图下方，未选中时不占位） */}
-              {(viewMode !== 'mindmap' || selectedNode) && (
+              {/* 右：节点编辑（默认占 3/5 且 sticky；导图/时间轴模式整行铺在下方，未选中时不占位） */}
+              {(!fullRowView || selectedNode) && (
                 <div
-                  className={viewMode === 'mindmap' ? 'min-w-0' : 'min-w-0 sm:sticky sm:top-4'}
-                  style={{ flex: viewMode === 'mindmap' ? '1 1 100%' : '3 1 270px' }}
+                  className={fullRowView ? 'min-w-0' : 'min-w-0 sm:sticky sm:top-4'}
+                  style={{ flex: fullRowView ? '1 1 100%' : '3 1 270px' }}
                 >
                   <Card data-tour="story-tree-editor">
-                    <CardContent className={viewMode === 'mindmap' ? 'p-4' : 'p-4 min-h-[60vh]'}>
+                    <CardContent className={fullRowView ? 'p-4' : 'p-4 min-h-[60vh]'}>
                       {selectedNode ? (
                         <StoryNodeEditor
                           key={selectedNode.id}

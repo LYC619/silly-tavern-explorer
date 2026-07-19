@@ -160,7 +160,8 @@ export function AIFillDialog({ open, onOpenChange, session, nodes, onApply }: AI
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="!max-w-2xl max-h-[85vh] overflow-y-auto">
+      {/* 宽度加行内样式兜底：个别环境下 !max-w 类规则不生效（见 v0.16.1 世界书弹窗同款教训） */}
+      <DialogContent className="!max-w-[min(64rem,94vw)] max-h-[88vh] overflow-y-auto" style={{ maxWidth: 'min(64rem, 94vw)' }}>
         <DialogHeader>
           <DialogTitle>AI 从楼层生成事实节点</DialogTitle>
         </DialogHeader>
@@ -239,7 +240,7 @@ export function AIFillDialog({ open, onOpenChange, session, nodes, onApply }: AI
                   <Label className="text-xs text-muted-foreground">
                     将应用的操作（{includedCount} / {opItems.length}）—— 点行展开预览与编辑
                   </Label>
-                  <ScrollArea className="h-64 border rounded-md">
+                  <ScrollArea className="h-[48vh] border rounded-md">
                     <div className="p-1.5 space-y-1">
                       {opItems.map((item, i) => {
                         const badge = OP_BADGE[item.op.op] ?? OP_BADGE.archive;
@@ -270,7 +271,7 @@ export function AIFillDialog({ open, onOpenChange, session, nodes, onApply }: AI
                                 )}
                                 {!item.expanded && item.op.content && (
                                   <span className="text-xs text-muted-foreground truncate">
-                                    {item.op.content.slice(0, 40)}
+                                    {item.op.content.slice(0, 60)}
                                   </span>
                                 )}
                               </button>
@@ -304,7 +305,7 @@ export function AIFillDialog({ open, onOpenChange, session, nodes, onApply }: AI
                                     <Textarea
                                       value={item.op.content ?? ''}
                                       onChange={(e) => patchOp(i, { content: e.target.value })}
-                                      className="min-h-[70px] text-sm"
+                                      className="min-h-[110px] text-sm"
                                     />
                                   </div>
                                 )}

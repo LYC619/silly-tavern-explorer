@@ -35,9 +35,13 @@ function nodePreview(node: StoryNode): { label: string | null; text: string } {
 export function StoryCardView({ nodes, selectedId, hitIds, onSelect }: StoryCardViewProps) {
   const { groups, eventCount } = useMemo(() => {
     const map = new Map<StoryNodeType | 'none', StoryNode[]>();
+    // 无类型但有子节点的 = 结构容器（老数据里 AI 自动建的「角色/事件」等父类目没标 category），
+    // 和 category 一样不进实体卡片
+    const parentIds = new Set(nodes.map((n) => n.parentId));
     let events = 0;
     for (const node of nodes) {
       if (node.archived || node.type === 'category') continue;
+      if (!node.type && parentIds.has(node.id)) continue;
       if (node.type === 'event') { events++; continue; }
       if (hitIds && !hitIds.has(node.id)) continue;
       const key = node.type ?? 'none';
