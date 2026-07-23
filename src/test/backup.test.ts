@@ -1,0 +1,216 @@
+import { describe, it, expect, beforeEach } from 'vitest';
+import { IDBFactory } from 'fake-indexeddb';
+import { openDB, closeDB } from '@/lib/idb';
+import {
+  parseBackupFile,
+  previewBackup,
+  importBackup,
+  BackupError,
+  MAX_BACKUP_BYTES,
+  type ParsedBackup,
+} from '@/lib/storage-utils';
+
+// 每个用例用全新的内存 IndexedDB，并清掉模块级单例连接
+beforeEach(() => {
+  closeDB();
+  (globalThis as unknown as { indexedDB: IDBFactory }).indexedDB = new IDBFactory();
+});
+
+/** 轻量伪 File：parseBackupFile 只用到 name/type/size/text()，避免为超大用例真的分配内存 */
+function fakeFile(name: string, type: string, size: number, text: string): File {
+  return { name, type, size, text: async () => text } as unknown as File;
+}
+
+function jsonFile(obj: unknown): File {
+  const text = JSON.stringify(obj);
+  return fakeFile('backup.json', 'application/json', text.length, text);
+}
+
+function seed(store: string, item: Record<string, unknown>): Promise<void> {
+  return openDB().then(
+    (db) =>
+      new Promise((resolve, reject) => {
+        const tx = db.transaction(store, 'readwrite');
+        tx.objectStore(store).put(item);
+        tx.oncomplete = () => resolve();
+        tx.onerror = () => reject(tx.error);
+      }),
+  );
+}
+
+function getAll(store: string): Promise<Record<string, unknown>[]> {
+  return openDB().then(
+    (db) =>
+      new Promise((resolve, reject) => {
+        const req = db.transaction(store, 'readonly').objectStore(store).getAll();
+        req.onsuccess = () => resolve(req.result as Record<string, unknown>[]);
+        req.onerror = () => reject(req.error);
+      }),
+  );
+}
+
+/** 一份最小但合法的完整备份 */
+function validBackup(overrides: Record<string, unknown> = {}) {
+  return {
+    app: 'silly-tavern-explorer',
+    version: 6,
+    exportedAt: '2026-07-23T00:00:00.000Z',
+    books: [{ id: 'b1', title: '书一', session: { messages: [] } }],
+    worldbooks: [{ id: 'w1', title: '世界书一' }],
+    presets: [],
+    cards: [],
+    summaries: [],
+    summaryTemplates: [],
+    stories: [],
+    ...overrides,
+  };
+}
+
+describe('parseBackupFile 校验', () => {
+  it('拒绝非 .json 且非 json 类型的文件', async () => {
+    const f = fakeFile('backup.png', 'image/png', 10, 'binary');
+    await expect(parseBackupFile(f)).rejects.toBeInstanceOf(BackupError);
+  });
+
+  it('拒绝超过大小上限的文件（不读内容）', async () => {
+    const f = fakeFile('huge.json', 'application/json', MAX_BACKUP_BYTES + 1, '{}');
+    await expect(parseBackupFile(f)).rejects.toThrow(/过大/);
+  });
+
+  it('JSON 语法错误抛出可读的 BackupError（不崩溃）', async () => {
+    const f = fakeFile('bad.json', 'application/json', 6, '{ bad }');
+    await expect(parseBackupFile(f)).rejects.toThrow(/JSON 解析失败/);
+  });
+
+  it('拒绝缺少 app 标记的对象', async () => {
+    const f = jsonFile({ books: [] });
+    await expect(parseBackupFile(f)).rejects.toThrow(/app 标记|本应用/);
+  });
+
+  it('拒绝 books 不是数组', async () => {
+    const f = jsonFile({ app: 'silly-tavern-explorer', books: {} });
+    await expect(parseBackupFile(f)).rejects.toThrow(/books/);
+  });
+
+  it('接受合法备份，并把缺省的旧版本字段容错为空数组', async () => {
+    // 模拟只含 books 的 v1 老备份
+    const f = jsonFile({ app: 'silly-tavern-explorer', version: 1, books: [{ id: 'b1', session: {} }] });
+    const parsed = await parseBackupFile(f);
+    expect(parsed.byStore.books).toHaveLength(1);
+    expect(parsed.byStore.worldbooks).toEqual([]);
+    expect(parsed.byStore.stories).toEqual([]);
+  });
+});
+
+describe('previewBackup 覆盖预览', () => {
+  it('区分 新增 / 覆盖 / 跳过', async () => {
+    await seed('books', { id: 'b1', title: '旧标题', session: {} }); // 将被覆盖
+    const parsed = await parseBackupFile(
+      jsonFile(
+        validBackup({
+          books: [
+            { id: 'b1', title: '新标题', session: {} }, // overwrite（同 id）
+            { id: 'b2', title: '全新', session: {} }, // add
+            { id: '', session: {} }, // skipped（缺 id）
+          ],
+        }),
+      ),
+    );
+    const preview = await previewBackup(parsed);
+    const books = preview.stores.find((s) => s.key === 'books')!;
+    expect(books).toMatchObject({ add: 1, overwrite: 1, skipped: 1 });
+    expect(preview.totalOverwrite).toBe(1);
+  });
+});
+
+describe('importBackup 原子写回', () => {
+  it('upsert 合并：同 id 覆盖、异 id 新增、未提及的现有数据保留', async () => {
+    await seed('books', { id: 'b1', title: '旧', session: {} });
+    await seed('books', { id: 'keep', title: '保留', session: {} });
+    const parsed = await parseBackupFile(
+      jsonFile(
+        validBackup({
+          books: [
+            { id: 'b1', title: '新', session: {} },
+            { id: 'b2', title: '增', session: {} },
+          ],
+          worldbooks: [],
+        }),
+      ),
+    );
+    const counts = await importBackup(parsed);
+    expect(counts.books).toBe(2);
+
+    const books = await getAll('books');
+    const byId = Object.fromEntries(books.map((b) => [b.id, b.title]));
+    expect(byId).toEqual({ b1: '新', b2: '增', keep: '保留' });
+  });
+
+  it('跳过缺关键字段的无效条目，返回真实写入数', async () => {
+    const parsed = await parseBackupFile(
+      jsonFile(
+        validBackup({
+          books: [
+            { id: 'ok', session: {} },
+            { id: 'nope' }, // 缺 session → 跳过
+          ],
+        }),
+      ),
+    );
+    const counts = await importBackup(parsed);
+    expect(counts.books).toBe(1);
+    expect(await getAll('books')).toHaveLength(1);
+  });
+
+  it('写入过程出错时整体回滚，现有数据保持不变', async () => {
+    await seed('books', { id: 'existing', title: '原有', session: {} });
+    // stories 里塞一个通过校验(有 id + nodes 数组)但含函数、不可结构化克隆的值 → put 同步抛错
+    const parsed: ParsedBackup = {
+      version: 6,
+      byStore: {
+        books: [{ id: 'newbook', title: '本应回滚', session: {} }],
+        worldbooks: [],
+        presets: [],
+        cards: [],
+        summaries: [],
+        summaryTemplates: [],
+        stories: [{ id: 's1', nodes: [], evil: () => 1 } as unknown as Record<string, unknown>],
+      },
+    };
+    await expect(importBackup(parsed)).rejects.toBeTruthy();
+
+    // 关键：newbook 不应写入（回滚），existing 仍在
+    const books = await getAll('books');
+    expect(books.map((b) => b.id).sort()).toEqual(['existing']);
+  });
+});
+
+describe('备份 round-trip', () => {
+  it('构造完整备份 → 导入 → 逐 store 读回内容一致', async () => {
+    const backup = validBackup({
+      books: [{ id: 'b1', title: '书', session: { messages: [{ role: 'user', content: 'hi' }] } }],
+      worldbooks: [{ id: 'w1', title: '书', worldbook: { entries: {} } }],
+      presets: [{ id: 'p1', title: '预设' }],
+      cards: [{ id: 'c1', card: { name: '卡' } }],
+      summaries: [{ id: 'sm1', content: '总结正文' }],
+      summaryTemplates: [{ id: 't1', content: '模板正文' }],
+      stories: [{ id: 'st1', nodes: [{ id: 'n1' }] }],
+    });
+    const parsed = await parseBackupFile(jsonFile(backup));
+    const counts = await importBackup(parsed);
+
+    expect(counts).toMatchObject({
+      books: 1,
+      worldbooks: 1,
+      presets: 1,
+      cards: 1,
+      summaries: 1,
+      summaryTemplates: 1,
+      stories: 1,
+    });
+
+    expect((await getAll('books'))[0]).toMatchObject({ id: 'b1', title: '书' });
+    expect((await getAll('summaries'))[0]).toMatchObject({ id: 'sm1', content: '总结正文' });
+    expect((await getAll('stories'))[0]).toMatchObject({ id: 'st1' });
+  });
+});

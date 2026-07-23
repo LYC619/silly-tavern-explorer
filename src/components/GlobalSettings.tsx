@@ -18,9 +18,13 @@ import { useToast } from '@/hooks/use-toast';
 import {
   estimateStorageUsage,
   exportFullBackup,
-  importFullBackup,
+  parseBackupFile,
+  previewBackup,
+  importBackup,
   clearAllData,
   formatBytes,
+  type ParsedBackup,
+  type BackupPreview,
 } from '@/lib/storage-utils';
 import { clearAllTempCache } from '@/lib/session-storage';
 import { getAllBooks } from '@/lib/bookshelf-db';
@@ -45,6 +49,7 @@ export function GlobalSettings({ onDataChanged, ...props }: GlobalSettingsProps)
   const { toast } = useToast();
   const [open, setOpen] = useState(false);
   const [clearDialogOpen, setClearDialogOpen] = useState(false);
+  const [pendingImport, setPendingImport] = useState<{ parsed: ParsedBackup; preview: BackupPreview } | null>(null);
   const [storage, setStorage] = useState({ used: 0, quota: 0, percentage: 0 });
   const [details, setDetails] = useState<StorageDetail[]>([]);
   const [loading, setLoading] = useState(false);
@@ -122,34 +127,56 @@ export function GlobalSettings({ onDataChanged, ...props }: GlobalSettingsProps)
     }
   };
 
-  const handleImport = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  // 第一步：仅解析+校验，算出将新增/覆盖/跳过什么，弹预览让用户确认（不写库）
+  const handleSelectImportFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
+    e.target.value = ''; // 允许连续选同一文件
     if (!file) return;
     try {
       setLoading(true);
-      const { books, worldbooks, presets, cards, summaries, summaryTemplates, stories } = await importFullBackup(file);
-      const parts = [`${books} 本作品`];
-      if (worldbooks > 0) parts.push(`${worldbooks} 本世界书`);
-      if (presets > 0) parts.push(`${presets} 份预设`);
-      if (cards > 0) parts.push(`${cards} 张角色卡`);
-      if (summaries > 0) parts.push(`${summaries} 份总结`);
-      if (summaryTemplates > 0) parts.push(`${summaryTemplates} 个总结模板`);
-      if (stories > 0) parts.push(`${stories} 棵故事树`);
+      const parsed = await parseBackupFile(file);
+      const preview = await previewBackup(parsed);
+      setPendingImport({ parsed, preview });
+    } catch (err) {
+      toast({
+        title: '无法读取备份文件',
+        description: err instanceof Error ? err.message : '文件校验未通过',
+        variant: 'destructive',
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // 第二步：用户确认后原子写回（单事务，失败整体回滚，不会写坏现有库）
+  const confirmImport = async () => {
+    if (!pendingImport) return;
+    try {
+      setLoading(true);
+      const c = await importBackup(pendingImport.parsed);
+      const parts: string[] = [];
+      if (c.books > 0) parts.push(`${c.books} 本作品`);
+      if (c.worldbooks > 0) parts.push(`${c.worldbooks} 本世界书`);
+      if (c.presets > 0) parts.push(`${c.presets} 份预设`);
+      if (c.cards > 0) parts.push(`${c.cards} 张角色卡`);
+      if (c.summaries > 0) parts.push(`${c.summaries} 份总结`);
+      if (c.summaryTemplates > 0) parts.push(`${c.summaryTemplates} 个总结模板`);
+      if (c.stories > 0) parts.push(`${c.stories} 棵故事树`);
       toast({
         title: '恢复成功',
-        description: `已导入 ${parts.join('、')}`,
+        description: parts.length ? `已写入 ${parts.join('、')}` : '备份中没有可导入的数据',
       });
       await refreshStorage();
       onDataChanged?.();
     } catch (err) {
       toast({
         title: '恢复失败',
-        description: err instanceof Error ? err.message : '无法解析备份文件',
+        description: err instanceof Error ? err.message : '写入失败，现有数据未改动',
         variant: 'destructive',
       });
     } finally {
       setLoading(false);
-      e.target.value = '';
+      setPendingImport(null);
     }
   };
 
@@ -260,7 +287,7 @@ export function GlobalSettings({ onDataChanged, ...props }: GlobalSettingsProps)
                     type="file"
                     accept=".json"
                     className="hidden"
-                    onChange={handleImport}
+                    onChange={handleSelectImportFile}
                     disabled={loading}
                   />
                   <Button
@@ -353,6 +380,61 @@ export function GlobalSettings({ onDataChanged, ...props }: GlobalSettingsProps)
           </div>
         </SheetContent>
       </Sheet>
+
+      {/* 恢复备份前的预览确认：先看清将新增/覆盖什么，再决定写不写 */}
+      <AlertDialog open={!!pendingImport} onOpenChange={(v) => { if (!v) setPendingImport(null); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>确认恢复备份</AlertDialogTitle>
+            <AlertDialogDescription>
+              按 id 合并写入：下方「覆盖」的条目会用备份内容替换当前同 id 记录，其余现有数据保留不动。整个过程要么全部成功、要么全部不改（失败自动回滚）。
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+
+          {pendingImport && (
+            <div className="space-y-2">
+              {pendingImport.preview.exportedAt && (
+                <p className="text-xs text-muted-foreground">
+                  备份导出于 {new Date(pendingImport.preview.exportedAt).toLocaleString()}
+                </p>
+              )}
+              <div className="space-y-1.5 text-xs max-h-56 overflow-auto">
+                {pendingImport.preview.stores
+                  .filter((s) => s.add + s.overwrite + s.skipped > 0)
+                  .map((s) => (
+                    <div key={s.key} className="flex items-center justify-between rounded-md bg-muted/50 px-2 py-1.5">
+                      <span className="font-medium">{s.label}</span>
+                      <span className="flex gap-2.5">
+                        {s.add > 0 && <span className="text-emerald-600 dark:text-emerald-400">新增 {s.add}</span>}
+                        {s.overwrite > 0 && <span className="text-amber-600 dark:text-amber-400">覆盖 {s.overwrite}</span>}
+                        {s.skipped > 0 && <span className="text-muted-foreground">跳过 {s.skipped}</span>}
+                      </span>
+                    </div>
+                  ))}
+                {pendingImport.preview.totalAdd + pendingImport.preview.totalOverwrite + pendingImport.preview.totalSkipped === 0 && (
+                  <p className="text-muted-foreground">备份中没有可导入的有效数据。</p>
+                )}
+              </div>
+              {pendingImport.preview.totalOverwrite > 0 && (
+                <div className="flex items-start gap-1.5 text-xs text-amber-600 dark:text-amber-400">
+                  <AlertCircle className="w-3.5 h-3.5 mt-0.5 shrink-0" />
+                  <span>将覆盖 {pendingImport.preview.totalOverwrite} 条现有记录（同 id）。如需保险，可先取消、「导出完整备份」留档后再恢复。</span>
+                </div>
+              )}
+            </div>
+          )}
+
+          <AlertDialogFooter>
+            <AlertDialogCancel>取消</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={confirmImport}
+              disabled={!pendingImport || pendingImport.preview.totalAdd + pendingImport.preview.totalOverwrite === 0}
+            >
+              确认恢复
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       <AlertDialog open={clearDialogOpen} onOpenChange={setClearDialogOpen}>
         <AlertDialogContent>
