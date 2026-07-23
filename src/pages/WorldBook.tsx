@@ -307,7 +307,7 @@ export default function WorldBookPage() {
     setWorldbook(prev => prev ? { ...prev, entries: { ...prev.entries, [key]: newEntry } } : prev);
     setSelectedUid(key);
     if (isMobile) setMobileEditorOpen(true);
-  }, [worldbook]);
+  }, [worldbook, isMobile]);
 
   const deleteEntry = useCallback((key: string) => {
     let removed: WorldBookEntry | undefined;
@@ -557,14 +557,6 @@ export default function WorldBookPage() {
 
   const hasUnsavedChanges = isDirty;
 
-  const handleLoadStaged = useCallback((item: WorldBookItem) => {
-    if (hasUnsavedChanges) {
-      setConfirmLoadItem(item);
-    } else {
-      doLoadStaged(item);
-    }
-  }, [hasUnsavedChanges]);
-
   const doLoadStaged = useCallback((item: WorldBookItem) => {
     setWorldbook(item.worldbook);
     setFilename(item.title);
@@ -575,6 +567,14 @@ export default function WorldBookPage() {
     setIsDirty(false);
     toast({ title: '已加载', description: `已加载「${item.title}」` });
   }, [toast]);
+
+  const handleLoadStaged = useCallback((item: WorldBookItem) => {
+    if (hasUnsavedChanges) {
+      setConfirmLoadItem(item);
+    } else {
+      doLoadStaged(item);
+    }
+  }, [hasUnsavedChanges, doLoadStaged]);
 
   const handleDeleteStaged = useCallback(async (id: string) => {
     await deleteWorldBook(id);

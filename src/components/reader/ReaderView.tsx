@@ -128,9 +128,9 @@ const ReaderView = ({
     });
 
     setPages(processedPages);
-    if (currentPage >= processedPages.length && processedPages.length > 0) {
-      setCurrentPage(processedPages.length - 1);
-    }
+    // 页数变少时把当前页夹回范围内。用函数式更新读取最新页码，避免把 currentPage 塞进依赖——
+    // 否则每翻一页都会全量重跑正则重建所有页。
+    setCurrentPage(prev => (processedPages.length > 0 && prev >= processedPages.length ? processedPages.length - 1 : prev));
   }, [messages, markers, regexRules, characterName, userName]);
 
   // Navigation

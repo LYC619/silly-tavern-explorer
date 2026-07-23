@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Library, Plus, Trash2, Clock, MessageSquare, BookOpen, Upload, Edit3, Play, ArrowUpDown, Search } from 'lucide-react';
 import { HelpCard } from '@/components/HelpCard';
@@ -56,14 +56,7 @@ const Bookshelf = () => {
   const [sortBy, setSortBy] = useState<'updatedAt' | 'createdAt' | 'title'>('updatedAt');
   const [searchQuery, setSearchQuery] = useState('');
 
-  useEffect(() => {
-    loadBooks();
-    if (!isTourCompleted('bookshelf')) {
-      setTimeout(() => setShowTour(true), 500);
-    }
-  }, []);
-
-  const loadBooks = async () => {
+  const loadBooks = useCallback(async () => {
     try {
       const allBooks = await getAllBooks();
       setBooks(allBooks);
@@ -76,7 +69,15 @@ const Bookshelf = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [toast]);
+
+  useEffect(() => {
+    loadBooks();
+    if (!isTourCompleted('bookshelf')) {
+      const t = setTimeout(() => setShowTour(true), 500);
+      return () => clearTimeout(t);
+    }
+  }, [loadBooks]);
 
   // Click on book card opens action selection
   const handleBookClick = (book: BookItem) => {

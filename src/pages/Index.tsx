@@ -169,7 +169,7 @@ const Index = () => {
         }
       } catch { /* ignore */ }
     }
-  }, []);
+  }, [toast]);
 
   // 保存「跨页临时态」到 sessionStorage（防抖）。
   // 现在只存轻量指针(currentBookId+markers+favorites)，session 本体在 IndexedDB，

@@ -124,6 +124,16 @@ export function GuidedTour({ steps, module, onComplete, onSkip }: GuidedTourProp
 
   const step = steps[currentStep];
 
+  // 定义在两个 auto-advance effect 之前：它们的依赖数组会引用 advance，
+  // const 声明存在暂时性死区，必须先声明后引用。
+  const advance = useCallback(() => {
+    if (currentStep >= steps.length - 1) {
+      setShowCompletion(true);
+      return;
+    }
+    setCurrentStep(prev => prev + 1);
+  }, [currentStep, steps.length]);
+
   const updateRect = useCallback(() => {
     if (!step) return;
     const rect = getElementRect(step.targetSelector);
@@ -163,7 +173,7 @@ export function GuidedTour({ steps, module, onComplete, onSkip }: GuidedTourProp
     };
     el.addEventListener('click', handler, { once: true });
     return () => el.removeEventListener('click', handler);
-  }, [step, currentStep]);
+  }, [step, advance]);
 
   useEffect(() => {
     if (!step || step.action !== 'interact') return;
@@ -180,15 +190,7 @@ export function GuidedTour({ steps, module, onComplete, onSkip }: GuidedTourProp
       }
     }, 500);
     return () => clearInterval(interval);
-  }, [step, currentStep]);
-
-  const advance = useCallback(() => {
-    if (currentStep >= steps.length - 1) {
-      setShowCompletion(true);
-      return;
-    }
-    setCurrentStep(prev => prev + 1);
-  }, [currentStep, steps.length]);
+  }, [step, advance]);
 
   const handleSkipRequest = () => setShowSkipConfirm(true);
 
