@@ -35,6 +35,10 @@ import { serializeFrontmatter, parseFrontmatter } from './frontmatter';
 
 export interface VaultBackend {
   repo<T extends BaseRecord>(store: StoreName): Repo<T>;
+  /** 库文件系统（组件读记录外的旁路文件用，如角色 立绘/；只读为宜） */
+  fs: VaultFs;
+  /** 记录在库内的相对路径（角色/故事=文件夹，其余=文件）；未入索引返回 undefined */
+  pathOf(store: StoreName, id: string): Promise<string | undefined>;
 }
 
 /** 文件库承接的 store（'books' 已退役不进文件库） */
@@ -559,6 +563,12 @@ export function createVault(fs: VaultFs): VaultBackend {
         repos.set(s, r);
       }
       return r as Repo<T>;
+    },
+    fs,
+    async pathOf(store: StoreName, id: string): Promise<string | undefined> {
+      if (!(VAULT_STORES as readonly string[]).includes(store)) return undefined;
+      await ensureIndex();
+      return of(store as VaultStore).get(id);
     },
   };
 }

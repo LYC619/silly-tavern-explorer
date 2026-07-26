@@ -57,6 +57,7 @@ import {
 import { normalizeCharacterCard, parseJsonl, parseJson } from '@/lib/adapters/st';
 import { formatPlayTime } from '@/lib/story-meta';
 import { AssetSection } from '@/components/character/AssetSection';
+import { IllustrationSection } from '@/components/character/IllustrationSection';
 import { IntroSection } from '@/components/character/IntroSection';
 import { RatingPanel } from '@/components/character/RatingPanel';
 
@@ -422,6 +423,9 @@ const CharacterPage = () => {
           character={character}
           onAssetsChange={(assets) => patchCharacter({ assets })}
         />
+
+        {/* 立绘区（阶段7，仅客户端文件库有图时出现） */}
+        <IllustrationSection characterId={character.id} />
       </div>
 
       <AlertDialog open={!!storyToDelete} onOpenChange={(open) => !open && setStoryToDelete(null)}>

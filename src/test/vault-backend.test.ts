@@ -310,3 +310,18 @@ describe('vault 重开库', () => {
     expect((await reopened.repo<WorldBookItem>('worldbooks').get('wb1'))!.title).toBe('魔法世界');
   });
 });
+
+describe('vault pathOf/fs 旁路（7.2 遗留：立绘等库内旁路文件）', () => {
+  it('pathOf 返回记录所在相对路径；未知 id/不支持 store 为 undefined', async () => {
+    const fs = createMemFs();
+    const vault = createVault(fs);
+    await vault.repo<ArchiveCharacter>('characters').put(makeChar('c1', '赫敏'));
+    expect(await vault.pathOf('characters', 'c1')).toBe('角色/赫敏');
+    expect(await vault.pathOf('characters', '不存在')).toBeUndefined();
+    expect(await vault.pathOf('books', 'x')).toBeUndefined();
+    // fs 暴露给组件读旁路文件（立绘）
+    await fs.writeBinary('角色/赫敏/立绘/正装.png', 'aGk=');
+    const entries = await vault.fs.list('角色/赫敏/立绘');
+    expect(entries.map((e) => e.name)).toEqual(['正装.png']);
+  });
+});
