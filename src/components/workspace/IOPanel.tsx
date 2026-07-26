@@ -19,6 +19,8 @@ import type { SummaryItem } from '@/types/summary';
 import type { StoryTree } from '@/types/story-tree';
 import { SUMMARY_KIND_LABELS } from '@/types/summary';
 import { parseJsonl, parseJson, mergeReimport } from '@/lib/adapters/st';
+import { isTauri } from '@/lib/vault/tauri-fs';
+import { WritebackSection } from '@/components/workspace/WritebackSection';
 import { updateBranchLine, getBranchLine, type BranchLine } from '@/lib/archive-db';
 import { getAllSummaries } from '@/lib/summary-db';
 import { getAllStoryTrees } from '@/lib/story-tree-db';
@@ -216,20 +218,24 @@ export function IOPanel({ story, branchId, line, settings, onStoryUpdate }: IOPa
         </CardContent>
       </Card>
 
-      {/* ③ 写回 ST：仅客户端 + 已绑定原路径，阶段7 启用 */}
-      <Card>
-        <CardContent className="py-5 space-y-1.5 opacity-70">
-          <div className="flex items-center gap-2">
-            <FileUp className="w-4 h-4 text-muted-foreground" />
-            <p className="text-sm font-medium">写回 ST</p>
-            <Badge variant="outline" className="h-5 text-[11px]">客户端版启用</Badge>
-          </div>
-          <p className="text-xs text-muted-foreground">
-            仅对绑定了原路径的故事开放：写回前自动备份原文件（保留最近若干版可恢复），
-            确认摘要后执行并记录写回历史。需要读写本机 ST 目录，等客户端版（阶段7）。
-          </p>
-        </CardContent>
-      </Card>
+      {/* ③ 写回 ST：客户端 + 已绑定原路径 = 真实现（阶段7.5），否则保留说明占位 */}
+      {isTauri() && story.characterId && story.sourcePath ? (
+        <WritebackSection story={story} onStoryUpdate={onStoryUpdate} />
+      ) : (
+        <Card>
+          <CardContent className="py-5 space-y-1.5 opacity-70">
+            <div className="flex items-center gap-2">
+              <FileUp className="w-4 h-4 text-muted-foreground" />
+              <p className="text-sm font-medium">写回 ST</p>
+              <Badge variant="outline" className="h-5 text-[11px]">客户端版功能</Badge>
+            </div>
+            <p className="text-xs text-muted-foreground">
+              仅客户端版、且故事绑定了 ST 原路径时开放：写回前自动备份原文件（保留最近若干版可恢复），
+              确认摘要后执行并记录写回历史。
+            </p>
+          </CardContent>
+        </Card>
+      )}
     </div>
   );
 }

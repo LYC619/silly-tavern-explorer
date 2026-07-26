@@ -113,8 +113,19 @@ export interface ArchiveStory {
   lastImportedAt?: number;
   /** 最近一次导出副本的时间（阶段4，io 页显示） */
   lastExportedAt?: number;
+  /** 写回 ST 历史（阶段7.5，客户端；新在前，最多留 10 条） */
+  writebacks?: WritebackRecord[];
   createdAt: number;
   updatedAt: number;
+}
+
+/** 一次写回 ST 的记录（阶段7.5） */
+export interface WritebackRecord {
+  at: number;
+  /** 写回时的主线楼数 */
+  floors: number;
+  /** 写前备份在库内的相对路径（.ste/写回备份/…）；源文件当时不存在则无 */
+  backupFile?: string;
 }
 
 // ---------- 独立资产：引用 + 写时复制（定稿第七章） ----------

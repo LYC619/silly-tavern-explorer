@@ -46,6 +46,11 @@ export function readAbsText(path: string): Promise<string> {
   return invoke('vault_read_text', { path });
 }
 
+/** 按绝对路径写文本（7.5 写回 ST 用；Rust 侧临时文件+rename 原子写） */
+export function writeAbsText(path: string, content: string): Promise<void> {
+  return invoke('vault_write_text', { path, content });
+}
+
 // ---- 应用配置（系统配置目录 config.json，不进库；API Key 后续同通道）----
 
 export async function getAppConfig<T>(key: string): Promise<T | null> {
