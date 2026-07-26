@@ -1,4 +1,5 @@
 import { toast } from 'sonner';
+import { isTauri } from '@/lib/vault/tauri-fs';
 
 /**
  * 注册 Service Worker，并在检测到新版本时弹「新版本可用」提示——不自动刷新，
@@ -9,6 +10,24 @@ import { toast } from 'sonner';
  */
 export function registerServiceWorker(): void {
   if (!('serviceWorker' in navigator)) return;
+
+  // 客户端（Tauri）不注册 SW：前端资产内嵌在 exe 里本就离线可用，SW 缓存反而可能
+  // 让旧版资产盖住新 exe（sw.js 字节不变时浏览器永不触发更新）。同时注销历史注册
+  // 并清空 CacheStorage，解救此前版本已在 WebView 里装过 SW 的安装；清理成功后
+  // 重载一次脱离旧 controller（此后 getRegistrations 为空，不会再次重载）。
+  if (isTauri()) {
+    void (async () => {
+      try {
+        const regs = await navigator.serviceWorker.getRegistrations();
+        if (regs.length === 0) return;
+        await Promise.all(regs.map((r) => r.unregister()));
+        const keys = await caches.keys();
+        await Promise.all(keys.map((k) => caches.delete(k)));
+        window.location.reload();
+      } catch { /* 清理失败不阻塞使用 */ }
+    })();
+    return;
+  }
 
   window.addEventListener('load', async () => {
     let registration: ServiceWorkerRegistration;
