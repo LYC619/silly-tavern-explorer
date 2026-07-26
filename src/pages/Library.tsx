@@ -53,6 +53,7 @@ import {
   abToBase64,
 } from '@/lib/archive-db';
 import { extractCharacterFromPng, parseCharacterCardJson } from '@/lib/adapters/st';
+import { importEmbeddedAssets } from '@/lib/card-embedded-assets';
 
 const COVER_GRADIENTS = [
   'from-rose-400/80 to-orange-300/80',
@@ -129,13 +130,17 @@ const Library = () => {
     let fail = 0;
     for (const file of Array.from(files)) {
       try {
+        let character;
         if (file.name.toLowerCase().endsWith('.png')) {
           const [card, buf] = await Promise.all([extractCharacterFromPng(file), file.arrayBuffer()]);
-          await saveCharacter(buildCharacterFromCard(card, abToBase64(buf)));
+          character = buildCharacterFromCard(card, abToBase64(buf));
         } else {
-          const card = parseCharacterCardJson(await file.text());
-          await saveCharacter(buildCharacterFromCard(card));
+          character = buildCharacterFromCard(parseCharacterCardJson(await file.text()));
         }
+        // 卡内嵌世界书/正则自动入库并挂关联（阶段9.5）
+        const refs = await importEmbeddedAssets(character);
+        if (refs.length > 0) character.assets = refs;
+        await saveCharacter(character);
         ok++;
       } catch {
         fail++;

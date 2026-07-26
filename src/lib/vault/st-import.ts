@@ -38,6 +38,7 @@ import { generatePresetId, type PresetItem } from '@/types/preset';
 import { getAllPresets, savePreset } from '@/lib/preset-db';
 import { parseSTRegexImport } from '@/lib/st-regex-interop';
 import { buildRegexCollection, getAllRegexCollections, saveRegexCollection } from '@/lib/regex-db';
+import { importEmbeddedAssets } from '@/lib/card-embedded-assets';
 
 // ---------- 扫描 ----------
 
@@ -280,6 +281,9 @@ export async function importSelected(stFs: VaultFs, plan: STImportPlan): Promise
         const card = extractCharacterFromPngBuffer(base64ToArrayBuffer(base64));
         const character = buildCharacterFromCard(card, base64);
         character.sourcePath = src;
+        // 卡内嵌世界书/正则自动入库并挂关联（阶段9.5）
+        const refs = await importEmbeddedAssets(character);
+        if (refs.length > 0) character.assets = refs;
         await saveCharacter(character);
         charBySource.set(src, character.id);
         charId = character.id;
