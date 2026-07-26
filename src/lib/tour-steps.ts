@@ -123,56 +123,8 @@ export const PRESET_TOUR_STEPS: TourStep[] = [
   },
 ];
 
-export const SUMMARY_TOUR_STEPS: TourStep[] = [
-  {
-    targetSelector: '[data-tour="summary-kind"]',
-    content: '三种呈现：分卷总结（可跨卷连贯）、角色日记（第一人称）、DIY 自由创作。都用同一套引擎，选好类型再往下配置。',
-    action: 'next',
-  },
-  {
-    targetSelector: '[data-tour="summary-floors"]',
-    content: '选择要总结的楼层范围（与聊天处理页楼层号一致）。分卷时可「续上一卷」自动接上。',
-    action: 'next',
-  },
-  {
-    targetSelector: '[data-tour="summary-attach"]',
-    content: '可选挂载已保存的预设（决定上下文组装顺序）与世界书（默认仅注入常驻条目，避免 token 过大）。右上角实时显示 token 估算。',
-    action: 'next',
-  },
-  {
-    targetSelector: '[data-tour="summary-template"]',
-    content: '选择提示词模板，可查看/编辑/另存为自定义、删除不用的模板。配置好点「生成」即可。',
-    action: 'next',
-  },
-  {
-    targetSelector: '[data-tour="summary-batch"]',
-    content: '「批量分段生成」适合超长范围：按每段 N 楼拆开并行调用，逐段复制或合并送入编辑器（轻量直调，不挂预设/世界书）。',
-    action: 'next',
-  },
-  {
-    targetSelector: '[data-tour="summary-saved"]',
-    content: '生成的总结会自动暂存、可编辑；点「保存」转为永久留存。这里能查看、重新生成、导出、删除已存总结；筛选行切「小总结」可按正则提取每楼小结。点「查看」后编辑器在列表下方展开。',
-    action: 'next',
-  },
-];
-
-export const STORY_TREE_TOUR_STEPS: TourStep[] = [
-  {
-    targetSelector: '[data-tour="story-tree-select"]',
-    content: '每棵故事树关联当前书。可新建多棵、切换、重命名、删除。树会随编辑自动保存。',
-    action: 'next',
-  },
-  {
-    targetSelector: '[data-tour="story-tree-toolbar"]',
-    content: '「根节点」手动加顶层节点；「AI 生成」从选定聊天楼层自动提炼人物/事件/关系等事实节点。可撤销/重做、切换树/导图视图、搜索定位。左侧树可拖拽移动节点（上下插入或作为子节点）。',
-    action: 'next',
-  },
-  {
-    targetSelector: '[data-tour="story-tree-editor"]',
-    content: '点击节点在右侧编辑标题、正文、标签；可置顶或归档（归档=软删除，可恢复）。',
-    action: 'next',
-  },
-];
+// 总结/故事树引导已随页面并入故事工作区（2.0 阶段3）删除；
+// TOUR_MODULES 保留旧 key 便于 resetAllTours 清理历史 localStorage。
 
 // Storage keys
 const PREFIX = 'onboarding-';

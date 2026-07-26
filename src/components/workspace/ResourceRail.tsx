@@ -1,7 +1,7 @@
 /**
  * 故事工作区右栏·资源栏（定稿 5.1 / task 2.5，可收起）。
  * 快速查看当前故事名下的总结/日记/故事树 + 按楼层范围快捷创建草稿；
- * 完整编辑器在「整理与记录」界面（阶段3）迁入，这里不重做。
+ * 完整的生成与编辑在「整理与记录」界面，这里提供直达入口。
  */
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { PanelRightClose, PanelRightOpen, Plus, NotebookText, Network, BookText } from 'lucide-react';
@@ -25,13 +25,15 @@ interface ResourceRailProps {
   floorCount: number;
   /** 跳到某楼（点记录的来源楼层时用） */
   onJumpToFloor: (floor: number) => void;
+  /** 打开「整理与记录」并定位到某条目 */
+  onOpenOrganize?: (target: { type: 'record' | 'tree'; id: string }) => void;
 }
 
 function formatWhen(ts: number): string {
   return new Date(ts).toLocaleDateString('zh-CN', { month: 'short', day: 'numeric' });
 }
 
-export function ResourceRail({ story, floorCount, onJumpToFloor }: ResourceRailProps) {
+export function ResourceRail({ story, floorCount, onJumpToFloor, onOpenOrganize }: ResourceRailProps) {
   const { toast } = useToast();
   const [collapsed, setCollapsed] = useState(false);
   const [summaries, setSummaries] = useState<SummaryItem[]>([]);
@@ -77,8 +79,9 @@ export function ResourceRail({ story, floorCount, onJumpToFloor }: ResourceRailP
     await refresh();
     toast({
       title: '草稿已创建',
-      description: '楼层范围已记下；生成与完整编辑在「整理与记录」界面上线后进行。',
+      description: '楼层范围已记下；到「整理与记录」界面生成与编辑。',
     });
+    onOpenOrganize?.({ type: 'record', id: item.id });
   };
 
   if (collapsed) {
@@ -124,18 +127,28 @@ export function ResourceRail({ story, floorCount, onJumpToFloor }: ResourceRailP
               </CollapsibleTrigger>
               <CollapsibleContent>
                 <div className="mx-1.5 mb-1 rounded bg-muted/40 p-2 space-y-1.5">
-                  <button
-                    className="text-xs text-primary hover:underline"
-                    onClick={() => onJumpToFloor(s.floorStart)}
-                  >
-                    来源 #{s.floorStart}–{s.floorEnd} 楼 · 跳过去
-                  </button>
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <button
+                      className="text-xs text-primary hover:underline"
+                      onClick={() => onJumpToFloor(s.floorStart)}
+                    >
+                      来源 #{s.floorStart}–{s.floorEnd} 楼 · 跳过去
+                    </button>
+                    {onOpenOrganize && (
+                      <button
+                        className="text-xs text-primary hover:underline"
+                        onClick={() => onOpenOrganize({ type: 'record', id: s.id })}
+                      >
+                        去整理与记录
+                      </button>
+                    )}
+                  </div>
                   {s.content ? (
                     <div className="max-h-40 overflow-y-auto whitespace-pre-wrap text-xs leading-relaxed text-foreground/85">
                       {s.content}
                     </div>
                   ) : (
-                    <p className="text-xs text-muted-foreground/70">还没有内容（等「整理与记录」界面生成）</p>
+                    <p className="text-xs text-muted-foreground/70">还没有内容（到「整理与记录」生成）</p>
                   )}
                 </div>
               </CollapsibleContent>
@@ -221,17 +234,22 @@ export function ResourceRail({ story, floorCount, onJumpToFloor }: ResourceRailP
         ) : (
           <div className="space-y-0.5">
             {trees.slice(0, 5).map((t) => (
-              <div key={t.id} className="flex items-center gap-1.5 rounded-md px-1.5 py-1 text-sm">
+              <button
+                key={t.id}
+                className="w-full flex items-center gap-1.5 rounded-md px-1.5 py-1 text-sm text-left hover:bg-accent/60 transition-colors"
+                onClick={() => onOpenOrganize?.({ type: 'tree', id: t.id })}
+                title="在「整理与记录」中打开"
+              >
                 <span className="flex-1 min-w-0 truncate">{t.title || '未命名故事树'}</span>
                 <span className="text-[10px] text-muted-foreground shrink-0">{formatWhen(t.updatedAt)}</span>
-              </div>
+              </button>
             ))}
           </div>
         )}
       </div>
 
       <p className="text-[11px] leading-relaxed text-muted-foreground/70">
-        这里只做快速查看与草稿占位；生成与完整编辑将在「整理与记录」界面（阶段3）迁入。
+        这里只做快速查看与草稿占位；生成与完整编辑在左侧「整理与记录」界面。
       </p>
     </aside>
   );

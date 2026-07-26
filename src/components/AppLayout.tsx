@@ -1,5 +1,5 @@
 import { useNavigate, useLocation } from 'react-router-dom';
-import { ScrollText, Globe, Library, KeyRound, Moon, Sun, IdCard, SlidersHorizontal, NotebookText, Network, Users } from 'lucide-react';
+import { ScrollText, Globe, Library, KeyRound, Moon, Sun, IdCard, SlidersHorizontal, Users } from 'lucide-react';
 import { useTheme } from 'next-themes';
 import { Button } from '@/components/ui/button';
 import { GlobalSettings } from '@/components/GlobalSettings';
@@ -16,8 +16,6 @@ interface AppLayoutProps {
 const NAV_ITEMS = [
   { label: '角色库', icon: Users, path: '/library' },
   { label: '聊天处理', icon: ScrollText, path: '/' },
-  { label: '总结', icon: NotebookText, path: '/summary' },
-  { label: '故事树', icon: Network, path: '/story-tree' },
   { label: '世界书', icon: Globe, path: '/worldbook' },
   { label: '角色卡', icon: IdCard, path: '/card-viewer' },
   { label: '预设', icon: SlidersHorizontal, path: '/preset' },

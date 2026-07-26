@@ -37,6 +37,8 @@ export interface SummaryGenParams {
   speakerPrefix?: boolean;
   /** kind=diary 时「生成谁的日记」填的角色名（自动附加进提示词） */
   diaryOwner?: string;
+  /** 模板显示名快照（整理与记录索引显示模板名用；模板改名/删除后仍可读） */
+  templateTitle?: string;
 }
 
 export interface SummaryItem {
@@ -49,6 +51,11 @@ export interface SummaryItem {
   title: string;
   /** kind=volume 时的卷号（从 1 开始） */
   volumeNumber?: number;
+  /**
+   * 来源脉络（2.0 阶段3）：归档故事的分支 id；undefined=主线。
+   * 书架时代的旧条目无此字段，按主线对待。
+   */
+  branchId?: string;
   /** 覆盖楼层闭区间起点，0-based，与聊天页楼层号一致 */
   floorStart: number;
   /** 覆盖楼层闭区间终点，0-based */

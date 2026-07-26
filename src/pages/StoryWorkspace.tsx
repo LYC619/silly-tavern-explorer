@@ -1,7 +1,7 @@
 /**
  * 故事工作区（2.0 阶段2，定稿第五章）。
  * 共享同一个故事上下文（角色卡/故事/分支/阅读位置），左侧二级栏切换三个一级界面：
- * 阅读与编辑（本阶段完整）/ 整理与记录（阶段3 迁入）/ 导入与导出（阶段4 完整，此处先给导出）。
+ * 阅读与编辑 / 整理与记录（阶段3 已迁入）/ 导入与导出（阶段4 完整，此处先给导出）。
  * 布局铁律：分栏用 flex-wrap + 行内 basis，禁视口断点。
  */
 import { useState, useEffect, useRef, useCallback } from 'react';
@@ -17,6 +17,7 @@ import { ExportButton } from '@/components/chat/ExportButton';
 import { BranchPanel } from '@/components/workspace/BranchPanel';
 import { OutlinePanel } from '@/components/workspace/OutlinePanel';
 import { ResourceRail } from '@/components/workspace/ResourceRail';
+import { OrganizePanel, type OrganizeTarget } from '@/components/organize/OrganizePanel';
 import ReaderView from '@/components/reader/ReaderView';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
@@ -37,7 +38,7 @@ type WorkspaceView = 'read' | 'organize' | 'io';
 
 const VIEW_ITEMS: { key: WorkspaceView; label: string; icon: typeof BookOpenText; hint?: string }[] = [
   { key: 'read', label: '阅读与编辑', icon: BookOpenText },
-  { key: 'organize', label: '整理与记录', icon: NotebookText, hint: '阶段3' },
+  { key: 'organize', label: '整理与记录', icon: NotebookText },
   { key: 'io', label: '导入与导出', icon: ArrowDownUp, hint: '阶段4' },
 ];
 
@@ -52,6 +53,9 @@ const StoryWorkspace = () => {
   const [view, setView] = useState<WorkspaceView>('read');
   const [immersive, setImmersive] = useState(false);
   const workbenchRef = useRef<ChatWorkbenchHandle>(null);
+  // 整理与记录：资源栏点进来要打开的条目；从整理跳回聊天时待滚动的楼层
+  const [organizeTarget, setOrganizeTarget] = useState<OrganizeTarget | null>(null);
+  const pendingJumpRef = useRef<number | null>(null);
 
   // 持久化：只有真实修改（dirty）才落库，防抖 600ms；离开页面前有脏数据立即补存
   const dirtyRef = useRef(false);
@@ -138,6 +142,22 @@ const StoryWorkspace = () => {
   const handleSettingsChange = useCallback((next: NonNullable<ArchiveStory['settings']>) => {
     mutateStory((cur) => ({ ...cur, settings: next, updatedAt: Date.now() }));
   }, [mutateStory]);
+
+  // 整理与记录「跳回聊天对应楼层」：切分支（保留分支上下文）+ 回阅读视图，
+  // 等 ChatWorkbench（按脉络 key 重挂）挂载渲染后再滚到楼层
+  const handleJumpToChat = useCallback((bid: string | null, floor: number) => {
+    pendingJumpRef.current = floor;
+    setBranchId(bid);
+    setView('read');
+  }, []);
+
+  useEffect(() => {
+    if (view !== 'read' || pendingJumpRef.current === null) return;
+    const floor = pendingJumpRef.current;
+    pendingJumpRef.current = null;
+    const t = setTimeout(() => workbenchRef.current?.scrollToFloor(floor), 120);
+    return () => clearTimeout(t);
+  }, [view, branchId]);
 
   // ---- 分支操作 ----
 
@@ -255,7 +275,11 @@ const StoryWorkspace = () => {
               return (
                 <button
                   key={item.key}
-                  onClick={() => setView(item.key)}
+                  onClick={() => {
+                    // 手动点导航进整理 = 清掉资源栏指定的条目，回「默认开最近修改」
+                    if (item.key === 'organize') setOrganizeTarget(null);
+                    setView(item.key);
+                  }}
                   className={cn(
                     'w-full flex items-center gap-2 rounded-md px-2 py-1.5 text-sm transition-colors',
                     active
@@ -334,31 +358,24 @@ const StoryWorkspace = () => {
                   story={story}
                   floorCount={line.session.messages.length}
                   onJumpToFloor={(n) => workbenchRef.current?.scrollToFloor(n)}
+                  onOpenOrganize={(target) => {
+                    setOrganizeTarget(target);
+                    setView('organize');
+                  }}
                 />
               </div>
             </div>
           )}
 
           {view === 'organize' && (
-            <div className="container mx-auto px-6 py-10 max-w-2xl space-y-4">
-              <h2 className="font-display text-xl font-semibold">整理与记录</h2>
-              <Card>
-                <CardContent className="py-6 text-sm text-muted-foreground space-y-3">
-                  <p>
-                    三栏式的统一整理界面（总结 / 日记 / 自定义记录 / 故事树）将在阶段3 迁入这里，
-                    带来源楼层、生成参数快照和「跳回聊天对应楼层」。
-                  </p>
-                  <p>
-                    当前可用：右侧资源栏可快速查看本故事的成果、按楼层范围建草稿；
-                    完整的生成与编辑暂在顶部导航的「总结」「故事树」页。
-                  </p>
-                  <div className="flex gap-2 pt-1">
-                    <Button variant="outline" size="sm" onClick={() => navigate('/summary')}>去总结页</Button>
-                    <Button variant="outline" size="sm" onClick={() => navigate('/story-tree')}>去故事树页</Button>
-                  </div>
-                </CardContent>
-              </Card>
-            </div>
+            <OrganizePanel
+              key={organizeTarget ? `${organizeTarget.type}-${organizeTarget.id}` : 'auto'}
+              story={story}
+              characterName={character?.name}
+              currentBranchId={branchId}
+              initialTarget={organizeTarget}
+              onJumpToChat={handleJumpToChat}
+            />
           )}
 
           {view === 'io' && (

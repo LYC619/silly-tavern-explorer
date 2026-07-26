@@ -64,7 +64,8 @@ export function SummaryResultEditor({
       <CardHeader className="pb-3">
         <div className="flex items-center justify-between gap-2 flex-wrap">
           <CardTitle className="text-base">生成结果</CardTitle>
-          <div className="flex items-center gap-2">
+          {/* 窄栏（整理与记录中栏）下按钮行必须可换行，否则溢出卡片压到右栏 */}
+          <div className="flex items-center gap-2 flex-wrap justify-end">
             {!streaming && content && (
               <AIRewriteContent
                 content={content}

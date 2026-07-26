@@ -13,8 +13,6 @@ const Library = lazy(() => import("./pages/Library"));
 const CharacterPage = lazy(() => import("./pages/CharacterPage"));
 const StoryWorkspace = lazy(() => import("./pages/StoryWorkspace"));
 const Bookshelf = lazy(() => import("./pages/Bookshelf"));
-const Summary = lazy(() => import("./pages/Summary"));
-const StoryTree = lazy(() => import("./pages/StoryTree"));
 const AITools = lazy(() => import("./pages/AITools"));
 const Reader = lazy(() => import("./pages/Reader"));
 const WorldBook = lazy(() => import("./pages/WorldBook"));
@@ -40,8 +38,7 @@ const App = () => (
             <Route path="/library" element={<Library />} />
             <Route path="/character/:id" element={<CharacterPage />} />
             <Route path="/story/:id" element={<StoryWorkspace />} />
-            <Route path="/summary" element={<Summary />} />
-            <Route path="/story-tree" element={<StoryTree />} />
+            {/* /summary 与 /story-tree 已在 2.0 阶段3 并入故事工作区「整理与记录」 */}
             <Route path="/bookshelf" element={<Bookshelf />} />
             <Route path="/ai-tools" element={<AITools />} />
             <Route path="/worldbook" element={<WorldBook />} />
