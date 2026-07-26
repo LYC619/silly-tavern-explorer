@@ -5,6 +5,7 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { ThemeProvider } from "next-themes";
 import { lazy, Suspense } from "react";
 import { Loader2 } from "lucide-react";
+import { VaultGate } from "@/components/vault/VaultGate";
 
 // 路由级代码分割：每个页面单独打包，首屏只加载首页所需 chunk，
 // 其余页面(世界书/AI工具等)按需懒加载，避免全部塞进一个大 bundle。
@@ -32,6 +33,7 @@ const App = () => (
     <TooltipProvider>
       <Toaster />
       <Sonner />
+      <VaultGate>
       <BrowserRouter>
         <Suspense fallback={<PageFallback />}>
           <Routes>
@@ -53,6 +55,7 @@ const App = () => (
           </Routes>
         </Suspense>
       </BrowserRouter>
+      </VaultGate>
     </TooltipProvider>
   </ThemeProvider>
 );
