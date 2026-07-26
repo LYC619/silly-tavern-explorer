@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { parseRegex, formatRegex, applyRegexRules, getMessagePrefix, convertMessagesToTxt } from '@/lib/regex-processor';
+import { parseRegex, formatRegex, applyRegexRules, getMessagePrefix, convertMessagesToTxt, convertMessagesToMarkdown } from '@/lib/regex-processor';
 import type { RegexRule, ChatMessage, ChapterMarker } from '@/types/chat';
 
 describe('parseRegex', () => {
@@ -194,5 +194,34 @@ describe('convertMessagesToTxt', () => {
     const result = convertMessagesToTxt(messages, [], 'none');
     expect(result).not.toContain('Alice:');
     expect(result).toContain('Hello');
+  });
+});
+
+describe('convertMessagesToMarkdown（阶段4 导出重组）', () => {
+  const messages: ChatMessage[] = [
+    { id: '1', role: 'user', content: 'Hello', name: 'Alice' },
+    { id: '2', role: 'assistant', content: 'Hi there', name: 'Bob' },
+  ];
+
+  it('说话人加粗、章节转二级标题、概要转引用块', () => {
+    const markers: ChapterMarker[] = [{
+      messageId: '2', messageIndex: 1, title: '相识', volume: '卷一',
+      summary: '两人相遇', createdAt: Date.now(),
+    }];
+    const result = convertMessagesToMarkdown(messages, [], 'name', markers);
+    expect(result).toContain('**Alice**\n\nHello');
+    expect(result).toContain('## 卷一 · 相识');
+    expect(result).toContain('> 两人相遇');
+  });
+
+  it('none 前缀=纯正文；正则清空的消息被跳过', () => {
+    const rules: RegexRule[] = [{
+      id: 'r1', name: 'Remove all', findRegex: '.*', replaceString: '',
+      placement: ['user'], disabled: false,
+    }];
+    const result = convertMessagesToMarkdown(messages, rules, 'none');
+    expect(result).not.toContain('Hello');
+    expect(result).not.toContain('**');
+    expect(result).toContain('Hi there');
   });
 });

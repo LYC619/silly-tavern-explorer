@@ -15,7 +15,7 @@ import {
 } from '@/components/ui/dialog';
 import { HelpCard } from '@/components/HelpCard';
 import { useToast } from '@/hooks/use-toast';
-import { applyRegexRules, convertMessagesToTxt } from '@/lib/regex-processor';
+import { applyRegexRules, convertMessagesToTxt, convertMessagesToMarkdown } from '@/lib/regex-processor';
 import type { ChatSession, ExportSettings, ChapterMarker, STRawMessage, STMetadata } from '@/types/chat';
 
 interface ExportButtonProps {
@@ -23,6 +23,8 @@ interface ExportButtonProps {
   settings: ExportSettings;
   markers?: ChapterMarker[];
   onSettingsChange?: (settings: ExportSettings) => void;
+  /** 每次成功导出后回调（io 页记「上次导出时间」用） */
+  onExported?: (format: 'txt' | 'md' | 'jsonl') => void;
 }
 
 const METADATA_KEEP_KEYS = [
@@ -73,7 +75,19 @@ function getMessagesInRange(
   return messages;
 }
 
-export function ExportButton({ session, settings, markers = [], onSettingsChange }: ExportButtonProps & { 'data-tour'?: string }) {
+function downloadBlob(name: string, content: string, mime: string): void {
+  const blob = new Blob([content], { type: mime });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = name;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+
+export function ExportButton({ session, settings, markers = [], onSettingsChange, onExported }: ExportButtonProps & { 'data-tour'?: string }) {
   const { toast } = useToast();
   const [open, setOpen] = useState(false);
 
@@ -159,17 +173,20 @@ export function ExportButton({ session, settings, markers = [], onSettingsChange
     return metadata;
   };
 
+  // 标题去掉导入时残留的「 - <时间戳> imported」后缀；角色/用户名为占位 unused 时省略该行。
+  const getCleanTitle = () =>
+    (session.title || '对话记录')
+      .replace(/\s*-\s*\d{4}-\d{2}-\d{2}@.*?imported\s*$/i, '')
+      .replace(/\s+imported\s*$/i, '')
+      .trim() || '对话记录';
+  const isPlaceholder = (n: string) => !n || /^unused$/i.test(n.trim());
+
   const exportAsTxt = () => {
     const msgs = getExportMessages();
     const body = convertMessagesToTxt(msgs, settings.regexRules, settings.prefixMode, markers);
 
     // 归档元数据头：标题 / 角色与用户 / 导出日期。
-    // 标题去掉导入时残留的「 - <时间戳> imported」后缀；角色/用户名为占位 unused 时省略该行。
-    const cleanTitle = (session.title || '对话记录')
-      .replace(/\s*-\s*\d{4}-\d{2}-\d{2}@.*?imported\s*$/i, '')
-      .replace(/\s+imported\s*$/i, '')
-      .trim() || '对话记录';
-    const isPlaceholder = (n: string) => !n || /^unused$/i.test(n.trim());
+    const cleanTitle = getCleanTitle();
     const headerLines = [cleanTitle];
     if (!isPlaceholder(session.character.name) || !isPlaceholder(session.user.name)) {
       headerLines.push(`${session.character.name} & ${session.user.name}`);
@@ -178,17 +195,31 @@ export function ExportButton({ session, settings, markers = [], onSettingsChange
     const txtContent = headerLines.join('\n') + body;
 
     const txtName = `${sanitizeFilename(cleanTitle)}.txt`;
-    const blob = new Blob([txtContent], { type: 'text/plain;charset=utf-8' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = txtName;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
+    downloadBlob(txtName, txtContent, 'text/plain;charset=utf-8');
 
     toast({ title: '导出成功', description: `已保存为 ${txtName}` });
+    onExported?.('txt');
+    setOpen(false);
+  };
+
+  const exportAsMd = () => {
+    const msgs = getExportMessages();
+    const body = convertMessagesToMarkdown(msgs, settings.regexRules, settings.prefixMode, markers);
+
+    const cleanTitle = getCleanTitle();
+    const headerLines = [`# ${cleanTitle}`, ''];
+    if (!isPlaceholder(session.character.name) || !isPlaceholder(session.user.name)) {
+      headerLines.push(`> ${session.character.name} & ${session.user.name} · 导出于 ${new Date().toLocaleDateString('zh-CN')}`, '');
+    } else {
+      headerLines.push(`> 导出于 ${new Date().toLocaleDateString('zh-CN')}`, '');
+    }
+    const mdContent = headerLines.join('\n') + '\n' + body + '\n';
+
+    const mdName = `${sanitizeFilename(cleanTitle)}.md`;
+    downloadBlob(mdName, mdContent, 'text/markdown;charset=utf-8');
+
+    toast({ title: '导出成功', description: `已保存为 ${mdName}` });
+    onExported?.('md');
     setOpen(false);
   };
 
@@ -239,17 +270,10 @@ export function ExportButton({ session, settings, markers = [], onSettingsChange
 
       const content = lines.join('\n');
       const jsonlName = `${sanitizeFilename(session.title)}_cleaned.jsonl`;
-      const blob = new Blob([content], { type: 'application/jsonl;charset=utf-8' });
-      const url = URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.href = url;
-      link.download = jsonlName;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      URL.revokeObjectURL(url);
+      downloadBlob(jsonlName, content, 'application/jsonl;charset=utf-8');
 
       toast({ title: '导出成功', description: `已保存为 ${jsonlName}` });
+      onExported?.('jsonl');
       setOpen(false);
     } catch (error) {
       console.error('JSONL export error:', error);
@@ -270,7 +294,7 @@ export function ExportButton({ session, settings, markers = [], onSettingsChange
           <DialogTitle className="flex items-center gap-1">
             导出设置
             <HelpCard>
-              JSONL 格式可直接导入回 SillyTavern 继续使用，TXT 适合纯文本阅读。导出时可选择清理选项（去除 swipes 可减少 40-50% 体积）、消息范围、是否应用正则清理。
+              JSONL 格式可直接导入回 SillyTavern 继续使用，TXT 适合纯文本阅读，Markdown 带章节标题适合 Obsidian 等笔记软件。导出时可选择清理选项（去除 swipes 可减少 40-50% 体积）、消息范围、是否应用正则清理。
             </HelpCard>
           </DialogTitle>
           <DialogDescription>选择导出范围和清理选项</DialogDescription>
@@ -355,11 +379,15 @@ export function ExportButton({ session, settings, markers = [], onSettingsChange
         <div className="flex gap-2 pt-1">
           <Button variant="outline" className="flex-1" onClick={exportAsTxt}>
             <FileText className="w-4 h-4 mr-2" />
-            导出为 TXT
+            TXT
+          </Button>
+          <Button variant="outline" className="flex-1" onClick={exportAsMd}>
+            <FileText className="w-4 h-4 mr-2" />
+            Markdown
           </Button>
           <Button className="flex-1 gold-gradient text-primary-foreground" onClick={exportAsJsonl}>
             <FileJson className="w-4 h-4 mr-2" />
-            导出为 JSONL
+            JSONL
           </Button>
         </div>
       </DialogContent>

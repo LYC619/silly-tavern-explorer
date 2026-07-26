@@ -7,6 +7,7 @@
  */
 import type { ChatMessage } from '@/types/chat';
 import { parseSTDate } from '@/lib/adapters/st/chat-jsonl';
+import { STE_EDIT_SWIPE_FLAG } from '@/lib/adapters/st/reimport-merge';
 
 /** 该楼的 swipe 候选数（无 swipes 或只有 1 条视为无候选可切） */
 export function swipeCount(msg: ChatMessage): number {
@@ -59,4 +60,15 @@ export function syncEditedMessage(updated: ChatMessage): ChatMessage {
 /** OOC/注释楼（ST 的 /comment，extra.type='comment'）；与普通隐藏楼分开标注 */
 export function isOOCMessage(msg: ChatMessage): boolean {
   return (msg.rawData?.extra as { type?: unknown } | undefined)?.type === 'comment';
+}
+
+/**
+ * 当前选中候选是否为重复导入合并时保留的「STE 编辑版」
+ * （阶段4：冲突楼 ST 版当正文，STE 版转 swipe 并在 swipe_info.extra 打旗标）。
+ */
+export function isSteEditedSwipe(msg: ChatMessage): boolean {
+  const info = msg.rawData?.swipe_info?.[currentSwipeId(msg)] as
+    | { extra?: Record<string, unknown> }
+    | undefined;
+  return info?.extra?.[STE_EDIT_SWIPE_FLAG] === true;
 }

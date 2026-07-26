@@ -4,7 +4,7 @@ import { User, Bot, Bookmark, BookmarkPlus, Pencil, EyeOff, MessageSquareDashed,
 import type { ChatSession, ThemeStyle, RegexRule, ChapterMarker } from '@/types/chat';
 import { applyRegexRules, parseRegex } from '@/lib/regex-processor';
 import { parseSTDate } from '@/lib/adapters/st/chat-jsonl';
-import { swipeCount, currentSwipeId, isOOCMessage } from '@/lib/chat-edit';
+import { swipeCount, currentSwipeId, isOOCMessage, isSteEditedSwipe } from '@/lib/chat-edit';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 
 /**
@@ -143,6 +143,8 @@ interface ProcessedMessage {
   /** swipe 候选数与当前下标（候选数>1 时显示切换控件） */
   swipeTotal: number;
   swipeId: number;
+  /** 当前候选是「STE 编辑版」（重复导入合并保留的本地改动），控件旁标注 */
+  swipeIsSteEdit: boolean;
 }
 
 type ThemeClasses = ReturnType<typeof getThemeClasses>;
@@ -410,6 +412,14 @@ const MessageRow = memo(function MessageRow({
             >
               <ChevronRight className="w-3.5 h-3.5" />
             </button>
+            {message.swipeIsSteEdit && (
+              <span
+                className="ml-1 rounded border border-primary/40 px-1 py-px text-[10px] leading-none text-primary/80"
+                title="重复导入时保留的本地改动版本（ST 新版在其他候选里）"
+              >
+                STE 编辑版
+              </span>
+            )}
           </div>
         )}
       </div>
@@ -464,6 +474,7 @@ export const ChatPreview = memo(forwardRef<ChatPreviewHandle, ChatPreviewProps>(
           ooc,
           swipeTotal,
           swipeId: currentSwipeId(msg),
+          swipeIsSteEdit: isSteEditedSwipe(msg),
         });
         prevRole = msg.role;
       }

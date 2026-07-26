@@ -10,10 +10,9 @@ import { ArrowLeft, BookOpen, BookOpenText, NotebookText, ArrowDownUp, MessageSq
 import { AppLayout } from '@/components/AppLayout';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Card, CardContent } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
 import { ChatWorkbench, type ChatWorkbenchHandle } from '@/components/chat/ChatWorkbench';
-import { ExportButton } from '@/components/chat/ExportButton';
+import { IOPanel } from '@/components/workspace/IOPanel';
 import { BranchPanel } from '@/components/workspace/BranchPanel';
 import { OutlinePanel } from '@/components/workspace/OutlinePanel';
 import { ResourceRail } from '@/components/workspace/ResourceRail';
@@ -39,7 +38,7 @@ type WorkspaceView = 'read' | 'organize' | 'io';
 const VIEW_ITEMS: { key: WorkspaceView; label: string; icon: typeof BookOpenText; hint?: string }[] = [
   { key: 'read', label: '阅读与编辑', icon: BookOpenText },
   { key: 'organize', label: '整理与记录', icon: NotebookText },
-  { key: 'io', label: '导入与导出', icon: ArrowDownUp, hint: '阶段4' },
+  { key: 'io', label: '导入与导出', icon: ArrowDownUp },
 ];
 
 const StoryWorkspace = () => {
@@ -379,37 +378,13 @@ const StoryWorkspace = () => {
           )}
 
           {view === 'io' && (
-            <div className="container mx-auto px-6 py-10 max-w-2xl space-y-4">
-              <h2 className="font-display text-xl font-semibold">导入与导出</h2>
-              <Card>
-                <CardContent className="py-5 space-y-1.5">
-                  <p className="text-sm font-medium">当前故事</p>
-                  <p className="text-xs text-muted-foreground">
-                    来源：{story.sourcePath ?? '手动导入（未绑定 ST 原路径，只能导出副本）'}
-                  </p>
-                  <p className="text-xs text-muted-foreground">
-                    创建 {new Date(story.createdAt).toLocaleDateString('zh-CN')} · 最近修改 {new Date(story.updatedAt).toLocaleDateString('zh-CN')}
-                  </p>
-                </CardContent>
-              </Card>
-              <Card>
-                <CardContent className="py-5 space-y-2">
-                  <p className="text-sm font-medium">导出副本</p>
-                  <p className="text-xs text-muted-foreground">
-                    当前脉络（{branchId === null ? '主线' : '所选分支'}）按阅读界面的楼层范围/正则/清理设置导出。
-                  </p>
-                  <ExportButton session={line.session} settings={settings} markers={line.markers} />
-                </CardContent>
-              </Card>
-              <Card>
-                <CardContent className="py-5 space-y-1.5 opacity-70">
-                  <p className="text-sm font-medium">检查 ST 更新 / 写回 ST</p>
-                  <p className="text-xs text-muted-foreground">
-                    需要读取本机 ST 目录，客户端版（阶段7）启用；重复导入合并规则在阶段4 上线。
-                  </p>
-                </CardContent>
-              </Card>
-            </div>
+            <IOPanel
+              story={story}
+              branchId={branchId}
+              line={line}
+              settings={settings}
+              onStoryUpdate={mutateStory}
+            />
           )}
         </div>
       </div>

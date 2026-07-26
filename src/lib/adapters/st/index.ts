@@ -12,6 +12,9 @@
 // 聊天：JSONL / JSON
 export { parseJsonl, parseJson, parseSTDate, isTrueSystemMessage } from './chat-jsonl';
 
+// 重复导入合并（阶段4，定稿 5.3①：新楼追加、冲突楼 STE 版转 swipe）
+export { mergeReimport, STE_EDIT_SWIPE_FLAG, type ReimportMergeResult } from './reimport-merge';
+
 // 角色卡：PNG（tEXt chara 块）/ JSON
 export * from '@/lib/png-parser';
 export * from '@/lib/png-writer';

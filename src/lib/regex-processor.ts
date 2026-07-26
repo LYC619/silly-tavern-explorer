@@ -203,3 +203,47 @@ export function convertMessagesToTxt(
   // 使用双换行分隔消息，保留段落格式
   return lines.join('\n\n');
 }
+
+/**
+ * 将消息转换为 Markdown 格式（阶段4 导出重组）：
+ * 章节标记 → `## 标题`（概要为引用块），消息前缀 → 加粗说话人。
+ * 范围/正则/前缀选项与 TXT 导出共用同一套参数。
+ */
+export function convertMessagesToMarkdown(
+  messages: ChatMessage[],
+  rules: RegexRule[],
+  prefixMode: PrefixMode,
+  markers: ChapterMarker[] = []
+): string {
+  const markerById = new Map<string, ChapterMarker>();
+  const markerByIndex = new Map<number, ChapterMarker>();
+  for (const marker of markers) {
+    if (marker.messageId) markerById.set(marker.messageId, marker);
+    else markerByIndex.set(marker.messageIndex, marker);
+  }
+
+  const lines: string[] = [];
+  for (let i = 0; i < messages.length; i++) {
+    const message = messages[i];
+    const isUser = message.role === 'user' || message.is_user;
+
+    const marker = markerById.get(message.id) ?? markerByIndex.get(i);
+    if (marker) {
+      lines.push(`## ${marker.volume ? `${marker.volume} · ` : ''}${marker.title}`);
+      if (marker.summary) {
+        lines.push(marker.summary.split('\n').map((l) => `> ${l}`).join('\n'));
+      }
+    }
+
+    const content = applyRegexRules(message.content, rules, isUser);
+    if (!content.trim()) continue;
+
+    if (prefixMode === 'none') {
+      lines.push(content);
+    } else {
+      const prefix = getMessagePrefix(message, prefixMode);
+      lines.push(`**${prefix}**\n\n${content}`);
+    }
+  }
+  return lines.join('\n\n');
+}

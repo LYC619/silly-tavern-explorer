@@ -104,6 +104,10 @@ export interface ArchiveStory {
   lastViewedAt?: number;
   /** 客户端：绑定的原 ST JSONL 路径；手动导入=未绑定，只能导出不能写回 */
   sourcePath?: string;
+  /** 最近一次重新导入合并的时间（阶段4，io 页显示） */
+  lastImportedAt?: number;
+  /** 最近一次导出副本的时间（阶段4，io 页显示） */
+  lastExportedAt?: number;
   createdAt: number;
   updatedAt: number;
 }
