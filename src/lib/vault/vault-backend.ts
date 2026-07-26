@@ -78,7 +78,8 @@ const toJson = (v: unknown) => JSON.stringify(v, null, 2);
 function steMeta(rec: BaseRecord): Record<string, unknown> {
   const src = rec as unknown as Record<string, unknown>;
   const out: Record<string, unknown> = {};
-  for (const k of ['id', 'title', 'createdAt', 'updatedAt', 'autoSaved', 'derived']) {
+  // sourcePath：阶段7.3 从 ST 目录导入的资产记来源路径（重复导入判定），须随 __ste 往返存活
+  for (const k of ['id', 'title', 'createdAt', 'updatedAt', 'autoSaved', 'derived', 'sourcePath']) {
     if (src[k] !== undefined) out[k] = src[k];
   }
   return out;

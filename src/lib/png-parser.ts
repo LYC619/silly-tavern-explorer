@@ -139,7 +139,14 @@ function readPngTextChunks(buffer: ArrayBuffer): Map<string, string> {
 
 /** 从 PNG 提取角色卡原始对象。ccv3 优先，回退 chara。 */
 export async function extractCharacterFromPng(file: File): Promise<STCharacterCard> {
-  const buffer = await file.arrayBuffer();
+  return extractCharacterFromPngBuffer(await file.arrayBuffer());
+}
+
+/**
+ * 同上，但直接吃 ArrayBuffer——客户端从文件库/ST 目录读出的 PNG 没有 File 对象
+ * （2.0 阶段7.3 首次接入 ST 用），与 extractCharacterFromPng 共用同一套解析。
+ */
+export function extractCharacterFromPngBuffer(buffer: ArrayBuffer): STCharacterCard {
   const chunks = readPngTextChunks(buffer);
 
   const ccv3 = chunks.get('ccv3');

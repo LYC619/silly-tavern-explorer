@@ -22,6 +22,7 @@ import {
 import { guessFileType, TOOL_TYPE_LABELS, type ToolFileType } from '@/lib/file-type-guess';
 import { setPendingToolFile } from '@/lib/tool-handoff';
 import { APP_VERSION } from '@/components/GlobalSettings';
+import { STImportCard } from '@/components/tools/STImportCard';
 
 interface ToolEntry {
   type: ToolFileType;
@@ -145,6 +146,9 @@ const Tools = () => {
               );
             })}
           </div>
+
+          {/* 客户端专属：首次接入 ST（阶段7.3；网页版 isTauri=false 不渲染） */}
+          <STImportCard />
         </div>
       </div>
 
