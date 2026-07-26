@@ -218,8 +218,9 @@ const CharacterPage = () => {
       <div className="container mx-auto px-4 py-6 max-w-5xl">
         {/* ===== 首屏身份区：封面 1/3 + 简介主导 ===== */}
         <div className="flex gap-6 flex-wrap">
-          {/* 封面（2:3 受控比例） */}
-          <div className="basis-52 flex-shrink-0 grow-0">
+          {/* 封面（2:3 受控比例）。显式 w-52 而非只靠 basis：翻译类插件往 flex 容器里包节点会让
+              flex-basis 失效、封面按原图尺寸撑开（实测踩过），显式宽度不受包裹影响 */}
+          <div className="w-52 basis-52 shrink-0 grow-0">
             <div className="aspect-[2/3] rounded-lg overflow-hidden border border-border shadow-card bg-muted">
               {character.pngBase64 ? (
                 <img
