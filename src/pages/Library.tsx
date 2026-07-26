@@ -8,7 +8,7 @@
 import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
-  Users, Plus, Trash2, Search, MessageSquare, BookOpen, MoreVertical, Star, ListChecks, ExternalLink,
+  Users, Plus, Trash2, Search, MessageSquare, BookOpen, MoreVertical, Star, ListChecks, ExternalLink, ChevronDown,
 } from 'lucide-react';
 import { HelpCard } from '@/components/HelpCard';
 import { AppLayout } from '@/components/AppLayout';
@@ -54,6 +54,9 @@ import {
 } from '@/lib/archive-db';
 import { extractCharacterFromPng, parseCharacterCardJson } from '@/lib/adapters/st';
 import { importEmbeddedAssets } from '@/lib/card-embedded-assets';
+import {
+  TAG_CATEGORIES, parseTag, tagOptionsByCategory, type TagCategory,
+} from '@/lib/tag-taxonomy';
 
 const COVER_GRADIENTS = [
   'from-rose-400/80 to-orange-300/80',
@@ -95,7 +98,8 @@ const Library = () => {
   const [storyCounts, setStoryCounts] = useState<Record<string, number>>({});
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
-  const [tagFilter, setTagFilter] = useState<string | null>(null);
+  /** 分级标签筛选（阶段9.4）：每个类别至多选一个子标签（raw），类别间取交集 */
+  const [tagFilters, setTagFilters] = useState<Partial<Record<TagCategory, string>>>({});
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [ratingFilter, setRatingFilter] = useState<RatingFilter>('all');
   const [sortKey, setSortKey] = useState<SortKey>('recent');
@@ -176,12 +180,12 @@ const Library = () => {
     }
   };
 
-  /** 全部 STE 标签（卡内原始 tags 不参与筛选，只筛本地标签） */
-  const allTags = useMemo(() => {
-    const set = new Set<string>();
-    for (const c of characters) for (const t of c.tags) set.add(t);
-    return Array.from(set).sort((a, b) => a.localeCompare(b, 'zh-CN'));
-  }, [characters]);
+  /** 分类下拉选项：内置子标签 ∪ 库里已出现的 STE 标签（卡内原始 tags 不参与） */
+  const tagOptions = useMemo(
+    () => tagOptionsByCategory(characters.flatMap((c) => c.tags)),
+    [characters],
+  );
+  const activeTagFilterCount = Object.keys(tagFilters).length;
 
   const filtered = useMemo(() => {
     let list = characters;
@@ -191,7 +195,9 @@ const Library = () => {
         (c) => c.name.toLowerCase().includes(q) || c.subtitle?.toLowerCase().includes(q),
       );
     }
-    if (tagFilter) list = list.filter((c) => c.tags.includes(tagFilter));
+    for (const raw of Object.values(tagFilters)) {
+      list = list.filter((c) => c.tags.includes(raw));
+    }
     if (statusFilter !== 'all') list = list.filter((c) => c.status === statusFilter);
     if (ratingFilter !== 'all') {
       list = list.filter((c) => {
@@ -218,7 +224,7 @@ const Library = () => {
         break;
     }
     return sorted;
-  }, [characters, searchQuery, tagFilter, statusFilter, ratingFilter, sortKey]);
+  }, [characters, searchQuery, tagFilters, statusFilter, ratingFilter, sortKey]);
 
   const toggleSelect = (id: string) => {
     setSelected((prev) => {
@@ -319,26 +325,47 @@ const Library = () => {
                 ))}
               </SelectContent>
             </Select>
-            {allTags.length > 0 && (
-              <div className="flex items-center gap-1.5 flex-wrap min-w-0">
-                {allTags.map((tag) => (
-                  <Badge
-                    key={tag}
-                    variant={tagFilter === tag ? 'default' : 'secondary'}
-                    className="cursor-pointer"
-                    onClick={() => setTagFilter(tagFilter === tag ? null : tag)}
-                  >
-                    {tag}
-                  </Badge>
-                ))}
-              </div>
-            )}
-            {(tagFilter || statusFilter !== 'all' || ratingFilter !== 'all') && (
+            {/* 分级标签筛选（阶段9.4）：人物/玩法/评价/其他 各一个下拉，类别间取交集 */}
+            {TAG_CATEGORIES.map((cat) => {
+              const options = tagOptions[cat];
+              if (options.length === 0) return null;
+              const active = tagFilters[cat];
+              return (
+                <DropdownMenu key={cat}>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant={active ? 'secondary' : 'outline'} size="sm" className="h-8 px-2.5 text-xs gap-1">
+                      {active ? `${cat}·${parseTag(active).label}` : cat}
+                      <ChevronDown className="w-3 h-3 text-muted-foreground" />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="start" className="max-h-72 overflow-y-auto">
+                    {active && (
+                      <DropdownMenuItem
+                        className="text-muted-foreground"
+                        onClick={() => setTagFilters((f) => { const next = { ...f }; delete next[cat]; return next; })}
+                      >
+                        清除「{cat}」筛选
+                      </DropdownMenuItem>
+                    )}
+                    {options.map((o) => (
+                      <DropdownMenuItem
+                        key={o.raw}
+                        className={active === o.raw ? 'bg-primary/10 text-primary' : undefined}
+                        onClick={() => setTagFilters((f) => ({ ...f, [cat]: o.raw }))}
+                      >
+                        {o.label}
+                      </DropdownMenuItem>
+                    ))}
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              );
+            })}
+            {(activeTagFilterCount > 0 || statusFilter !== 'all' || ratingFilter !== 'all') && (
               <Button
                 variant="ghost"
                 size="sm"
                 className="h-7 px-2 text-xs text-muted-foreground"
-                onClick={() => { setTagFilter(null); setStatusFilter('all'); setRatingFilter('all'); }}
+                onClick={() => { setTagFilters({}); setStatusFilter('all'); setRatingFilter('all'); }}
               >
                 清除筛选
               </Button>
@@ -453,7 +480,7 @@ const Library = () => {
                         <Badge variant="outline" className="h-4 px-1 text-[10px] font-normal">{c.status}</Badge>
                         {c.tags.slice(0, 2).map((t) => (
                           <Badge key={t} variant="secondary" className="h-4 px-1 text-[10px] font-normal max-w-20 truncate inline-block">
-                            {t}
+                            {parseTag(t).label}
                           </Badge>
                         ))}
                         {c.tags.length > 2 && (

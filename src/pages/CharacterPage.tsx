@@ -50,6 +50,15 @@ import {
 } from '@/lib/archive-db';
 import { normalizeCharacterCard, parseJsonl, parseJson } from '@/lib/adapters/st';
 import { formatPlayTime } from '@/lib/story-meta';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import { TAG_CATEGORIES, BUILTIN_TAGS, makeTag } from '@/lib/tag-taxonomy';
 import { AssetSection } from '@/components/character/AssetSection';
 import { IllustrationSection } from '@/components/character/IllustrationSection';
 import { IntroSection } from '@/components/character/IntroSection';
@@ -254,12 +263,42 @@ const CharacterPage = () => {
                 </Badge>
               ))}
               <div className="flex items-center gap-1">
+                {/* 内置分级标签快捷添加（阶段9.4：人物/玩法/评价；自建用输入框「类别/xx」） */}
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant="outline" size="sm" className="h-6 px-1.5 text-xs text-muted-foreground">
+                      <Plus className="w-3 h-3 mr-0.5" />标签
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="start" className="max-h-80 overflow-y-auto">
+                    {TAG_CATEGORIES.filter((cat) => BUILTIN_TAGS[cat].length > 0).map((cat, i) => (
+                      <div key={cat}>
+                        {i > 0 && <DropdownMenuSeparator />}
+                        <DropdownMenuLabel className="text-[11px] text-muted-foreground py-1">{cat}</DropdownMenuLabel>
+                        {BUILTIN_TAGS[cat].map((label) => {
+                          const raw = makeTag(cat, label);
+                          const has = character.tags.includes(raw);
+                          return (
+                            <DropdownMenuItem
+                              key={raw}
+                              disabled={has}
+                              onClick={() => patchCharacter({ tags: [...character.tags, raw] })}
+                            >
+                              {label}
+                              {has && <span className="ml-auto text-[10px] text-muted-foreground">已加</span>}
+                            </DropdownMenuItem>
+                          );
+                        })}
+                      </div>
+                    ))}
+                  </DropdownMenuContent>
+                </DropdownMenu>
                 <Input
                   value={newTag}
                   onChange={(e) => setNewTag(e.target.value)}
                   onKeyDown={(e) => e.key === 'Enter' && handleAddTag()}
-                  placeholder="加标签"
-                  className="h-6 w-24 text-xs"
+                  placeholder="自建：类别/子标签"
+                  className="h-6 w-32 text-xs"
                 />
                 <Button variant="ghost" size="icon" className="h-6 w-6" onClick={handleAddTag} aria-label="添加标签">
                   <Plus className="w-3.5 h-3.5" />
