@@ -1,41 +1,61 @@
 /**
- * 「未绑定 → 绑定到角色」升级流程（2.0 阶段2，定稿第六章）。
- * 聊天处理页里的临时记录随时可绑定角色卡：原地升级为归档故事，
- * 未绑定期间生成的总结/故事树成果带走（重指到新故事 id），书架副本删除。
+ * 「未绑定 → 绑定到角色」升级流程（2.0 阶段2 建立，阶段5 随书架退役简化）。
+ * 未绑定聊天导入时就已存为归档故事（characterId 为空），绑定 = 给这条故事补上
+ * characterId 并把当前编辑态落库；未绑定期间生成的总结/故事树本就挂在故事 id 上，
+ * 无需重指，原地带走。
  */
 import type { ArchiveStory } from '@/types/archive';
 import type { ChatSession, ChapterMarker, ExportSettings } from '@/types/chat';
-import { buildStoryFromSession, saveArchiveStory, repointForBind } from '@/lib/archive-db';
-import { getAllSummaries, saveSummary } from '@/lib/summary-db';
-import { getAllStoryTrees, saveStoryTree } from '@/lib/story-tree-db';
-import { deleteBook } from '@/lib/bookshelf-db';
+import {
+  buildStoryFromSession,
+  getArchiveStory,
+  saveArchiveStory,
+  updateBranchLine,
+} from '@/lib/archive-db';
+import { getAllSummaries } from '@/lib/summary-db';
+import { getAllStoryTrees } from '@/lib/story-tree-db';
 
 export interface BindArgs {
   characterId: string;
+  /** 未绑定故事 id；null = 内存里的会话尚未落库（如示例数据），绑定时新建 */
+  storyId: string | null;
   session: ChatSession;
   markers: ChapterMarker[];
   favorites: string[];
   settings?: ExportSettings;
-  /** 导入时自动存的书架书 id；有则迁移其总结/故事树并删除书架副本 */
-  bookId: string | null;
 }
 
-/** 执行绑定，返回新建的归档故事。返回值里带上迁移条数，供 toast 用一句话交代。 */
+/** 执行绑定，返回升级后的归档故事。carried = 一并带走的总结/故事树条数，供 toast 一句话交代。 */
 export async function bindSessionToCharacter(args: BindArgs): Promise<{ story: ArchiveStory; carried: number }> {
-  const story = buildStoryFromSession(args.session, args.characterId);
-  story.markers = args.markers;
-  story.favorites = args.favorites;
-  story.settings = args.settings;
+  const existing = args.storyId ? await getArchiveStory(args.storyId) : undefined;
+  let story: ArchiveStory;
+  if (existing) {
+    // 先把当前编辑态写进故事（updateBranchLine 会同步重算 meta），再补 characterId
+    story = updateBranchLine(existing, null, {
+      session: args.session,
+      markers: args.markers,
+      favorites: args.favorites,
+    });
+  } else {
+    story = buildStoryFromSession(args.session);
+    story.markers = args.markers;
+    story.favorites = args.favorites;
+  }
+  story = {
+    ...story,
+    characterId: args.characterId,
+    ...(args.session.title ? { title: args.session.title } : {}),
+    settings: args.settings ?? story.settings,
+    updatedAt: Date.now(),
+  };
   await saveArchiveStory(story);
 
   let carried = 0;
-  if (args.bookId) {
+  if (args.storyId) {
     const [summaries, trees] = await Promise.all([getAllSummaries(), getAllStoryTrees()]);
-    const movedSummaries = repointForBind(summaries, args.bookId, story.id, story.title);
-    const movedTrees = repointForBind(trees, args.bookId, story.id, story.title);
-    await Promise.all([...movedSummaries.map(saveSummary), ...movedTrees.map(saveStoryTree)]);
-    carried = movedSummaries.length + movedTrees.length;
-    await deleteBook(args.bookId);
+    carried =
+      summaries.filter((s) => s.bookId === args.storyId).length +
+      trees.filter((t) => t.bookId === args.storyId).length;
   }
   return { story, carried };
 }

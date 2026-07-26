@@ -26,6 +26,7 @@ import { parseSTRegexImport } from '@/lib/st-regex-interop';
 import { addRegexPreset } from '@/lib/session-storage';
 import { GuidedTour } from '@/components/GuidedTour';
 import { CARDVIEWER_TOUR_STEPS, isTourCompleted, setTourCompleted } from '@/lib/tour-steps';
+import { takePendingToolFile, peekPendingToolFile } from '@/lib/tool-handoff';
 
 const CARD_SESSION_KEY = 'card-active-session';
 
@@ -92,7 +93,8 @@ export default function CardViewer() {
       const raw = sessionStorage.getItem(CARD_SESSION_KEY);
       ptrId = raw ? (JSON.parse(raw).itemId as string) : null;
     } catch { /* ignore */ }
-    if (ptrId) {
+    // 处理区交接了文件时跳过指针恢复——两个异步 setCard 会竞态互相覆盖
+    if (ptrId && !peekPendingToolFile('card')) {
       getCard(ptrId).then((item) => {
         if (item) loadCardItem(item);
       }).catch(() => { /* ignore */ });
@@ -157,6 +159,15 @@ export default function CardViewer() {
       toast({ title: '解析失败', description: e instanceof Error ? e.message : '文件不是有效的角色卡', variant: 'destructive' });
     }
   }, [toast, refreshSaved]);
+
+  // 处理区入口交接来的文件：走与导入按钮相同的解析入库流程（只消费一次）
+  const handoffConsumedRef = useRef(false);
+  useEffect(() => {
+    if (handoffConsumedRef.current) return;
+    handoffConsumedRef.current = true;
+    const file = takePendingToolFile('card');
+    if (file) loadFile(file);
+  }, [loadFile]);
 
   const onEditChange = useCallback(<K extends keyof CardEdits>(key: K, value: CardEdits[K]) => {
     setEdits((prev) => (prev ? { ...prev, [key]: value } : prev));

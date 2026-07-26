@@ -28,23 +28,7 @@ export const HOME_TOUR_STEPS: TourStep[] = [
   },
 ];
 
-export const BOOKSHELF_TOUR_STEPS: TourStep[] = [
-  {
-    targetSelector: '[data-tour="bookshelf-cards"]',
-    content: '书架用于保存您编辑中的聊天记录。从首页点击「保存到书架」即可存入。点击作品可选择「沉浸阅读」或「编辑处理」。',
-    action: 'next',
-  },
-  {
-    targetSelector: '[data-tour="bookshelf-import"]',
-    content: '点击这里可以跳转到首页导入新的聊天记录。',
-    action: 'next',
-  },
-  {
-    targetSelector: '[data-tour="global-settings"]',
-    content: '在设置中可以查看存储用量、备份恢复数据、重置引导。',
-    action: 'next',
-  },
-];
+// 书架引导已随书架退役删除（2.0 阶段5）；TOUR_MODULES 保留 'bookshelf' 便于清理历史 localStorage。
 
 export const WORLDBOOK_TOUR_STEPS: TourStep[] = [
   {

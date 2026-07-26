@@ -45,6 +45,8 @@ export interface ArchiveCharacter {
   intro?: { current: IntroVersion; history: IntroVersion[] };
   /** 简介是否可能过期（源卡/世界书变化时置 true，只提示不覆盖） */
   introStale?: boolean;
+  /** 关联的独立资产引用（世界书/预设/正则；只记引用，写时复制见定稿第七章） */
+  assets?: AssetRef[];
   /** 客户端：来源文件路径（网页版为空） */
   sourcePath?: string;
   createdAt: number;

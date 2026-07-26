@@ -66,8 +66,10 @@ export interface PresetItem {
   preset: NormalizedPreset;
   createdAt: number;
   updatedAt: number;
-  /** true=自动保留的导入历史(最近5份，超出自动清理)；false/undefined=手动保存到书架，永久留存 */
+  /** true=自动保留的导入历史(最近5份，超出自动清理)；false/undefined=手动保存，永久留存 */
   autoSaved?: boolean;
+  /** 写时复制派生副本的元数据（2.0 阶段5，定稿第七章）；无 = 原生资产 */
+  derived?: import('@/types/archive').DerivedAssetMeta;
 }
 
 /** prompt 块的 role 中文标签 */

@@ -48,8 +48,6 @@ interface ChatWorkbenchProps {
   titleBadge?: React.ReactNode;
   /** 工具条右侧追加动作（绑定按钮 / 沉浸阅读等） */
   toolbarExtras?: React.ReactNode;
-  /** 保存到书架；不传则不显示（工作区自动落库） */
-  onSaveToBookshelf?: () => void;
   /** 重新导入（清空当前记录）；不传则不显示 */
   onReset?: () => void;
   /** 悬浮跳转条距视口左缘的定位类（工作区多一条二级栏时传更大值） */
@@ -60,7 +58,7 @@ export const ChatWorkbench = forwardRef<ChatWorkbenchHandle, ChatWorkbenchProps>
   {
     session, markers, favorites, settings,
     onSessionChange, onMarkersChange, onFavoritesChange, onSettingsChange,
-    onFloorChange, initialFloor, titleBadge, toolbarExtras, onSaveToBookshelf, onReset, navBarLeftClass,
+    onFloorChange, initialFloor, titleBadge, toolbarExtras, onReset, navBarLeftClass,
   },
   ref,
 ) {
@@ -393,7 +391,6 @@ export const ChatWorkbench = forwardRef<ChatWorkbenchHandle, ChatWorkbenchProps>
               editMode={editMode}
               regexSidebarOpen={regexSidebarOpen}
               onReset={onReset}
-              onSaveToBookshelf={onSaveToBookshelf}
               onToggleEditMode={() => setEditMode(!editMode)}
               onToggleRegex={() => setRegexSidebarOpen(!regexSidebarOpen)}
             />

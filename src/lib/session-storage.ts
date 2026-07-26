@@ -1,6 +1,6 @@
 import type { ChatSession, ExportSettings, ChapterMarker, RegexRule } from '@/types/chat';
 import { DEFAULT_REGEX_RULES } from '@/types/chat';
-import { getBook } from '@/lib/bookshelf-db';
+import { getArchiveStory } from '@/lib/archive-db';
 
 const SESSION_KEY = 'st-beautifier-session';
 const SETTINGS_KEY = 'st-beautifier-settings';
@@ -18,7 +18,10 @@ const REGEX_PRESETS_KEY = 'st-beautifier-regex-presets';
  *
  * 现改为：session 本体只存于 IndexedDB（几乎无限），这里只存「指针 + 轻量临时态」。
  * 切回聊天页时凭 currentBookId 从 IndexedDB 读回 session，再用这里的 markers/favorites
- * 覆盖（它们是用户最近一次未必已「保存到书架」的编辑态）。
+ * 覆盖（它们是用户最近一次未必已自动落库的编辑态）。
+ *
+ * 2.0 阶段5 书架退役后：currentBookId 指向的是「未绑定的归档故事」（archiveStories，
+ * characterId 为空）。字段名保留 bookId 旧称，避免为改名翻动全部调用点。
  */
 export interface SessionPointer {
   currentBookId: string | null;
@@ -73,15 +76,15 @@ export function clearAllTempCache(): void {
 /**
  * 读回「当前活跃的聊天记录」session 本体。
  * session 已不再存于 sessionStorage（见 SessionPointer 注释），故凭指针里的 currentBookId
- * 从 IndexedDB 取回。供 AI 工具等需要读当前聊天内容的页面使用。
- * 无活跃记录（无指针 / 无 bookId / book 已删）时返回 null。
+ * 从 IndexedDB（未绑定归档故事）取回。供需要读当前聊天内容的页面使用。
+ * 无活跃记录（无指针 / 无 id / 故事已删）时返回 null。
  */
 export async function loadActiveSession(): Promise<ChatSession | null> {
   const pointer = loadSessionPointer();
   if (!pointer?.currentBookId) return null;
   try {
-    const book = await getBook(pointer.currentBookId);
-    return book?.session ?? null;
+    const story = await getArchiveStory(pointer.currentBookId);
+    return story?.session ?? null;
   } catch (e) {
     console.error('Failed to load active session:', e);
     return null;

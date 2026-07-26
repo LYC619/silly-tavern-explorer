@@ -1,4 +1,5 @@
 import { useState, useCallback, useMemo, useEffect, useRef } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { Globe, LayoutGrid, List, Library, Plus, Trash2, Save, Search, X, CheckSquare, Clock, FolderOpen, Archive, SlidersHorizontal, ChevronLeft, ChevronRight, Sparkles } from 'lucide-react';
 import { GuidedTour } from '@/components/GuidedTour';
@@ -26,8 +27,11 @@ import { EntryListRow } from '@/components/worldbook/EntryListRow';
 import { EntryEditor } from '@/components/worldbook/EntryEditor';
 import { QuickCreate } from '@/components/worldbook/QuickCreate';
 import type { WorldBook, WorldBookEntry } from '@/types/worldbook';
-import { DEFAULT_ENTRY, POSITION_LABELS, generateWorldBookId } from '@/types/worldbook';
-import { saveWorldBook, getAllWorldBooks, deleteWorldBook, pruneAutoSavedWorldBooks } from '@/lib/worldbook-db';
+import { DEFAULT_ENTRY, POSITION_LABELS, generateWorldBookId, parseWorldBook } from '@/types/worldbook';
+import { saveWorldBook, getAllWorldBooks, getWorldBook, deleteWorldBook, pruneAutoSavedWorldBooks } from '@/lib/worldbook-db';
+import { planCowSave, buildDerivedMeta, switchAssetRef } from '@/lib/asset-cow';
+import { getCharacter, saveCharacter } from '@/lib/archive-db';
+import { takePendingToolFile, peekPendingToolFile } from '@/lib/tool-handoff';
 import { estimateTokens } from '@/lib/preset-parser';
 import type { WorldBookItem } from '@/types/worldbook';
 import { useToast } from '@/hooks/use-toast';
@@ -48,6 +52,11 @@ function loadWbSession(): WbSession | null {
 export default function WorldBookPage() {
   const isMobile = useIsMobile();
   const { toast } = useToast();
+  // 角色上下文（角色页关联资产区「处理」进来）：保存走写时复制（定稿第七章）
+  const [searchParams] = useSearchParams();
+  const cowCharacterId = searchParams.get('characterId') ?? undefined;
+  const initialAssetId = searchParams.get('assetId');
+  const [cowCharacterName, setCowCharacterName] = useState('');
 
   const restored = loadWbSession();
   const [worldbook, setWorldbook] = useState<WorldBook | null>(restored?.worldbook ?? null);
@@ -122,6 +131,11 @@ export default function WorldBookPage() {
 
   // Auto-restore from IndexedDB on mount, or pick up AI-generated worldbook
   useEffect(() => {
+    // 角色上下文：加载角色名（写时复制的副本命名用）
+    if (cowCharacterId) {
+      getCharacter(cowCharacterId).then(c => setCowCharacterName(c?.name ?? '')).catch(() => {});
+    }
+
     // Check for AI-generated worldbook import
     const aiImport = sessionStorage.getItem('ai-worldbook-import');
     if (aiImport) {
@@ -137,9 +151,24 @@ export default function WorldBookPage() {
       } catch { /* ignore */ }
     }
 
+    // URL 指定资产（角色页「处理」直达）：优先于自动恢复
+    if (initialAssetId) {
+      Promise.all([getWorldBook(initialAssetId), getAllWorldBooks()]).then(([item, items]) => {
+        setSavedItems(items);
+        if (item) {
+          setWorldbook(item.worldbook);
+          setFilename(item.title);
+          setCurrentItemId(item.id);
+        }
+      }).catch(() => {});
+      return;
+    }
+
+    // 处理区交接了文件时不自动恢复最近世界书——两个异步 setWorldbook 会竞态互相覆盖
+    const hasHandoff = peekPendingToolFile('worldbook');
     getAllWorldBooks().then(items => {
       setSavedItems(items);
-      if (items.length > 0 && !worldbook) {
+      if (items.length > 0 && !worldbook && !hasHandoff) {
         const latest = items[0]; // already sorted by updatedAt desc
         setWorldbook(latest.worldbook);
         setFilename(latest.title);
@@ -260,6 +289,26 @@ export default function WorldBookPage() {
     })().catch(() => { /* 自动历史失败不阻塞导入 */ });
   }, []);
 
+  // 处理区入口交接来的文件：走与导入按钮相同的解析入库流程（只消费一次）
+  const handoffConsumedRef = useRef(false);
+  useEffect(() => {
+    if (handoffConsumedRef.current) return;
+    handoffConsumedRef.current = true;
+    const file = takePendingToolFile('worldbook');
+    if (!file) return;
+    file.text().then((text) => {
+      try {
+        const wb = parseWorldBook(JSON.parse(text));
+        const count = Object.keys(wb.entries).length;
+        if (count === 0) throw new Error('empty');
+        handleImport(wb, file.name.replace(/\.json$/i, ''));
+        toast({ title: '导入成功', description: `已加载 ${count} 个条目` });
+      } catch {
+        toast({ title: '导入失败', description: '无法解析为世界书 JSON', variant: 'destructive' });
+      }
+    });
+  }, [handleImport, toast]);
+
   const handleAppend = useCallback((wb: WorldBook) => {
     setWorldbook(prev => {
       if (!prev) return wb;
@@ -342,8 +391,66 @@ export default function WorldBookPage() {
 
   const handleSaveLocal = useCallback(async () => {
     if (!worldbook) return;
-    const id = currentItemId || generateWorldBookId();
     const now = Date.now();
+    const base = currentItemId ? savedItems.find(s => s.id === currentItemId) : undefined;
+
+    // 角色上下文 + 已入库的资产：写时复制（定稿第七章）——原资产不动，改动落到该角色的派生副本
+    if (cowCharacterId && base) {
+      const plan = planCowSave(base, cowCharacterId, cowCharacterName, savedItems);
+      let targetId: string;
+      if (plan.action === 'update') {
+        targetId = plan.targetId;
+        await saveWorldBook({
+          ...base,
+          title: filename,
+          worldbook,
+          ...(base.derived ? { derived: { ...base.derived, updatedAt: now } } : {}),
+          updatedAt: now,
+          autoSaved: false,
+        });
+        toast({ title: '已保存', description: '永久留存，不会被自动清理' });
+      } else if (plan.action === 'redirect') {
+        targetId = plan.targetId;
+        const copy = savedItems.find(s => s.id === plan.targetId)!;
+        await saveWorldBook({
+          ...copy,
+          worldbook,
+          derived: copy.derived ? { ...copy.derived, updatedAt: now } : copy.derived,
+          updatedAt: now,
+          autoSaved: false,
+        });
+        setFilename(copy.title);
+        toast({ title: `已更新派生副本「${copy.title}」`, description: '原世界书未改动' });
+      } else {
+        targetId = generateWorldBookId();
+        await saveWorldBook({
+          id: targetId,
+          title: plan.copyTitle,
+          worldbook,
+          derived: buildDerivedMeta(plan.derivedFrom, cowCharacterId),
+          createdAt: now,
+          updatedAt: now,
+          autoSaved: false,
+        });
+        setFilename(plan.copyTitle);
+        toast({ title: '已生成派生副本', description: `「${plan.copyTitle}」，原世界书与其他角色不受影响` });
+      }
+      // 该角色的引用切到副本
+      const character = await getCharacter(cowCharacterId);
+      if (character) {
+        await saveCharacter({
+          ...character,
+          assets: switchAssetRef(character.assets, 'worldbook', base.id, targetId),
+          updatedAt: now,
+        });
+      }
+      setCurrentItemId(targetId);
+      setIsDirty(false);
+      setSavedItems(await getAllWorldBooks());
+      return;
+    }
+
+    const id = currentItemId || generateWorldBookId();
     const item: WorldBookItem = {
       id,
       title: filename,
@@ -351,15 +458,27 @@ export default function WorldBookPage() {
       createdAt: currentItemId ? (savedItems.find(s => s.id === id)?.createdAt ?? now) : now,
       updatedAt: now,
       autoSaved: false, // 手动保存 → 永久留存，不参与最近 5 份自动清理
+      ...(base?.derived ? { derived: base.derived } : {}),
     };
     await saveWorldBook(item);
+    // 角色上下文里保存全新世界书：入库并直接挂到该角色名下
+    if (cowCharacterId && !base) {
+      const character = await getCharacter(cowCharacterId);
+      if (character) {
+        await saveCharacter({
+          ...character,
+          assets: switchAssetRef(character.assets, 'worldbook', id, id),
+          updatedAt: now,
+        });
+      }
+    }
     setCurrentItemId(id);
     setIsDirty(false);
     // Refresh saved items list
     const updated = await getAllWorldBooks();
     setSavedItems(updated);
-    toast({ title: '已保存到书架', description: '永久留存，不会被自动清理' });
-  }, [worldbook, filename, currentItemId, savedItems, toast]);
+    toast({ title: '已保存', description: '永久留存，不会被自动清理' });
+  }, [worldbook, filename, currentItemId, savedItems, cowCharacterId, cowCharacterName, toast]);
 
   // Ctrl+S / Cmd+S to save (declared after handleSaveLocal to avoid TDZ)
   useEffect(() => {
@@ -608,6 +727,11 @@ export default function WorldBookPage() {
         <div className="max-w-[1600px] mx-auto px-4 h-14 flex items-center gap-2">
           <Globe className="w-5 h-5 text-primary" />
           <h1 className="font-semibold text-foreground text-lg mr-2 hidden sm:block">世界书编辑器</h1>
+          {cowCharacterId && cowCharacterName && (
+            <Badge variant="secondary" className="shrink-0" title="从角色页进入的处理：保存共享世界书时会生成该角色的派生副本，原资产不动">
+              为「{cowCharacterName}」处理
+            </Badge>
+          )}
 
           {/* 条目计数 + token 粗估 + 世界书名（从置顶栏移到顶部） */}
           {worldbook && (

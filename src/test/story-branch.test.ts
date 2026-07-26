@@ -5,7 +5,6 @@ import {
   buildBranchFromSession,
   getBranchLine,
   updateBranchLine,
-  repointForBind,
 } from '@/lib/archive-db';
 
 const makeSession = (id: string, model = 'claude'): ChatSession => ({
@@ -79,24 +78,5 @@ describe('分支：buildBranchFromSession / getBranchLine / updateBranchLine', (
     expect(next.session.id).toBe('s1');
 
     expect(updateBranchLine(story, 'ghost', { lastFloor: 1 })).toBe(story);
-  });
-});
-
-describe('绑定成果带走：repointForBind', () => {
-  it('只重指匹配 bookId 的条目，bookTitle 有则同步为故事标题', () => {
-    const items = [
-      { id: 'a', bookId: 'book_1', bookTitle: '旧书名', content: 'x' },
-      { id: 'b', bookId: 'book_2', bookTitle: '别的书', content: 'y' },
-      { id: 'c', bookId: null, bookTitle: '孤儿', content: 'z' },
-    ];
-    const moved = repointForBind(items, 'book_1', 'astory_9', '新故事');
-    expect(moved).toHaveLength(1);
-    expect(moved[0]).toMatchObject({ id: 'a', bookId: 'astory_9', bookTitle: '新故事' });
-  });
-
-  it('无 bookTitle 字段的条目（故事树老数据）不会被硬塞 bookTitle', () => {
-    const moved = repointForBind([{ id: 't', bookId: 'book_1' }], 'book_1', 'astory_9', '新故事');
-    expect(moved[0].bookId).toBe('astory_9');
-    expect('bookTitle' in moved[0]).toBe(false);
   });
 });

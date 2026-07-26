@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
 import { Download, FileText, AlertCircle } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { Button } from '@/components/ui/button';
@@ -30,11 +30,13 @@ export interface ImportStats {
 
 interface ChatImporterProps {
   onImport: (session: ChatSession, stats?: ImportStats) => void;
+  /** 处理区入口交接来的文件：挂载后自动走一遍与手选文件相同的解析流程（阶段5） */
+  initialFile?: File | null;
 }
 
 type TxtFormat = 'dialogue' | 'novel';
 
-export function ChatImporter({ onImport }: ChatImporterProps) {
+export function ChatImporter({ onImport, initialFile }: ChatImporterProps) {
   const { toast } = useToast();
   const [isDragging, setIsDragging] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -204,6 +206,15 @@ export function ChatImporter({ onImport }: ChatImporterProps) {
       toast({ title: '导入失败', description: msg, variant: 'destructive' });
     }
   }, [onImport, toast]);
+
+  // 处理区入口交接来的文件只消费一次（processFile 变化不重跑）
+  const consumedInitialRef = useRef(false);
+  useEffect(() => {
+    if (initialFile && !consumedInitialRef.current) {
+      consumedInitialRef.current = true;
+      processFile(initialFile);
+    }
+  }, [initialFile, processFile]);
 
   const handleTxtFormatConfirm = () => {
     setTxtFormatDialog(false);

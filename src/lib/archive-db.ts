@@ -182,25 +182,6 @@ export function updateBranchLine(story: ArchiveStory, branchId: string | null, p
   };
 }
 
-/**
- * 绑定成果带走（定稿第六章）：未绑定期间生成的总结/故事树挂在书架书 id 上，
- * 绑定升级为故事后重指到新故事 id（bookTitle 有则同步为故事标题）。返回需要重存的条目。
- */
-export function repointForBind<T extends { bookId: string | null; bookTitle?: string }>(
-  items: T[],
-  fromBookId: string,
-  toStoryId: string,
-  storyTitle: string,
-): T[] {
-  return items
-    .filter((i) => i.bookId === fromBookId)
-    .map((i) => ({
-      ...i,
-      bookId: toStoryId,
-      ...(i.bookTitle !== undefined ? { bookTitle: storyTitle } : {}),
-    }));
-}
-
 // ---------- 展示规则（定稿第四章） ----------
 
 /**

@@ -58,6 +58,7 @@ import {
 } from '@/lib/archive-db';
 import { normalizeCharacterCard, parseJsonl, parseJson } from '@/lib/adapters/st';
 import { formatPlayTime } from '@/lib/story-meta';
+import { AssetSection } from '@/components/character/AssetSection';
 
 const RECENT_STORY_COUNT = 5;
 
@@ -452,10 +453,11 @@ const CharacterPage = () => {
           </div>
         )}
 
-        {/* 关联资产区：占位（阶段5 资产化后显示引用与派生状态） */}
-        <p className="text-xs text-muted-foreground mt-6">
-          关联资产（世界书 / 预设 / 正则）将在资产库上线后显示在这里。
-        </p>
+        {/* 关联资产区（阶段5）：引用制 + 写时复制 */}
+        <AssetSection
+          character={character}
+          onAssetsChange={(assets) => patchCharacter({ assets })}
+        />
       </div>
 
       <AlertDialog open={!!storyToDelete} onOpenChange={(open) => !open && setStoryToDelete(null)}>

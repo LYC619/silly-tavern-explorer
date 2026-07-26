@@ -1,11 +1,12 @@
 /**
  * 聊天处理页（2.0 阶段2 起 = 未绑定模式的统一聊天工作台，定稿第六章）。
  * 界面主体在 ChatWorkbench（与故事工作区同一套）；本页只负责：
- * 导入落地、书架自动同步、跨页指针、引导教程，以及「未绑定 → 绑定到角色」升级。
+ * 导入落地、自动落库、跨页指针、引导教程，以及「未绑定 → 绑定到角色」升级。
+ * 阶段5 书架退役：未绑定聊天直接存为归档故事（characterId 为空），本页空态列出暂存记录。
  */
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { useLocation, useNavigate } from 'react-router-dom';
-import { Link2 } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { Link2, MessageSquare, Trash2, Clock } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { AppLayout } from '@/components/AppLayout';
@@ -16,9 +17,17 @@ import { GuidedTour } from '@/components/GuidedTour';
 import { HOME_TOUR_STEPS, isTourCompleted, setTourCompleted } from '@/lib/tour-steps';
 import { demoSession, DemoData } from '@/components/DemoData';
 import type { ChatSession, ExportSettings, ChapterMarker } from '@/types/chat';
-import type { ArchiveCharacter } from '@/types/archive';
-import { saveBook, getBook, generateBookId, type BookItem } from '@/lib/bookshelf-db';
+import type { ArchiveCharacter, ArchiveStory } from '@/types/archive';
+import {
+  buildStoryFromSession,
+  saveArchiveStory,
+  getArchiveStory,
+  getAllArchiveStories,
+  deleteArchiveStory,
+  updateBranchLine,
+} from '@/lib/archive-db';
 import { bindSessionToCharacter } from '@/lib/bind-story';
+import { takePendingToolFile } from '@/lib/tool-handoff';
 import {
   saveSessionPointer,
   loadSessionPointer,
@@ -31,7 +40,6 @@ import { APP_VERSION } from '@/components/GlobalSettings';
 import { useToast } from '@/hooks/use-toast';
 
 const Index = () => {
-  const location = useLocation();
   const navigate = useNavigate();
   const { toast } = useToast();
   const [showTour, setShowTour] = useState(false);
@@ -43,54 +51,55 @@ const Index = () => {
   const [currentFloor, setCurrentFloor] = useState(0);
   // 从指针恢复会话时要跳回的楼层，交给 ChatWorkbench 挂载后消费
   const [restoreFloor, setRestoreFloor] = useState<number | undefined>(undefined);
-  const [currentBookId, setCurrentBookId] = useState<string | null>(null);
+  // 当前会话对应的未绑定归档故事 id（沿用旧称 bookId 的指针字段）
+  const [currentStoryId, setCurrentStoryId] = useState<string | null>(null);
   const [bindDialogOpen, setBindDialogOpen] = useState(false);
+  // 空态展示的未绑定暂存列表（书架退役后临时聊天的家）
+  const [unboundStories, setUnboundStories] = useState<ArchiveStory[]>([]);
+  // 处理区入口交接来的文件（挂载时取一次，交给 ChatImporter 自动解析）
+  const [handoffFile] = useState<File | null>(() => takePendingToolFile('chat'));
 
   // Auto-start tour for first-time visitors
   useEffect(() => {
-    if (!isTourCompleted('home')) {
+    if (!isTourCompleted('home') && !handoffFile) {
       // Load demo data and start tour
       setSession(demoSession);
       // Delay tour start to let DOM render
       const timer = setTimeout(() => setShowTour(true), 1000);
       return () => clearTimeout(timer);
     }
-  }, []);
+  }, [handoffFile]);
 
-  // Load book from navigation state (from bookshelf) or session storage
+  // 凭跨页指针恢复上次的会话（session 本体在 IndexedDB 的未绑定归档故事里）
   useEffect(() => {
-    if (showTour) return; // Don't override demo data during tour
-    const state = location.state as { book?: BookItem } | null;
-    if (state?.book) {
-      setSession(state.book.session);
-      setMarkers(state.book.markers);
-      setFavorites(state.book.favorites ?? []);
-      setCurrentBookId(state.book.id);
-      if (state.book.settings) {
-        setSettings(state.book.settings);
-      }
-      window.history.replaceState({}, document.title);
-    } else {
-      // session 本体已不在 sessionStorage（见 SessionPointer 注释），凭指针从 IndexedDB 回读，
-      // 再用指针里的 markers/favorites（最近一次未必已保存到书架的临时编辑态）覆盖。
-      const pointer = loadSessionPointer();
-      if (pointer?.currentBookId) {
-        let cancelled = false;
-        loadActiveSession().then(active => {
-          if (cancelled || !active) return;
-          setSession(active);
-          setMarkers(pointer.markers ?? []);
-          setFavorites(pointer.favorites ?? []);
-          setCurrentBookId(pointer.currentBookId);
-          // 记下离开时的楼层，等虚拟列表挂载后恢复一次（切路由页面整棵卸载，滚动必回顶）
-          if (typeof pointer.lastFloor === 'number' && pointer.lastFloor > 0) {
-            setRestoreFloor(pointer.lastFloor);
-          }
-        });
-        return () => { cancelled = true; };
-      }
+    if (showTour || handoffFile) return; // Don't override demo data during tour
+    const pointer = loadSessionPointer();
+    if (pointer?.currentBookId) {
+      let cancelled = false;
+      loadActiveSession().then(active => {
+        if (cancelled || !active) return;
+        setSession(active);
+        setMarkers(pointer.markers ?? []);
+        setFavorites(pointer.favorites ?? []);
+        setCurrentStoryId(pointer.currentBookId);
+        // 记下离开时的楼层，等虚拟列表挂载后恢复一次（切路由页面整棵卸载，滚动必回顶）
+        if (typeof pointer.lastFloor === 'number' && pointer.lastFloor > 0) {
+          setRestoreFloor(pointer.lastFloor);
+        }
+      });
+      return () => { cancelled = true; };
     }
-  }, [location.state, showTour]);
+  }, [showTour, handoffFile]);
+
+  // 空态时列出未绑定暂存（最近修改在前，repo 已按 updatedAt 降序）
+  useEffect(() => {
+    if (session) return;
+    let cancelled = false;
+    getAllArchiveStories().then(all => {
+      if (!cancelled) setUnboundStories(all.filter(s => !s.characterId));
+    }).catch(() => {});
+    return () => { cancelled = true; };
+  }, [session]);
 
   // 检测 AI 生成的章节标记
   useEffect(() => {
@@ -124,64 +133,53 @@ const Index = () => {
     if (session) {
       if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
       saveTimerRef.current = setTimeout(() => {
-        saveSessionPointer({ currentBookId, markers, favorites, lastFloor: currentFloor });
+        saveSessionPointer({ currentBookId: currentStoryId, markers, favorites, lastFloor: currentFloor });
       }, 500);
     }
     return () => { if (saveTimerRef.current) clearTimeout(saveTimerRef.current); };
-  }, [session, markers, currentBookId, favorites, currentFloor]);
+  }, [session, markers, currentStoryId, favorites, currentFloor]);
 
   // 保存设置变更到 localStorage
   useEffect(() => {
     saveSettings(settings);
   }, [settings]);
 
-  // 自动同步书架：正则规则/楼层编辑/章节标记等处理状态随书保存（防抖），
-  // 否则书架里的书永远停留在导入时的快照，重新打开会丢失之后的全部处理。
-  const bookSyncTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // 自动落库：正则规则/楼层编辑/章节标记等处理状态随未绑定故事保存（防抖），
+  // 否则暂存的记录永远停留在导入时的快照，重新打开会丢失之后的全部处理。
+  const storySyncTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   useEffect(() => {
-    if (!session || !currentBookId) return;
-    if (bookSyncTimerRef.current) clearTimeout(bookSyncTimerRef.current);
-    bookSyncTimerRef.current = setTimeout(async () => {
+    if (!session || !currentStoryId) return;
+    if (storySyncTimerRef.current) clearTimeout(storySyncTimerRef.current);
+    storySyncTimerRef.current = setTimeout(async () => {
       try {
-        const existing = await getBook(currentBookId);
-        if (!existing) return; // 书已被删除，不复活
-        await saveBook({
-          ...existing,
-          title: session.title || session.character?.name || existing.title,
-          session,
-          markers,
-          favorites,
+        const existing = await getArchiveStory(currentStoryId);
+        if (!existing) return; // 故事已被删除，不复活
+        let updated = updateBranchLine(existing, null, { session, markers, favorites });
+        updated = {
+          ...updated,
+          title: session.title || existing.title,
           settings,
-          updatedAt: Date.now(),
-        });
-      } catch { /* 自动同步失败不打扰用户，手动保存仍可用 */ }
+        };
+        await saveArchiveStory(updated);
+      } catch { /* 自动同步失败不打扰用户，下次修改会重试 */ }
     }, 800);
-    return () => { if (bookSyncTimerRef.current) clearTimeout(bookSyncTimerRef.current); };
-  }, [session, markers, favorites, settings, currentBookId]);
+    return () => { if (storySyncTimerRef.current) clearTimeout(storySyncTimerRef.current); };
+  }, [session, markers, favorites, settings, currentStoryId]);
 
   const handleImport = async (newSession: ChatSession, stats?: ImportStats) => {
     setSession(newSession);
     setMarkers([]);
     setRestoreFloor(undefined);
-    // Auto-save to bookshelf on import
+    // 导入即存为未绑定归档故事（书架退役后的暂存地），随编辑自动同步
     try {
-      const bookId = generateBookId();
-      const book: BookItem = {
-        id: bookId,
-        title: newSession.title || newSession.character?.name || '未命名作品',
-        session: newSession,
-        markers: [],
-        favorites: [],
-        settings,
-        createdAt: Date.now(),
-        updatedAt: Date.now(),
-      };
-      await saveBook(book);
-      setCurrentBookId(bookId);
+      const story = buildStoryFromSession(newSession);
+      story.settings = settings;
+      await saveArchiveStory(story);
+      setCurrentStoryId(story.id);
       setFavorites([]);
 
       // Build description with swipes stats
-      let description = '已自动保存到书架';
+      let description = '已自动暂存，绑定角色后进入故事工作区';
       if (stats && stats.swipesRemoved > 0) {
         const sizeStr = stats.swipesBytesEstimate < 1024
           ? `${stats.swipesBytesEstimate} B`
@@ -193,7 +191,7 @@ const Index = () => {
       toast({ title: '导入成功', description });
     } catch (error) {
       console.error('Auto-save failed:', error);
-      toast({ title: '自动保存失败，请手动保存', variant: 'destructive' });
+      toast({ title: '自动暂存失败', variant: 'destructive' });
     }
   };
 
@@ -201,49 +199,42 @@ const Index = () => {
     setSession(null);
     setMarkers([]);
     setFavorites([]);
-    setCurrentBookId(null);
+    setCurrentStoryId(null);
     setRestoreFloor(undefined);
     clearSessionState();
   };
 
-  const handleSaveToBookshelf = async () => {
-    if (!session) return;
+  // 打开一条未绑定暂存记录
+  const handleOpenUnbound = (story: ArchiveStory) => {
+    setSession(story.session);
+    setMarkers(story.markers ?? []);
+    setFavorites(story.favorites ?? []);
+    if (story.settings) setSettings(story.settings);
+    setCurrentStoryId(story.id);
+    setRestoreFloor(story.lastFloor && story.lastFloor > 0 ? story.lastFloor : undefined);
+  };
+
+  const handleDeleteUnbound = async (id: string) => {
     try {
-      const now = Date.now();
-      let createdAt = now;
-      if (currentBookId) {
-        const existing = await getBook(currentBookId);
-        createdAt = existing?.createdAt ?? now;
-      }
-      const book: BookItem = {
-        id: currentBookId || generateBookId(),
-        title: session.title || session.character?.name || '未命名作品',
-        session,
-        markers,
-        favorites,
-        settings,
-        createdAt,
-        updatedAt: now,
-      };
-      await saveBook(book);
-      setCurrentBookId(book.id);
-      toast({ title: '已保存到书架' });
-    } catch (error) {
-      toast({ title: '保存失败', variant: 'destructive' });
+      await deleteArchiveStory(id);
+      setUnboundStories(prev => prev.filter(s => s.id !== id));
+      toast({ title: '已删除暂存记录' });
+    } catch {
+      toast({ title: '删除失败', variant: 'destructive' });
     }
   };
 
-  // 绑定到角色：原地升级为归档故事（成果带走，书架副本删除），跳故事工作区
+  // 绑定到角色：未绑定故事补上 characterId 原地升级，总结/故事树成果带走，跳故事工作区
   const handleBind = async (character: ArchiveCharacter) => {
     if (!session) return;
     try {
       const { story, carried } = await bindSessionToCharacter({
         characterId: character.id,
+        storyId: currentStoryId,
         session,
         markers,
         favorites,
         settings,
-        bookId: currentBookId,
       });
       clearSessionState();
       toast({
@@ -271,11 +262,49 @@ const Index = () => {
                 导入 SillyTavern 聊天记录，支持正则清理、章节标记、范围导出和多种阅读主题
               </p>
             </div>
-            <ChatImporter onImport={handleImport} />
+            <ChatImporter onImport={handleImport} initialFile={handoffFile} />
 
             <div className="mt-4 flex justify-center">
               <DemoData onLoad={setSession} />
             </div>
+
+            {/* 未绑定暂存列表：书架退役后，临时聊天的唯一入口 */}
+            {unboundStories.length > 0 && (
+              <div className="mt-8">
+                <h3 className="text-sm font-medium text-muted-foreground mb-2">未绑定的暂存记录</h3>
+                <div className="space-y-2">
+                  {unboundStories.map((story) => (
+                    <div
+                      key={story.id}
+                      className="flex items-center gap-3 p-3 rounded-lg bg-card border border-border card-elevated cursor-pointer hover:border-primary/50 transition-colors"
+                      onClick={() => handleOpenUnbound(story)}
+                    >
+                      <MessageSquare className="w-4 h-4 text-muted-foreground shrink-0" />
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium truncate">{story.title}</p>
+                        <p className="text-xs text-muted-foreground flex items-center gap-2 flex-wrap">
+                          <span>{story.session.messages.length} 楼</span>
+                          {story.meta.lastModel && <span className="truncate">{story.meta.lastModel}</span>}
+                          <span className="flex items-center gap-0.5">
+                            <Clock className="w-3 h-3" />
+                            {new Date(story.updatedAt).toLocaleDateString()}
+                          </span>
+                        </p>
+                      </div>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-8 w-8 shrink-0 text-muted-foreground hover:text-destructive"
+                        onClick={(e) => { e.stopPropagation(); handleDeleteUnbound(story.id); }}
+                        aria-label="删除暂存记录"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </Button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
 
             <div className="mt-8 grid grid-cols-2 md:grid-cols-4 gap-4 text-center">
               {[
@@ -304,7 +333,6 @@ const Index = () => {
           onSettingsChange={setSettings}
           onFloorChange={handleFloorChange}
           initialFloor={restoreFloor}
-          onSaveToBookshelf={handleSaveToBookshelf}
           onReset={handleReset}
           titleBadge={
             <Badge

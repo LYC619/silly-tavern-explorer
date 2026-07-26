@@ -1,5 +1,5 @@
 import { useNavigate, useLocation } from 'react-router-dom';
-import { ScrollText, Globe, Library, KeyRound, Moon, Sun, IdCard, SlidersHorizontal, Users } from 'lucide-react';
+import { ScrollText, Moon, Sun, Users, Home, Wrench } from 'lucide-react';
 import { useTheme } from 'next-themes';
 import { Button } from '@/components/ui/button';
 import { GlobalSettings } from '@/components/GlobalSettings';
@@ -13,14 +13,20 @@ interface AppLayoutProps {
   leftActions?: React.ReactNode;
 }
 
+/**
+ * 2.0 全局信息架构（定稿第二章）：首页 / 角色库 / 处理区 三个一级入口。
+ * 各工具页（聊天/世界书/角色卡/预设/正则/AI配置）归属处理区；
+ * 角色卡主页与故事工作区归属角色库。matches 列出该入口点亮的路径前缀。
+ */
 const NAV_ITEMS = [
-  { label: '角色库', icon: Users, path: '/library' },
-  { label: '聊天处理', icon: ScrollText, path: '/' },
-  { label: '世界书', icon: Globe, path: '/worldbook' },
-  { label: '角色卡', icon: IdCard, path: '/card-viewer' },
-  { label: '预设', icon: SlidersHorizontal, path: '/preset' },
-  { label: '书架', icon: Library, path: '/bookshelf' },
-  { label: 'AI 配置', icon: KeyRound, path: '/ai-tools' },
+  { label: '首页', icon: Home, path: '/', matches: ['/'] },
+  { label: '角色库', icon: Users, path: '/library', matches: ['/library', '/character', '/story'] },
+  {
+    label: '处理区',
+    icon: Wrench,
+    path: '/tools',
+    matches: ['/tools', '/chat', '/worldbook', '/card-viewer', '/preset', '/regex', '/ai-tools'],
+  },
 ];
 
 /**
@@ -32,8 +38,8 @@ export function AppLayout({ children, actions, leftActions }: AppLayoutProps) {
   const location = useLocation();
   const { theme, setTheme } = useTheme();
 
-  const isActive = (path: string) =>
-    path === '/' ? location.pathname === '/' : location.pathname.startsWith(path);
+  const isActive = (matches: string[]) =>
+    matches.some((m) => (m === '/' ? location.pathname === '/' : location.pathname.startsWith(m)));
 
   return (
     <div className="min-h-screen paper-bg flex">
@@ -55,7 +61,7 @@ export function AppLayout({ children, actions, leftActions }: AppLayoutProps) {
         <nav className="flex-1 flex flex-col gap-1 p-2 mt-2">
           {NAV_ITEMS.map((item) => {
             const Icon = item.icon;
-            const active = isActive(item.path);
+            const active = isActive(item.matches);
             return (
               <button
                 key={item.path}

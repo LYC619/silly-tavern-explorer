@@ -1,7 +1,9 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { SlidersHorizontal, Download, Save, History, FileJson } from 'lucide-react';
 import { AppLayout } from '@/components/AppLayout';
 import { HelpCard } from '@/components/HelpCard';
+import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { Card, CardContent } from '@/components/ui/card';
@@ -16,6 +18,9 @@ import { parsePreset, getActiveOrder } from '@/lib/preset-parser';
 import {
   getAllPresets, getPreset, savePreset, deletePreset, pruneAutoSavedPresets,
 } from '@/lib/preset-db';
+import { planCowSave, buildDerivedMeta, switchAssetRef } from '@/lib/asset-cow';
+import { getCharacter, saveCharacter } from '@/lib/archive-db';
+import { takePendingToolFile, peekPendingToolFile } from '@/lib/tool-handoff';
 import { PresetOverview } from '@/components/preset/PresetOverview';
 import { PromptEditor } from '@/components/preset/PromptEditor';
 import { PresetUtilityFields } from '@/components/preset/PresetUtilityFields';
@@ -37,6 +42,11 @@ function loadSessionPtr(): PresetSessionPtr | null {
 
 export default function Preset() {
   const { toast } = useToast();
+  // 角色上下文（角色页关联资产区「处理」进来）：保存走写时复制（定稿第七章）
+  const [searchParams] = useSearchParams();
+  const cowCharacterId = searchParams.get('characterId') ?? undefined;
+  const initialAssetId = searchParams.get('assetId');
+  const [cowCharacterName, setCowCharacterName] = useState('');
   const [preset, setPreset] = useState<NormalizedPreset | null>(null);
   const [originalPreset, setOriginalPreset] = useState<NormalizedPreset | null>(null);
   const [fileName, setFileName] = useState('preset');
@@ -64,12 +74,17 @@ export default function Preset() {
     }
   }, []);
 
-  // 跨页恢复：组件挂载时凭 sessionStorage 指针从 IndexedDB 回读
+  // 跨页恢复：组件挂载时凭 sessionStorage 指针从 IndexedDB 回读；
+  // URL 指定资产（角色页「处理」直达）优先于指针恢复
   useEffect(() => {
     refreshSaved();
-    const ptr = loadSessionPtr();
-    if (ptr?.itemId) {
-      getPreset(ptr.itemId).then((item) => {
+    if (cowCharacterId) {
+      getCharacter(cowCharacterId).then((c) => setCowCharacterName(c?.name ?? '')).catch(() => {});
+    }
+    // 处理区交接了文件时跳过指针恢复——两个异步 setPreset 会竞态互相覆盖
+    const targetId = peekPendingToolFile('preset') ? null : (initialAssetId ?? loadSessionPtr()?.itemId);
+    if (targetId) {
+      getPreset(targetId).then((item) => {
         if (item) {
           setPreset(item.preset);
           setOriginalPreset(item.preset);
@@ -83,6 +98,7 @@ export default function Preset() {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
 
   // 跨页指针持久化
   useEffect(() => {
@@ -246,21 +262,89 @@ export default function Preset() {
     if (file) loadFile(file);
   }, [loadFile]);
 
+  // 处理区入口交接来的文件：走与导入按钮相同的解析入库流程（只消费一次）
+  const handoffConsumedRef = useRef(false);
+  useEffect(() => {
+    if (handoffConsumedRef.current) return;
+    handoffConsumedRef.current = true;
+    const file = takePendingToolFile('preset');
+    if (file) loadFile(file);
+  }, [loadFile]);
+
   // ---- 保存（永久留存，存入 presets store，在「已存预设」中管理） ----
+  // 角色上下文（角色页「处理」进来）：写时复制——原资产不动，改动落到该角色的派生副本
   const handleSaveLocal = useCallback(async () => {
     if (!preset) return;
-    const id = currentItemId || generatePresetId();
     const now = Date.now();
+    const base = currentItemId ? savedItems.find((s) => s.id === currentItemId) : undefined;
+
+    if (cowCharacterId && base) {
+      const plan = planCowSave(base, cowCharacterId, cowCharacterName, savedItems);
+      let targetId: string;
+      if (plan.action === 'update') {
+        targetId = plan.targetId;
+        await savePreset({
+          ...base, title: fileName, preset,
+          ...(base.derived ? { derived: { ...base.derived, updatedAt: now } } : {}),
+          updatedAt: now, autoSaved: false,
+        });
+        toast({ title: '已保存', description: '永久留存、纳入完整备份' });
+      } else if (plan.action === 'redirect') {
+        targetId = plan.targetId;
+        const copy = savedItems.find((s) => s.id === plan.targetId)!;
+        await savePreset({
+          ...copy, preset,
+          derived: copy.derived ? { ...copy.derived, updatedAt: now } : copy.derived,
+          updatedAt: now, autoSaved: false,
+        });
+        setFileName(copy.title);
+        toast({ title: `已更新派生副本「${copy.title}」`, description: '原预设未改动' });
+      } else {
+        targetId = generatePresetId();
+        await savePreset({
+          id: targetId, title: plan.copyTitle, preset,
+          derived: buildDerivedMeta(plan.derivedFrom, cowCharacterId),
+          createdAt: now, updatedAt: now, autoSaved: false,
+        });
+        setFileName(plan.copyTitle);
+        toast({ title: '已生成派生副本', description: `「${plan.copyTitle}」，原预设与其他角色不受影响` });
+      }
+      const character = await getCharacter(cowCharacterId);
+      if (character) {
+        await saveCharacter({
+          ...character,
+          assets: switchAssetRef(character.assets, 'preset', base.id, targetId),
+          updatedAt: now,
+        });
+      }
+      setCurrentItemId(targetId);
+      await refreshSaved();
+      return;
+    }
+
+    const id = currentItemId || generatePresetId();
     await savePreset({
       id, title: fileName, preset,
       createdAt: currentItemId ? (savedItems.find((s) => s.id === id)?.createdAt ?? now) : now,
       updatedAt: now,
       autoSaved: false,
+      ...(base?.derived ? { derived: base.derived } : {}),
     });
+    // 角色上下文里保存全新预设：入库并直接挂到该角色名下
+    if (cowCharacterId && !base) {
+      const character = await getCharacter(cowCharacterId);
+      if (character) {
+        await saveCharacter({
+          ...character,
+          assets: switchAssetRef(character.assets, 'preset', id, id),
+          updatedAt: now,
+        });
+      }
+    }
     setCurrentItemId(id);
     await refreshSaved();
     toast({ title: '已保存', description: '可在右上角「已存预设」中查看；永久留存、纳入完整备份' });
-  }, [preset, fileName, currentItemId, savedItems, refreshSaved, toast]);
+  }, [preset, fileName, currentItemId, savedItems, cowCharacterId, cowCharacterName, refreshSaved, toast]);
 
   const handleLoadItem = useCallback((item: PresetItem) => {
     setPreset(item.preset);
@@ -329,6 +413,11 @@ export default function Preset() {
           <div>
             <h1 className="text-xl font-display font-semibold flex items-center gap-2">
               预设编辑
+              {cowCharacterId && cowCharacterName && (
+                <Badge variant="secondary" title="从角色页进入的处理：保存共享预设时会生成该角色的派生副本，原资产不动">
+                  为「{cowCharacterName}」处理
+                </Badge>
+              )}
               <HelpCard>
                 导入 SillyTavern 的 Chat Completion 预设（.json），可视化查看与编辑提示词激活顺序、内容、工具型字段与内嵌正则脚本，并导出回 ST 兼容格式。所有未识别字段在导出时无损保留，可直接导回 SillyTavern。
               </HelpCard>

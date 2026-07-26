@@ -28,13 +28,16 @@ interface StoreSpec {
  * 新增 store 只需在此登记一行（且同步 idb.ts 的 ALL_STORES）。顺序与 ALL_STORES 一致。
  */
 const STORE_SPECS: readonly StoreSpec[] = [
-  { key: 'books', label: '书架作品', isValid: (b) => !!b.id && !!b.session },
+  // 'books'（书架）已随 2.0 阶段5 退役，不再进备份；旧备份里的 books 数组导入时被忽略
   { key: 'worldbooks', label: '世界书', isValid: (w) => !!w.id },
   { key: 'presets', label: '预设', isValid: (p) => !!p.id },
   { key: 'cards', label: '角色卡', isValid: (c) => !!c.id && !!c.card },
   { key: 'summaries', label: '总结', isValid: (s) => !!s.id && typeof s.content === 'string' },
   { key: 'summaryTemplates', label: '总结模板', isValid: (t) => !!t.id && typeof t.content === 'string' },
   { key: 'stories', label: '故事树', isValid: (s) => !!s.id && Array.isArray(s.nodes) },
+  { key: 'characters', label: '角色档案', isValid: (c) => !!c.id && !!c.card },
+  { key: 'archiveStories', label: '归档故事', isValid: (s) => !!s.id && !!s.session },
+  { key: 'regexes', label: '正则规则集', isValid: (r) => !!r.id && Array.isArray(r.rules) },
 ];
 
 /**
@@ -58,8 +61,9 @@ export async function estimateStorageUsage(): Promise<{
 
 /**
  * Export entire IndexedDB as a JSON file for backup.
- * 备份由 STORE_SPECS 驱动，覆盖全部业务 store（books/worldbooks/presets/cards/summaries/
- * summaryTemplates/stories），少备份任何一个都会造成"完整备份"名不副实的数据丢失。
+ * 备份由 STORE_SPECS 驱动，覆盖全部业务 store（worldbooks/presets/cards/summaries/
+ * summaryTemplates/stories/characters/archiveStories/regexes），
+ * 少备份任何一个都会造成"完整备份"名不副实的数据丢失。
  */
 export async function exportFullBackup(): Promise<void> {
   const db = await openDB();
@@ -102,7 +106,8 @@ export async function exportFullBackup(): Promise<void> {
 export interface ParsedBackup {
   version: number;
   exportedAt?: string;
-  byStore: Record<StoreName, unknown[]>;
+  /** 只含 STORE_SPECS 里的 key（退役的 books 不在其中），缺失视为空 */
+  byStore: Partial<Record<StoreName, unknown[]>>;
 }
 
 export interface BackupStorePreview {
@@ -176,11 +181,8 @@ export async function parseBackupFile(file: File): Promise<ParsedBackup> {
   if (obj.app !== 'silly-tavern-explorer') {
     throw new BackupError('这不像本应用导出的备份（缺少 app 标记），已拒绝导入');
   }
-  if (!Array.isArray(obj.books)) {
-    throw new BackupError('备份缺少 books 数组，格式无效');
-  }
 
-  const byStore = {} as Record<StoreName, unknown[]>;
+  const byStore: Partial<Record<StoreName, unknown[]>> = {};
   for (const spec of STORE_SPECS) {
     // 兼容旧版本备份缺字段（v1 仅 books、v2 +worldbooks …），缺失或非数组一律视为空
     byStore[spec.key] = asArray(obj[spec.key]);

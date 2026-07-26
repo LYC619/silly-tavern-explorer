@@ -40,7 +40,8 @@ interface RegexSidebarProps {
   rules: RegexRule[];
   onRulesChange: (rules: RegexRule[]) => void;
   isOpen: boolean;
-  onClose: () => void;
+  /** 不传 = 独立页常驻模式（阶段5 正则工具页），不显示关闭按钮 */
+  onClose?: () => void;
   sampleMessages?: ChatMessage[];
   /** 切换正在预览的规则：传 null 表示退出预览。预览效果在主界面阅读区原地高亮显示。 */
   onPreviewChange?: (rule: RegexRule | null) => void;
@@ -267,9 +268,11 @@ export function RegexSidebar({ rules, onRulesChange, isOpen, onClose, sampleMess
             ({enabledCount}/{rules.length} 启用)
           </span>
         </div>
-        <Button variant="ghost" size="icon" onClick={onClose} aria-label="关闭">
-          <X className="w-4 h-4" />
-        </Button>
+        {onClose && (
+          <Button variant="ghost" size="icon" onClick={onClose} aria-label="关闭">
+            <X className="w-4 h-4" />
+          </Button>
+        )}
       </div>
 
       {/* Description */}

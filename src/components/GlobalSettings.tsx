@@ -27,7 +27,7 @@ import {
   type BackupPreview,
 } from '@/lib/storage-utils';
 import { clearAllTempCache } from '@/lib/session-storage';
-import { getAllBooks } from '@/lib/bookshelf-db';
+import { getAllCharacters, getAllArchiveStories } from '@/lib/archive-db';
 import { getAllWorldBooks } from '@/lib/worldbook-db';
 import { resetAllTours } from '@/lib/tour-steps';
 
@@ -62,18 +62,35 @@ export function GlobalSettings({ onDataChanged, ...props }: GlobalSettingsProps)
     const breakdownItems: StorageDetail[] = [];
 
     try {
-      const books = await getAllBooks();
-      let totalBookSize = 0;
-      const bookDetails = books.map(b => {
-        const size = new Blob([JSON.stringify(b)]).size;
-        totalBookSize += size;
-        return `${b.title} — ${formatBytes(size)}, ${b.session.messages.length} 条消息`;
+      const characters = await getAllCharacters();
+      let totalCharSize = 0;
+      const charDetails = characters.map(c => {
+        const size = new Blob([JSON.stringify(c)]).size;
+        totalCharSize += size;
+        return `${c.name} — ${formatBytes(size)}`;
       });
       breakdownItems.push({
-        label: '书架作品',
-        count: books.length,
-        size: totalBookSize,
-        detail: bookDetails.join('\n'),
+        label: '角色档案',
+        count: characters.length,
+        size: totalCharSize,
+        detail: charDetails.join('\n'),
+      });
+    } catch { /* ignore */ }
+
+    try {
+      const stories = await getAllArchiveStories();
+      let totalStorySize = 0;
+      const storyDetails = stories.map(s => {
+        const size = new Blob([JSON.stringify(s)]).size;
+        totalStorySize += size;
+        const branchNote = s.branches?.length ? `，${s.branches.length} 条分支` : '';
+        return `${s.title} — ${formatBytes(size)}, ${s.session.messages.length} 楼${branchNote}`;
+      });
+      breakdownItems.push({
+        label: '归档故事',
+        count: stories.length,
+        size: totalStorySize,
+        detail: storyDetails.join('\n'),
       });
     } catch { /* ignore */ }
 
@@ -119,7 +136,7 @@ export function GlobalSettings({ onDataChanged, ...props }: GlobalSettingsProps)
     try {
       setLoading(true);
       await exportFullBackup();
-      toast({ title: '备份成功', description: '已导出完整备份（作品/世界书/预设/角色卡/总结）' });
+      toast({ title: '备份成功', description: '已导出完整备份（角色/故事/世界书/预设/正则/总结/故事树）' });
     } catch {
       toast({ title: '备份失败', variant: 'destructive' });
     } finally {
@@ -155,10 +172,12 @@ export function GlobalSettings({ onDataChanged, ...props }: GlobalSettingsProps)
       setLoading(true);
       const c = await importBackup(pendingImport.parsed);
       const parts: string[] = [];
-      if (c.books > 0) parts.push(`${c.books} 本作品`);
+      if (c.characters > 0) parts.push(`${c.characters} 个角色`);
+      if (c.archiveStories > 0) parts.push(`${c.archiveStories} 个故事`);
       if (c.worldbooks > 0) parts.push(`${c.worldbooks} 本世界书`);
       if (c.presets > 0) parts.push(`${c.presets} 份预设`);
       if (c.cards > 0) parts.push(`${c.cards} 张角色卡`);
+      if (c.regexes > 0) parts.push(`${c.regexes} 套正则`);
       if (c.summaries > 0) parts.push(`${c.summaries} 份总结`);
       if (c.summaryTemplates > 0) parts.push(`${c.summaryTemplates} 个总结模板`);
       if (c.stories > 0) parts.push(`${c.stories} 棵故事树`);
@@ -184,7 +203,7 @@ export function GlobalSettings({ onDataChanged, ...props }: GlobalSettingsProps)
     try {
       setLoading(true);
       await clearAllData();
-      toast({ title: '已清空', description: '所有本地数据已删除（作品/世界书/预设/角色卡/总结）' });
+      toast({ title: '已清空', description: '所有本地数据已删除（角色/故事/世界书/预设/正则/总结）' });
       await refreshStorage();
       onDataChanged?.();
     } catch {
@@ -199,7 +218,7 @@ export function GlobalSettings({ onDataChanged, ...props }: GlobalSettingsProps)
     clearAllTempCache();
     toast({
       title: '已清除临时缓存',
-      description: '页面间的临时编辑态已清空（书架与世界书数据不受影响）。重新进入聊天处理 / 世界书页即可。',
+      description: '页面间的临时编辑态已清空（角色库与故事等已保存数据不受影响）。重新进入对应页面即可。',
     });
     refreshStorage();
   };
@@ -328,7 +347,7 @@ export function GlobalSettings({ onDataChanged, ...props }: GlobalSettingsProps)
               </div>
               <p className="text-xs text-muted-foreground leading-relaxed">
                 「清除临时缓存」只清页面间的临时编辑态，常用于切页后内容异常时自救，不影响已保存数据；
-                「清空所有数据」会永久删除全部书架作品、世界书、预设、角色卡与总结，请先备份。
+                「清空所有数据」会永久删除全部角色、故事、世界书、预设、正则与总结，请先备份。
               </p>
             </div>
 
@@ -441,7 +460,7 @@ export function GlobalSettings({ onDataChanged, ...props }: GlobalSettingsProps)
           <AlertDialogHeader>
             <AlertDialogTitle>确认清空所有数据</AlertDialogTitle>
             <AlertDialogDescription>
-              此操作不可撤销，所有本地数据（作品/世界书/预设/角色卡/总结）将被永久删除。建议先导出备份。
+              此操作不可撤销，所有本地数据（角色/故事/世界书/预设/正则/总结）将被永久删除。建议先导出备份。
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
