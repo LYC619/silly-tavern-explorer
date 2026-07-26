@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { CheckCircle2, AlertCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { getActiveProfile } from './APIConfigCard';
+import { getActiveProfile } from './api-profiles';
 
 /**
  * 轻量 API 配置状态条：只展示状态，不承载配置表单。

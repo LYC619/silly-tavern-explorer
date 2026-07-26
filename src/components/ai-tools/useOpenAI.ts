@@ -1,4 +1,4 @@
-import type { APIConfig } from './APIConfigCard';
+import type { APIConfig } from './api-profiles';
 
 export interface ChatCompletionMessage {
   role: 'system' | 'user' | 'assistant';
