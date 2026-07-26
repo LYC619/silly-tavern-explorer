@@ -1,7 +1,7 @@
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
-import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { ThemeProvider } from "next-themes";
 import { lazy, Suspense } from "react";
 import { Loader2 } from "lucide-react";
@@ -15,8 +15,9 @@ const Tools = lazy(() => import("./pages/Tools"));
 const Library = lazy(() => import("./pages/Library"));
 const CharacterPage = lazy(() => import("./pages/CharacterPage"));
 const StoryWorkspace = lazy(() => import("./pages/StoryWorkspace"));
-const AITools = lazy(() => import("./pages/AITools"));
+const SettingsPage = lazy(() => import("./pages/SettingsPage"));
 const WorldBook = lazy(() => import("./pages/WorldBook"));
+const AssetLibrary = lazy(() => import("./pages/AssetLibrary"));
 const CardViewer = lazy(() => import("./pages/CardViewer"));
 const Preset = lazy(() => import("./pages/Preset"));
 const RegexTool = lazy(() => import("./pages/RegexTool"));
@@ -44,12 +45,15 @@ const App = () => (
             {/* 处理区（2.0 阶段5）：入口页 + 各工具；聊天处理从 "/" 移到 /chat */}
             <Route path="/tools" element={<Tools />} />
             <Route path="/chat" element={<Index />} />
+            <Route path="/assets" element={<AssetLibrary />} />
             <Route path="/worldbook" element={<WorldBook />} />
             <Route path="/card-viewer" element={<CardViewer />} />
             <Route path="/preset" element={<Preset />} />
             <Route path="/regex" element={<RegexTool />} />
             {/* /summary /story-tree 已并入故事工作区（阶段3）；/bookshelf /reader 已随书架退役删除（阶段5） */}
-            <Route path="/ai-tools" element={<AITools />} />
+            <Route path="/settings" element={<SettingsPage />} />
+            {/* 阶段9.9：AI 配置迁入设置页，旧路径重定向兜底 */}
+            <Route path="/ai-tools" element={<Navigate to="/settings" replace />} />
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
             <Route path="*" element={<NotFound />} />
           </Routes>

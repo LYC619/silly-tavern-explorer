@@ -12,7 +12,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Users, UploadCloud, ArrowRight, Globe, SlidersHorizontal, Regex as RegexIcon,
-  KeyRound, ScrollText, IdCard, Clock, MessageSquare, Cpu, BookOpenText,
+  ScrollText, IdCard, Clock, MessageSquare, Cpu, BookOpenText,
 } from 'lucide-react';
 import { AppLayout } from '@/components/AppLayout';
 import { Badge } from '@/components/ui/badge';
@@ -89,11 +89,12 @@ const Home = () => {
   // 角色库封面条：最近加入在前，一行放得下多少显示多少（overflow-hidden 裁掉多余）
   const coverWall = [...characters].sort((a, b) => b.createdAt - a.createdAt).slice(0, 12);
 
+  // 阶段9.8：其他资产直达资产库列表页（不再直接进处理界面）。
+  // AI 配置已迁设置页（9.9）；这里将来放用户 ST 侧的配置概念。
   const OTHER_ASSETS = [
-    { label: '世界书', icon: Globe, path: '/worldbook', count: assetCounts.worldbooks },
-    { label: '预设', icon: SlidersHorizontal, path: '/preset', count: assetCounts.presets },
-    { label: '正则', icon: RegexIcon, path: '/regex', count: assetCounts.regexes },
-    { label: 'AI 配置', icon: KeyRound, path: '/ai-tools', count: null },
+    { label: '世界书', icon: Globe, path: '/assets?tab=worldbook', count: assetCounts.worldbooks },
+    { label: '预设', icon: SlidersHorizontal, path: '/assets?tab=preset', count: assetCounts.presets },
+    { label: '正则', icon: RegexIcon, path: '/assets?tab=regex', count: assetCounts.regexes },
   ];
 
   return (

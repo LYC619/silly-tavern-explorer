@@ -1,8 +1,7 @@
 import { useNavigate, useLocation } from 'react-router-dom';
-import { ScrollText, Moon, Sun, Users, Home, Wrench } from 'lucide-react';
+import { ScrollText, Moon, Sun, Users, Home, Wrench, Settings } from 'lucide-react';
 import { useTheme } from 'next-themes';
 import { Button } from '@/components/ui/button';
-import { GlobalSettings } from '@/components/GlobalSettings';
 import { cn } from '@/lib/utils';
 
 interface AppLayoutProps {
@@ -25,7 +24,7 @@ const NAV_ITEMS = [
     label: '处理区',
     icon: Wrench,
     path: '/tools',
-    matches: ['/tools', '/chat', '/worldbook', '/card-viewer', '/preset', '/regex', '/ai-tools'],
+    matches: ['/tools', '/chat', '/worldbook', '/card-viewer', '/preset', '/regex', '/ai-tools', '/assets'],
   },
 ];
 
@@ -81,9 +80,18 @@ export function AppLayout({ children, actions, leftActions }: AppLayoutProps) {
           })}
         </nav>
 
-        {/* 底部：全局设置 + 暗色切换 */}
+        {/* 底部：设置页入口（阶段9.9 弹窗改独立页） + 暗色切换 */}
         <div className="p-2 border-t border-border flex flex-col items-center gap-1">
-          <GlobalSettings data-tour="global-settings" />
+          <Button
+            variant="ghost"
+            size="icon"
+            className={cn('h-8 w-8', location.pathname.startsWith('/settings') && 'bg-primary/10 text-primary')}
+            title="设置"
+            data-tour="global-settings"
+            onClick={() => navigate('/settings')}
+          >
+            <Settings className="w-4 h-4" />
+          </Button>
           <Button
             variant="ghost"
             size="icon"

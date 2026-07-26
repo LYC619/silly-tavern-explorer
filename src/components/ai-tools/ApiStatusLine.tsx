@@ -26,7 +26,7 @@ export function ApiStatusLine() {
         <span>API 已配置{label ? ` · ${label}` : ''}</span>
         <button
           className="underline-offset-2 hover:underline hover:text-foreground"
-          onClick={() => navigate('/ai-tools')}
+          onClick={() => navigate('/settings')}
         >
           修改
         </button>
@@ -38,7 +38,7 @@ export function ApiStatusLine() {
     <div className="flex items-center gap-2 flex-wrap rounded-md border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-sm">
       <AlertCircle className="w-4 h-4 text-amber-600 shrink-0" />
       <span>尚未配置 API Key，生成功能不可用。</span>
-      <Button variant="outline" size="sm" className="h-7 ml-auto" onClick={() => navigate('/ai-tools')}>
+      <Button variant="outline" size="sm" className="h-7 ml-auto" onClick={() => navigate('/settings')}>
         去「AI 配置」页配置
       </Button>
     </div>

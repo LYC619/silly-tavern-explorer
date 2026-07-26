@@ -1,8 +1,7 @@
 import { useState, useEffect } from 'react';
-import { Settings, HardDrive, Download, Upload, Trash2, AlertCircle, RotateCcw, Info, ExternalLink, Eraser } from 'lucide-react';
+import { HardDrive, Download, Upload, Trash2, AlertCircle, RotateCcw, Info, ExternalLink, Eraser } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
-import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
 import { Separator } from '@/components/ui/separator';
 import {
   AlertDialog,
@@ -40,14 +39,16 @@ interface StorageDetail {
   detail?: string;
 }
 
-interface GlobalSettingsProps {
+interface GlobalSettingsPanelProps {
   onDataChanged?: () => void;
-  'data-tour'?: string;
 }
 
-export function GlobalSettings({ onDataChanged, ...props }: GlobalSettingsProps) {
+/**
+ * 数据与存储面板（阶段9.9 从顶栏 Sheet 弹窗改造为设置页的一个区块）。
+ * 存储概览/备份恢复/清理/引导重置/关于，挂在 /settings 页。
+ */
+export function GlobalSettingsPanel({ onDataChanged }: GlobalSettingsPanelProps) {
   const { toast } = useToast();
-  const [open, setOpen] = useState(false);
   const [clearDialogOpen, setClearDialogOpen] = useState(false);
   const [pendingImport, setPendingImport] = useState<{ parsed: ParsedBackup; preview: BackupPreview } | null>(null);
   const [storage, setStorage] = useState({ used: 0, quota: 0, percentage: 0 });
@@ -129,8 +130,8 @@ export function GlobalSettings({ onDataChanged, ...props }: GlobalSettingsProps)
   };
 
   useEffect(() => {
-    if (open) refreshStorage();
-  }, [open]);
+    refreshStorage();
+  }, []);
 
   const handleExport = async () => {
     try {
@@ -231,21 +232,7 @@ export function GlobalSettings({ onDataChanged, ...props }: GlobalSettingsProps)
 
   return (
     <>
-      <Sheet open={open} onOpenChange={setOpen}>
-        <SheetTrigger asChild>
-          <Button variant="ghost" size="icon" className="h-8 w-8" title="设置" data-tour={props['data-tour'] || 'global-settings'}>
-            <Settings className="w-4 h-4" />
-          </Button>
-        </SheetTrigger>
-        <SheetContent className="w-[360px] sm:w-[400px] overflow-y-auto">
-          <SheetHeader>
-            <SheetTitle className="flex items-center gap-2">
-              <Settings className="w-5 h-5" />
-              设置
-            </SheetTitle>
-          </SheetHeader>
-
-          <div className="space-y-6 mt-6">
+      <div className="space-y-6">
             {/* Storage Overview */}
             <div className="space-y-3">
               <h3 className="text-sm font-semibold flex items-center gap-2">
@@ -396,9 +383,7 @@ export function GlobalSettings({ onDataChanged, ...props }: GlobalSettingsProps)
                 <p className="text-xs text-muted-foreground">MIT License</p>
               </div>
             </div>
-          </div>
-        </SheetContent>
-      </Sheet>
+      </div>
 
       {/* 恢复备份前的预览确认：先看清将新增/覆盖什么，再决定写不写 */}
       <AlertDialog open={!!pendingImport} onOpenChange={(v) => { if (!v) setPendingImport(null); }}>
