@@ -41,6 +41,8 @@
     "@radix-ui/react-toggle-group": "^1.1.11",
     "@radix-ui/react-tooltip": "^1.2.7",
     "@tanstack/react-virtual": "^3.14.3",
+    "@tauri-apps/api": "^2.11.1",
+    "@tauri-apps/plugin-dialog": "^2.7.2",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "diff": "^9.0.0",
