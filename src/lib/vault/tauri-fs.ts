@@ -41,6 +41,11 @@ export function createTauriFs(root: string): VaultFs {
   };
 }
 
+/** 按绝对路径读文本（库外文件，如 ST 目录里的聊天；7.4 检查更新用） */
+export function readAbsText(path: string): Promise<string> {
+  return invoke('vault_read_text', { path });
+}
+
 // ---- 应用配置（系统配置目录 config.json，不进库；API Key 后续同通道）----
 
 export async function getAppConfig<T>(key: string): Promise<T | null> {

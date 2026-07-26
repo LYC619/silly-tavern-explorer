@@ -13,6 +13,7 @@ import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { ChatWorkbench, type ChatWorkbenchHandle } from '@/components/chat/ChatWorkbench';
 import { IOPanel } from '@/components/workspace/IOPanel';
+import { STUpdateHint } from '@/components/workspace/STUpdateHint';
 import { BranchPanel } from '@/components/workspace/BranchPanel';
 import { OutlinePanel } from '@/components/workspace/OutlinePanel';
 import { ResourceRail } from '@/components/workspace/ResourceRail';
@@ -397,6 +398,9 @@ const StoryWorkspace = () => {
           )}
         </div>
       </div>
+
+      {/* 检查 ST 更新（阶段7.4，仅客户端且有来源路径时出角落提示） */}
+      <STUpdateHint story={story} onStoryUpdate={mutateStory} />
 
       {/* 小说视图（阶段6；三层管道，进度按 故事+脉络 记忆） */}
       {novelOpen && (
