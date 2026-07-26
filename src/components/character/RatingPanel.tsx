@@ -115,7 +115,7 @@ export function RatingPanel({ character, norm, stories, onPatch }: RatingPanelPr
       toast({ title: '评分需在 0~10 之间', variant: 'destructive' });
       return;
     }
-    saveRating({ total: clampHalf(v), note: note.trim() || undefined, method: 'manual', createdAt: Date.now() } as RatingRecord);
+    saveRating({ total: clampHalf(v), note: note.trim() || undefined, method: 'manual', createdAt: Date.now() });
   };
 
   // ---- 模板打分 ----

@@ -38,6 +38,7 @@ const norm = (over: Partial<NormalizedCharacterCard> = {}): NormalizedCharacterC
   assets: [],
   avatar: '',
   characterBook: undefined,
+  extensions: {},
   raw: {},
   ...over,
 });

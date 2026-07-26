@@ -16,6 +16,7 @@ import {
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { useToast } from '@/hooks/use-toast';
 import type { ArchiveCharacter, AssetKind, AssetRef, DerivedAssetMeta } from '@/types/archive';
+import type { WorldBookEntry } from '@/types/worldbook';
 import { getAllWorldBooks } from '@/lib/worldbook-db';
 import { getAllPresets } from '@/lib/preset-db';
 import { getAllRegexCollections } from '@/lib/regex-db';
@@ -60,7 +61,7 @@ export function AssetSection({ character, onAssetsChange }: AssetSectionProps) {
     ]);
     const views: AssetView[] = [
       ...wbs.map((w): AssetView => {
-        const entries = Object.values(w.worldbook?.entries ?? {});
+        const entries = Object.values<WorldBookEntry>(w.worldbook?.entries ?? {});
         return {
           kind: 'worldbook', id: w.id, title: w.title, updatedAt: w.updatedAt, derived: w.derived,
           outline: entries.slice(0, 6).map((e) => e.comment || `条目 ${e.uid}`),

@@ -41,6 +41,8 @@ export interface RatingDimensionScore {
 export interface RatingRecord {
   /** 加权总分（0~10，0.5 步进） */
   total: number;
+  /** 一句话总评（同步冗余到 ArchiveCharacter.ratingNote 供列表展示） */
+  note?: string;
   /** 打分方式：manual=直接手动；template=按模板维度手动；ai=AI 建议后确认 */
   method: 'manual' | 'template' | 'ai';
   templateId?: string;
