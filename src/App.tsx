@@ -9,6 +9,8 @@ import { Loader2 } from "lucide-react";
 // 路由级代码分割：每个页面单独打包，首屏只加载首页所需 chunk，
 // 其余页面(世界书/AI工具/阅读器等)按需懒加载，避免全部塞进一个大 bundle。
 const Index = lazy(() => import("./pages/Index"));
+const Library = lazy(() => import("./pages/Library"));
+const CharacterPage = lazy(() => import("./pages/CharacterPage"));
 const Bookshelf = lazy(() => import("./pages/Bookshelf"));
 const Summary = lazy(() => import("./pages/Summary"));
 const StoryTree = lazy(() => import("./pages/StoryTree"));
@@ -34,6 +36,8 @@ const App = () => (
         <Suspense fallback={<PageFallback />}>
           <Routes>
             <Route path="/" element={<Index />} />
+            <Route path="/library" element={<Library />} />
+            <Route path="/character/:id" element={<CharacterPage />} />
             <Route path="/summary" element={<Summary />} />
             <Route path="/story-tree" element={<StoryTree />} />
             <Route path="/bookshelf" element={<Bookshelf />} />
