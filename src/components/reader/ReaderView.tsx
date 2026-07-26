@@ -57,13 +57,13 @@ const ReaderView = ({
   onClose,
   bookId,
 }: ReaderViewProps) => {
-  const [currentPage, setCurrentPage] = useState(() => {
+  const [currentPage, setCurrentPage] = useState<number>(() => {
     if (!bookId) return 0;
     try {
       const stored = localStorage.getItem(PAGE_STORAGE_KEY);
       if (stored) {
-        const map = JSON.parse(stored);
-        return map[bookId] ?? 0;
+        const map = JSON.parse(stored) as Record<string, number>;
+        return typeof map[bookId] === 'number' ? map[bookId] : 0;
       }
     } catch { /* ignore */ }
     return 0;

@@ -86,7 +86,10 @@ export const ROLE_LABELS: Record<number, string> = {
   2: '助手 (Assistant)',
 };
 
-export const DEFAULT_ENTRY: Omit<WorldBookEntry, 'uid'> = {
+// 注意：不标注 Omit<WorldBookEntry, 'uid'>——WorldBookEntry 带索引签名 [key:string]:unknown，
+// Omit 会把具名字段全部坍缩成索引签名，导致展开 DEFAULT_ENTRY 时丢失所有具名属性（strict 下报缺字段）。
+// 让类型推断保留每个具名字段；下方字段已逐一列全，形状即 Omit<WorldBookEntry,'uid'>。
+export const DEFAULT_ENTRY = {
   key: [],
   keysecondary: [],
   comment: '',

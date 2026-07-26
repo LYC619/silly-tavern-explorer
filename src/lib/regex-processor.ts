@@ -109,7 +109,7 @@ export function getMessagePrefix(
   message: ChatMessage,
   prefixMode: PrefixMode
 ): string {
-  const isUser = message.role === 'user' || message.is_user;
+  const isUser = message.role === 'user' || message.is_user === true;
 
   switch (prefixMode) {
     case 'name':
@@ -175,7 +175,7 @@ export function convertMessagesToTxt(
 
   for (let i = 0; i < messages.length; i++) {
     const message = messages[i];
-    const isUser = message.role === 'user' || message.is_user;
+    const isUser = message.role === 'user' || message.is_user === true;
 
     // 检查是否有章节标记（优先按 id，回退按 index）
     const marker = markerById.get(message.id) ?? markerByIndex.get(i);
@@ -225,7 +225,7 @@ export function convertMessagesToMarkdown(
   const lines: string[] = [];
   for (let i = 0; i < messages.length; i++) {
     const message = messages[i];
-    const isUser = message.role === 'user' || message.is_user;
+    const isUser = message.role === 'user' || message.is_user === true;
 
     const marker = markerById.get(message.id) ?? markerByIndex.get(i);
     if (marker) {

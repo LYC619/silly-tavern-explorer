@@ -162,7 +162,7 @@ function findIdByPath(nodes: StoryNode[], path: string): string | undefined {
   let parentId: string | null = null;
   let curId: string | undefined;
   for (const seg of segs) {
-    const match = childrenOf(nodes, parentId).find((n) => n.title === seg);
+    const match: StoryNode | undefined = childrenOf(nodes, parentId).find((n) => n.title === seg);
     if (!match) return undefined;
     curId = match.id;
     parentId = match.id;
@@ -176,7 +176,7 @@ function ensureParentPath(nodes: StoryNode[], parentPath: string | undefined): {
   let cur = nodes;
   let parentId: string | null = null;
   for (const seg of segs) {
-    const existing = childrenOf(cur, parentId).find((n) => n.title === seg);
+    const existing: StoryNode | undefined = childrenOf(cur, parentId).find((n) => n.title === seg);
     if (existing) { parentId = existing.id; continue; }
     const { nodes: next, node } = addNode(cur, parentId, { title: seg, type: 'category' });
     cur = next;

@@ -130,7 +130,7 @@ export function ExportButton({ session, settings, markers = [], onSettingsChange
     }
 
     const estMsgSize = selectedMessages.reduce((acc, m) => {
-      const isUser = m.role === 'user' || m.is_user;
+      const isUser = m.role === 'user' || m.is_user === true;
       const cleanedContent = applyRegexRules(m.content, settings.regexRules, isUser);
       if (!cleanedContent.trim()) return acc;
       const base: STRawMessage = m.rawData
@@ -231,7 +231,7 @@ export function ExportButton({ session, settings, markers = [], onSettingsChange
 
       const msgs = getExportMessages();
       for (const message of msgs) {
-        const isUser = message.role === 'user' || message.is_user;
+        const isUser = message.role === 'user' || message.is_user === true;
         const cleanedContent = applyRegexRules(message.content, settings.regexRules, isUser);
         if (!cleanedContent.trim()) continue;
 

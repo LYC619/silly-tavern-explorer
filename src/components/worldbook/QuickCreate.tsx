@@ -208,7 +208,7 @@ export function QuickCreate({ existingWorldbook, onAddToWorldbook }: Props) {
       depth: pe.depth,
       constant: defaultStrategy === 'constant',
       enabled: true,
-    } as WorldBookEntry));
+    }));
   };
 
   const handleAddToWorldbook = () => {

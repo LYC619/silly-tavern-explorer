@@ -199,7 +199,7 @@ export default function CardViewer() {
   const handleStashRegex = useCallback(() => {
     const scripts = card?.extensions?.regex_scripts;
     if (!Array.isArray(scripts) || scripts.length === 0) return;
-    let rules;
+    let rules: ReturnType<typeof parseSTRegexImport> = [];
     try {
       rules = parseSTRegexImport(scripts);
     } catch {
