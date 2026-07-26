@@ -13,7 +13,8 @@
  *   资产/世界书|预设|正则/<title>.json（ST 兼容 + 顶层 __ste） 资产/模板/（总结·评分模板）
  *
  * 索引：id → 相对路径（角色/故事记文件夹，其余记文件），首次访问全量扫描惰性建立，
- * put/remove 就地维护。性能（记录本体缓存等）是阶段8 优化项，这里只保证正确。
+ * put/remove 就地维护。读走 id→记录缓存 + 并行 IO（阶段9.1）；put/remove 只失效缓存，
+ * 下次读回盘，保证序列化往返真实。
  */
 import type { StoreName } from '@/lib/idb';
 import type { BaseRecord, Repo } from '@/lib/repo/idb-repo';
@@ -78,6 +79,21 @@ const TEMP_RESERVED = ['记录', '卡片'];
 
 const toJson = (v: unknown) => JSON.stringify(v, null, 2);
 
+/** IO 并发上限：客户端每次读文件都是一趟 IPC，串行读几十张卡是加载慢的主因 */
+const IO_LIMIT = 8;
+
+/** 按并发上限跑 IO 任务，结果保持原序（fn 内部自行吞错时对应位置为其返回值） */
+async function mapLimit<T, R>(items: T[], limit: number, fn: (item: T) => Promise<R>): Promise<R[]> {
+  const out = new Array<R>(items.length);
+  let next = 0;
+  await Promise.all(
+    Array.from({ length: Math.min(limit, items.length) }, async () => {
+      for (let i = next++; i < items.length; i = next++) out[i] = await fn(items[i]);
+    }),
+  );
+  return out;
+}
+
 /** 资产文件的 __ste 元数据键（进 ST 兼容 JSON 顶层，ST 导入时会忽略） */
 function steMeta(rec: BaseRecord): Record<string, unknown> {
   const src = rec as unknown as Record<string, unknown>;
@@ -101,6 +117,21 @@ export function createVault(fs: VaultFs): VaultBackend {
   const of = (s: VaultStore) => idx.get(s)!;
   let indexReady: Promise<void> | null = null;
   const ensureIndex = () => (indexReady ??= buildIndex());
+
+  // ---- 记录读缓存（阶段9.1 性能）：id → 记录本体 ----
+  // 读时填充；put/remove 只失效不回填（下次读回盘，序列化往返保持真实，测试不被缓存遮蔽）。
+  // 代价：应用运行中用户手改库文件不被感知，重启可见——本地单用户可接受。
+  const recCache = new Map<VaultStore, Map<string, BaseRecord>>(VAULT_STORES.map((s) => [s, new Map()]));
+
+  async function readRecordCached(store: VaultStore, id: string, path: string): Promise<BaseRecord | null> {
+    const m = recCache.get(store)!;
+    const hit = m.get(id);
+    // 出入缓存都克隆：调用方拿到的对象与缓存互不别名（与 IDB 每次返回新对象的语义一致）
+    if (hit) return structuredClone(hit);
+    const rec = await readRecord(store, path);
+    if (rec) m.set(id, structuredClone(rec));
+    return rec;
+  }
 
   const warnSkip = (path: string, err: unknown) => console.warn(`[vault] 跳过无法读取的文件 ${path}:`, err);
 
@@ -144,14 +175,14 @@ export function createVault(fs: VaultFs): VaultBackend {
 
   async function scanSteJsonDir(dir: string, store: VaultStore): Promise<void> {
     const m = of(store);
-    for (const e of await fs.list(dir)) {
-      if (e.isDir || !e.name.endsWith('.json')) continue;
+    const files = (await fs.list(dir)).filter((e) => !e.isDir && e.name.endsWith('.json'));
+    await mapLimit(files, IO_LIMIT, async (e) => {
       const path = joinPath(dir, e.name);
       const rec = await readJson(path);
       const ste = rec?.__ste as Record<string, unknown> | undefined;
       // 无 __ste = 用户自己放进来的 ST 文件，不认领（也永不删改）
       if (ste && typeof ste.id === 'string') m.set(ste.id, path);
-    }
+    });
   }
 
   async function scanMdFile(path: string, m: Map<string, string>): Promise<void> {
@@ -166,17 +197,20 @@ export function createVault(fs: VaultFs): VaultBackend {
   async function buildIndex(): Promise<void> {
     // 1. 角色：角色/*/档案.json
     const chars = of('characters');
-    for (const e of await fs.list(DIR_CHAR)) {
-      if (!e.isDir) continue;
+    await mapLimit((await fs.list(DIR_CHAR)).filter((e) => e.isDir), IO_LIMIT, async (e) => {
       const dir = joinPath(DIR_CHAR, e.name);
-      if (!(await fs.stat(joinPath(dir, FILE_PROFILE))).exists) continue; // 用户自己的文件夹
+      if (!(await fs.stat(joinPath(dir, FILE_PROFILE))).exists) return; // 用户自己的文件夹
       const rec = await readJson(joinPath(dir, FILE_PROFILE));
       if (rec && typeof rec.id === 'string') chars.set(rec.id, dir);
-    }
+    });
     // 2. 故事候选目录：角色/*/故事/* + 临时/*（除保留目录）
     const storyDirs: string[] = [];
-    for (const dir of chars.values()) {
-      for (const e of await fs.list(joinPath(dir, DIR_STORIES))) {
+    const charDirLists = await mapLimit([...chars.values()], IO_LIMIT, async (dir) => ({
+      dir,
+      entries: await fs.list(joinPath(dir, DIR_STORIES)),
+    }));
+    for (const { dir, entries } of charDirLists) {
+      for (const e of entries) {
         if (e.isDir) storyDirs.push(joinPath(dir, DIR_STORIES, e.name));
       }
     }
@@ -184,15 +218,15 @@ export function createVault(fs: VaultFs): VaultBackend {
       if (e.isDir && !TEMP_RESERVED.includes(e.name)) storyDirs.push(joinPath(DIR_TEMP, e.name));
     }
     const storyIdx = of('archiveStories');
-    for (const dir of storyDirs) {
-      if (!(await fs.stat(joinPath(dir, FILE_STORY))).exists) continue;
+    await mapLimit(storyDirs, IO_LIMIT, async (dir) => {
+      if (!(await fs.stat(joinPath(dir, FILE_STORY))).exists) return;
       const rec = await readJson(joinPath(dir, FILE_STORY));
       if (rec && typeof rec.id === 'string') storyIdx.set(rec.id, dir);
-    }
+    });
     // 3. 记录文件（总结 md + 故事树 json）：全部故事候选目录 + 临时/记录
     //    故事被删后遗留在原文件夹里的记录也要扫到，所以扫候选目录而非仅已索引的故事目录
     const summaryLabels = Object.values(SUMMARY_KIND_LABELS);
-    for (const dir of [...storyDirs, DIR_TEMP_RECORDS]) {
+    await mapLimit([...storyDirs, DIR_TEMP_RECORDS], IO_LIMIT, async (dir) => {
       for (const e of await fs.list(dir)) {
         if (e.isDir) continue;
         const path = joinPath(dir, e.name);
@@ -203,7 +237,7 @@ export function createVault(fs: VaultFs): VaultBackend {
           if (rec && typeof rec.id === 'string') of('stories').set(rec.id, path);
         }
       }
-    }
+    });
     // 4. 资产
     await scanSteJsonDir(DIR_ASSET_WB, 'worldbooks');
     await scanSteJsonDir(DIR_ASSET_PRESET, 'presets');
@@ -526,25 +560,28 @@ export function createVault(fs: VaultFs): VaultBackend {
     return {
       async list() {
         await ensureIndex();
-        const out: BaseRecord[] = [];
-        for (const path of of(store).values()) {
-          const rec = await readRecord(store, path); // 坏文件已在 readRecord 里 warn + null
-          if (rec) out.push(rec);
-        }
-        return out.sort((a, b) => b.updatedAt - a.updatedAt);
+        // 并行读 + 缓存命中直接返回；坏文件已在 readRecord 里 warn + null
+        const recs = await mapLimit([...of(store).entries()], IO_LIMIT, ([id, path]) =>
+          readRecordCached(store, id, path),
+        );
+        return recs
+          .filter((r): r is BaseRecord => r !== null)
+          .sort((a, b) => b.updatedAt - a.updatedAt);
       },
       async get(id) {
         await ensureIndex();
         const path = of(store).get(id);
         if (!path) return undefined;
-        return (await readRecord(store, path)) ?? undefined;
+        return (await readRecordCached(store, id, path)) ?? undefined;
       },
       async put(item) {
         await ensureIndex();
+        recCache.get(store)!.delete(item.id);
         await putRecord(store, item);
       },
       async remove(id) {
         await ensureIndex();
+        recCache.get(store)!.delete(id);
         await removeRecord(store, id);
       },
     };

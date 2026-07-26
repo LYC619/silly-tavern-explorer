@@ -7,7 +7,6 @@ import { BookOpen, Users } from 'lucide-react';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { ScrollArea } from '@/components/ui/scroll-area';
 import { getAllCharacters } from '@/lib/archive-db';
 import type { ArchiveCharacter } from '@/types/archive';
 
@@ -61,7 +60,8 @@ export function BindStoryDialog({ open, onOpenChange, onSelect }: BindStoryDialo
                 className="h-8"
               />
             )}
-            <ScrollArea className="flex-1 min-h-0 max-h-96 -mx-1 px-1">
+            {/* 原生滚动：Radix ScrollArea 在 max-h 弹性容器里拿不到确定高度，列表会溢出无滚动条 */}
+            <div className="flex-1 min-h-0 max-h-96 overflow-y-auto -mx-1 px-1">
               <div className="space-y-1 py-1">
                 {filtered.map((c) => (
                   <button
@@ -92,7 +92,7 @@ export function BindStoryDialog({ open, onOpenChange, onSelect }: BindStoryDialo
                   <p className="py-6 text-center text-sm text-muted-foreground">没有匹配的角色</p>
                 )}
               </div>
-            </ScrollArea>
+            </div>
           </>
         )}
       </DialogContent>
