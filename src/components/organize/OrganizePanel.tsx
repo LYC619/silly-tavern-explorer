@@ -50,6 +50,16 @@ const KIND_FILTERS: { value: OrganizeKindFilter; label: string }[] = [
   { value: 'tree', label: '故事树' },
 ];
 
+/** 子页面模式（阶段9.6）：工作区左栏每类记录一个导航项，面板锁定该类型 */
+export type OrganizeFixedKind = 'volume' | 'diary' | 'diy' | 'tree';
+
+const FIXED_KIND_META: Record<OrganizeFixedKind, { label: string; empty: string }> = {
+  volume: { label: '分卷总结', empty: '还没有分卷总结。点「新建」选楼层范围生成第一卷。' },
+  diary: { label: '角色日记', empty: '还没有角色日记。点「新建」以角色视角生成日记。' },
+  diy: { label: '自定义记录', empty: '还没有自定义记录。点「新建」用模板自由生成。' },
+  tree: { label: '故事树', empty: '还没有故事树。点「新建」搭建剧情脉络，或导入 JSON。' },
+};
+
 type Selection =
   | { type: 'record'; id: string }
   | { type: 'tree'; id: string }
@@ -73,6 +83,8 @@ interface OrganizePanelProps {
   initialTarget?: OrganizeTarget | null;
   /** 跳回聊天：切分支（null=主线）+ 滚到楼层（由工作区切回阅读视图完成） */
   onJumpToChat: (branchId: string | null, floor: number) => void;
+  /** 锁定单一类型（子页面模式）：左栏隐藏类型筛选，新建只建该类 */
+  fixedKind?: OrganizeFixedKind;
 }
 
 function downloadJSON(name: string, content: string): void {
@@ -88,12 +100,13 @@ function downloadJSON(name: string, content: string): void {
   URL.revokeObjectURL(url);
 }
 
-export function OrganizePanel({ story, characterName, coverDataUrl, currentBranchId, initialTarget, onJumpToChat }: OrganizePanelProps) {
+export function OrganizePanel({ story, characterName, coverDataUrl, currentBranchId, initialTarget, onJumpToChat, fixedKind }: OrganizePanelProps) {
   const { toast } = useToast();
   const [summaries, setSummaries] = useState<SummaryItem[]>([]);
   const [trees, setTrees] = useState<StoryTreeT[]>([]);
   const [loaded, setLoaded] = useState(false);
-  const [filter, setFilter] = useState<OrganizeFilter>({ kind: 'all', branch: 'all', query: '' });
+  // fixedKind 随工作区导航按 key 重挂，初值锁定即可
+  const [filter, setFilter] = useState<OrganizeFilter>({ kind: fixedKind ?? 'all', branch: 'all', query: '' });
   const [sel, setSel] = useState<Selection>(null);
   const [deleteTarget, setDeleteTarget] = useState<OrganizeTarget | null>(null);
   // 分享长图（阶段6）：当前选中记录 → 渲染输入
@@ -118,7 +131,7 @@ export function OrganizePanel({ story, characterName, coverDataUrl, currentBranc
       setSel(initialTarget);
       return;
     }
-    const def = pickDefaultEntry(buildOrganizeIndex(summaries, trees, { kind: 'all', branch: 'all', query: '' }));
+    const def = pickDefaultEntry(buildOrganizeIndex(summaries, trees, { kind: fixedKind ?? 'all', branch: 'all', query: '' }));
     if (def) setSel({ type: def.type, id: def.id });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [loaded]);
@@ -263,27 +276,37 @@ export function OrganizePanel({ story, characterName, coverDataUrl, currentBranc
       {/* ===== 左栏：资源索引 ===== */}
       <aside className="min-w-0 space-y-2" style={{ flex: '0 1 16rem', minWidth: '13rem' }}>
         <div className="flex items-center gap-1.5">
-          <p className="text-sm font-medium flex-1">资源索引</p>
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button size="sm" className="h-7 gap-1 px-2">
-                <Plus className="w-3.5 h-3.5" />新建
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              <DropdownMenuItem onSelect={() => handleNewRecord('volume')}>分卷总结</DropdownMenuItem>
-              <DropdownMenuItem onSelect={() => handleNewRecord('diary')}>角色日记</DropdownMenuItem>
-              <DropdownMenuItem onSelect={() => handleNewRecord('diy')}>自定义记录（DIY）</DropdownMenuItem>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem onSelect={handleNewTree}>故事树</DropdownMenuItem>
-              <DropdownMenuItem onSelect={(e) => {
-                e.preventDefault();
-                document.getElementById('organize-tree-import')?.click();
-              }}>
-                导入故事树 JSON…
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
+          <p className="text-sm font-medium flex-1">{fixedKind ? FIXED_KIND_META[fixedKind].label : '资源索引'}</p>
+          {fixedKind && fixedKind !== 'tree' ? (
+            <Button size="sm" className="h-7 gap-1 px-2" onClick={() => handleNewRecord(fixedKind)}>
+              <Plus className="w-3.5 h-3.5" />新建
+            </Button>
+          ) : (
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button size="sm" className="h-7 gap-1 px-2">
+                  <Plus className="w-3.5 h-3.5" />新建
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                {!fixedKind && (
+                  <>
+                    <DropdownMenuItem onSelect={() => handleNewRecord('volume')}>分卷总结</DropdownMenuItem>
+                    <DropdownMenuItem onSelect={() => handleNewRecord('diary')}>角色日记</DropdownMenuItem>
+                    <DropdownMenuItem onSelect={() => handleNewRecord('diy')}>自定义记录（DIY）</DropdownMenuItem>
+                    <DropdownMenuSeparator />
+                  </>
+                )}
+                <DropdownMenuItem onSelect={handleNewTree}>{fixedKind ? '新建故事树' : '故事树'}</DropdownMenuItem>
+                <DropdownMenuItem onSelect={(e) => {
+                  e.preventDefault();
+                  document.getElementById('organize-tree-import')?.click();
+                }}>
+                  导入故事树 JSON…
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          )}
           <input
             id="organize-tree-import"
             type="file"
@@ -303,12 +326,14 @@ export function OrganizePanel({ story, characterName, coverDataUrl, currentBranc
           />
         </div>
         <div className="flex items-center gap-1.5">
-          <Select value={filter.kind} onValueChange={(v) => setFilter((f) => ({ ...f, kind: v as OrganizeKindFilter }))}>
-            <SelectTrigger className="h-7 text-xs flex-1"><SelectValue /></SelectTrigger>
-            <SelectContent>
-              {KIND_FILTERS.map((k) => <SelectItem key={k.value} value={k.value}>{k.label}</SelectItem>)}
-            </SelectContent>
-          </Select>
+          {!fixedKind && (
+            <Select value={filter.kind} onValueChange={(v) => setFilter((f) => ({ ...f, kind: v as OrganizeKindFilter }))}>
+              <SelectTrigger className="h-7 text-xs flex-1"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                {KIND_FILTERS.map((k) => <SelectItem key={k.value} value={k.value}>{k.label}</SelectItem>)}
+              </SelectContent>
+            </Select>
+          )}
           {(story.branches?.length ?? 0) > 0 && (
             <Select value={filter.branch} onValueChange={(v) => setFilter((f) => ({ ...f, branch: v }))}>
               <SelectTrigger className="h-7 text-xs flex-1"><SelectValue /></SelectTrigger>
@@ -325,7 +350,11 @@ export function OrganizePanel({ story, characterName, coverDataUrl, currentBranc
 
         {entries.length === 0 ? (
           <p className="text-xs text-muted-foreground py-6 text-center">
-            {loaded ? '暂无记录。点「新建」开始，或在阅读界面选楼层范围建草稿。' : '加载中…'}
+            {loaded
+              ? fixedKind
+                ? FIXED_KIND_META[fixedKind].empty
+                : '暂无记录。点「新建」开始。'
+              : '加载中…'}
           </p>
         ) : (
           <div className="space-y-1 max-h-[70vh] overflow-y-auto pr-0.5">
@@ -333,15 +362,17 @@ export function OrganizePanel({ story, characterName, coverDataUrl, currentBranc
           </div>
         )}
 
-        <Button
-          variant={sel?.type === 'mini' ? 'default' : 'ghost'}
-          size="sm"
-          className="h-7 gap-1 w-full justify-start text-xs"
-          onClick={() => setSel({ type: 'mini' })}
-          title="用正则从聊天里提取每楼 AI 自带的小结（只读，不调 AI）"
-        >
-          <ScanText className="w-3.5 h-3.5" />小总结提取
-        </Button>
+        {(!fixedKind || fixedKind === 'volume') && (
+          <Button
+            variant={sel?.type === 'mini' ? 'default' : 'ghost'}
+            size="sm"
+            className="h-7 gap-1 w-full justify-start text-xs"
+            onClick={() => setSel({ type: 'mini' })}
+            title="用正则从聊天里提取每楼 AI 自带的小结（只读，不调 AI）"
+          >
+            <ScanText className="w-3.5 h-3.5" />小总结提取
+          </Button>
+        )}
       </aside>
 
       {/* ===== 中栏：预览编辑 ===== */}

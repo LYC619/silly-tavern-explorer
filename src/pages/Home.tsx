@@ -171,7 +171,8 @@ const Home = () => {
                 {recentStories.map((s) => {
                   const char = s.characterId ? characterById[s.characterId] : undefined;
                   const res = resources[s.id];
-                  const target = s.characterId ? `/story/${s.id}` : '/chat';
+                  // 未绑定故事也进完整工作区（阶段9.10）；工作区内可随时绑定
+                  const target = `/story/${s.id}`;
                   return (
                     <button
                       key={s.id}

@@ -6,7 +6,10 @@
  */
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, BookOpen, BookOpenCheck, BookOpenText, NotebookText, ArrowDownUp, MessageSquare, Cpu } from 'lucide-react';
+import {
+  ArrowLeft, BookOpen, BookOpenCheck, BookOpenText, ArrowDownUp, MessageSquare, Cpu,
+  ScrollText, NotebookPen, PenLine, Network, Link2,
+} from 'lucide-react';
 import { AppLayout } from '@/components/AppLayout';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -16,8 +19,8 @@ import { IOPanel } from '@/components/workspace/IOPanel';
 import { STUpdateHint } from '@/components/workspace/STUpdateHint';
 import { BranchPanel } from '@/components/workspace/BranchPanel';
 import { OutlinePanel } from '@/components/workspace/OutlinePanel';
-import { ResourceRail } from '@/components/workspace/ResourceRail';
-import { OrganizePanel, type OrganizeTarget } from '@/components/organize/OrganizePanel';
+import { OrganizePanel, type OrganizeFixedKind } from '@/components/organize/OrganizePanel';
+import { BindStoryDialog } from '@/components/chat/BindStoryDialog';
 import ReaderView from '@/components/reader/ReaderView';
 import NovelView from '@/components/reader/NovelView';
 import { useToast } from '@/hooks/use-toast';
@@ -35,11 +38,17 @@ import {
 import { parseJsonl, parseJson } from '@/lib/adapters/st';
 import { getDefaultExportSettings } from '@/lib/session-storage';
 
-type WorkspaceView = 'read' | 'organize' | 'io';
+/** 阶段9.6：整理与记录拆成四个子页面（参照 2.0 前 /summary /story-tree 独立页的架构） */
+type WorkspaceView = 'read' | OrganizeFixedKind | 'io';
 
-const VIEW_ITEMS: { key: WorkspaceView; label: string; icon: typeof BookOpenText; hint?: string }[] = [
+const ORGANIZE_VIEWS: OrganizeFixedKind[] = ['volume', 'diary', 'diy', 'tree'];
+
+const VIEW_ITEMS: { key: WorkspaceView; label: string; icon: typeof BookOpenText; group?: string }[] = [
   { key: 'read', label: '阅读与编辑', icon: BookOpenText },
-  { key: 'organize', label: '整理与记录', icon: NotebookText },
+  { key: 'volume', label: '分卷总结', icon: ScrollText, group: '整理与记录' },
+  { key: 'diary', label: '角色日记', icon: NotebookPen, group: '整理与记录' },
+  { key: 'diy', label: '自定义记录', icon: PenLine, group: '整理与记录' },
+  { key: 'tree', label: '故事树', icon: Network, group: '整理与记录' },
   { key: 'io', label: '导入与导出', icon: ArrowDownUp },
 ];
 
@@ -54,9 +63,9 @@ const StoryWorkspace = () => {
   const [view, setView] = useState<WorkspaceView>('read');
   const [immersive, setImmersive] = useState(false);
   const [novelOpen, setNovelOpen] = useState(false);
+  const [bindOpen, setBindOpen] = useState(false);
   const workbenchRef = useRef<ChatWorkbenchHandle>(null);
-  // 整理与记录：资源栏点进来要打开的条目；从整理跳回聊天时待滚动的楼层
-  const [organizeTarget, setOrganizeTarget] = useState<OrganizeTarget | null>(null);
+  // 从整理子页面跳回聊天时待滚动的楼层
   const pendingJumpRef = useRef<number | null>(null);
 
   // 持久化：只有真实修改（dirty）才落库，防抖 600ms；离开页面前有脏数据立即补存
@@ -221,6 +230,14 @@ const StoryWorkspace = () => {
     toast({ title: '分支已删除' });
   };
 
+  // 未绑定故事在工作区内直接绑定（阶段9.10）：未绑定本就是 characterId 空的归档故事，
+  // 绑定 = 补 characterId（总结/故事树挂在故事 id 上原地带走），落库走统一的 dirty+防抖
+  const handleBind = (c: ArchiveCharacter) => {
+    mutateStory((cur) => ({ ...cur, characterId: c.id, updatedAt: Date.now() }));
+    setCharacter(c);
+    toast({ title: `已绑定到「${c.name}」`, description: '故事与已生成的总结/故事树一并归入该角色名下' });
+  };
+
   if (loading) {
     return (
       <AppLayout>
@@ -242,8 +259,8 @@ const StoryWorkspace = () => {
   }
 
   const settings = story.settings ?? getDefaultExportSettings();
-  const backTarget = story.characterId ? `/character/${story.characterId}` : '/library';
-  const backLabel = character?.name ?? '角色库';
+  const backTarget = story.characterId ? `/character/${story.characterId}` : '/chat';
+  const backLabel = character?.name ?? (story.characterId ? '角色库' : '聊天处理');
 
   return (
     <AppLayout>
@@ -268,32 +285,44 @@ const StoryWorkspace = () => {
                 </span>
               )}
             </p>
+            {!story.characterId && (
+              <div className="px-1.5 mt-2 space-y-1.5">
+                <Badge variant="outline" className="h-5 text-[11px] text-muted-foreground">未绑定</Badge>
+                <Button variant="outline" size="sm" className="w-full h-7 text-xs" onClick={() => setBindOpen(true)}>
+                  <Link2 className="w-3.5 h-3.5 mr-1" />
+                  绑定到角色
+                </Button>
+              </div>
+            )}
           </div>
 
           <nav className="space-y-0.5">
-            {VIEW_ITEMS.map((item) => {
+            {VIEW_ITEMS.map((item, i) => {
               const Icon = item.icon;
               const active = view === item.key;
+              const groupStart = item.group && VIEW_ITEMS[i - 1]?.group !== item.group;
+              const groupEnd = !item.group && VIEW_ITEMS[i - 1]?.group;
               return (
-                <button
-                  key={item.key}
-                  onClick={() => {
-                    // 手动点导航进整理 = 清掉资源栏指定的条目，回「默认开最近修改」
-                    if (item.key === 'organize') setOrganizeTarget(null);
-                    setView(item.key);
-                  }}
-                  className={cn(
-                    'w-full flex items-center gap-2 rounded-md px-2 py-1.5 text-sm transition-colors',
-                    active
-                      ? 'bg-primary/10 text-primary font-medium'
-                      : 'text-muted-foreground hover:bg-accent/60 hover:text-foreground',
+                <div key={item.key}>
+                  {groupStart && (
+                    <p className="px-2 pt-2 pb-0.5 text-[11px] text-muted-foreground/80">{item.group}</p>
                   )}
-                  aria-current={active ? 'page' : undefined}
-                >
-                  <Icon className="w-4 h-4" />
-                  <span className="flex-1 text-left">{item.label}</span>
-                  {item.hint && <Badge variant="outline" className="h-4 px-1 text-[10px] text-muted-foreground">{item.hint}</Badge>}
-                </button>
+                  {groupEnd && <div className="pt-1" />}
+                  <button
+                    onClick={() => setView(item.key)}
+                    className={cn(
+                      'w-full flex items-center gap-2 rounded-md px-2 py-1.5 text-sm transition-colors',
+                      item.group && 'pl-3',
+                      active
+                        ? 'bg-primary/10 text-primary font-medium'
+                        : 'text-muted-foreground hover:bg-accent/60 hover:text-foreground',
+                    )}
+                    aria-current={active ? 'page' : undefined}
+                  >
+                    <Icon className="w-4 h-4" />
+                    <span className="flex-1 text-left">{item.label}</span>
+                  </button>
+                </div>
               );
             })}
           </nav>
@@ -361,28 +390,18 @@ const StoryWorkspace = () => {
                   }
                 />
               </div>
-              <div className="pr-4 pt-14">
-                <ResourceRail
-                  story={story}
-                  floorCount={line.session.messages.length}
-                  onJumpToFloor={(n) => workbenchRef.current?.scrollToFloor(n)}
-                  onOpenOrganize={(target) => {
-                    setOrganizeTarget(target);
-                    setView('organize');
-                  }}
-                />
-              </div>
             </div>
           )}
 
-          {view === 'organize' && (
+          {/* 整理与记录四个子页面（阶段9.6）：按类型独立，key 按视图重挂 */}
+          {ORGANIZE_VIEWS.includes(view as OrganizeFixedKind) && (
             <OrganizePanel
-              key={organizeTarget ? `${organizeTarget.type}-${organizeTarget.id}` : 'auto'}
+              key={view}
               story={story}
               characterName={character?.name}
               coverDataUrl={character?.pngBase64 ? `data:image/png;base64,${character.pngBase64}` : undefined}
               currentBranchId={branchId}
-              initialTarget={organizeTarget}
+              fixedKind={view as OrganizeFixedKind}
               onJumpToChat={handleJumpToChat}
             />
           )}
@@ -401,6 +420,9 @@ const StoryWorkspace = () => {
 
       {/* 检查 ST 更新（阶段7.4，仅客户端且有来源路径时出角落提示） */}
       <STUpdateHint story={story} onStoryUpdate={mutateStory} />
+
+      {/* 未绑定故事的绑定入口（阶段9.10） */}
+      <BindStoryDialog open={bindOpen} onOpenChange={setBindOpen} onSelect={handleBind} />
 
       {/* 小说视图（阶段6；三层管道，进度按 故事+脉络 记忆） */}
       {novelOpen && (
