@@ -1,52 +1,24 @@
 import type { SummaryItem, SummaryTemplate } from '@/types/summary';
-import { openDB } from '@/lib/idb';
-
-const SUMMARY_STORE = 'summaries';
-const TEMPLATE_STORE = 'summaryTemplates';
+import { createIdbRepo, pruneAutoSaved } from '@/lib/repo/idb-repo';
 
 // ---------- summaries ----------
 
+const summaryRepo = createIdbRepo<SummaryItem>('summaries');
+
 export async function getAllSummaries(): Promise<SummaryItem[]> {
-  const db = await openDB();
-  return new Promise((resolve, reject) => {
-    const tx = db.transaction(SUMMARY_STORE, 'readonly');
-    const request = tx.objectStore(SUMMARY_STORE).getAll();
-    request.onsuccess = () => {
-      const items = request.result.sort((a: SummaryItem, b: SummaryItem) => b.updatedAt - a.updatedAt);
-      resolve(items);
-    };
-    request.onerror = () => reject(request.error);
-  });
+  return summaryRepo.list();
 }
 
 export async function getSummary(id: string): Promise<SummaryItem | undefined> {
-  const db = await openDB();
-  return new Promise((resolve, reject) => {
-    const tx = db.transaction(SUMMARY_STORE, 'readonly');
-    const request = tx.objectStore(SUMMARY_STORE).get(id);
-    request.onsuccess = () => resolve(request.result);
-    request.onerror = () => reject(request.error);
-  });
+  return summaryRepo.get(id);
 }
 
 export async function saveSummary(item: SummaryItem): Promise<void> {
-  const db = await openDB();
-  return new Promise((resolve, reject) => {
-    const tx = db.transaction(SUMMARY_STORE, 'readwrite');
-    const request = tx.objectStore(SUMMARY_STORE).put(item);
-    request.onsuccess = () => resolve();
-    request.onerror = () => reject(request.error);
-  });
+  return summaryRepo.put(item);
 }
 
 export async function deleteSummary(id: string): Promise<void> {
-  const db = await openDB();
-  return new Promise((resolve, reject) => {
-    const tx = db.transaction(SUMMARY_STORE, 'readwrite');
-    const request = tx.objectStore(SUMMARY_STORE).delete(id);
-    request.onsuccess = () => resolve();
-    request.onerror = () => reject(request.error);
-  });
+  return summaryRepo.remove(id);
 }
 
 /**
@@ -55,54 +27,25 @@ export async function deleteSummary(id: string): Promise<void> {
  * keep 默认 10（生成成本高，比 presets/cards 的 5 多留）。
  */
 export async function pruneAutoSavedSummaries(keep = 10): Promise<string[]> {
-  const all = await getAllSummaries(); // 已按 updatedAt 降序
-  const auto = all.filter((i) => i.autoSaved);
-  const toDelete = auto.slice(keep);
-  await Promise.all(toDelete.map((i) => deleteSummary(i.id)));
-  return toDelete.map((i) => i.id);
+  return pruneAutoSaved(summaryRepo, keep);
 }
 
 // ---------- summaryTemplates（自定义提示词模板；内置模板是常量见 summary-templates.ts） ----------
 
+const templateRepo = createIdbRepo<SummaryTemplate>('summaryTemplates');
+
 export async function getAllSummaryTemplates(): Promise<SummaryTemplate[]> {
-  const db = await openDB();
-  return new Promise((resolve, reject) => {
-    const tx = db.transaction(TEMPLATE_STORE, 'readonly');
-    const request = tx.objectStore(TEMPLATE_STORE).getAll();
-    request.onsuccess = () => {
-      const items = request.result.sort((a: SummaryTemplate, b: SummaryTemplate) => b.updatedAt - a.updatedAt);
-      resolve(items);
-    };
-    request.onerror = () => reject(request.error);
-  });
+  return templateRepo.list();
 }
 
 export async function getSummaryTemplate(id: string): Promise<SummaryTemplate | undefined> {
-  const db = await openDB();
-  return new Promise((resolve, reject) => {
-    const tx = db.transaction(TEMPLATE_STORE, 'readonly');
-    const request = tx.objectStore(TEMPLATE_STORE).get(id);
-    request.onsuccess = () => resolve(request.result);
-    request.onerror = () => reject(request.error);
-  });
+  return templateRepo.get(id);
 }
 
 export async function saveSummaryTemplate(item: SummaryTemplate): Promise<void> {
-  const db = await openDB();
-  return new Promise((resolve, reject) => {
-    const tx = db.transaction(TEMPLATE_STORE, 'readwrite');
-    const request = tx.objectStore(TEMPLATE_STORE).put(item);
-    request.onsuccess = () => resolve();
-    request.onerror = () => reject(request.error);
-  });
+  return templateRepo.put(item);
 }
 
 export async function deleteSummaryTemplate(id: string): Promise<void> {
-  const db = await openDB();
-  return new Promise((resolve, reject) => {
-    const tx = db.transaction(TEMPLATE_STORE, 'readwrite');
-    const request = tx.objectStore(TEMPLATE_STORE).delete(id);
-    request.onsuccess = () => resolve();
-    request.onerror = () => reject(request.error);
-  });
+  return templateRepo.remove(id);
 }

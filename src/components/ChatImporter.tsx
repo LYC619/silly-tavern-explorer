@@ -14,53 +14,13 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
-import type { ChatMessage, ChatSession, CharacterInfo, STMetadata, STRawMessage } from '@/types/chat';
+import type { ChatMessage, ChatSession, CharacterInfo, STMetadata } from '@/types/chat';
 import { extractCharacterFromPng, getCharacterName, getFirstMessage } from '@/lib/png-parser';
 import { scanTxtSpeakers, parseTxtDialogue } from '@/lib/txt-import';
+import { parseJsonl, parseJson, parseSTDate, isTrueSystemMessage } from '@/lib/adapters/st/chat-jsonl';
 
-/**
- * 解析 SillyTavern 的 send_date 为时间戳（毫秒）。ST 有两种字符串格式 JS 原生 Date 解析不了：
- *  1. "November 14, 2024 6:18am"        —— am/pm 紧贴小时，缺空格
- *  2. "2024-11-14 @06h 18m 30s 500ms"   —— @小时h 分m 秒s 毫秒ms
- * 解析失败返回 undefined（而非 NaN），避免显示出 Invalid Date。
- */
-export function parseSTDate(value: unknown): number | undefined {
-  if (typeof value === 'number') return Number.isFinite(value) ? value : undefined;
-  if (typeof value !== 'string' || !value.trim()) return undefined;
-  const s = value.trim();
-
-  // 格式 2： "YYYY-M-D @HHh MMm SSs MMMms"
-  const m2 = s.match(/^(\d{4})-(\d{1,2})-(\d{1,2})\s*@\s*(\d{1,2})h\s*(\d{1,2})m\s*(\d{1,2})s(?:\s*(\d{1,3})ms)?/i);
-  if (m2) {
-    const [, y, mo, d, h, mi, se, ms] = m2;
-    const t = new Date(+y, +mo - 1, +d, +h, +mi, +se, ms ? +ms : 0).getTime();
-    return Number.isFinite(t) ? t : undefined;
-  }
-
-  // 格式 1：给紧贴的 am/pm 补空格后交给原生 Date（"6:18am" -> "6:18 am"）
-  const normalized = s.replace(/(\d)(am|pm)\b/i, '$1 $2');
-  const t = new Date(normalized).getTime();
-  return Number.isFinite(t) ? t : undefined;
-}
-
-/**
- * 区分「真·系统提示」和「被 Hide 的真实楼层」。
- * ST 的「Hide message」是把 is_system 置 true 持久化的（不是加 extra.hidden），
- * 与 /sys、/comment 等注入型系统消息共用 is_system 字段。一刀切丢弃 is_system 会连
- * 被隐藏的开场白/正常楼层一起丢掉（表现为「导入缺失、后面内容看似顶掉前面」）。
- * 返回 true = 真系统提示，应跳过；false = 只是被隐藏的真实楼层，应导入并标 hidden。
- * 判据（满足任一即真系统）：mes 为空 / 既无 name 又无 is_user（纯注入）/ extra.type ∈ {narrator,system}。
- */
-export function isTrueSystemMessage(raw: {
-  mes?: string; content?: string; message?: string;
-  is_user?: unknown; name?: unknown; extra?: { type?: unknown } | null;
-}): boolean {
-  const content = raw.mes || raw.content || raw.message || '';
-  if (!content) return true;
-  if (raw.is_user == null && raw.name == null) return true;
-  const type = raw.extra?.type;
-  return type === 'narrator' || type === 'system';
-}
+// 解析逻辑已抽至 @/lib/adapters/st/chat-jsonl（2.0 阶段0）；这里转发保持旧导入路径兼容
+export { parseSTDate, isTrueSystemMessage };
 
 export interface ImportStats {
   totalMessages: number;
@@ -84,78 +44,6 @@ export function ChatImporter({ onImport }: ChatImporterProps) {
   const [dialogueUserName, setDialogueUserName] = useState('User');
   /** TXT 对话导入的角色名（Assistant）。与用户名一样从文件开头预扫描自动填入，最终以输入框里的值为准 */
   const [dialogueCharName, setDialogueCharName] = useState('AI');
-
-  const parseJsonl = (content: string): { messages: ChatMessage[]; metadata?: STMetadata } => {
-    const lines = content.trim().split('\n');
-    const messages: ChatMessage[] = [];
-    let metadata: STMetadata | undefined;
-    for (let i = 0; i < lines.length; i++) {
-      const line = lines[i];
-      if (!line.trim()) continue;
-      try {
-        const parsed = JSON.parse(line) as STRawMessage;
-        if (i === 0 && ('user_name' in parsed || 'character_name' in parsed || 'chat_metadata' in parsed)) {
-          metadata = parsed as STMetadata;
-          continue;
-        }
-        if (parsed.is_system && isTrueSystemMessage(parsed)) continue;
-        const messageContent = parsed.mes || parsed.content || parsed.message || '';
-        if (!messageContent) continue;
-        messages.push({
-          id: crypto.randomUUID(),
-          role: parsed.is_user ? 'user' : 'assistant',
-          content: messageContent,
-          name: parsed.name || (parsed.is_user ? 'User' : 'Character'),
-          timestamp: parseSTDate(parsed.send_date),
-          hidden: parsed.is_system === true,
-          rawData: parsed,
-        });
-      } catch {
-        console.warn('Failed to parse line:', line);
-      }
-    }
-    return { messages, metadata };
-  };
-
-  const parseJson = (content: string): { messages: ChatMessage[]; metadata?: STMetadata } => {
-    const data = JSON.parse(content);
-    if (Array.isArray(data)) {
-      const messages = data
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any -- ST 原始 JSON 字段随版本/插件变化，保持宽松以免丢字段
-        .filter((item: any) => !(item.is_system && isTrueSystemMessage(item)))
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any -- 同上，rawData 需原样保留
-        .map((item: any) => ({
-          id: crypto.randomUUID(),
-          role: (item.is_user || item.role === 'user' ? 'user' : 'assistant') as 'user' | 'assistant',
-          content: item.mes || item.content || item.message || '',
-          name: item.name || (item.is_user ? 'User' : 'Character'),
-          timestamp: parseSTDate(item.send_date),
-          hidden: item.is_system === true,
-          rawData: item as STRawMessage,
-        }))
-        .filter((m: ChatMessage) => m.content);
-      return { messages };
-    }
-    if (data.messages || data.chat) {
-      const msgs = data.messages || data.chat;
-      const messages = msgs
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any -- ST 原始 JSON 字段随版本/插件变化，保持宽松以免丢字段
-        .filter((item: any) => !(item.is_system && isTrueSystemMessage(item)))
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any -- 同上，rawData 需原样保留
-        .map((item: any) => ({
-          id: crypto.randomUUID(),
-          role: (item.is_user || item.role === 'user' ? 'user' : 'assistant') as 'user' | 'assistant',
-          content: item.mes || item.content || item.message || '',
-          name: item.name,
-          timestamp: parseSTDate(item.send_date),
-          hidden: item.is_system === true,
-          rawData: item as STRawMessage,
-        }))
-        .filter((m: ChatMessage) => m.content);
-      return { messages };
-    }
-    throw new Error('无法识别的 JSON 格式（应为消息数组，或含 messages / chat 字段的对象）');
-  };
 
   const parseTxtNovel = (content: string): ChatMessage[] => {
     // Split by blank lines (double newline)

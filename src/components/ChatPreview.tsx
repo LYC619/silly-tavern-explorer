@@ -3,7 +3,7 @@ import { useWindowVirtualizer } from '@tanstack/react-virtual';
 import { User, Bot, Bookmark, BookmarkPlus, Pencil, EyeOff } from 'lucide-react';
 import type { ChatSession, ThemeStyle, RegexRule, ChapterMarker } from '@/types/chat';
 import { applyRegexRules, parseRegex } from '@/lib/regex-processor';
-import { parseSTDate } from '@/components/ChatImporter';
+import { parseSTDate } from '@/lib/adapters/st/chat-jsonl';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 
 /**

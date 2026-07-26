@@ -1,35 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import { isTrueSystemMessage } from '@/components/ChatImporter';
-
-// Test the JSONL parsing logic directly
-function parseJsonl(content: string) {
-  const lines = content.trim().split('\n');
-  const messages: Record<string, unknown>[] = [];
-  let metadata: Record<string, unknown> | undefined;
-
-  for (let i = 0; i < lines.length; i++) {
-    const line = lines[i];
-    if (!line.trim()) continue;
-    try {
-      const parsed = JSON.parse(line);
-      if (i === 0 && ('user_name' in parsed || 'character_name' in parsed || 'chat_metadata' in parsed)) {
-        metadata = parsed;
-        continue;
-      }
-      if (parsed.is_system) continue;
-      const messageContent = parsed.mes || parsed.content || parsed.message || '';
-      if (!messageContent) continue;
-      messages.push({
-        role: parsed.is_user ? 'user' : 'assistant',
-        content: messageContent,
-        name: parsed.name || (parsed.is_user ? 'User' : 'Character'),
-      });
-    } catch {
-      // skip invalid lines
-    }
-  }
-  return { messages, metadata };
-}
+// 2.0 阶段0：解析逻辑抽至 lib 纯函数后，测试直接导入真实实现（此前这里复制了一份手写版）
+import { parseJsonl, isTrueSystemMessage } from '@/lib/adapters/st/chat-jsonl';
 
 describe('JSONL Parser', () => {
   it('should parse standard SillyTavern JSONL', () => {
@@ -40,13 +11,13 @@ describe('JSONL Parser', () => {
     ].join('\n');
 
     const { messages, metadata } = parseJsonl(content);
-    expect(metadata.user_name).toBe('Alice');
+    expect(metadata?.user_name).toBe('Alice');
     expect(messages).toHaveLength(2);
     expect(messages[0].role).toBe('user');
     expect(messages[1].content).toBe('Hi there');
   });
 
-  it('should skip system messages', () => {
+  it('should skip true system messages (纯注入，无 name/is_user)', () => {
     const content = [
       JSON.stringify({ user_name: 'A', character_name: 'B' }),
       JSON.stringify({ is_system: true, mes: 'System message' }),
@@ -55,6 +26,18 @@ describe('JSONL Parser', () => {
 
     const { messages } = parseJsonl(content);
     expect(messages).toHaveLength(1);
+  });
+
+  it('被 Hide 的真实楼层（is_system 但有 name+mes）应导入并标 hidden', () => {
+    const content = [
+      JSON.stringify({ user_name: 'A', character_name: 'B' }),
+      JSON.stringify({ name: 'B', is_user: false, is_system: true, mes: '被隐藏的开场白' }),
+    ].join('\n');
+
+    const { messages } = parseJsonl(content);
+    expect(messages).toHaveLength(1);
+    expect(messages[0].hidden).toBe(true);
+    expect(messages[0].content).toBe('被隐藏的开场白');
   });
 
   it('should skip empty messages', () => {
@@ -117,7 +100,18 @@ describe('JSONL Parser', () => {
     ].join('\n');
 
     const { messages } = parseJsonl(content);
-    expect((messages[0].content as string).length).toBe(100000);
+    expect(messages[0].content.length).toBe(100000);
+  });
+
+  it('rawData 原样保留（无损导出前提）', () => {
+    const rawLine = { name: 'B', is_user: false, mes: 'x', extra: { model: 'gpt-x', custom_plugin_field: 42 } };
+    const content = [
+      JSON.stringify({ user_name: 'A', character_name: 'B' }),
+      JSON.stringify(rawLine),
+    ].join('\n');
+
+    const { messages } = parseJsonl(content);
+    expect(messages[0].rawData).toEqual(rawLine);
   });
 });
 

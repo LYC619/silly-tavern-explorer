@@ -1,42 +1,22 @@
 import type { StoryTree } from '@/types/story-tree';
-import { openDB } from '@/lib/idb';
+import { createIdbRepo, pruneAutoSaved } from '@/lib/repo/idb-repo';
 
-const STORE = 'stories';
+const repo = createIdbRepo<StoryTree>('stories');
 
 export async function getAllStoryTrees(): Promise<StoryTree[]> {
-  const db = await openDB();
-  return new Promise((resolve, reject) => {
-    const req = db.transaction(STORE, 'readonly').objectStore(STORE).getAll();
-    req.onsuccess = () => resolve((req.result as StoryTree[]).sort((a, b) => b.updatedAt - a.updatedAt));
-    req.onerror = () => reject(req.error);
-  });
+  return repo.list();
 }
 
 export async function getStoryTree(id: string): Promise<StoryTree | undefined> {
-  const db = await openDB();
-  return new Promise((resolve, reject) => {
-    const req = db.transaction(STORE, 'readonly').objectStore(STORE).get(id);
-    req.onsuccess = () => resolve(req.result);
-    req.onerror = () => reject(req.error);
-  });
+  return repo.get(id);
 }
 
 export async function saveStoryTree(item: StoryTree): Promise<void> {
-  const db = await openDB();
-  return new Promise((resolve, reject) => {
-    const req = db.transaction(STORE, 'readwrite').objectStore(STORE).put(item);
-    req.onsuccess = () => resolve();
-    req.onerror = () => reject(req.error);
-  });
+  return repo.put(item);
 }
 
 export async function deleteStoryTree(id: string): Promise<void> {
-  const db = await openDB();
-  return new Promise((resolve, reject) => {
-    const req = db.transaction(STORE, 'readwrite').objectStore(STORE).delete(id);
-    req.onsuccess = () => resolve();
-    req.onerror = () => reject(req.error);
-  });
+  return repo.remove(id);
 }
 
 /**
@@ -44,9 +24,5 @@ export async function deleteStoryTree(id: string): Promise<void> {
  * 手动保存(autoSaved 非 true)的不受影响。返回被删除的 id 数组。
  */
 export async function pruneAutoSavedStoryTrees(keep = 5): Promise<string[]> {
-  const all = await getAllStoryTrees();
-  const auto = all.filter((i) => i.autoSaved);
-  const toDelete = auto.slice(keep);
-  await Promise.all(toDelete.map((i) => deleteStoryTree(i.id)));
-  return toDelete.map((i) => i.id);
+  return pruneAutoSaved(repo, keep);
 }
