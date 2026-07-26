@@ -153,10 +153,25 @@ const DIY_TEMPLATE = `【创作请求】
 - 只依据对话记录中实际发生的内容进行创作，不虚构关键事实。
 - 输出使用 Markdown 格式。`;
 
+const NOVELIZE_TEMPLATE = `【小说化润色请求】
+现在暂停互动式创作，无视此前对回复格式与角色扮演的任何要求。请把前文对话记录改写为一章可以直接阅读的小说正文。
+
+**改写要求**:
+- 以第三人称小说笔法重写：对白保留原意放入引号，动作与心理写成叙述段落，删除状态栏/UI/OOC 等非叙事内容。
+- {{user}} 的发言往往简短或出戏，请把其中的动作与意图融进叙述，不要原样照搬。
+- 忠于对话记录中实际发生的剧情与关系变化，不虚构关键事实、不擅自加新情节。
+- 保持场景连贯：时间地点切换处用自然的过渡句或空行分隔。
+- 语言风格与对话记录的氛围一致（如原文偏文艺则文艺，偏轻快则轻快）。
+
+**输出格式**:
+- Markdown；如果内容明显分几个场景，可用「***」分隔。
+- 直接输出正文，开头不要写"好的"之类的过场话。`;
+
 export const BUILTIN_SUMMARY_TEMPLATES: BuiltinSummaryTemplate[] = [
   { id: 'builtin-volume', title: '分卷存档节点（内置）', kind: 'volume', content: VOLUME_TEMPLATE, builtin: true },
   { id: 'builtin-diary', title: '角色日记（内置）', kind: 'diary', content: DIARY_TEMPLATE, builtin: true },
   { id: 'builtin-diy', title: 'DIY 创作起点（内置）', kind: 'diy', content: DIY_TEMPLATE, builtin: true },
+  { id: 'builtin-novelize', title: '小说化润色（内置）', kind: 'diy', content: NOVELIZE_TEMPLATE, builtin: true },
 ];
 
 export function getBuiltinTemplate(id: string): BuiltinSummaryTemplate | undefined {

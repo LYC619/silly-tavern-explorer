@@ -31,8 +31,9 @@ describe('summary types', () => {
 });
 
 describe('builtin summary templates', () => {
-  it('内置模板恰好三个，id 与 kind 一一对应', () => {
-    expect(BUILTIN_SUMMARY_TEMPLATES).toHaveLength(3);
+  it('每种呈现类型都有默认内置模板，id 与 kind 一一对应', () => {
+    // 三种呈现类型各有默认模板；diy 另有「小说化润色」内置（阶段6），故总数 ≥3
+    expect(BUILTIN_SUMMARY_TEMPLATES.length).toBeGreaterThanOrEqual(3);
     for (const kind of ['volume', 'diary', 'diy'] as SummaryKind[]) {
       const id = defaultTemplateIdForKind(kind);
       const t = getBuiltinTemplate(id);
@@ -41,6 +42,13 @@ describe('builtin summary templates', () => {
       expect(isBuiltinTemplate(t!)).toBe(true);
       expect(t!.content.length).toBeGreaterThan(50);
     }
+  });
+
+  it('小说化润色内置模板存在，归入 diy 呈现', () => {
+    const t = getBuiltinTemplate('builtin-novelize');
+    expect(t).toBeDefined();
+    expect(t!.kind).toBe('diy');
+    expect(t!.content).toContain('小说');
   });
 
   it('分卷模板含 {{volume}} 宏与存档节点结构', () => {

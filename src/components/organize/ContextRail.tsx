@@ -4,7 +4,7 @@
  * 操作：跳回聊天对应楼层（保留分支）、重新生成、复制为新记录、导出、删除。
  */
 import { useEffect, useState } from 'react';
-import { CornerUpLeft, RotateCcw, CopyPlus, Upload, Trash2 } from 'lucide-react';
+import { CornerUpLeft, RotateCcw, CopyPlus, Upload, Trash2, ImageDown } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -37,6 +37,8 @@ interface ContextRailProps {
   /** 导出：记录=.md；树=JSON/MD 二选（由父组件实现） */
   onExportMd: () => void;
   onExportJson?: () => void;
+  /** 分享长图（阶段6，仅记录类；故事树暂无） */
+  onShareImage?: () => void;
 }
 
 function fmtTime(ts: number): string {
@@ -54,7 +56,7 @@ function InfoRow({ label, value }: { label: string; value: React.ReactNode }) {
 }
 
 export function ContextRail({
-  story, characterName, selection, onJumpToChat, onRegenerate, onCopy, onDelete, onExportMd, onExportJson,
+  story, characterName, selection, onJumpToChat, onRegenerate, onCopy, onDelete, onExportMd, onExportJson, onShareImage,
 }: ContextRailProps) {
   // 预设/世界书 id → 名称（生成参数只存 id；名称查不到时回退 id 片段）
   const [presetNames, setPresetNames] = useState<Map<string, string>>(new Map());
@@ -177,6 +179,11 @@ export function ContextRail({
           ) : (
             <Button variant="outline" size="sm" className="h-7 gap-1 w-full" onClick={onExportMd}>
               <Upload className="w-3.5 h-3.5" />导出 .md
+            </Button>
+          )}
+          {isRecord && onShareImage && (
+            <Button variant="outline" size="sm" className="h-7 gap-1 w-full" onClick={onShareImage} title="生成可直接分享的长图（故事名+封面+正文）">
+              <ImageDown className="w-3.5 h-3.5" />生成分享长图
             </Button>
           )}
           <Separator className="my-1" />

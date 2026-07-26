@@ -9,6 +9,7 @@
  */
 import type { ChatSession, ChapterMarker, ExportSettings } from '@/types/chat';
 import type { STCharacterCard } from '@/lib/png-parser';
+import type { RatingRecord } from '@/types/rating';
 
 // ---------- 角色（角色库条目 = 设计稿「角色/<名>/档案.json + 卡片.png」） ----------
 
@@ -39,8 +40,10 @@ export interface ArchiveCharacter {
   status: CharacterStatus;
   /** 10 分制总分（0.5 步进由 UI 约束）；未评分为 undefined */
   rating?: number;
-  /** 评分摘要（一句话，详细分项在评分面板数据里，阶段6） */
+  /** 评分摘要（一句话，详细分项在 ratingDetail 里） */
   ratingNote?: string;
+  /** 评分明细（阶段6）：模板/维度分/提示词快照/AI 读取范围/时间 */
+  ratingDetail?: RatingRecord;
   /** 当前简介 + 历史版本（新生成先草稿比较，确认后入栈） */
   intro?: { current: IntroVersion; history: IntroVersion[] };
   /** 简介是否可能过期（源卡/世界书变化时置 true，只提示不覆盖） */

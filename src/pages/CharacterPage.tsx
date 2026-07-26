@@ -4,7 +4,6 @@ import {
   ArrowLeft,
   Plus,
   X,
-  Star,
   ChevronDown,
   MessageSquare,
   Clock,
@@ -32,7 +31,6 @@ import {
   CollapsibleContent,
   CollapsibleTrigger,
 } from '@/components/ui/collapsible';
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -59,6 +57,8 @@ import {
 import { normalizeCharacterCard, parseJsonl, parseJson } from '@/lib/adapters/st';
 import { formatPlayTime } from '@/lib/story-meta';
 import { AssetSection } from '@/components/character/AssetSection';
+import { IntroSection } from '@/components/character/IntroSection';
+import { RatingPanel } from '@/components/character/RatingPanel';
 
 const RECENT_STORY_COUNT = 5;
 
@@ -76,8 +76,6 @@ const CharacterPage = () => {
   const [loading, setLoading] = useState(true);
   const [newTag, setNewTag] = useState('');
   const [showAllStories, setShowAllStories] = useState(false);
-  const [ratingDraft, setRatingDraft] = useState('');
-  const [ratingOpen, setRatingOpen] = useState(false);
   const [storyToDelete, setStoryToDelete] = useState<ArchiveStory | null>(null);
 
   const load = useCallback(async () => {
@@ -113,16 +111,6 @@ const CharacterPage = () => {
     }
     await patchCharacter({ tags: [...character.tags, tag] });
     setNewTag('');
-  };
-
-  const handleSaveRating = async () => {
-    const value = parseFloat(ratingDraft);
-    if (Number.isNaN(value) || value < 0 || value > 10) {
-      toast({ title: '评分需在 0~10 之间', variant: 'destructive' });
-      return;
-    }
-    await patchCharacter({ rating: Math.round(value * 2) / 2 }); // 0.5 步进
-    setRatingOpen(false);
   };
 
   const handleImportChat = async (files: FileList | null) => {
@@ -302,43 +290,19 @@ const CharacterPage = () => {
                 </SelectContent>
               </Select>
 
-              <Popover open={ratingOpen} onOpenChange={(o) => { setRatingOpen(o); if (o) setRatingDraft(character.rating?.toString() ?? ''); }}>
-                <PopoverTrigger asChild>
-                  <Button variant="outline" size="sm" className="h-8 gap-1">
-                    <Star className={`w-4 h-4 ${character.rating !== undefined ? 'fill-amber-400 text-amber-400' : 'text-muted-foreground'}`} />
-                    {character.rating !== undefined ? `${character.rating} / 10` : '未评分'}
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-56 space-y-2">
-                  <p className="text-sm font-medium">10 分制评分（0.5 步进）</p>
-                  <Input
-                    type="number"
-                    min={0}
-                    max={10}
-                    step={0.5}
-                    value={ratingDraft}
-                    onChange={(e) => setRatingDraft(e.target.value)}
-                    onKeyDown={(e) => e.key === 'Enter' && handleSaveRating()}
-                  />
-                  <p className="text-xs text-muted-foreground">评分模板与 AI 建议将在后续版本提供</p>
-                  <div className="flex justify-end gap-2">
-                    {character.rating !== undefined && (
-                      <Button variant="ghost" size="sm" onClick={() => { patchCharacter({ rating: undefined }); setRatingOpen(false); }}>
-                        清除
-                      </Button>
-                    )}
-                    <Button size="sm" onClick={handleSaveRating}>保存</Button>
-                  </div>
-                </PopoverContent>
-              </Popover>
+              <RatingPanel
+                character={character}
+                norm={norm}
+                stories={sortedStories}
+                onPatch={patchCharacter}
+              />
             </div>
-
-            {/* 简介（整理版：卡的 Description 可读展示；AI 简介留阶段6） */}
-            {norm.description && (
-              <div className="text-sm leading-relaxed whitespace-pre-wrap text-foreground/90 max-h-52 overflow-y-auto rounded-md bg-muted/40 p-3">
-                {norm.description}
-              </div>
+            {character.ratingNote && (
+              <p className="text-xs text-muted-foreground">「{character.ratingNote}」</p>
             )}
+
+            {/* 简介（阶段6）：整理版/AI 简介 + 草稿比较 + 历史 + 过期提示 */}
+            <IntroSection character={character} norm={norm} onPatch={patchCharacter} />
 
             {/* 原始字段：只留一个折叠入口（定稿：原文重要性偏低） */}
             <Collapsible>

@@ -38,6 +38,7 @@ const STORE_SPECS: readonly StoreSpec[] = [
   { key: 'characters', label: '角色档案', isValid: (c) => !!c.id && !!c.card },
   { key: 'archiveStories', label: '归档故事', isValid: (s) => !!s.id && !!s.session },
   { key: 'regexes', label: '正则规则集', isValid: (r) => !!r.id && Array.isArray(r.rules) },
+  { key: 'ratingTemplates', label: '评分模板', isValid: (t) => !!t.id && Array.isArray(t.dimensions) },
 ];
 
 /**

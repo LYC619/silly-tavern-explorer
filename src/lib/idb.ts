@@ -7,7 +7,7 @@
  */
 
 export const DB_NAME = 'st-chat-beautifier';
-export const DB_VERSION = 8;
+export const DB_VERSION = 9;
 
 /** 全部 object store 名单。新增 store：在此登记 + DB_VERSION 加 1，所有调用点自动跟随。 */
 export const ALL_STORES = [
@@ -21,6 +21,7 @@ export const ALL_STORES = [
   'characters', // v7 角色库（2.0 阶段1）
   'archiveStories', // v7 归档故事（2.0 阶段1；'stories' 已被故事树占用）
   'regexes', // v8 正则规则集资产（2.0 阶段5）
+  'ratingTemplates', // v9 评分模板（2.0 阶段6；内置模板是代码常量不入库）
 ] as const;
 
 export type StoreName = (typeof ALL_STORES)[number];

@@ -6,12 +6,13 @@
  */
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Link2, MessageSquare, Trash2, Clock } from 'lucide-react';
+import { Link2, MessageSquare, Trash2, Clock, BookOpenCheck } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { AppLayout } from '@/components/AppLayout';
 import { ChatImporter, type ImportStats } from '@/components/chat/ChatImporter';
 import { ChatWorkbench } from '@/components/chat/ChatWorkbench';
+import NovelView from '@/components/reader/NovelView';
 import { BindStoryDialog } from '@/components/chat/BindStoryDialog';
 import { GuidedTour } from '@/components/GuidedTour';
 import { HOME_TOUR_STEPS, isTourCompleted, setTourCompleted } from '@/lib/tour-steps';
@@ -54,6 +55,9 @@ const Index = () => {
   // 当前会话对应的未绑定归档故事 id（沿用旧称 bookId 的指针字段）
   const [currentStoryId, setCurrentStoryId] = useState<string | null>(null);
   const [bindDialogOpen, setBindDialogOpen] = useState(false);
+  // 小说视图（阶段6）：未绑定聊天也可用；润色上下文用当前暂存的归档故事
+  const [novelStory, setNovelStory] = useState<ArchiveStory | null>(null);
+  const [novelOpen, setNovelOpen] = useState(false);
   // 空态展示的未绑定暂存列表（书架退役后临时聊天的家）
   const [unboundStories, setUnboundStories] = useState<ArchiveStory[]>([]);
   // 处理区入口交接来的文件（挂载时取一次，交给 ChatImporter 自动解析）
@@ -250,6 +254,21 @@ const Index = () => {
 
   const handleFloorChange = useCallback((floor: number) => setCurrentFloor(floor), []);
 
+  const handleOpenNovel = async () => {
+    // 润色成果要挂在归档故事上；暂存故事在 IDB 里即时读一份（demo 数据无故事则只读不润色）
+    if (currentStoryId) {
+      try {
+        const story = await getArchiveStory(currentStoryId);
+        setNovelStory(story ?? null);
+      } catch {
+        setNovelStory(null);
+      }
+    } else {
+      setNovelStory(null);
+    }
+    setNovelOpen(true);
+  };
+
   return (
     <AppLayout>
       {!session ? (
@@ -345,11 +364,30 @@ const Index = () => {
             </Badge>
           }
           toolbarExtras={
-            <Button variant="outline" size="sm" onClick={() => setBindDialogOpen(true)}>
-              <Link2 className="w-4 h-4 mr-1.5" />
-              绑定到角色
-            </Button>
+            <>
+              <Button variant="outline" size="sm" onClick={handleOpenNovel} title="小说视图：拆句重排+用户楼层弱化/隐藏+场景分隔（Esc 退出）">
+                <BookOpenCheck className="w-4 h-4 mr-1.5" />
+                小说视图
+              </Button>
+              <Button variant="outline" size="sm" onClick={() => setBindDialogOpen(true)}>
+                <Link2 className="w-4 h-4 mr-1.5" />
+                绑定到角色
+              </Button>
+            </>
           }
+        />
+      )}
+
+      {/* 小说视图（未绑定模式；成果挂当前暂存故事，绑定时随 id 带走） */}
+      {novelOpen && session && (
+        <NovelView
+          session={session}
+          markers={markers}
+          regexRules={settings.regexRules}
+          onClose={() => setNovelOpen(false)}
+          onMarkersChange={setMarkers}
+          progressKey={currentStoryId ? `${currentStoryId}:main` : undefined}
+          polish={novelStory ? { story: novelStory, branchId: null } : undefined}
         />
       )}
 

@@ -6,7 +6,7 @@
  */
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, BookOpen, BookOpenText, NotebookText, ArrowDownUp, MessageSquare, Cpu } from 'lucide-react';
+import { ArrowLeft, BookOpen, BookOpenCheck, BookOpenText, NotebookText, ArrowDownUp, MessageSquare, Cpu } from 'lucide-react';
 import { AppLayout } from '@/components/AppLayout';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -18,6 +18,7 @@ import { OutlinePanel } from '@/components/workspace/OutlinePanel';
 import { ResourceRail } from '@/components/workspace/ResourceRail';
 import { OrganizePanel, type OrganizeTarget } from '@/components/organize/OrganizePanel';
 import ReaderView from '@/components/reader/ReaderView';
+import NovelView from '@/components/reader/NovelView';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
 import type { ArchiveCharacter, ArchiveStory } from '@/types/archive';
@@ -51,6 +52,7 @@ const StoryWorkspace = () => {
   const [branchId, setBranchId] = useState<string | null>(null);
   const [view, setView] = useState<WorkspaceView>('read');
   const [immersive, setImmersive] = useState(false);
+  const [novelOpen, setNovelOpen] = useState(false);
   const workbenchRef = useRef<ChatWorkbenchHandle>(null);
   // 整理与记录：资源栏点进来要打开的条目；从整理跳回聊天时待滚动的楼层
   const [organizeTarget, setOrganizeTarget] = useState<OrganizeTarget | null>(null);
@@ -345,10 +347,16 @@ const StoryWorkspace = () => {
                     ) : undefined
                   }
                   toolbarExtras={
-                    <Button variant="outline" size="sm" onClick={() => setImmersive(true)} title="沉浸式翻页阅读（Esc 退出）">
-                      <BookOpen className="w-4 h-4 mr-1.5" />
-                      沉浸阅读
-                    </Button>
+                    <>
+                      <Button variant="outline" size="sm" onClick={() => setNovelOpen(true)} title="小说视图：拆句重排+用户楼层弱化/隐藏+场景分隔（Esc 退出）">
+                        <BookOpenCheck className="w-4 h-4 mr-1.5" />
+                        小说视图
+                      </Button>
+                      <Button variant="outline" size="sm" onClick={() => setImmersive(true)} title="沉浸式翻页阅读（Esc 退出）">
+                        <BookOpen className="w-4 h-4 mr-1.5" />
+                        沉浸阅读
+                      </Button>
+                    </>
                   }
                 />
               </div>
@@ -371,6 +379,7 @@ const StoryWorkspace = () => {
               key={organizeTarget ? `${organizeTarget.type}-${organizeTarget.id}` : 'auto'}
               story={story}
               characterName={character?.name}
+              coverDataUrl={character?.pngBase64 ? `data:image/png;base64,${character.pngBase64}` : undefined}
               currentBranchId={branchId}
               initialTarget={organizeTarget}
               onJumpToChat={handleJumpToChat}
@@ -388,6 +397,19 @@ const StoryWorkspace = () => {
           )}
         </div>
       </div>
+
+      {/* 小说视图（阶段6；三层管道，进度按 故事+脉络 记忆） */}
+      {novelOpen && (
+        <NovelView
+          session={line.session}
+          markers={line.markers}
+          regexRules={settings.regexRules}
+          onClose={() => setNovelOpen(false)}
+          onMarkersChange={handleMarkersChange}
+          progressKey={`${story.id}:${branchId ?? 'main'}`}
+          polish={{ story, branchId }}
+        />
+      )}
 
       {/* 沉浸式翻页阅读（覆盖层；翻页进度按 故事+脉络 记忆） */}
       {immersive && (

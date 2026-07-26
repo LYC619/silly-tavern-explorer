@@ -38,6 +38,8 @@ import { storyTreeToJSON, parseStoryTreeJSON } from '@/lib/story-tree-io';
 import { RecordWorkbench, type RecordWorkbenchHandle } from './RecordWorkbench';
 import { TreeWorkbench } from './TreeWorkbench';
 import { ContextRail } from './ContextRail';
+import { ShareImageDialog } from './ShareImageDialog';
+import type { ShareImageInput } from '@/lib/share-image';
 import { MiniSummaryPanel } from '@/components/summary/MiniSummaryPanel';
 
 const KIND_FILTERS: { value: OrganizeKindFilter; label: string }[] = [
@@ -63,6 +65,8 @@ export interface OrganizeTarget {
 interface OrganizePanelProps {
   story: ArchiveStory;
   characterName?: string;
+  /** 角色封面 dataURL（分享长图用；无封面照样能生成） */
+  coverDataUrl?: string;
   /** 工作区当前分支（新建记录的默认脉络 + 故事树 AI 生成用的会话） */
   currentBranchId: string | null;
   /** 从资源栏点进来时要打开的条目 */
@@ -84,7 +88,7 @@ function downloadJSON(name: string, content: string): void {
   URL.revokeObjectURL(url);
 }
 
-export function OrganizePanel({ story, characterName, currentBranchId, initialTarget, onJumpToChat }: OrganizePanelProps) {
+export function OrganizePanel({ story, characterName, coverDataUrl, currentBranchId, initialTarget, onJumpToChat }: OrganizePanelProps) {
   const { toast } = useToast();
   const [summaries, setSummaries] = useState<SummaryItem[]>([]);
   const [trees, setTrees] = useState<StoryTreeT[]>([]);
@@ -92,6 +96,9 @@ export function OrganizePanel({ story, characterName, currentBranchId, initialTa
   const [filter, setFilter] = useState<OrganizeFilter>({ kind: 'all', branch: 'all', query: '' });
   const [sel, setSel] = useState<Selection>(null);
   const [deleteTarget, setDeleteTarget] = useState<OrganizeTarget | null>(null);
+  // 分享长图（阶段6）：当前选中记录 → 渲染输入
+  const [shareInput, setShareInput] = useState<ShareImageInput | null>(null);
+  const [shareOpen, setShareOpen] = useState(false);
   const workbenchRef = useRef<RecordWorkbenchHandle>(null);
   const newNonce = useRef(0);
 
@@ -403,9 +410,22 @@ export function OrganizePanel({ story, characterName, currentBranchId, initialTa
               : { type: 'tree', id: selectedTree!.id })}
             onExportMd={handleExportMd}
             onExportJson={selectedTree ? handleExportTreeJson : undefined}
+            onShareImage={selectedRecord ? () => {
+              setShareInput({
+                recordTitle: selectedRecord.title,
+                storyTitle: story.title,
+                characterName,
+                kindLabel: SUMMARY_KIND_LABELS[selectedRecord.kind],
+                contentMd: selectedRecord.content,
+                coverDataUrl,
+              });
+              setShareOpen(true);
+            } : undefined}
           />
         </aside>
       )}
+
+      <ShareImageDialog open={shareOpen} onOpenChange={setShareOpen} input={shareInput} />
 
       <AlertDialog open={!!deleteTarget} onOpenChange={(o) => !o && setDeleteTarget(null)}>
         <AlertDialogContent>
