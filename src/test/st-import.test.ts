@@ -10,6 +10,8 @@ import { setActiveVault } from '@/lib/vault/active';
 import { scanSTUserDir, importSelected, type STScanResult } from '@/lib/vault/st-import';
 import { getAllArchiveStories, getAllCharacters } from '@/lib/archive-db';
 import { getAllWorldBooks } from '@/lib/worldbook-db';
+import { getAllPresets } from '@/lib/preset-db';
+import { getAllRegexCollections } from '@/lib/regex-db';
 
 afterEach(() => setActiveVault(null));
 
@@ -42,6 +44,14 @@ function makeJsonl(charName: string, n = 2): string {
 }
 
 const wbJson = JSON.stringify({ name: '魔法界', entries: { '0': { uid: 0, key: ['魔杖'], content: '设定正文', comment: '条目' } } });
+const presetJson = JSON.stringify({
+  prompts: [{ identifier: 'main', name: '主提示', role: 'system', content: '你是解说员' }],
+  prompt_order: [{ character_id: 100001, order: [{ identifier: 'main', enabled: true }] }],
+  temperature: 0.7,
+});
+const settingsJson = JSON.stringify({
+  extensions: { regex: [{ scriptName: '去横线', findRegex: '/---/g', replaceString: '', placement: [2], disabled: false }] },
+});
 
 /** 在 fs 的 base 前缀下种一棵标准 ST 用户目录树 */
 async function seedSTTree(fs: ReturnType<typeof createMemFs>, base = ''): Promise<void> {
@@ -53,13 +63,22 @@ async function seedSTTree(fs: ReturnType<typeof createMemFs>, base = ''): Promis
   await fs.writeText(p('chats/已删角色/遗留聊天.jsonl'), makeJsonl('已删角色', 2));
   await fs.writeText(p('chats/坏卡/坏卡的聊天.jsonl'), makeJsonl('坏卡', 2));
   await fs.writeText(p('worlds/魔法界.json'), wbJson);
+  await fs.writeText(p('OpenAI Settings/我的预设.json'), presetJson);
+  await fs.writeText(p('settings.json'), settingsJson);
   // 干扰项：非目标扩展名/子目录，不应入清单
   await fs.writeText(p('characters/说明.txt'), '忽略我');
   await fs.writeText(p('worlds/备份.bak'), '忽略我');
 }
 
 function selectAll(scan: STScanResult, stRoot = 'C:/ST') {
-  return { stRoot, characters: scan.characters, strayChats: scan.strayChats, worldbooks: scan.worldbooks };
+  return {
+    stRoot,
+    characters: scan.characters,
+    strayChats: scan.strayChats,
+    worldbooks: scan.worldbooks,
+    presets: scan.presets,
+    regex: scan.regex,
+  };
 }
 
 // ---------- 扫描 ----------
@@ -80,6 +99,8 @@ describe('scanSTUserDir', () => {
     expect(r.strayChats.map((c) => c.path)).toEqual(['chats/已删角色/遗留聊天.jsonl']);
     expect(r.strayChats[0].characterDir).toBe('已删角色');
     expect(r.worldbooks).toEqual([{ name: '魔法界', path: 'worlds/魔法界.json', size: wbJson.length }]);
+    expect(r.presets).toEqual([{ name: '我的预设', path: 'OpenAI Settings/我的预设.json', size: presetJson.length }]);
+    expect(r.regex).toEqual({ path: 'settings.json', count: 1 });
   });
 
   it('选中 ST 安装根目录（含 data/default-user）时自动下钻，路径带前缀', async () => {
@@ -90,11 +111,13 @@ describe('scanSTUserDir', () => {
     expect(r.userDir).toBe('data/default-user');
     expect(r.characters.find((c) => c.name === '赫敏')!.pngPath).toBe('data/default-user/characters/赫敏.png');
     expect(r.worldbooks[0].path).toBe('data/default-user/worlds/魔法界.json');
+    expect(r.presets[0].path).toBe('data/default-user/OpenAI Settings/我的预设.json');
+    expect(r.regex).toEqual({ path: 'data/default-user/settings.json', count: 1 });
   });
 
   it('目录缺失 = 空组不抛错（空目录/只有部分子目录）', async () => {
     const empty = await scanSTUserDir(createMemFs());
-    expect(empty).toEqual({ userDir: '', characters: [], strayChats: [], worldbooks: [] });
+    expect(empty).toEqual({ userDir: '', characters: [], strayChats: [], worldbooks: [], presets: [], regex: null });
 
     const partial = createMemFs();
     await partial.writeText('worlds/仅世界书.json', wbJson); // 没有 characters/ chats/
@@ -122,7 +145,7 @@ describe('importSelected', () => {
     const summary = await importSelected(st, selectAll(scan));
 
     // 坏卡.png 解析失败计 failed=1，其聊天降级为未绑定照常导入
-    expect(summary).toEqual({ characters: 1, stories: 4, worldbooks: 1, skipped: 0, failed: 1 });
+    expect(summary).toEqual({ characters: 1, stories: 4, worldbooks: 1, presets: 1, regexes: 1, skipped: 0, failed: 1 });
 
     const chars = await getAllCharacters();
     expect(chars).toHaveLength(1);
@@ -150,7 +173,19 @@ describe('importSelected', () => {
     expect(wbs[0].sourcePath).toBe('C:/ST/worlds/魔法界.json');
     expect(wbs[0].worldbook.entries['0'].content).toBe('设定正文');
 
-    // 文件库落位：绑定故事在角色文件夹下，未绑定进临时，世界书进资产
+    // 预设 + 全局正则（阶段9.11）：入库带 sourcePath，正则整组一套规则集
+    const presets = await getAllPresets();
+    expect(presets).toHaveLength(1);
+    expect(presets[0].title).toBe('我的预设');
+    expect(presets[0].sourcePath).toBe('C:/ST/OpenAI Settings/我的预设.json');
+    const regexes = await getAllRegexCollections();
+    expect(regexes).toHaveLength(1);
+    expect(regexes[0].title).toBe('ST 全局正则');
+    expect(regexes[0].sourcePath).toBe('C:/ST/settings.json');
+    expect(regexes[0].rules).toHaveLength(1);
+    expect(regexes[0].rules[0].name).toBeTruthy();
+
+    // 文件库落位：绑定故事在角色文件夹下，未绑定进临时，世界书/预设/正则进资产
     const files = Object.keys(vaultFs.dump());
     expect(files).toContain('角色/赫敏/档案.json');
     expect(files).toContain('角色/赫敏/卡片.png');
@@ -158,6 +193,8 @@ describe('importSelected', () => {
     expect(files).toContain('角色/赫敏/故事/主线/聊天.jsonl');
     expect(files).toContain('临时/遗留聊天/故事.json');
     expect(files).toContain('资产/世界书/魔法界.json');
+    expect(files).toContain('资产/预设/我的预设.json');
+    expect(files).toContain('资产/正则/ST 全局正则.json');
   });
 
   it('重复导入：同 sourcePath 全部跳过，不产生副本（含文件库往返后的世界书 sourcePath）', async () => {
@@ -168,11 +205,13 @@ describe('importSelected', () => {
     await importSelected(st, selectAll(scan));
 
     const again = await importSelected(st, selectAll(scan));
-    // 卡1 + 聊天4 + 世界书1 = 跳过6；坏卡每轮都解析失败计 failed
-    expect(again).toEqual({ characters: 0, stories: 0, worldbooks: 0, skipped: 6, failed: 1 });
+    // 卡1 + 聊天4 + 世界书1 + 预设1 + 正则1 = 跳过8；坏卡每轮都解析失败计 failed
+    expect(again).toEqual({ characters: 0, stories: 0, worldbooks: 0, presets: 0, regexes: 0, skipped: 8, failed: 1 });
     expect(await getAllCharacters()).toHaveLength(1);
     expect(await getAllArchiveStories()).toHaveLength(4);
     expect(await getAllWorldBooks()).toHaveLength(1);
+    expect(await getAllPresets()).toHaveLength(1);
+    expect(await getAllRegexCollections()).toHaveLength(1);
   });
 
   it('已导入过的卡再勾选新聊天：新聊天绑到原角色，不建第二个角色', async () => {
@@ -187,12 +226,13 @@ describe('importSelected', () => {
       characters: [{ ...hermione, chats: hermione.chats.filter((c) => c.name === '主线') }],
       strayChats: [],
       worldbooks: [],
+      presets: [],
     });
     // ST 侧新增一场聊天，第二轮全选该角色
     await st.writeText('chats/赫敏/番外.jsonl', makeJsonl('赫敏', 2));
     const scan2 = await scanSTUserDir(st);
     const hermione2 = scan2.characters.find((c) => c.name === '赫敏')!;
-    const summary = await importSelected(st, { stRoot: 'C:/ST', characters: [hermione2], strayChats: [], worldbooks: [] });
+    const summary = await importSelected(st, { stRoot: 'C:/ST', characters: [hermione2], strayChats: [], worldbooks: [], presets: [] });
 
     expect(summary.characters).toBe(0);
     expect(summary.stories).toBe(2); // 支线 + 番外
@@ -219,8 +259,8 @@ describe('importSelected', () => {
   it('空勾选 = 全零汇总，不动库', async () => {
     const st = createMemFs();
     setupVault();
-    const summary = await importSelected(st, { stRoot: 'C:/ST', characters: [], strayChats: [], worldbooks: [] });
-    expect(summary).toEqual({ characters: 0, stories: 0, worldbooks: 0, skipped: 0, failed: 0 });
+    const summary = await importSelected(st, { stRoot: 'C:/ST', characters: [], strayChats: [], worldbooks: [], presets: [] });
+    expect(summary).toEqual({ characters: 0, stories: 0, worldbooks: 0, presets: 0, regexes: 0, skipped: 0, failed: 0 });
     expect(await getAllCharacters()).toEqual([]);
   });
 });

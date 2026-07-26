@@ -14,6 +14,8 @@ export interface RegexCollectionItem {
   rules: RegexRule[];
   /** 写时复制派生副本的元数据；无 = 原生资产 */
   derived?: DerivedAssetMeta;
+  /** 从 ST 目录导入时的来源绝对路径（阶段9.11，重复导入判定） */
+  sourcePath?: string;
   createdAt: number;
   updatedAt: number;
 }

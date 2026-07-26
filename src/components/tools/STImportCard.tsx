@@ -29,11 +29,13 @@ interface ScanState {
   scan: STScanResult;
 }
 
-/** 勾选状态：三组各自一个 key 集合（角色=pngPath、散聊天/世界书=path） */
+/** 勾选状态：各组一个 key 集合（角色=pngPath、其余=path）；全局正则只有一组，布尔即可 */
 interface Picks {
   chars: Set<string>;
   strays: Set<string>;
   wbs: Set<string>;
+  presets: Set<string>;
+  regex: boolean;
 }
 
 function pickAll(scan: STScanResult): Picks {
@@ -41,8 +43,12 @@ function pickAll(scan: STScanResult): Picks {
     chars: new Set(scan.characters.map((c) => c.pngPath)),
     strays: new Set(scan.strayChats.map((c) => c.path)),
     wbs: new Set(scan.worldbooks.map((w) => w.path)),
+    presets: new Set(scan.presets.map((p) => p.path)),
+    regex: scan.regex !== null,
   };
 }
+
+const pickNone = (): Picks => ({ chars: new Set(), strays: new Set(), wbs: new Set(), presets: new Set(), regex: false });
 
 const toggle = (set: Set<string>, key: string, on: boolean) => {
   const next = new Set(set);
@@ -56,14 +62,16 @@ export function STImportCard() {
   const [scanning, setScanning] = useState(false);
   const [importing, setImporting] = useState(false);
   const [state, setState] = useState<ScanState | null>(null);
-  const [picks, setPicks] = useState<Picks>({ chars: new Set(), strays: new Set(), wbs: new Set() });
+  const [picks, setPicks] = useState<Picks>(pickNone());
 
-  const pickedCount = picks.chars.size + picks.strays.size + picks.wbs.size;
+  const pickedCount = picks.chars.size + picks.strays.size + picks.wbs.size + picks.presets.size + (picks.regex ? 1 : 0);
   const summaryLine = useMemo(() => {
     if (!state) return '';
-    const { characters, strayChats, worldbooks } = state.scan;
+    const { characters, strayChats, worldbooks, presets, regex } = state.scan;
     const chatCount = characters.reduce((s, c) => s + c.chats.length, 0) + strayChats.length;
-    return `找到 角色卡 ${characters.length} · 聊天 ${chatCount} · 世界书 ${worldbooks.length}`;
+    const parts = [`角色卡 ${characters.length}`, `聊天 ${chatCount}`, `世界书 ${worldbooks.length}`, `预设 ${presets.length}`];
+    if (regex) parts.push(`全局正则 ${regex.count} 条`);
+    return `找到 ${parts.join(' · ')}`;
   }, [state]);
 
   if (!isTauri()) return null;
@@ -75,8 +83,8 @@ export function STImportCard() {
       if (!root) return;
       const fs = createTauriFs(root);
       const scan = await scanSTUserDir(fs);
-      if (!scan.characters.length && !scan.strayChats.length && !scan.worldbooks.length) {
-        toast({ title: '没有找到 ST 内容', description: '该目录下没有 characters / chats / worlds，确认选的是 ST 目录？', variant: 'destructive' });
+      if (!scan.characters.length && !scan.strayChats.length && !scan.worldbooks.length && !scan.presets.length && !scan.regex) {
+        toast({ title: '没有找到 ST 内容', description: '该目录下没有 characters / chats / worlds 等内容，确认选的是 ST 目录？', variant: 'destructive' });
         return;
       }
       // 目录有效即记住（7.4 检查更新用），与本次是否导入无关
@@ -100,8 +108,11 @@ export function STImportCard() {
         characters: scan.characters.filter((c) => picks.chars.has(c.pngPath)),
         strayChats: scan.strayChats.filter((c) => picks.strays.has(c.path)),
         worldbooks: scan.worldbooks.filter((w) => picks.wbs.has(w.path)),
+        presets: scan.presets.filter((p) => picks.presets.has(p.path)),
+        regex: picks.regex ? scan.regex : null,
       });
-      const parts = [`角色 ${summary.characters}`, `故事 ${summary.stories}`, `世界书 ${summary.worldbooks}`];
+      const parts = [`角色 ${summary.characters}`, `故事 ${summary.stories}`, `世界书 ${summary.worldbooks}`, `预设 ${summary.presets}`];
+      if (summary.regexes) parts.push(`正则规则集 ${summary.regexes}`);
       if (summary.skipped) parts.push(`跳过已导入 ${summary.skipped}`);
       if (summary.failed) parts.push(`解析失败 ${summary.failed}`);
       toast({ title: '导入完成', description: parts.join('，') });
@@ -122,7 +133,7 @@ export function STImportCard() {
         <div className="min-w-0 basis-[14rem] grow">
           <p className="font-medium text-sm">接入 SillyTavern</p>
           <p className="text-xs text-muted-foreground mt-0.5">
-            指定 ST 目录，扫描角色卡 / 聊天 / 世界书，勾选后复制进库并记住来源
+            指定 ST 目录，扫描角色卡 / 聊天 / 世界书 / 预设 / 全局正则，勾选后复制进库并记住来源
           </p>
         </div>
         <Button variant="outline" size="sm" onClick={handlePick} disabled={scanning}>
@@ -213,15 +224,60 @@ export function STImportCard() {
                 </div>
               </section>
             )}
+
+            {!!state?.scan.presets.length && (
+              <section>
+                <p className="text-xs font-medium text-muted-foreground mb-2">预设（OpenAI Settings 聊天补全预设）</p>
+                <div className="flex flex-wrap gap-2">
+                  {state.scan.presets.map((p) => (
+                    <label
+                      key={p.path}
+                      className="flex items-center gap-2 rounded-lg border border-border p-2.5 basis-[15rem] grow cursor-pointer hover:bg-accent/50"
+                    >
+                      <Checkbox
+                        checked={picks.presets.has(p.path)}
+                        onCheckedChange={(on) => setPicks((prev) => ({ ...prev, presets: toggle(prev.presets, p.path, on === true) }))}
+                      />
+                      <span className="min-w-0 flex-1">
+                        <span className="block text-sm truncate">{p.name}</span>
+                        <span className="block text-xs text-muted-foreground">{formatBytes(p.size)}</span>
+                      </span>
+                    </label>
+                  ))}
+                </div>
+              </section>
+            )}
+
+            {state?.scan.regex && (
+              <section>
+                <p className="text-xs font-medium text-muted-foreground mb-2">正则</p>
+                <label className="flex items-center gap-2 rounded-lg border border-border p-2.5 cursor-pointer hover:bg-accent/50">
+                  <Checkbox
+                    checked={picks.regex}
+                    onCheckedChange={(on) => setPicks((prev) => ({ ...prev, regex: on === true }))}
+                  />
+                  <span className="min-w-0 flex-1">
+                    <span className="block text-sm">ST 全局正则</span>
+                    <span className="block text-xs text-muted-foreground">
+                      settings.json 里的 {state.scan.regex.count} 条脚本，整组导入为一套规则集
+                    </span>
+                  </span>
+                </label>
+              </section>
+            )}
           </div>
 
           <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
             <Label className="flex items-center gap-1.5 cursor-pointer font-normal">
               <Checkbox
-                checked={!!state && pickedCount === state.scan.characters.length + state.scan.strayChats.length + state.scan.worldbooks.length && pickedCount > 0}
-                onCheckedChange={(on) =>
-                  state && setPicks(on === true ? pickAll(state.scan) : { chars: new Set(), strays: new Set(), wbs: new Set() })
+                checked={
+                  !!state &&
+                  pickedCount > 0 &&
+                  pickedCount ===
+                    state.scan.characters.length + state.scan.strayChats.length + state.scan.worldbooks.length +
+                    state.scan.presets.length + (state.scan.regex ? 1 : 0)
                 }
+                onCheckedChange={(on) => state && setPicks(on === true ? pickAll(state.scan) : pickNone())}
               />
               全选
             </Label>

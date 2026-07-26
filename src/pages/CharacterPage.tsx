@@ -4,7 +4,6 @@ import {
   ArrowLeft,
   Plus,
   X,
-  ChevronDown,
   MessageSquare,
   Clock,
   Cpu,
@@ -26,11 +25,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import {
-  Collapsible,
-  CollapsibleContent,
-  CollapsibleTrigger,
-} from '@/components/ui/collapsible';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -305,34 +299,7 @@ const CharacterPage = () => {
             {/* 简介（阶段6）：整理版/AI 简介 + 草稿比较 + 历史 + 过期提示 */}
             <IntroSection character={character} norm={norm} onPatch={patchCharacter} />
 
-            {/* 原始字段：只留一个折叠入口（定稿：原文重要性偏低） */}
-            <Collapsible>
-              <CollapsibleTrigger asChild>
-                <Button variant="ghost" size="sm" className="text-muted-foreground gap-1 px-2">
-                  <ChevronDown className="w-4 h-4" />
-                  角色卡原文（Personality / Scenario / 开场白）
-                </Button>
-              </CollapsibleTrigger>
-              <CollapsibleContent className="space-y-3 pt-2">
-                {([
-                  ['Personality', norm.personality],
-                  ['Scenario', norm.scenario],
-                  ['First Message', norm.firstMessage],
-                ] as const)
-                  .filter(([, v]) => v)
-                  .map(([label, value]) => (
-                    <div key={label}>
-                      <p className="text-xs font-medium text-muted-foreground mb-1">{label}</p>
-                      <div className="text-xs whitespace-pre-wrap rounded-md bg-muted/40 p-2 max-h-40 overflow-y-auto">
-                        {value}
-                      </div>
-                    </div>
-                  ))}
-                <Button variant="outline" size="sm" onClick={() => navigate('/card-viewer')}>
-                  在角色卡工具中查看完整字段
-                </Button>
-              </CollapsibleContent>
-            </Collapsible>
+            {/* 角色卡原文折叠区已去掉（阶段9.5 用户反馈：展开基本只是开场白没价值）；完整字段走角色卡工具 */}
           </div>
         </div>
 

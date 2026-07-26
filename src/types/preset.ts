@@ -70,6 +70,8 @@ export interface PresetItem {
   autoSaved?: boolean;
   /** 写时复制派生副本的元数据（2.0 阶段5，定稿第七章）；无 = 原生资产 */
   derived?: import('@/types/archive').DerivedAssetMeta;
+  /** 从 ST 目录导入时的来源绝对路径（阶段9.11，重复导入判定） */
+  sourcePath?: string;
 }
 
 /** prompt 块的 role 中文标签 */
