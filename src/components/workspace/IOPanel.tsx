@@ -19,7 +19,7 @@ import type { SummaryItem } from '@/types/summary';
 import type { StoryTree } from '@/types/story-tree';
 import { SUMMARY_KIND_LABELS } from '@/types/summary';
 import { parseJsonl, parseJson, mergeReimport } from '@/lib/adapters/st';
-import { isTauri } from '@/lib/vault/tauri-fs';
+import { isTauri, readAbsText } from '@/lib/vault/tauri-fs';
 import { WritebackSection } from '@/components/workspace/WritebackSection';
 import { updateBranchLine, getBranchLine, type BranchLine } from '@/lib/archive-db';
 import { getAllSummaries } from '@/lib/summary-db';
@@ -75,21 +75,14 @@ export function IOPanel({ story, branchId, line, settings, onStoryUpdate }: IOPa
     onStoryUpdate((cur) => ({ ...cur, lastExportedAt: Date.now() }));
   };
 
-  // 网页版「检查 ST 更新」的等价操作：手动重选同一个聊天文件，走 5.3① 合并规则
-  const handleReimport = async (files: FileList | null) => {
-    const file = files?.[0];
-    if (!file) return;
-    try {
-      const content = await file.text();
-      const isJsonl = file.name.endsWith('.jsonl') || content.trim().split('\n').length > 1;
-      const parsed = isJsonl ? parseJsonl(content) : parseJson(content);
-      if (parsed.messages.length === 0) throw new Error('empty');
+  /** 解析文本并按 5.3① 合并规则并入当前脉络（选文件与按原路径重导共用） */
+  const mergeText = (content: string, nameHint: string) => {
+    const isJsonl = nameHint.endsWith('.jsonl') || content.trim().split('\n').length > 1;
+    const parsed = isJsonl ? parseJsonl(content) : parseJson(content);
+    if (parsed.messages.length === 0) throw new Error('empty');
 
-      const result = mergeReimport(line.session, parsed);
-      if (!result.changed) {
-        toast({ title: '重新导入完成', description: result.summary });
-        return;
-      }
+    const result = mergeReimport(line.session, parsed);
+    if (result.changed) {
       onStoryUpdate((cur) => {
         // 以落库时的最新脉络为准再合一次，避免防抖窗口内的编辑被旧快照顶掉
         const curLine = getBranchLine(cur, branchId);
@@ -97,11 +90,36 @@ export function IOPanel({ story, branchId, line, settings, onStoryUpdate }: IOPa
         const updated = updateBranchLine(cur, branchId, { session: merged.session });
         return { ...updated, lastImportedAt: Date.now() };
       });
-      toast({ title: '重新导入完成', description: result.summary });
+    }
+    toast({ title: '重新导入完成', description: result.summary });
+  };
+
+  // 网页版「检查 ST 更新」的等价操作：手动重选同一个聊天文件，走 5.3① 合并规则
+  const handleReimport = async (files: FileList | null) => {
+    const file = files?.[0];
+    if (!file) return;
+    try {
+      mergeText(await file.text(), file.name);
     } catch {
       toast({ title: '导入失败', description: '无法解析该文件（应为 ST 聊天 JSONL/JSON）', variant: 'destructive' });
     } finally {
       if (fileRef.current) fileRef.current.value = '';
+    }
+  };
+
+  // 客户端一键重导（阶段9.7 用户反馈：能写回就不该再手动选文件）：直接读原绑定文件。
+  // 只在主线开放——sourcePath 是主线的来源文件，分支该并分支自己的文件。
+  const canReimportFromSource = isTauri() && !!story.sourcePath && branchId === null;
+  const handleReimportFromSource = async () => {
+    if (!story.sourcePath) return;
+    try {
+      mergeText(await readAbsText(story.sourcePath), story.sourcePath);
+    } catch {
+      toast({
+        title: '按原文件重新导入失败',
+        description: '来源文件可能已移动/删除或无法解析，可改用「另选文件重新导入」',
+        variant: 'destructive',
+      });
     }
   };
 
@@ -167,11 +185,24 @@ export function IOPanel({ story, branchId, line, settings, onStoryUpdate }: IOPa
             className="hidden"
             onChange={(e) => handleReimport(e.target.files)}
           />
-          <Button variant="outline" size="sm" onClick={() => fileRef.current?.click()}>
-            <RefreshCw className="w-4 h-4 mr-1.5" />
-            选择文件重新导入
-          </Button>
-          <p className="text-[11px] text-muted-foreground/70">客户端版（阶段7）打开故事时会自动比对 ST 目录并在角落提示。</p>
+          <div className="flex flex-wrap items-center gap-2">
+            {canReimportFromSource && (
+              <Button size="sm" onClick={handleReimportFromSource}>
+                <RefreshCw className="w-4 h-4 mr-1.5" />
+                按原绑定文件重新导入
+              </Button>
+            )}
+            <Button variant="outline" size="sm" onClick={() => fileRef.current?.click()}>
+              <FileUp className="w-4 h-4 mr-1.5" />
+              {canReimportFromSource ? '另选文件重新导入' : '选择文件重新导入'}
+            </Button>
+          </div>
+          {isTauri() && story.sourcePath && branchId !== null && (
+            <p className="text-[11px] text-muted-foreground/70">当前在分支上：原绑定文件属于主线，请切回主线再一键重导，或另选该分支的文件。</p>
+          )}
+          {!isTauri() && (
+            <p className="text-[11px] text-muted-foreground/70">客户端版打开故事时会自动比对 ST 目录并在角落提示，这里还可一键按原文件重导。</p>
+          )}
         </CardContent>
       </Card>
 
