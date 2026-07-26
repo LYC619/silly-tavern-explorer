@@ -12,8 +12,10 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Users, UploadCloud, ArrowRight, Globe, SlidersHorizontal, Regex as RegexIcon,
-  ScrollText, IdCard, Clock, MessageSquare, Cpu, BookOpenText,
+  ScrollText, IdCard, Clock, MessageSquare, Cpu, BookOpenText, KeyRound,
 } from 'lucide-react';
+import { isTauri } from '@/lib/vault/tauri-fs';
+import { STAIConfigDialog } from '@/components/tools/STAIConfigDialog';
 import { AppLayout } from '@/components/AppLayout';
 import { Badge } from '@/components/ui/badge';
 import type { ArchiveCharacter, ArchiveStory } from '@/types/archive';
@@ -48,6 +50,7 @@ const Home = () => {
   const [recentStories, setRecentStories] = useState<ArchiveStory[]>([]);
   const [resources, setResources] = useState<Record<string, StoryResources>>({});
   const [assetCounts, setAssetCounts] = useState({ worldbooks: 0, presets: 0, regexes: 0 });
+  const [stConfigOpen, setStConfigOpen] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -90,7 +93,7 @@ const Home = () => {
   const coverWall = [...characters].sort((a, b) => b.createdAt - a.createdAt).slice(0, 12);
 
   // 阶段9.8：其他资产直达资产库列表页（不再直接进处理界面）。
-  // AI 配置已迁设置页（9.9）；这里将来放用户 ST 侧的配置概念。
+  // 应用自身 AI 配置在设置页（9.9）；「ST 配置」= 用户在 ST 使用的 AI 连接概况（只读，仅客户端）。
   const OTHER_ASSETS = [
     { label: '世界书', icon: Globe, path: '/assets?tab=worldbook', count: assetCounts.worldbooks },
     { label: '预设', icon: SlidersHorizontal, path: '/assets?tab=preset', count: assetCounts.presets },
@@ -281,11 +284,23 @@ const Home = () => {
                     </button>
                   );
                 })}
+                {/* ST 配置（仅客户端）：用户在 ST 使用的 AI 连接概况，只读快照 */}
+                {isTauri() && (
+                  <button
+                    onClick={() => setStConfigOpen(true)}
+                    className="flex items-center gap-2 rounded-lg border border-border bg-card px-2.5 py-2 text-sm hover:border-primary/40 transition-colors"
+                  >
+                    <KeyRound className="w-4 h-4 text-muted-foreground shrink-0" />
+                    <span className="flex-1 text-left truncate">ST 配置</span>
+                  </button>
+                )}
               </div>
             </section>
           </div>
         </div>
       </div>
+
+      <STAIConfigDialog open={stConfigOpen} onOpenChange={setStConfigOpen} />
     </AppLayout>
   );
 };

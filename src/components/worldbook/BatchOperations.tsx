@@ -8,7 +8,7 @@ import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { Label } from '@/components/ui/label';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
-import { CheckSquare, X, Trash2, TextCursorInput, MapPin, Zap, ToggleLeft, ToggleRight, MoreHorizontal, CheckCheck, XCircle } from 'lucide-react';
+import { CheckSquare, X, Trash2, TextCursorInput, MapPin, Zap, ToggleLeft, ToggleRight, MoreHorizontal, CheckCheck, XCircle, FolderInput } from 'lucide-react';
 import { POSITION_LABELS, ROLE_LABELS } from '@/types/worldbook';
 
 interface BatchOperationsProps {
@@ -22,12 +22,16 @@ interface BatchOperationsProps {
   onBatchPosition: (position: number, depth?: number, role?: number) => void;
   onBatchStrategy: (strategy: 'keyword' | 'constant' | 'vectorized') => void;
   onBatchEnable: (enabled: boolean) => void;
+  /** 可作为复制/转移目标的其他已入库世界书（阶段9.8 余项） */
+  copyTargets: { id: string; title: string }[];
+  onBatchCopyTo: (targetId: string, move: boolean) => void;
 }
 
 export function BatchOperations({
   selectedKeys, totalFiltered,
   onSelectAll, onDeselectAll, onExitBatch,
   onBatchPrefix, onBatchDelete, onBatchPosition, onBatchStrategy, onBatchEnable,
+  copyTargets, onBatchCopyTo,
 }: BatchOperationsProps) {
   const isMobile = useIsMobile();
   const count = selectedKeys.size;
@@ -42,6 +46,9 @@ export function BatchOperations({
   const [posRole, setPosRole] = useState(0);
   const [strategyOpen, setStrategyOpen] = useState(false);
   const [strategyValue, setStrategyValue] = useState<'keyword' | 'constant' | 'vectorized'>('keyword');
+  const [copyOpen, setCopyOpen] = useState(false);
+  const [copyTargetId, setCopyTargetId] = useState('');
+  const [copyMove, setCopyMove] = useState<'copy' | 'move'>('copy');
 
   const handlePrefixApply = () => {
     if (prefixText.trim()) {
@@ -60,6 +67,12 @@ export function BatchOperations({
   const handleStrategyApply = () => {
     onBatchStrategy(strategyValue);
     setStrategyOpen(false);
+  };
+
+  const handleCopyApply = () => {
+    if (!copyTargetId) return;
+    onBatchCopyTo(copyTargetId, copyMove === 'move');
+    setCopyOpen(false);
   };
 
   const actionButtons = (
@@ -83,6 +96,11 @@ export function BatchOperations({
       <Button variant="outline" size="sm" className="h-7 text-xs" disabled={count === 0}
         onClick={() => onBatchEnable(false)}>
         <ToggleLeft className="w-3.5 h-3.5 mr-1" /> 全部停用
+      </Button>
+      <Button variant="outline" size="sm" className="h-7 text-xs" disabled={count === 0 || copyTargets.length === 0}
+        title={copyTargets.length === 0 ? '资产库里没有其他世界书可作为目标' : '把选中条目复制或转移到另一本已入库的世界书'}
+        onClick={() => setCopyOpen(true)}>
+        <FolderInput className="w-3.5 h-3.5 mr-1" /> 复制/转移
       </Button>
       <Button variant="destructive" size="sm" className="h-7 text-xs" disabled={count === 0}
         onClick={() => setDeleteOpen(true)}>
@@ -133,6 +151,9 @@ export function BatchOperations({
               </DropdownMenuItem>
               <DropdownMenuItem onClick={() => onBatchEnable(false)}>
                 <ToggleLeft className="w-4 h-4 mr-2" /> 全部停用
+              </DropdownMenuItem>
+              <DropdownMenuItem disabled={copyTargets.length === 0} onClick={() => setCopyOpen(true)}>
+                <FolderInput className="w-4 h-4 mr-2" /> 复制/转移到其他书
               </DropdownMenuItem>
               <DropdownMenuItem className="text-destructive" onClick={() => setDeleteOpen(true)}>
                 <Trash2 className="w-4 h-4 mr-2" /> 批量删除
@@ -259,6 +280,47 @@ export function BatchOperations({
           <DialogFooter>
             <Button variant="outline" onClick={() => setStrategyOpen(false)}>取消</Button>
             <Button onClick={handleStrategyApply}>应用</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Copy/Move to another book dialog（阶段9.8 余项：条目跨书复制/转移） */}
+      <Dialog open={copyOpen} onOpenChange={setCopyOpen}>
+        <DialogContent className="sm:max-w-sm">
+          <DialogHeader>
+            <DialogTitle>复制/转移到其他世界书</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3 py-2">
+            <p className="text-sm text-muted-foreground">
+              把选中的 {count} 个条目放进另一本已入库的世界书（uid 自动顺延，不会撞号）
+            </p>
+            <Select value={copyTargetId} onValueChange={setCopyTargetId}>
+              <SelectTrigger><SelectValue placeholder="选择目标世界书" /></SelectTrigger>
+              <SelectContent>
+                {copyTargets.map((t) => (
+                  <SelectItem key={t.id} value={t.id}>{t.title}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <RadioGroup value={copyMove} onValueChange={(v) => setCopyMove(v as 'copy' | 'move')}>
+              <div className="flex items-center space-x-2">
+                <RadioGroupItem value="copy" id="cp-copy" />
+                <Label htmlFor="cp-copy">复制（当前书保留原条目）</Label>
+              </div>
+              <div className="flex items-center space-x-2">
+                <RadioGroupItem value="move" id="cp-move" />
+                <Label htmlFor="cp-move">转移（从当前书移除）</Label>
+              </div>
+            </RadioGroup>
+            <p className="text-xs text-muted-foreground">
+              目标世界书直接落库；转移后当前书的改动仍需手动保存。
+            </p>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setCopyOpen(false)}>取消</Button>
+            <Button onClick={handleCopyApply} disabled={!copyTargetId}>
+              {copyMove === 'move' ? '转移' : '复制'}
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

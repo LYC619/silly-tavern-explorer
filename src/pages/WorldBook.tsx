@@ -29,6 +29,7 @@ import { QuickCreate } from '@/components/worldbook/QuickCreate';
 import type { WorldBook, WorldBookEntry } from '@/types/worldbook';
 import { DEFAULT_ENTRY, POSITION_LABELS, generateWorldBookId, parseWorldBook } from '@/types/worldbook';
 import { saveWorldBook, getAllWorldBooks, getWorldBook, deleteWorldBook, pruneAutoSavedWorldBooks } from '@/lib/worldbook-db';
+import { appendEntries } from '@/lib/worldbook-entry-copy';
 import { planCowSave, buildDerivedMeta, switchAssetRef } from '@/lib/asset-cow';
 import { getCharacter, saveCharacter } from '@/lib/archive-db';
 import { takePendingToolFile, peekPendingToolFile } from '@/lib/tool-handoff';
@@ -608,6 +609,42 @@ export default function WorldBookPage() {
     toast({ title: '已删除', description: `已删除 ${count} 个条目` });
   }, [batchSelected, selectedUid, toast]);
 
+  // 条目跨书复制/转移（阶段9.8 余项）：目标=资产库里另一本世界书，直接落库；
+  // 「转移」再从当前书移除（当前书走正常 dirty→手动保存流程）
+  const handleBatchCopyTo = useCallback(async (targetId: string, move: boolean) => {
+    if (!worldbook) return;
+    const entries = [...batchSelected].map((k) => worldbook.entries[k]).filter(Boolean);
+    if (entries.length === 0) return;
+    try {
+      const target = await getWorldBook(targetId);
+      if (!target) {
+        toast({ title: '目标世界书不存在', description: '可能刚被删除，请刷新后重试', variant: 'destructive' });
+        return;
+      }
+      await saveWorldBook({ ...target, worldbook: appendEntries(target.worldbook, entries), updatedAt: Date.now() });
+      setSavedItems(await getAllWorldBooks());
+      if (move) {
+        setWorldbook(prev => {
+          if (!prev) return prev;
+          const updated = { ...prev.entries };
+          batchSelected.forEach(key => { delete updated[key]; });
+          return { ...prev, entries: updated };
+        });
+        if (selectedUid && batchSelected.has(selectedUid)) {
+          setSelectedUid(null);
+          setMobileEditorOpen(false);
+        }
+        setBatchSelected(new Set());
+      }
+      toast({
+        title: move ? '已转移' : '已复制',
+        description: `${entries.length} 个条目 → 「${target.title}」${move ? '（当前书的移除记得保存）' : '，原条目保留'}`,
+      });
+    } catch {
+      toast({ title: move ? '转移失败' : '复制失败', variant: 'destructive' });
+    }
+  }, [worldbook, batchSelected, selectedUid, toast]);
+
   const handleBatchPosition = useCallback((position: number, depth?: number, role?: number) => {
     batchUndoRef.current = worldbook;
     setWorldbook(prev => {
@@ -938,6 +975,8 @@ export default function WorldBookPage() {
                       onBatchPosition={handleBatchPosition}
                       onBatchStrategy={handleBatchStrategy}
                       onBatchEnable={handleBatchEnable}
+                      copyTargets={savedItems.filter((i) => i.id !== currentItemId).map((i) => ({ id: i.id, title: i.title }))}
+                      onBatchCopyTo={handleBatchCopyTo}
                     />
                   ) : (
                     <>
