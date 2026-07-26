@@ -1,9 +1,10 @@
 import { forwardRef, useMemo, useState, useEffect, useRef, useImperativeHandle, memo } from 'react';
 import { useWindowVirtualizer } from '@tanstack/react-virtual';
-import { User, Bot, Bookmark, BookmarkPlus, Pencil, EyeOff } from 'lucide-react';
+import { User, Bot, Bookmark, BookmarkPlus, Pencil, EyeOff, MessageSquareDashed, ChevronLeft, ChevronRight } from 'lucide-react';
 import type { ChatSession, ThemeStyle, RegexRule, ChapterMarker } from '@/types/chat';
 import { applyRegexRules, parseRegex } from '@/lib/regex-processor';
 import { parseSTDate } from '@/lib/adapters/st/chat-jsonl';
+import { swipeCount, currentSwipeId, isOOCMessage } from '@/lib/chat-edit';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 
 /**
@@ -47,6 +48,10 @@ interface ChatPreviewProps {
   onSearchResult?: (total: number, current: number) => void;
   /** 是否展示被 ST 隐藏(Hide)的楼层；false 时过滤掉（默认 true，归档场景倾向全展示） */
   showHidden?: boolean;
+  /** 是否展示 OOC/注释楼（ST /comment）；与普通隐藏楼独立开关（默认 true） */
+  showOOC?: boolean;
+  /** 切换某楼的 swipe 候选（有多候选时显示切换控件；不传则不显示） */
+  onSwipeSelect?: (messageId: string, targetId: number) => void;
 }
 
 /**
@@ -133,6 +138,11 @@ interface ProcessedMessage {
   paragraphs: string[];
   /** 是否与上一条不同说话人——预算进 memo，虚拟化后行不连续渲染也正确 */
   isNewSpeaker: boolean;
+  /** OOC/注释楼（extra.type=comment），与普通隐藏楼分开标注与开关 */
+  ooc: boolean;
+  /** swipe 候选数与当前下标（候选数>1 时显示切换控件） */
+  swipeTotal: number;
+  swipeId: number;
 }
 
 type ThemeClasses = ReturnType<typeof getThemeClasses>;
@@ -206,6 +216,8 @@ interface MessageRowProps {
   onMessageClick?: (messageId: string, messageIndex: number) => void;
   /** 点击该楼右上角铅笔：直接打开本楼编辑窗口 */
   onEditMessage?: (messageId: string, messageIndex: number) => void;
+  /** 切换该楼 swipe 候选（多候选时在楼底显示 ‹ n/m › 控件） */
+  onSwipeSelect?: (messageId: string, targetId: number) => void;
 }
 
 /**
@@ -215,7 +227,7 @@ interface MessageRowProps {
  */
 const MessageRow = memo(function MessageRow({
   message, marker, index, theme, classes, showTimestamp, showAvatar,
-  editMode, previewRule, searchQuery, isActiveMatch, userName, charName, onMessageClick, onEditMessage,
+  editMode, previewRule, searchQuery, isActiveMatch, userName, charName, onMessageClick, onEditMessage, onSwipeSelect,
 }: MessageRowProps) {
   const isUser = message.role === 'user';
   const isNewSpeaker = message.isNewSpeaker;
@@ -248,10 +260,13 @@ const MessageRow = memo(function MessageRow({
         } ${isActiveMatch ? 'rounded-lg ring-2 ring-primary/60 ring-offset-2 ring-offset-background' : ''} ${message.hidden ? 'opacity-70' : ''}`}
         onClick={() => editMode && onMessageClick?.(message.id, index)}
       >
-        {/* ST 隐藏楼层标识：正常导入展示，但标明它在 ST 里是被 Hide 的（导出会原样保留 is_system） */}
+        {/* 隐藏楼/OOC 标类型（定稿 5.1：全部保留并标类型）。OOC=ST 的 /comment 注释楼，
+            与被 Hide 的普通楼层分开标注、分开开关；导出都会原样保留 is_system */}
         {message.hidden && (
           <div className="mb-1.5 inline-flex items-center gap-1 rounded bg-muted/70 px-1.5 py-0.5 text-xs text-muted-foreground">
-            <EyeOff className="w-3 h-3" />ST 中已隐藏
+            {message.ooc
+              ? <><MessageSquareDashed className="w-3 h-3" />OOC / 注释</>
+              : <><EyeOff className="w-3 h-3" />ST 中已隐藏</>}
           </div>
         )}        {/* 章节标记模式：每条消息左上角常驻楼层号+书签按钮，清晰可点 */}
         {editMode && (
@@ -372,13 +387,38 @@ const MessageRow = memo(function MessageRow({
             </div>
           </div>
         )}
+        {/* Swipe 切换（定稿 5.1）：正文只显示当前候选，此控件查看/选择其他候选。
+            切换会同步 mes/swipe_id（导出跟随当前候选），编辑走楼层编辑窗口 */}
+        {message.swipeTotal > 1 && onSwipeSelect && !editMode && (
+          <div className="mt-1.5 flex items-center gap-0.5 text-xs text-muted-foreground select-none">
+            <button
+              type="button"
+              disabled={message.swipeId <= 0}
+              onClick={(e) => { e.stopPropagation(); onSwipeSelect(message.id, message.swipeId - 1); }}
+              className="flex h-5 w-5 items-center justify-center rounded hover:bg-accent hover:text-foreground disabled:opacity-30 disabled:pointer-events-none"
+              aria-label="上一个候选"
+            >
+              <ChevronLeft className="w-3.5 h-3.5" />
+            </button>
+            <span className="tabular-nums px-0.5">候选 {message.swipeId + 1}/{message.swipeTotal}</span>
+            <button
+              type="button"
+              disabled={message.swipeId >= message.swipeTotal - 1}
+              onClick={(e) => { e.stopPropagation(); onSwipeSelect(message.id, message.swipeId + 1); }}
+              className="flex h-5 w-5 items-center justify-center rounded hover:bg-accent hover:text-foreground disabled:opacity-30 disabled:pointer-events-none"
+              aria-label="下一个候选"
+            >
+              <ChevronRight className="w-3.5 h-3.5" />
+            </button>
+          </div>
+        )}
       </div>
     </div>
   );
 });
 
 export const ChatPreview = memo(forwardRef<ChatPreviewHandle, ChatPreviewProps>(
-  ({ session, theme, showTimestamp, showAvatar, fontSize, regexRules, markers = [], onMessageClick, onEditMessage, editMode = false, fontFamily, previewRule = null, onVisibleFloorChange, onFloorMapChange, searchQuery = '', onSearchResult, showHidden = true }, ref) => {
+  ({ session, theme, showTimestamp, showAvatar, fontSize, regexRules, markers = [], onMessageClick, onEditMessage, editMode = false, fontFamily, previewRule = null, onVisibleFloorChange, onFloorMapChange, searchQuery = '', onSearchResult, showHidden = true, showOOC = true, onSwipeSelect }, ref) => {
     const markerMap = useMemo(() => {
       const map = new Map<string, ChapterMarker>();
       markers.forEach(m => map.set(m.messageId, m));
@@ -401,12 +441,17 @@ export const ChatPreview = memo(forwardRef<ChatPreviewHandle, ChatPreviewProps>(
       const out: ProcessedMessage[] = [];
       let prevRole: string | null = null; // 记录上一条已保留消息的 role，预算 isNewSpeaker
       for (const msg of session.messages) {
-        if (msg.hidden && !showHidden) continue; // ST 隐藏楼层：开关关闭时不渲染
+        const ooc = isOOCMessage(msg);
+        // 隐藏楼/OOC 分开开关：OOC 也是 is_system 隐藏楼，但用户可能只想关掉注释、保留剧情隐藏楼
+        if (msg.hidden && !(ooc ? showOOC : showHidden)) continue;
         const isUser = msg.role === 'user';
         // 去除首尾空白：正则删除开头/结尾的标签块后常残留换行，
         // 否则 text-indent 会缩进到这条残留空行上，导致正文看起来没缩进、缩进忽有忽无。
         const processedContent = applyRegexRules(msg.content, activeRules, isUser).trim();
-        if (!processedContent) continue; // 过滤掉空消息
+        const swipeTotal = swipeCount(msg);
+        // 空消息过滤——但有多候选的楼保留：当前候选可能恰好为空（或被正则清空），
+        // 过滤掉该行用户就永远切不回其他候选了。
+        if (!processedContent && swipeTotal <= 1) continue;
         // 预切段落（仅在此 memo 里算一次），render 时直接 map 成 <p>，
         // 避免每次重渲染都对全部消息重跑 split。
         const paragraphs = processedContent.split(/\n+/).map(s => s.trim()).filter(Boolean);
@@ -416,11 +461,14 @@ export const ChatPreview = memo(forwardRef<ChatPreviewHandle, ChatPreviewProps>(
           content: processedContent,
           paragraphs,
           isNewSpeaker: prevRole !== msg.role,
+          ooc,
+          swipeTotal,
+          swipeId: currentSwipeId(msg),
         });
         prevRole = msg.role;
       }
       return out;
-    }, [session.messages, debouncedRules, previewRule, showHidden]);
+    }, [session.messages, debouncedRules, previewRule, showHidden, showOOC]);
 
     const classes = useMemo(() => getThemeClasses(theme), [theme]);
 
@@ -593,6 +641,7 @@ export const ChatPreview = memo(forwardRef<ChatPreviewHandle, ChatPreviewProps>(
                     charName={session.character.name}
                     onMessageClick={onMessageClick}
                     onEditMessage={onEditMessage}
+                    onSwipeSelect={onSwipeSelect}
                   />
                 </div>
               );

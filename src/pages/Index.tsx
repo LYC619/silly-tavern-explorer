@@ -1,103 +1,50 @@
-import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
-import { useLocation } from 'react-router-dom';
-import { Eye, EyeOff, Pencil } from 'lucide-react';
-import { Input } from '@/components/ui/input';
+/**
+ * 聊天处理页（2.0 阶段2 起 = 未绑定模式的统一聊天工作台，定稿第六章）。
+ * 界面主体在 ChatWorkbench（与故事工作区同一套）；本页只负责：
+ * 导入落地、书架自动同步、跨页指针、引导教程，以及「未绑定 → 绑定到角色」升级。
+ */
+import { useState, useEffect, useRef, useCallback } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
+import { Link2 } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
 import { AppLayout } from '@/components/AppLayout';
-import { ChatImporter, type ImportStats } from '@/components/ChatImporter';
-import { ChatPreview, type ChatPreviewHandle } from '@/components/ChatPreview';
-import { MessageNavBar, type FavoriteItem } from '@/components/MessageNavBar';
-import { MessageSearchBar } from '@/components/MessageSearchBar';
-import { EditorToolbar } from '@/components/EditorToolbar';
-import { ChapterMarkerDialog } from '@/components/ChapterMarkerDialog';
-import { MessageEditDialog } from '@/components/MessageEditDialog';
-import { RegexSidebar } from '@/components/RegexSidebar';
+import { ChatImporter, type ImportStats } from '@/components/chat/ChatImporter';
+import { ChatWorkbench } from '@/components/chat/ChatWorkbench';
+import { BindStoryDialog } from '@/components/chat/BindStoryDialog';
 import { GuidedTour } from '@/components/GuidedTour';
 import { HOME_TOUR_STEPS, isTourCompleted, setTourCompleted } from '@/lib/tour-steps';
-import { demoSession } from '@/components/DemoData';
-import type { ChatSession, ExportSettings, ChapterMarker, ChatMessage, RegexRule } from '@/types/chat';
+import { demoSession, DemoData } from '@/components/DemoData';
+import type { ChatSession, ExportSettings, ChapterMarker } from '@/types/chat';
+import type { ArchiveCharacter } from '@/types/archive';
 import { saveBook, getBook, generateBookId, type BookItem } from '@/lib/bookshelf-db';
+import { bindSessionToCharacter } from '@/lib/bind-story';
 import {
   saveSessionPointer,
   loadSessionPointer,
   loadActiveSession,
   clearSessionState,
-  getInitialRegexRules,
+  getDefaultExportSettings,
   saveSettings,
-  loadSettings,
 } from '@/lib/session-storage';
-import { SettingsPanel } from '@/components/SettingsPanel';
 import { APP_VERSION } from '@/components/GlobalSettings';
-import { applyRegexRules } from '@/lib/regex-processor';
 import { useToast } from '@/hooks/use-toast';
-import { ToastAction } from '@/components/ui/toast';
-
-const getDefaultSettings = (): ExportSettings => {
-  const saved = loadSettings();
-  if (saved) {
-    return {
-      ...saved,
-      regexRules: getInitialRegexRules(),
-    };
-  }
-  return {
-    theme: 'elegant',
-    showTimestamp: false,
-    showAvatar: true,
-    paperWidth: 600,
-    fontSize: 15,
-    prefixMode: 'name',
-    regexRules: getInitialRegexRules(),
-    cleanPluginCache: true,
-    exportRange: 'all',
-    recentCount: 100,
-    customStart: 1,
-    customEnd: 100,
-  };
-};
 
 const Index = () => {
   const location = useLocation();
+  const navigate = useNavigate();
   const { toast } = useToast();
   const [showTour, setShowTour] = useState(false);
   const [session, setSession] = useState<ChatSession | null>(null);
-  const [settings, setSettings] = useState<ExportSettings>(getDefaultSettings);
+  const [settings, setSettings] = useState<ExportSettings>(getDefaultExportSettings);
   const [markers, setMarkers] = useState<ChapterMarker[]>([]);
   // 收藏楼层（messageId），轻量书签用于跳转，不进导出
   const [favorites, setFavorites] = useState<string[]>([]);
-  // 跳楼层：ChatPreview 命令式句柄 + 当前顶部可见楼层 + messageId→楼层号映射
-  const previewRef = useRef<ChatPreviewHandle>(null);
   const [currentFloor, setCurrentFloor] = useState(0);
-  const [currentFloorMsgId, setCurrentFloorMsgId] = useState<string | null>(null);
-  const [floorCount, setFloorCount] = useState(0);
-  const [floorMap, setFloorMap] = useState<Map<string, number>>(new Map());
-  // 从指针恢复会话时待跳转的楼层号；等 ChatPreview 首次上报楼层映射后消费一次
-  const pendingRestoreFloorRef = useRef<number | null>(null);
-  // 全文搜索
-  const [searchQuery, setSearchQuery] = useState('');
-  const [searchResult, setSearchResult] = useState({ total: 0, current: 0 });
-  const handleSearchResult = useCallback((total: number, current: number) => {
-    setSearchResult({ total, current });
-  }, []);
-  const [editMode, setEditMode] = useState(false);
-  // 是否展示被 ST 隐藏(Hide)的楼层（默认展示；有隐藏楼层时顶部出开关）
-  const [showHidden, setShowHidden] = useState(true);
-  const [markerDialogOpen, setMarkerDialogOpen] = useState(false);
-  const [messageEditDialogOpen, setMessageEditDialogOpen] = useState(false);
-  const [selectedMessage, setSelectedMessage] = useState<{ id: string; index: number } | null>(null);
+  // 从指针恢复会话时要跳回的楼层，交给 ChatWorkbench 挂载后消费
+  const [restoreFloor, setRestoreFloor] = useState<number | undefined>(undefined);
   const [currentBookId, setCurrentBookId] = useState<string | null>(null);
-  const [regexSidebarOpen, setRegexSidebarOpen] = useState(false);
-  // 正在主界面原地预览的正则规则（点侧栏「预览」时设置，再次点取消）
-  const [previewRule, setPreviewRule] = useState<RegexRule | null>(null);
-
-  // 任意方式载入聊天记录（导入/从书架编辑/恢复上次会话）后，自动展开正则框一次，
-  // 让用户第一时间看到清理工具；之后用户可自由关闭，不会被反复强制打开。
-  const regexAutoOpenedRef = useRef(false);
-  useEffect(() => {
-    if (session && !regexAutoOpenedRef.current) {
-      regexAutoOpenedRef.current = true;
-      setRegexSidebarOpen(true);
-    }
-  }, [session]);
+  const [bindDialogOpen, setBindDialogOpen] = useState(false);
 
   // Auto-start tour for first-time visitors
   useEffect(() => {
@@ -137,7 +84,7 @@ const Index = () => {
           setCurrentBookId(pointer.currentBookId);
           // 记下离开时的楼层，等虚拟列表挂载后恢复一次（切路由页面整棵卸载，滚动必回顶）
           if (typeof pointer.lastFloor === 'number' && pointer.lastFloor > 0) {
-            pendingRestoreFloorRef.current = pointer.lastFloor;
+            setRestoreFloor(pointer.lastFloor);
           }
         });
         return () => { cancelled = true; };
@@ -171,9 +118,7 @@ const Index = () => {
     }
   }, [toast]);
 
-  // 保存「跨页临时态」到 sessionStorage（防抖）。
-  // 现在只存轻量指针(currentBookId+markers+favorites)，session 本体在 IndexedDB，
-  // 永远不会触及 5MB 配额，故不再需要 quota 提示。settings 已单独持久化到 localStorage。
+  // 保存「跨页临时态」到 sessionStorage（防抖）。只存轻量指针，session 本体在 IndexedDB。
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   useEffect(() => {
     if (session) {
@@ -184,18 +129,6 @@ const Index = () => {
     }
     return () => { if (saveTimerRef.current) clearTimeout(saveTimerRef.current); };
   }, [session, markers, currentBookId, favorites, currentFloor]);
-
-  // 恢复滚动位置：楼层映射首次就绪（虚拟列表已挂载）后跳一次，
-  // 稍作延迟等首帧布局/scrollMargin 测量稳定，否则 scrollToIndex 会落点偏移。
-  useEffect(() => {
-    const floor = pendingRestoreFloorRef.current;
-    if (floor == null || floorCount === 0) return;
-    pendingRestoreFloorRef.current = null;
-    const t = setTimeout(() => {
-      previewRef.current?.scrollToFloor(Math.min(floor, floorCount - 1));
-    }, 150);
-    return () => clearTimeout(t);
-  }, [floorCount]);
 
   // 保存设置变更到 localStorage
   useEffect(() => {
@@ -228,6 +161,8 @@ const Index = () => {
 
   const handleImport = async (newSession: ChatSession, stats?: ImportStats) => {
     setSession(newSession);
+    setMarkers([]);
+    setRestoreFloor(undefined);
     // Auto-save to bookshelf on import
     try {
       const bookId = generateBookId();
@@ -266,9 +201,8 @@ const Index = () => {
     setSession(null);
     setMarkers([]);
     setFavorites([]);
-    setEditMode(false);
     setCurrentBookId(null);
-    setRegexSidebarOpen(false);
+    setRestoreFloor(undefined);
     clearSessionState();
   };
 
@@ -299,272 +233,36 @@ const Index = () => {
     }
   };
 
-  // 章节标记模式：点任意楼弹出章节标记对话框
-  const handleMessageClick = useCallback((messageId: string, messageIndex: number) => {
-    if (editMode) {
-      setSelectedMessage({ id: messageId, index: messageIndex });
-      setMarkerDialogOpen(true);
-    }
-  }, [editMode]);
-
-  // 点某楼右上角铅笔：直接打开该楼编辑窗口（不经「编辑模式」，所见即点）
-  const handleEditMessage = useCallback((messageId: string, messageIndex: number) => {
-    setSelectedMessage({ id: messageId, index: messageIndex });
-    setMessageEditDialogOpen(true);
-  }, []);
-
-  const handleSaveMessage = (updatedMessage: ChatMessage) => {
+  // 绑定到角色：原地升级为归档故事（成果带走，书架副本删除），跳故事工作区
+  const handleBind = async (character: ArchiveCharacter) => {
     if (!session) return;
-    // 快照编辑前的整条消息，用于撤销（删段/改内容/改说话人都走这里）
-    const prevMessage = session.messages.find(msg => msg.id === updatedMessage.id);
-    setSession({
-      ...session,
-      messages: session.messages.map(msg =>
-        msg.id === updatedMessage.id ? updatedMessage : msg
-      ),
-    });
-    if (!prevMessage) return;
-    const changed =
-      prevMessage.content !== updatedMessage.content ||
-      prevMessage.name !== updatedMessage.name ||
-      prevMessage.role !== updatedMessage.role;
-    if (!changed) return;
-    toast({
-      title: '已修改该楼',
-      action: (
-        <ToastAction altText="撤销修改" onClick={() => {
-          setSession(cur => cur
-            ? { ...cur, messages: cur.messages.map(m => m.id === prevMessage.id ? prevMessage : m) }
-            : cur
-          );
-        }}>
-          撤销
-        </ToastAction>
-      ),
-    });
-  };
-
-  const handleDeleteMessage = () => {
-    if (!session || !selectedMessage) return;
-    const delId = selectedMessage.id;
-    // 快照被删数据用于撤销：消息本身+原位置、联动删除的章节标记、收藏归属
-    const delIndex = session.messages.findIndex(m => m.id === delId);
-    const delMessage = session.messages[delIndex];
-    if (!delMessage) return;
-    const delMarkers = markers.filter(m => m.messageId === delId);
-    const wasFavorite = favorites.includes(delId);
-
-    setSession({
-      ...session,
-      messages: session.messages.filter(msg => msg.id !== delId),
-    });
-    setMarkers(prev => prev.filter(m => m.messageId !== delId));
-    setFavorites(prev => prev.filter(id => id !== delId));
-
-    toast({
-      title: '已删除该楼',
-      description: delMarkers.length > 0 ? '连同其章节标记一并删除' : undefined,
-      action: (
-        <ToastAction altText="撤销删除" onClick={() => {
-          // 把消息插回原位置，并恢复其标记/收藏
-          setSession(cur => {
-            if (!cur) return cur;
-            if (cur.messages.some(m => m.id === delId)) return cur; // 已存在则不重复插
-            const msgs = [...cur.messages];
-            msgs.splice(Math.min(delIndex, msgs.length), 0, delMessage);
-            return { ...cur, messages: msgs };
-          });
-          if (delMarkers.length > 0) {
-            setMarkers(prev => [...prev, ...delMarkers].sort((a, b) => a.messageIndex - b.messageIndex));
-          }
-          if (wasFavorite) {
-            setFavorites(prev => prev.includes(delId) ? prev : [...prev, delId]);
-          }
-        }}>
-          撤销
-        </ToastAction>
-      ),
-    });
-  };
-
-  // 收藏/取消收藏某楼（messageId）。轻量书签，仅用于跳转，不进导出。
-  const handleToggleFavorite = useCallback((messageId: string) => {
-    setFavorites(prev =>
-      prev.includes(messageId)
-        ? prev.filter(id => id !== messageId)
-        : [...prev, messageId]
-    );
-  }, []);
-
-  // ChatPreview 上报顶部可见楼层
-  const handleVisibleFloorChange = useCallback((floor: number, messageId: string | null) => {
-    setCurrentFloor(floor);
-    setCurrentFloorMsgId(messageId);
-  }, []);
-
-  // ChatPreview 上报楼层映射（顺序变化时），同步总楼层数
-  const handleFloorMapChange = useCallback((map: Map<string, number>) => {
-    setFloorMap(map);
-    setFloorCount(map.size);
-  }, []);
-
-  // 收藏列表项：按 messageId 解析楼层号 + 正文片段
-  const favoriteItems = useMemo<FavoriteItem[]>(() => {
-    if (!session) return [];
-    const byId = new Map(session.messages.map(m => [m.id, m]));
-    return favorites
-      .map(id => {
-        const msg = byId.get(id);
-        const snippet = (msg?.content ?? '').replace(/\s+/g, ' ').trim().slice(0, 60) || '（空消息）';
-        return { messageId: id, floor: floorMap.get(id) ?? null, snippet };
-      })
-      // 按楼层排序，未解析到楼层的排最后
-      .sort((a, b) => (a.floor ?? Infinity) - (b.floor ?? Infinity));
-  }, [favorites, floorMap, session]);
-
-  // 被 ST 隐藏的楼层数（决定是否显示显隐开关）
-  const hiddenCount = useMemo(
-    () => session?.messages.filter(m => m.hidden).length ?? 0,
-    [session]
-  );
-
-  // 标题就地重命名（书架同步会随 session.title 自动保存）
-  const [titleEditing, setTitleEditing] = useState(false);
-  const [titleDraft, setTitleDraft] = useState('');
-  const startTitleEdit = () => {
-    if (!session) return;
-    setTitleDraft(session.title);
-    setTitleEditing(true);
-  };
-  const commitTitleEdit = () => {
-    setTitleEditing(false);
-    const next = titleDraft.trim();
-    if (!session || !next || next === session.title) return;
-    setSession({ ...session, title: next });
-    toast({ title: '已重命名', description: next });
-  };
-
-  const handleSaveMarker = (marker: ChapterMarker) => {
-    setMarkers(prev => {
-      const existing = prev.findIndex(m => m.messageId === marker.messageId);
-      if (existing >= 0) {
-        const updated = [...prev];
-        updated[existing] = marker;
-        return updated;
-      }
-      return [...prev, marker].sort((a, b) => a.messageIndex - b.messageIndex);
-    });
-  };
-
-  const handleDeleteMarker = () => {
-    if (!selectedMessage) return;
-    const delId = selectedMessage.id;
-    const delMarkers = markers.filter(m => m.messageId === delId);
-    if (delMarkers.length === 0) return;
-    setMarkers(prev => prev.filter(m => m.messageId !== delId));
-    toast({
-      title: '已删除章节标记',
-      action: (
-        <ToastAction altText="撤销删除" onClick={() => {
-          setMarkers(prev =>
-            prev.some(m => m.messageId === delId)
-              ? prev
-              : [...prev, ...delMarkers].sort((a, b) => a.messageIndex - b.messageIndex)
-          );
-        }}>
-          撤销
-        </ToastAction>
-      ),
-    });
-  };
-
-  const handleToggleEditMode = () => {
-    setEditMode(!editMode);
-  };
-
-  // 正则「应用到原文」：把当前启用规则的处理结果写回消息原文（含 rawData.mes，保证导回 ST 也生效），
-  // 书架自动同步随 setSession 落库；应用后自动停用这些规则，避免对已处理文本二次套用。
-  const handleApplyRegexToOriginal = () => {
-    if (!session) return;
-    const activeRules = settings.regexRules.filter(r => !r.disabled);
-    if (activeRules.length === 0) {
-      toast({ title: '没有已启用的正则规则', variant: 'destructive' });
-      return;
+    try {
+      const { story, carried } = await bindSessionToCharacter({
+        characterId: character.id,
+        session,
+        markers,
+        favorites,
+        settings,
+        bookId: currentBookId,
+      });
+      clearSessionState();
+      toast({
+        title: `已绑定到「${character.name}」`,
+        description: carried > 0 ? `${carried} 条总结/故事树已一并带走` : undefined,
+      });
+      navigate(`/story/${story.id}`);
+    } catch (error) {
+      console.error('Bind failed:', error);
+      toast({ title: '绑定失败', variant: 'destructive' });
     }
-    const prevMessages = session.messages;
-    const prevRules = settings.regexRules;
-    let changed = 0;
-    const nextMessages = session.messages.map(msg => {
-      const next = applyRegexRules(msg.content, activeRules, msg.role === 'user').trim();
-      if (next === msg.content) return msg;
-      changed++;
-      return {
-        ...msg,
-        content: next,
-        rawData: msg.rawData ? { ...msg.rawData, mes: next } : msg.rawData,
-      };
-    });
-    if (changed === 0) {
-      toast({ title: '没有需要修改的楼层', description: '当前启用的规则对原文没有产生改动' });
-      return;
-    }
-    setSession({ ...session, messages: nextMessages });
-    setSettings({ ...settings, regexRules: prevRules.map(r => (r.disabled ? r : { ...r, disabled: true })) });
-    toast({
-      title: `已将正则结果写入 ${changed} 个楼层的原文`,
-      description: '用过的规则已自动停用；书架与导出均使用新文本',
-      action: (
-        <ToastAction altText="撤销应用" onClick={() => {
-          setSession(cur => (cur ? { ...cur, messages: prevMessages } : cur));
-          setSettings(cur => ({ ...cur, regexRules: prevRules }));
-        }}>
-          撤销
-        </ToastAction>
-      ),
-    });
   };
 
-  const selectedMarker = selectedMessage 
-    ? markers.find(m => m.messageId === selectedMessage.id)
-    : undefined;
+  const handleFloorChange = useCallback((floor: number) => setCurrentFloor(floor), []);
 
   return (
-    <AppLayout
-      leftActions={
-        <>
-          {/* 外观设置（顶栏最左常驻，popover 从左展开不遮正文） */}
-          <SettingsPanel settings={settings} onSettingsChange={setSettings} />
-          {/* 全文搜索：仅在有记录且不在章节标记模式时显示 */}
-          {session && !editMode && (
-            <MessageSearchBar
-              query={searchQuery}
-              onQueryChange={setSearchQuery}
-              total={searchResult.total}
-              current={searchResult.current}
-              onNext={() => previewRef.current?.nextMatch()}
-              onPrev={() => previewRef.current?.prevMatch()}
-            />
-          )}
-        </>
-      }
-      actions={
-        <EditorToolbar
-          session={session}
-          settings={settings}
-          markers={markers}
-          editMode={editMode}
-          regexSidebarOpen={regexSidebarOpen}
-          onLoadSession={setSession}
-          onReset={handleReset}
-          onSaveToBookshelf={handleSaveToBookshelf}
-          onToggleEditMode={handleToggleEditMode}
-          onToggleRegex={() => setRegexSidebarOpen(!regexSidebarOpen)}
-        />
-      }
-    >
-      {/* Main Content */}
-      <div className="container mx-auto px-4 py-6">
-        {!session ? (
+    <AppLayout>
+      {!session ? (
+        <div className="container mx-auto px-4 py-6">
           <div className="max-w-xl mx-auto animate-fade-in">
             {/* Tour replaces old onboarding */}
             <div className="text-center mb-8">
@@ -574,7 +272,11 @@ const Index = () => {
               </p>
             </div>
             <ChatImporter onImport={handleImport} />
-            
+
+            <div className="mt-4 flex justify-center">
+              <DemoData onLoad={setSession} />
+            </div>
+
             <div className="mt-8 grid grid-cols-2 md:grid-cols-4 gap-4 text-center">
               {[
                 { label: '典雅书籍', desc: '装饰边框' },
@@ -589,141 +291,41 @@ const Index = () => {
               ))}
             </div>
           </div>
-        ) : (
-          <div className="flex flex-col">
-            {/* Preview + Sidebars Row */}
-            <div className="flex gap-4 items-start">
-              {/* Preview Area */}
-              <div className="flex-1 min-w-0">
-                <div className="mb-3 flex items-center justify-between gap-3">
-                  <div className="flex items-center gap-2 text-sm text-muted-foreground min-w-0 flex-wrap">
-                    {titleEditing ? (
-                      <Input
-                        autoFocus
-                        value={titleDraft}
-                        onChange={(e) => setTitleDraft(e.target.value)}
-                        onBlur={commitTitleEdit}
-                        onKeyDown={(e) => {
-                          if (e.key === 'Enter') commitTitleEdit();
-                          if (e.key === 'Escape') setTitleEditing(false);
-                        }}
-                        className="h-7 w-64 max-w-full"
-                        placeholder="作品标题"
-                      />
-                    ) : (
-                      <button
-                        onClick={startTitleEdit}
-                        className="group flex items-center gap-1 min-w-0"
-                        title="点击重命名（标题会随书架自动保存，并用于导出文件名）"
-                      >
-                        <span className="truncate max-w-[16rem] font-medium text-foreground">{session.title || '未命名作品'}</span>
-                        <Pencil className="w-3 h-3 shrink-0 opacity-40 group-hover:opacity-100 transition-opacity" />
-                      </button>
-                    )}
-                    <span className="shrink-0">共 {session.messages.length} 条消息</span>
-                    {markers.length > 0 && (
-                      <span className="text-primary shrink-0">· {markers.length} 个章节标记</span>
-                    )}
-                    {hiddenCount > 0 && (
-                      <button
-                        onClick={() => setShowHidden(v => !v)}
-                        className="inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-xs text-muted-foreground hover:bg-accent hover:text-foreground transition-colors shrink-0"
-                        title="这些楼层在 SillyTavern 里被 Hide，仍会正常导入；点击切换是否展示"
-                      >
-                        {showHidden ? <Eye className="w-3.5 h-3.5" /> : <EyeOff className="w-3.5 h-3.5" />}
-                        {showHidden ? '隐藏' : '显示'} {hiddenCount} 个隐藏楼层
-                      </button>
-                    )}
-                  </div>
-                  {editMode && (
-                    <div className="text-sm text-primary animate-pulse">
-                      点击消息添加章节标记
-                    </div>
-                  )}
-                </div>
-
-                <div className="rounded-lg border border-border bg-card/50" data-tour="chat-preview">
-                  {/* 左侧悬浮竖向跳转条（fixed 自定位，不随滚动消失、不压缩阅读区） */}
-                  <MessageNavBar
-                    floorCount={floorCount}
-                    currentFloor={currentFloor}
-                    currentMessageId={currentFloorMsgId}
-                    favorites={favoriteItems}
-                    onJumpToFloor={(n) => previewRef.current?.scrollToFloor(n)}
-                    onPrev={() => previewRef.current?.scrollToFloor(currentFloor - 1)}
-                    onNext={() => previewRef.current?.scrollToFloor(currentFloor + 1)}
-                    onToggleFavorite={handleToggleFavorite}
-                    onJumpToMessageId={(id) => previewRef.current?.scrollToMessageId(id)}
-                  />
-                  <div className="flex justify-center py-6 px-4">
-                    <div
-                      style={{ width: settings.paperWidth, maxWidth: '100%' }}
-                      className="shadow-warm rounded-lg overflow-hidden animate-fade-in"
-                    >
-                      <ChatPreview
-                        ref={previewRef}
-                        session={session}
-                        theme={settings.theme}
-                        showTimestamp={settings.showTimestamp}
-                        showAvatar={settings.showAvatar}
-                        fontSize={settings.fontSize}
-                        regexRules={settings.regexRules}
-                        markers={markers}
-                        onMessageClick={handleMessageClick}
-                        onEditMessage={handleEditMessage}
-                        editMode={editMode}
-                        fontFamily={settings.fontFamily}
-                        previewRule={previewRule}
-                        onVisibleFloorChange={handleVisibleFloorChange}
-                        onFloorMapChange={handleFloorMapChange}
-                        searchQuery={searchQuery}
-                        onSearchResult={handleSearchResult}
-                        showHidden={showHidden}
-                      />
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              {/* Regex Sidebar */}
-              <RegexSidebar
-                rules={settings.regexRules}
-                onRulesChange={(rules) => setSettings({ ...settings, regexRules: rules })}
-                isOpen={regexSidebarOpen}
-                onClose={() => { setRegexSidebarOpen(false); setPreviewRule(null); }}
-                sampleMessages={session.messages}
-                onPreviewChange={setPreviewRule}
-                previewId={previewRule?.id ?? null}
-                onApplyToOriginal={handleApplyRegexToOriginal}
-              />
-            </div>
-          </div>
-        )}
-      </div>
-
-      {/* Chapter Marker Dialog */}
-      {selectedMessage && (
-        <ChapterMarkerDialog
-          open={markerDialogOpen}
-          onOpenChange={setMarkerDialogOpen}
-          messageId={selectedMessage.id}
-          messageIndex={selectedMessage.index}
-          existingMarker={selectedMarker}
-          onSave={handleSaveMarker}
-          onDelete={selectedMarker ? handleDeleteMarker : undefined}
+        </div>
+      ) : (
+        <ChatWorkbench
+          session={session}
+          markers={markers}
+          favorites={favorites}
+          settings={settings}
+          onSessionChange={setSession}
+          onMarkersChange={setMarkers}
+          onFavoritesChange={setFavorites}
+          onSettingsChange={setSettings}
+          onFloorChange={handleFloorChange}
+          initialFloor={restoreFloor}
+          onSaveToBookshelf={handleSaveToBookshelf}
+          onReset={handleReset}
+          titleBadge={
+            <Badge
+              variant="outline"
+              className="shrink-0 cursor-pointer text-muted-foreground hover:text-foreground"
+              onClick={() => setBindDialogOpen(true)}
+              title="这份记录还没有归属的角色卡；绑定后升级为故事工作区，整理成果一并带走"
+            >
+              未绑定
+            </Badge>
+          }
+          toolbarExtras={
+            <Button variant="outline" size="sm" onClick={() => setBindDialogOpen(true)}>
+              <Link2 className="w-4 h-4 mr-1.5" />
+              绑定到角色
+            </Button>
+          }
         />
       )}
 
-      {/* Message Edit Dialog */}
-      {selectedMessage && session && (
-        <MessageEditDialog
-          open={messageEditDialogOpen}
-          onOpenChange={setMessageEditDialogOpen}
-          message={session.messages.find(m => m.id === selectedMessage.id) || null}
-          onSave={handleSaveMessage}
-          onDelete={handleDeleteMessage}
-        />
-      )}
+      <BindStoryDialog open={bindDialogOpen} onOpenChange={setBindDialogOpen} onSelect={handleBind} />
 
       {/* Guided Tour */}
       {showTour && (

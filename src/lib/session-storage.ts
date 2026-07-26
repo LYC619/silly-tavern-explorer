@@ -204,6 +204,31 @@ export function deleteRegexPreset(id: string): RegexPreset[] {
   return updated;
 }
 
+/**
+ * 默认导出/外观设置：优先用用户上次保存的全局设置（正则用当前合并规则集），
+ * 否则给出厂缺省。聊天处理页与故事工作区（故事还没存 settings 时）共用。
+ */
+export function getDefaultExportSettings(): ExportSettings {
+  const saved = loadSettings();
+  if (saved) {
+    return { ...saved, regexRules: getInitialRegexRules() };
+  }
+  return {
+    theme: 'elegant',
+    showTimestamp: false,
+    showAvatar: true,
+    paperWidth: 600,
+    fontSize: 15,
+    prefixMode: 'name',
+    regexRules: getInitialRegexRules(),
+    cleanPluginCache: true,
+    exportRange: 'all',
+    recentCount: 100,
+    customStart: 1,
+    customEnd: 100,
+  };
+}
+
 // 保存设置到 localStorage
 export function saveSettings(settings: ExportSettings): void {
   try {

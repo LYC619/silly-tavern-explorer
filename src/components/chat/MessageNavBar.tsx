@@ -28,6 +28,8 @@ interface MessageNavBarProps {
   onNext: () => void;
   onToggleFavorite: (messageId: string) => void;
   onJumpToMessageId: (messageId: string) => void;
+  /** 悬浮条距视口左缘的定位类；默认避开全局导航（left-24），工作区多一条二级栏时传更大值 */
+  leftClass?: string;
 }
 
 /**
@@ -47,6 +49,7 @@ export function MessageNavBar({
   onNext,
   onToggleFavorite,
   onJumpToMessageId,
+  leftClass = 'left-24',
 }: MessageNavBarProps) {
   const [floorInput, setFloorInput] = useState(String(currentFloor));
   const [editing, setEditing] = useState(false);
@@ -73,7 +76,7 @@ export function MessageNavBar({
 
   return (
     <TooltipProvider>
-      <div className="fixed left-24 top-1/2 z-30 -translate-y-1/2 flex flex-col items-center gap-1.5 rounded-xl border border-border bg-card/90 px-1.5 py-2 shadow-md backdrop-blur-sm">
+      <div className={`fixed ${leftClass} top-1/2 z-30 -translate-y-1/2 flex flex-col items-center gap-1.5 rounded-xl border border-border bg-card/90 px-1.5 py-2 shadow-md backdrop-blur-sm`}>
         {/* 上一层 */}
         <Tooltip>
           <TooltipTrigger asChild>

@@ -1,7 +1,7 @@
 import { RefreshCw, Save, BookmarkPlus, Regex } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { DemoData } from '@/components/DemoData';
-import { ExportButton } from '@/components/ExportButton';
+import { ExportButton } from '@/components/chat/ExportButton';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -21,9 +21,12 @@ interface EditorToolbarProps {
   markers: ChapterMarker[];
   editMode: boolean;
   regexSidebarOpen: boolean;
-  onLoadSession: (session: ChatSession) => void;
-  onReset: () => void;
-  onSaveToBookshelf: () => void;
+  /** 无 session 时的示例数据入口；工作区模式（session 恒存在）可不传 */
+  onLoadSession?: (session: ChatSession) => void;
+  /** 重新导入（清空当前记录）；不传则不显示——工作区里换文件走「导入与导出」界面 */
+  onReset?: () => void;
+  /** 保存到书架；不传则不显示——归档故事自动落库，不进书架 */
+  onSaveToBookshelf?: () => void;
   onToggleEditMode: () => void;
   onToggleRegex: () => void;
 }
@@ -48,7 +51,7 @@ export function EditorToolbar({
   if (!session) {
     return (
       <div className="flex items-center gap-2 flex-wrap justify-end">
-        <DemoData onLoad={onLoadSession} />
+        {onLoadSession && <DemoData onLoad={onLoadSession} />}
       </div>
     );
   }
@@ -83,30 +86,34 @@ export function EditorToolbar({
       <div className="w-px h-6 bg-border mx-0.5" />
 
       {/* 输入/输出（高频，集中在右侧）：保存到书架 · 导入 · 导出(主CTA) */}
-      <Button variant="outline" size="sm" onClick={onSaveToBookshelf}>
-        <Save className="w-4 h-4 mr-1.5" />
-        保存到书架
-      </Button>
-      <AlertDialog>
-        <AlertDialogTrigger asChild>
-          <Button variant="outline" size="sm">
-            <RefreshCw className="w-4 h-4 mr-1.5" />
-            导入
-          </Button>
-        </AlertDialogTrigger>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>确认重新导入？</AlertDialogTitle>
-            <AlertDialogDescription>
-              当前的编辑内容、章节标记等未保存的修改将全部丢失。如需保留，请先保存到书架。
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>取消</AlertDialogCancel>
-            <AlertDialogAction onClick={onReset}>确认</AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+      {onSaveToBookshelf && (
+        <Button variant="outline" size="sm" onClick={onSaveToBookshelf}>
+          <Save className="w-4 h-4 mr-1.5" />
+          保存到书架
+        </Button>
+      )}
+      {onReset && (
+        <AlertDialog>
+          <AlertDialogTrigger asChild>
+            <Button variant="outline" size="sm">
+              <RefreshCw className="w-4 h-4 mr-1.5" />
+              导入
+            </Button>
+          </AlertDialogTrigger>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>确认重新导入？</AlertDialogTitle>
+              <AlertDialogDescription>
+                当前的编辑内容、章节标记等未保存的修改将全部丢失。如需保留，请先保存到书架。
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>取消</AlertDialogCancel>
+              <AlertDialogAction onClick={onReset}>确认</AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+      )}
       <ExportButton session={session} settings={settings} markers={markers} />
     </div>
   );

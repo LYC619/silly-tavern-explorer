@@ -9,6 +9,7 @@ import {
   MessageSquare,
   Clock,
   Cpu,
+  GitBranch,
   BookOpen,
   Trash2,
   Download,
@@ -153,10 +154,9 @@ const CharacterPage = () => {
     toast({ title: `导入完成：${ok} 个故事${fail ? `，失败 ${fail} 个` : ''}` });
   };
 
-  const handleOpenStory = async (story: ArchiveStory) => {
-    // 记录最近查看（排序依据）；不动 updatedAt（那是内容修改时间）
-    await saveArchiveStory({ ...story, lastViewedAt: Date.now() });
-    navigate(`/reader/${story.id}`);
+  const handleOpenStory = (story: ArchiveStory) => {
+    // 进入故事工作区（2.0 阶段2）；工作区会自己记录 lastViewedAt 并恢复上次阅读位置
+    navigate(`/story/${story.id}`);
   };
 
   const handleConfirmDeleteStory = async () => {
@@ -415,6 +415,12 @@ const CharacterPage = () => {
                           <span className="flex items-center gap-1">
                             <Cpu className="w-3 h-3" />
                             {story.meta.lastModel}
+                          </span>
+                        )}
+                        {(story.branches?.length ?? 0) > 0 && (
+                          <span className="flex items-center gap-1 text-primary/80">
+                            <GitBranch className="w-3 h-3" />
+                            {story.branches!.length} 条分支
                           </span>
                         )}
                         <span>

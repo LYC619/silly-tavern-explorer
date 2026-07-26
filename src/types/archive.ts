@@ -67,6 +67,24 @@ export interface StoryMeta {
   assetSnapshot?: Record<string, number>;
 }
 
+/**
+ * 故事分支（定稿第五章）：分支=同一故事的不同发展脉络，不是独立故事条目。
+ * 每条分支持有自己的消息/章节/收藏/阅读位置；主线即 ArchiveStory 本体字段。
+ * 外观与正则等 settings 是故事级别的，分支共享。
+ */
+export interface StoryBranch {
+  id: string;
+  /** 分支名（如「分支：告白失败线」），用户可改 */
+  name: string;
+  session: ChatSession;
+  markers: ChapterMarker[];
+  favorites?: string[];
+  /** 该分支自己的阅读位置（各分支独立） */
+  lastFloor?: number;
+  createdAt: number;
+  updatedAt: number;
+}
+
 export interface ArchiveStory {
   id: string;
   /** 所属角色；undefined = 临时/未绑定（定稿第六章：可先处理后绑定） */
@@ -78,7 +96,9 @@ export interface ArchiveStory {
   /** 收藏楼层（messageId） */
   favorites?: string[];
   meta: StoryMeta;
-  /** 阅读进度：最近查看楼层 */
+  /** 分支列表（主线不在其中，主线=本体字段）；无分支时为空/缺省 */
+  branches?: StoryBranch[];
+  /** 阅读进度：最近查看楼层（主线的；分支阅读位置在各分支上） */
   lastFloor?: number;
   /** 最近查看时间（列表排序用；无记录按 createdAt） */
   lastViewedAt?: number;

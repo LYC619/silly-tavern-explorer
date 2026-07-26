@@ -19,7 +19,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Textarea } from '@/components/ui/textarea';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { RegexQuickAdd } from '@/components/RegexQuickAdd';
+import { RegexQuickAdd } from '@/components/chat/RegexQuickAdd';
 import { HelpCard } from '@/components/HelpCard';
 import type { RegexRule } from '@/types/chat';
 import type { ChatMessage } from '@/types/chat';
