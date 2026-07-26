@@ -1,7 +1,7 @@
 import type { CardItem } from '@/types/character-card';
-import { createIdbRepo, pruneAutoSaved } from '@/lib/repo/idb-repo';
+import { createRepo, pruneAutoSaved } from '@/lib/repo';
 
-const repo = createIdbRepo<CardItem>('cards');
+const repo = createRepo<CardItem>('cards');
 
 export async function getAllCards(): Promise<CardItem[]> {
   return repo.list();

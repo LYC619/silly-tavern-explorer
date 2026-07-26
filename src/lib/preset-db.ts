@@ -1,7 +1,7 @@
 import type { PresetItem } from '@/types/preset';
-import { createIdbRepo, pruneAutoSaved } from '@/lib/repo/idb-repo';
+import { createRepo, pruneAutoSaved } from '@/lib/repo';
 
-const repo = createIdbRepo<PresetItem>('presets');
+const repo = createRepo<PresetItem>('presets');
 
 export async function getAllPresets(): Promise<PresetItem[]> {
   return repo.list();

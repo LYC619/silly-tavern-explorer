@@ -3,7 +3,7 @@
  * 自 ChatImporter.tsx 抽出（2.0 阶段0）：适配器边界上的入口之一，
  * 出口统一为 @/types/chat 的 ChatMessage/STMetadata。
  */
-import type { ChatMessage, STMetadata, STRawMessage } from '@/types/chat';
+import type { ChatMessage, ChatSession, STMetadata, STRawMessage } from '@/types/chat';
 
 /**
  * 解析 SillyTavern 的 send_date 为时间戳（毫秒）。ST 有两种字符串格式 JS 原生 Date 解析不了：
@@ -80,6 +80,30 @@ export function parseJsonl(content: string): { messages: ChatMessage[]; metadata
     }
   }
   return { messages, metadata };
+}
+
+/**
+ * 把会话序列化回 ST JSONL（首行元数据 + 每消息一行），与 parseJsonl 互逆。
+ * 供文件库派生的「ST 工作版」（聊天.jsonl / 分支·X.jsonl，只写不读）使用。
+ * 与 ExportButton.exportAsJsonl 不同：这里不做正则清理、不去 swipes——工作版要无损，
+ * rawData 原样输出；无 rawData 的消息合成最小字段（name/is_user/send_date/mes）。
+ */
+export function serializeChatJsonl(session: ChatSession): string {
+  const metadata: STMetadata = session.rawMetadata ?? {
+    user_name: session.user?.name || 'User',
+    character_name: session.character?.name || 'Character',
+  };
+  const lines: string[] = [JSON.stringify(metadata)];
+  for (const m of session.messages) {
+    const raw: STRawMessage = m.rawData ?? {
+      name: m.name || (m.role === 'user' ? session.user?.name || 'User' : session.character?.name || 'Character'),
+      is_user: m.role === 'user',
+      send_date: m.timestamp ?? Date.now(),
+      mes: m.content,
+    };
+    lines.push(JSON.stringify(raw));
+  }
+  return lines.join('\n');
 }
 
 /** 解析 ST 聊天 JSON（消息数组，或含 messages / chat 字段的对象）。 */

@@ -6,7 +6,7 @@
  */
 import type { RegexRule } from '@/types/chat';
 import type { DerivedAssetMeta } from '@/types/archive';
-import { createIdbRepo } from '@/lib/repo/idb-repo';
+import { createRepo } from '@/lib/repo';
 
 export interface RegexCollectionItem {
   id: string;
@@ -18,7 +18,7 @@ export interface RegexCollectionItem {
   updatedAt: number;
 }
 
-const repo = createIdbRepo<RegexCollectionItem>('regexes');
+const repo = createRepo<RegexCollectionItem>('regexes');
 
 export async function getAllRegexCollections(): Promise<RegexCollectionItem[]> {
   return repo.list();

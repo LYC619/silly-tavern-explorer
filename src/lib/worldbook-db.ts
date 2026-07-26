@@ -1,7 +1,7 @@
 import type { WorldBookItem } from '@/types/worldbook';
-import { createIdbRepo, pruneAutoSaved } from '@/lib/repo/idb-repo';
+import { createRepo, pruneAutoSaved } from '@/lib/repo';
 
-const repo = createIdbRepo<WorldBookItem>('worldbooks');
+const repo = createRepo<WorldBookItem>('worldbooks');
 
 export async function getAllWorldBooks(): Promise<WorldBookItem[]> {
   return repo.list();

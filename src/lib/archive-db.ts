@@ -6,13 +6,13 @@ import type { ArchiveCharacter, ArchiveStory, CharacterStatus, StoryBranch } fro
 import type { ChatSession, ChatMessage, ChapterMarker } from '@/types/chat';
 import type { STCharacterCard } from '@/lib/png-parser';
 import { normalizeCharacterCard } from '@/lib/png-parser';
-import { createIdbRepo } from '@/lib/repo/idb-repo';
+import { createRepo } from '@/lib/repo';
 import { extractModels, estimatePlayTime } from '@/lib/story-meta';
 
 // ---------- 仓库 ----------
 
-const characterRepo = createIdbRepo<ArchiveCharacter>('characters');
-const storyRepo = createIdbRepo<ArchiveStory>('archiveStories');
+const characterRepo = createRepo<ArchiveCharacter>('characters');
+const storyRepo = createRepo<ArchiveStory>('archiveStories');
 
 export async function getAllCharacters(): Promise<ArchiveCharacter[]> {
   return characterRepo.list();

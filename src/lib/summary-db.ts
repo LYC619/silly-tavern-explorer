@@ -1,9 +1,9 @@
 import type { SummaryItem, SummaryTemplate } from '@/types/summary';
-import { createIdbRepo, pruneAutoSaved } from '@/lib/repo/idb-repo';
+import { createRepo, pruneAutoSaved } from '@/lib/repo';
 
 // ---------- summaries ----------
 
-const summaryRepo = createIdbRepo<SummaryItem>('summaries');
+const summaryRepo = createRepo<SummaryItem>('summaries');
 
 export async function getAllSummaries(): Promise<SummaryItem[]> {
   return summaryRepo.list();
@@ -32,7 +32,7 @@ export async function pruneAutoSavedSummaries(keep = 10): Promise<string[]> {
 
 // ---------- summaryTemplates（自定义提示词模板；内置模板是常量见 summary-templates.ts） ----------
 
-const templateRepo = createIdbRepo<SummaryTemplate>('summaryTemplates');
+const templateRepo = createRepo<SummaryTemplate>('summaryTemplates');
 
 export async function getAllSummaryTemplates(): Promise<SummaryTemplate[]> {
   return templateRepo.list();

@@ -4,9 +4,9 @@
  * 此处只存用户自定义模板（内置复制出来的副本也算自定义）。
  */
 import type { RatingTemplateItem } from '@/types/rating';
-import { createIdbRepo } from '@/lib/repo/idb-repo';
+import { createRepo } from '@/lib/repo';
 
-const repo = createIdbRepo<RatingTemplateItem>('ratingTemplates');
+const repo = createRepo<RatingTemplateItem>('ratingTemplates');
 
 export async function getAllRatingTemplates(): Promise<RatingTemplateItem[]> {
   return repo.list();

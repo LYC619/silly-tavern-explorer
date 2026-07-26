@@ -1,7 +1,7 @@
 import type { StoryTree } from '@/types/story-tree';
-import { createIdbRepo, pruneAutoSaved } from '@/lib/repo/idb-repo';
+import { createRepo, pruneAutoSaved } from '@/lib/repo';
 
-const repo = createIdbRepo<StoryTree>('stories');
+const repo = createRepo<StoryTree>('stories');
 
 export async function getAllStoryTrees(): Promise<StoryTree[]> {
   return repo.list();
