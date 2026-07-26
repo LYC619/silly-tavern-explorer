@@ -7,12 +7,15 @@
 import { setActiveVault } from './active';
 import { createVault } from './vault-backend';
 import { createTauriFs, getVaultRoot, isTauri, pickDirectory, setVaultRoot } from './tauri-fs';
+import { hydrateApiProfilesFromSystem } from './sensitive-config';
 
 export type VaultBootState = 'web' | 'ready' | 'unset';
 
 /** 启动时调用一次：返回 'web'(非客户端) / 'ready'(库已激活) / 'unset'(需要引导选库) */
 export async function bootVault(): Promise<VaultBootState> {
   if (!isTauri()) return 'web';
+  // API Key 等敏感配置先从系统配置目录恢复到 localStorage（7.6），再放行页面
+  await hydrateApiProfilesFromSystem();
   try {
     const root = await getVaultRoot();
     if (!root) return 'unset';

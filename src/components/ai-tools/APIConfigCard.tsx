@@ -11,6 +11,7 @@ import {
 } from '@/components/ui/alert-dialog';
 import { useToast } from '@/hooks/use-toast';
 import { fetchModels, callOpenAIMessages } from './useOpenAI';
+import { mirrorApiProfilesToSystem } from '@/lib/vault/sensitive-config';
 
 // 旧单配置 keys（仅用于一次性迁移到多提供商）
 const LEGACY_KEY = 'st-beautifier-openai-key';
@@ -42,8 +43,11 @@ function generateProfileId(): string {
 }
 
 function persistProfiles(profiles: ApiProfile[], activeId: string): void {
-  localStorage.setItem(PROFILES_KEY, JSON.stringify(profiles));
+  const json = JSON.stringify(profiles);
+  localStorage.setItem(PROFILES_KEY, json);
   localStorage.setItem(ACTIVE_KEY, activeId);
+  // 客户端同时镜像到系统配置目录（阶段7.6：Key 不进库、不怕 webview 数据被清）
+  mirrorApiProfilesToSystem(json, activeId);
 }
 
 /** 读取全部提供商；首次调用时把旧的单配置 4 个 key 迁移成「默认」提供商并清掉旧 key。 */
