@@ -1,0 +1,42 @@
+name: CI
+
+# 前端 Web 应用的持续集成：装依赖 → lint → 真类型检查 → 单测 → 构建。
+# 不含 Tauri/Rust 客户端构建（重、需 WebView2/rustc，桌面产物在本地/发布流程出）。
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Lint
+        run: npm run lint
+
+      # 根 tsconfig 是 files:[]+references 的工程引用结构，裸 tsc 空转不检查。
+      # 必须逐工程跑：tsconfig.app.json（src/）+ tsconfig.node.json（vite.config）。
+      - name: Type check (app)
+        run: npx tsc -p tsconfig.app.json --noEmit
+
+      - name: Type check (node)
+        run: npx tsc -p tsconfig.node.json --noEmit
+
+      - name: Test
+        run: npm test
+
+      - name: Build
+        run: npm run build
