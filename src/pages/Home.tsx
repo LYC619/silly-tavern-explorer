@@ -102,8 +102,8 @@ const Home = () => {
 
   return (
     <AppLayout>
-      {/* 一屏无滚动：视口高减导航后填满，内部各区自行收纳，超出走「查看全部」 */}
-      <div className="h-screen overflow-hidden flex flex-col px-6 py-5 gap-4">
+      {/* 一屏无滚动：新外壳主区高度内填满（h-full），内部各区自行收纳，超出走「查看全部」 */}
+      <div className="h-full overflow-hidden flex flex-col px-6 py-5 gap-4">
         {/* ① 角色库：顶部一行封面条 */}
         <section
           className="shrink-0 rounded-xl border border-border bg-card/60 p-4 cursor-pointer hover:border-primary/40 transition-colors"

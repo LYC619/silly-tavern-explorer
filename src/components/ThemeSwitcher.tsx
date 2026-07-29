@@ -5,15 +5,23 @@ import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { THEMES } from '@/lib/theme';
 
-/** 主题选择弹层（交接包定稿：点开弹层选择，不做小圆点组） */
-export function ThemeSwitcher({ side = 'right' }: { side?: 'top' | 'right' | 'bottom' | 'left' }) {
+/** 主题选择弹层（交接包定稿：点开弹层选择，不做小圆点组）。trigger 可注入自定义触发器（侧栏 side-item 用） */
+export function ThemeSwitcher({
+  side = 'right',
+  trigger,
+}: {
+  side?: 'top' | 'right' | 'bottom' | 'left';
+  trigger?: React.ReactNode;
+}) {
   const { theme, setTheme } = useTheme();
   return (
     <Popover>
       <PopoverTrigger asChild>
-        <Button variant="ghost" size="icon" className="h-8 w-8" title="主题" aria-label="切换主题">
-          <Palette className="w-4 h-4" />
-        </Button>
+        {trigger ?? (
+          <Button variant="ghost" size="icon" className="h-8 w-8" title="主题" aria-label="切换主题">
+            <Palette className="w-4 h-4" />
+          </Button>
+        )}
       </PopoverTrigger>
       <PopoverContent side={side} align="end" className="w-44 p-2">
         <div className="text-xs text-muted-foreground px-2 pb-1.5">主题</div>

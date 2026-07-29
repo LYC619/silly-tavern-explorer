@@ -266,7 +266,8 @@ const StoryWorkspace = () => {
     <AppLayout>
       <div className="flex items-start flex-wrap">
         {/* ===== 左侧二级栏：故事上下文 + 三组导航 + 分支/章节/书签 ===== */}
-        <aside className="w-56 basis-56 shrink-0 grow-0 border-r border-border bg-card/40 sticky top-0 h-screen overflow-y-auto p-3 space-y-4">
+        {/* 新外壳（2.1-P1）主区内滚动：sticky 仍生效，高度上限改为主区可视高（标题栏36+状态栏26=62px） */}
+        <aside className="w-56 basis-56 shrink-0 grow-0 border-r border-border bg-card/40 sticky top-0 max-h-[calc(100vh-62px)] overflow-y-auto p-3 space-y-4">
           <div>
             <Button variant="ghost" size="sm" className="px-1.5 -ml-1 text-muted-foreground" onClick={() => navigate(backTarget)}>
               <ArrowLeft className="w-4 h-4 mr-1" />

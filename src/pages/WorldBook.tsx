@@ -758,7 +758,7 @@ export default function WorldBookPage() {
 
   return (
     <AppLayout>
-      <div className="bg-background flex flex-col h-screen">
+      <div className="bg-background flex flex-col h-full">
       {/* 页内工具栏 */}
       <header className="border-b bg-card/80 backdrop-blur sticky top-0 z-30">
         <div className="max-w-[1600px] mx-auto px-4 h-14 flex items-center gap-2">
