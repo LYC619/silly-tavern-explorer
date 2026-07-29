@@ -1,0 +1,851 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="cocoa">
+<head>
+  <meta charset="UTF-8">
+  <title>ST 处理器 · 布局最终版</title>
+  <link rel="stylesheet" href="themes.css">
+  <link rel="stylesheet" href="layout.css">
+  <style>
+    /* 仅本 demo 页额外样式 —— 生产环境请忽略 */
+    body {
+      padding: 40px 24px 80px;
+      transition: background 0.2s, color 0.2s;
+    }
+    .page-header { max-width: 2400px; margin: 0 auto 32px; text-align: center; }
+    .page-header h1 {
+      font-family: var(--font-serif);
+      font-size: 28px;
+      color: var(--text-primary);
+      margin-bottom: 8px;
+      font-weight: 600;
+    }
+    .page-header p { font-size: 13px; color: var(--text-faint); line-height: 1.7; }
+    .section-title-wrap {
+      max-width: 2400px;
+      margin: 40px auto 16px;
+      display: flex; align-items: center; gap: 16px;
+    }
+    .section-title-wrap h2 {
+      font-family: var(--font-serif);
+      font-size: 20px;
+      color: var(--text-primary);
+      font-weight: 600;
+    }
+    .section-title-wrap .desc { font-size: 12px; color: var(--text-faint); flex: 1; }
+    .section-title-wrap .tag {
+      padding: 4px 10px;
+      border-radius: 20px;
+      font-size: 11px;
+      background: var(--brand-active-bg);
+      color: var(--brand);
+      border: 1px solid var(--brand-hairline);
+    }
+    .window {
+      border-radius: var(--radius-lg);
+      overflow: hidden;
+      box-shadow: var(--shadow-window);
+      aspect-ratio: 1280 / 780;
+      display: flex;
+      flex-direction: column;
+      max-width: 2400px;
+      margin: 0 auto;
+      background: var(--bg-canvas);
+      color: var(--text-body);
+    }
+    .titlebar .win-btns {
+      display: flex; gap: 8px;
+      opacity: 0.5;
+      margin-left: 8px;
+    }
+    .titlebar .win-btns span {
+      width: 14px; height: 14px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 11px;
+    }
+    /* 全局主题切换器 —— 固定在右下角，验证主题切换效果 */
+    .theme-switcher-fab {
+      position: fixed;
+      bottom: 20px; right: 20px;
+      z-index: 200;
+      background: var(--bg-elevated);
+      border: 1px solid var(--border-normal);
+      border-radius: 24px;
+      padding: 8px 14px 8px 10px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      cursor: pointer;
+      color: var(--text-body);
+      font-size: 12px;
+      box-shadow: var(--shadow-popover);
+    }
+    .theme-switcher-fab .fab-swatch {
+      width: 18px; height: 18px;
+      border-radius: 4px;
+      border: 1px solid var(--border-strong);
+      background: var(--bg-canvas);
+    }
+    .theme-popover.open { display: block; }
+    .theme-popover { display: none; bottom: 70px; right: 20px; }
+  </style>
+</head>
+<body>
+
+<div class="page-header">
+  <h1>ST 处理器 · 布局最终版</h1>
+  <p>V4 布局 + V2 四主题 · 点击右下角按钮试试切换主题<br>
+  下方 4 屏：首页 · 角色库 · 编辑区 · 其他资产</p>
+</div>
+
+<!-- ============================================================
+     ① 首页
+     ============================================================ -->
+<div class="section-title-wrap">
+  <h2>① 首页</h2>
+  <div class="desc">侧栏展开 · 接入 ST 目录卡在首屏顶部</div>
+  <div class="tag">Expanded</div>
+</div>
+<div class="window">
+  <div class="titlebar">
+    <div class="brand-badge">
+      <div class="logo">S</div>
+      <b>STE</b>
+      <span class="brand-name-en">Silly Tavern Explorer 2.0</span>
+    </div>
+    <div class="grow"></div>
+    <div class="top-search">
+      <svg class="icon" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+      搜索角色、故事、世界书条目…
+      <span class="kbd">⌘ K</span>
+    </div>
+    <div class="sync-btn">
+      <svg class="icon" style="width:12px;height:12px" viewBox="0 0 24 24"><polyline points="1 4 1 10 7 10"/><polyline points="23 20 23 14 17 14"/><path d="M20.49 9A9 9 0 0 0 5.64 5.64L1 10m22 4l-4.64 4.36A9 9 0 0 1 3.51 15"/></svg>
+      同步
+    </div>
+    <div class="cta">＋ 导入</div>
+    <div class="win-btns"><span>—</span><span>▢</span><span>×</span></div>
+  </div>
+  <div class="app-body">
+    <nav class="side-nav expanded">
+      <div class="side-brand-block">
+        <div class="b-logo">S</div>
+        <div class="b-txt">ST 处理器</div>
+      </div>
+      <div class="side-nav-section">
+        <div class="side-item active">
+          <div class="side-ico"><svg class="icon" viewBox="0 0 24 24"><path d="M3 12l2-2 7-7 7 7 2 2"/><path d="M5 10v10a1 1 0 0 0 1 1h4v-6h4v6h4a1 1 0 0 0 1-1V10"/></svg></div>
+          <span class="side-label">首页</span>
+        </div>
+        <div class="side-item">
+          <div class="side-ico"><svg class="icon" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 10h18"/><path d="M8 4v6"/></svg></div>
+          <span class="side-label">角色库</span>
+          <span class="side-badge">139</span>
+        </div>
+        <div class="side-item">
+          <div class="side-ico"><svg class="icon" viewBox="0 0 24 24"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4z"/></svg></div>
+          <span class="side-label">编辑区</span>
+        </div>
+        <div class="side-item">
+          <div class="side-ico"><svg class="icon" viewBox="0 0 24 24"><path d="M20 7l-8-4-8 4 8 4 8-4z"/><path d="M4 12l8 4 8-4"/><path d="M4 17l8 4 8-4"/></svg></div>
+          <span class="side-label">其他资产</span>
+          <span class="side-badge">95</span>
+        </div>
+      </div>
+      <div class="side-footer">
+        <div class="side-item">
+          <div class="side-ico"><svg class="icon" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 3a9 9 0 0 0 0 18 4.5 4.5 0 0 0 0-9 4.5 4.5 0 0 1 0-9z"/><circle cx="7.5" cy="10.5" r="0.8" fill="currentColor"/><circle cx="10.5" cy="7" r="0.8" fill="currentColor"/><circle cx="14.5" cy="7.5" r="0.8" fill="currentColor"/><circle cx="16" cy="11" r="0.8" fill="currentColor"/></svg></div>
+          <span class="side-label">主题</span>
+        </div>
+        <div class="side-item">
+          <div class="side-ico"><svg class="icon" viewBox="0 0 24 24"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg></div>
+          <span class="side-label">设置</span>
+        </div>
+      </div>
+    </nav>
+    <div class="main-area">
+      <div class="main-header">
+        <h1>晚上好，Kiraga</h1>
+        <span class="meta">你上次在 3 小时前离开怪谈社 · 第 162 楼</span>
+      </div>
+      <div class="canvas-area">
+        <div class="home-layout">
+          <div class="home-main">
+            <div class="connect-panel">
+              <div class="cp-ico">
+                <svg class="icon" style="width:18px;height:18px" viewBox="0 0 24 24"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg>
+              </div>
+              <div class="cp-body">
+                <div class="cp-title">接入 SillyTavern 目录</div>
+                <div class="cp-desc">指定 ST 目录，扫描角色卡 / 聊天 / 世界书 / 预设 / 全局正则，勾选后复制到库并记住来源。</div>
+              </div>
+              <div class="cp-cta">📁 选择 ST 目录</div>
+            </div>
+            <div>
+              <div class="home-section-title">
+                <h3>继续阅读<span class="cnt">3 个正在进行的故事</span></h3>
+                <a>全部故事 →</a>
+              </div>
+              <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+                <div class="story-continue-card">
+                  <div class="story-thumb"><div class="art art-placeholder-4"><div class="char-mark" style="font-size:20px">怪</div></div></div>
+                  <div class="story-info">
+                    <div class="story-title">怪谈社 · 第七夜</div>
+                    <div class="story-meta">魔幻假面喵 · claude-jupiter-v1-p</div>
+                    <div class="story-progress"><div class="fill" style="width:78%"></div></div>
+                    <div class="floor">162 / 约 200 楼 · 3 小时前</div>
+                  </div>
+                </div>
+                <div class="story-continue-card">
+                  <div class="story-thumb"><div class="art art-placeholder-2"><div class="char-mark" style="font-size:20px">V</div></div></div>
+                  <div class="story-info">
+                    <div class="story-title">Vesper · 深空调度员</div>
+                    <div class="story-meta">Vesper · claude-sonnet-4-5</div>
+                    <div class="story-progress"><div class="fill" style="width:34%"></div></div>
+                    <div class="floor">73 / 约 220 楼 · 昨日</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div style="flex:1; display:flex; flex-direction:column; min-height:0;">
+              <div class="home-section-title">
+                <h3>你的角色库<span class="cnt">139 张 · 4 张最近打开</span></h3>
+                <a>进入角色库 →</a>
+              </div>
+              <div class="featured-grid">
+                <div class="char-card">
+                  <div class="art art-placeholder-1"><div class="char-mark">奏</div></div>
+                  <div class="top-strip"><span class="story-badge">💬 9</span></div>
+                  <div class="bottom-info">
+                    <div class="title">奏枝</div>
+                    <div class="subtitle">图书馆管理员 · 深秋本本店</div>
+                    <div class="footer-row"><span class="rating">★ 8.7</span><span class="ago">2h ago</span></div>
+                  </div>
+                </div>
+                <div class="char-card">
+                  <div class="art art-placeholder-3"><div class="char-mark">雾</div></div>
+                  <div class="top-strip"><span class="story-badge">💬 12</span></div>
+                  <div class="bottom-info">
+                    <div class="title">雾影</div>
+                    <div class="subtitle">侦探社日常 · 主线校勘中</div>
+                    <div class="footer-row"><span class="rating">★ 8.1</span><span class="ago">3 日前</span></div>
+                  </div>
+                </div>
+                <div class="char-card">
+                  <div class="art art-placeholder-6"><div class="char-mark">春</div></div>
+                  <div class="top-strip"><span class="story-badge">💬 9</span></div>
+                  <div class="bottom-info">
+                    <div class="title">春昔</div>
+                    <div class="subtitle">江户茶屋女将 · 历史向</div>
+                    <div class="footer-row"><span class="rating">★ 9.0</span><span class="ago">1 月前</span></div>
+                  </div>
+                </div>
+                <div class="char-card">
+                  <div class="art art-placeholder-11"><div class="char-mark">见</div></div>
+                  <div class="top-strip"><span class="story-badge">💬 4</span></div>
+                  <div class="bottom-info">
+                    <div class="title">见泷</div>
+                    <div class="subtitle">日剧同人 · 奇妙冒险</div>
+                    <div class="footer-row"><span class="rating">★ 8.3</span><span class="ago">上周</span></div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="home-right">
+            <div class="drop-panel">
+              <div class="drop-ico">
+                <svg class="icon" style="width:20px;height:20px" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+              </div>
+              <div class="drop-hint">手上有文件要处理？<br><span style="opacity:0.6">丢进来，不用先建档。</span></div>
+              <div class="drop-chips">
+                <span>聊天记录</span><span>世界书</span><span>预设</span>
+                <span>角色卡</span><span>正则</span>
+              </div>
+            </div>
+            <div class="stat-panel">
+              <div class="stat-title">你的资产</div>
+              <div class="stat-grid">
+                <div class="stat-cell"><span>角色卡</span><span class="num">139</span></div>
+                <div class="stat-cell"><span>世界书</span><span class="num">79</span></div>
+                <div class="stat-cell"><span>预设</span><span class="num">12</span></div>
+                <div class="stat-cell"><span>正则</span><span class="num">4</span></div>
+                <div class="stat-cell"><span>故事</span><span class="num">342</span></div>
+                <div class="stat-cell"><span>字数</span><span class="num" style="font-size:12px">1.4M</span></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="status-bar">
+    <span>路径已同步 · Base · 挂载点：/user/文档/SillyTavern/data</span>
+    <span>存储 3.42 GB · 已归档 342 · 索引 up-to-date</span>
+  </div>
+</div>
+
+<!-- ============================================================
+     ② 角色库
+     ============================================================ -->
+<div class="section-title-wrap">
+  <h2>② 角色库</h2>
+  <div class="desc">侧栏折叠 · 二级筛选栏 · 4 列 3:4 卡片</div>
+  <div class="tag">Collapsed</div>
+</div>
+<div class="window">
+  <div class="titlebar">
+    <div class="brand-badge">
+      <div class="logo">S</div>
+      <b>STE</b>
+      <span class="brand-name-en">Silly Tavern Explorer 2.0</span>
+    </div>
+    <div class="grow"></div>
+    <div class="top-search">
+      <svg class="icon" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+      搜索角色、故事、世界书条目…
+      <span class="kbd">⌘ K</span>
+    </div>
+    <div class="sync-btn">
+      <svg class="icon" style="width:12px;height:12px" viewBox="0 0 24 24"><polyline points="1 4 1 10 7 10"/><polyline points="23 20 23 14 17 14"/><path d="M20.49 9A9 9 0 0 0 5.64 5.64L1 10m22 4l-4.64 4.36A9 9 0 0 1 3.51 15"/></svg>
+      同步
+    </div>
+    <div class="cta">＋ 导入角色卡</div>
+    <div class="win-btns"><span>—</span><span>▢</span><span>×</span></div>
+  </div>
+  <div class="app-body">
+    <nav class="side-nav collapsed">
+      <div class="side-brand-block">
+        <div class="b-logo">S</div>
+        <div class="b-txt">ST 处理器</div>
+      </div>
+      <div class="side-nav-section">
+        <div class="side-item" title="首页"><div class="side-ico"><svg class="icon" viewBox="0 0 24 24"><path d="M3 12l2-2 7-7 7 7 2 2"/><path d="M5 10v10a1 1 0 0 0 1 1h4v-6h4v6h4a1 1 0 0 0 1-1V10"/></svg></div><span class="side-label">首页</span></div>
+        <div class="side-item active" title="角色库"><div class="side-ico"><svg class="icon" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 10h18"/><path d="M8 4v6"/></svg></div><span class="side-label">角色库</span></div>
+        <div class="side-item" title="编辑区"><div class="side-ico"><svg class="icon" viewBox="0 0 24 24"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4z"/></svg></div><span class="side-label">编辑区</span></div>
+        <div class="side-item" title="其他资产"><div class="side-ico"><svg class="icon" viewBox="0 0 24 24"><path d="M20 7l-8-4-8 4 8 4 8-4z"/><path d="M4 12l8 4 8-4"/><path d="M4 17l8 4 8-4"/></svg></div><span class="side-label">其他资产</span></div>
+      </div>
+      <div class="side-footer">
+        <div class="side-item" title="主题"><div class="side-ico"><svg class="icon" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 3a9 9 0 0 0 0 18 4.5 4.5 0 0 0 0-9 4.5 4.5 0 0 1 0-9z"/><circle cx="7.5" cy="10.5" r="0.8" fill="currentColor"/><circle cx="10.5" cy="7" r="0.8" fill="currentColor"/><circle cx="14.5" cy="7.5" r="0.8" fill="currentColor"/><circle cx="16" cy="11" r="0.8" fill="currentColor"/></svg></div><span class="side-label">主题</span></div>
+        <div class="side-item" title="设置"><div class="side-ico"><svg class="icon" viewBox="0 0 24 24"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg></div><span class="side-label">设置</span></div>
+      </div>
+    </nav>
+    <div class="main-area">
+      <div class="main-header">
+        <h1>我的库</h1>
+        <span class="meta">139 张卡 · 共 342 段故事 · 最后同步 2 分钟前</span>
+        <span class="grow"></span>
+        <div class="sort-select">按最近打开 ▾</div>
+      </div>
+      <div class="main-content-inner">
+        <div class="filter-side">
+          <div class="filter-group">
+            <div class="f-item active"><span>全部</span><span class="cnt">139</span></div>
+            <div class="f-item"><span>最近打开</span><span class="cnt">14</span></div>
+            <div class="f-item"><span>进行中</span><span class="cnt">22</span></div>
+            <div class="f-item"><span>已完结</span><span class="cnt">51</span></div>
+            <div class="f-item"><span>未开始</span><span class="cnt">35</span></div>
+            <div class="f-item"><span>已收藏</span><span class="cnt">12</span></div>
+          </div>
+          <div class="filter-group">
+            <div class="filter-label">标签</div>
+            <div class="f-item"><span><span class="dot" style="background:var(--tag-review)"></span>评价</span><span class="cnt">42</span></div>
+            <div class="f-item"><span><span class="dot" style="background:var(--tag-people)"></span>人物</span><span class="cnt">78</span></div>
+            <div class="f-item"><span><span class="dot" style="background:var(--tag-play)"></span>玩法</span><span class="cnt">31</span></div>
+            <div class="f-item"><span><span class="dot" style="background:var(--tag-scene)"></span>背景</span><span class="cnt">56</span></div>
+            <div class="f-item"><span><span class="dot" style="background:var(--tag-nsfw)"></span>NSFW</span><span class="cnt">18</span></div>
+          </div>
+          <div class="filter-group">
+            <div class="filter-label">系统</div>
+            <div class="f-item"><span>回收站</span><span class="cnt">3</span></div>
+            <div class="f-item"><span>批量管理</span></div>
+          </div>
+        </div>
+        <div class="canvas-area">
+          <div class="canvas-toolbar">
+            <span class="chip active">全部</span>
+            <span class="chip">近 7 天</span>
+            <span class="chip">有未读</span>
+            <span class="chip">★ 4 星以上</span>
+            <span class="grow"></span>
+            <div class="view-toggle">
+              <span class="active">卡片</span>
+              <span>列表</span>
+              <span>紧凑</span>
+            </div>
+          </div>
+          <div class="card-grid">
+            <div class="char-card">
+              <div class="art art-placeholder-1"><div class="char-mark">奏</div></div>
+              <div class="top-strip"><span class="story-badge">💬 9 段故事</span></div>
+              <div class="bottom-info">
+                <div class="title">奏枝 · 图书馆管理员</div>
+                <div class="subtitle">深秋本本店。她记得每一位老顾客的书，却从不问名字。</div>
+                <div class="footer-row"><span class="rating">★ 8.7<span class="max"> / 10</span></span><span class="ago">2h ago</span></div>
+              </div>
+            </div>
+            <div class="char-card">
+              <div class="art art-placeholder-2"><div class="char-mark">V</div></div>
+              <div class="top-strip"><span class="story-badge">💬 3 段故事</span></div>
+              <div class="bottom-info">
+                <div class="title">Vesper · 深空调度员</div>
+                <div class="subtitle">第 21 号站点，独自值守一整轮班。里格达河从时间的一端流过。</div>
+                <div class="footer-row"><span class="rating">★ 9.2<span class="max"> / 10</span></span><span class="ago">昨日</span></div>
+              </div>
+            </div>
+            <div class="char-card">
+              <div class="art art-placeholder-3"><div class="char-mark">雾</div></div>
+              <div class="top-strip"><span class="story-badge">💬 12 段故事</span></div>
+              <div class="bottom-info">
+                <div class="title">雾影 · 侦探社日常</div>
+                <div class="subtitle">同人卡。四个性格迥异的女侦探组成事务所。</div>
+                <div class="footer-row"><span class="rating">★ 8.1<span class="max"> / 10</span></span><span class="ago">3 日前</span></div>
+              </div>
+            </div>
+            <div class="char-card">
+              <div class="art art-placeholder-4"><div class="char-mark">山</div></div>
+              <div class="top-strip"><span class="story-badge">💬 2 段故事</span></div>
+              <div class="bottom-info">
+                <div class="title">山中饭舍</div>
+                <div class="subtitle">一间只在雨夜开门的客栈，老板娘对每位客人只问一句话。</div>
+                <div class="footer-row"><span class="rating">★ - <span class="max">/ 10</span></span><span class="ago">本周</span></div>
+              </div>
+            </div>
+            <div class="char-card">
+              <div class="art art-placeholder-5"><div class="char-mark">L</div></div>
+              <div class="top-strip"><span class="story-badge">💬 5 段故事</span></div>
+              <div class="bottom-info">
+                <div class="title">Lilith · 二手唱片行</div>
+                <div class="subtitle">她愿意告诉你上一位主人的名字，但要你先讲完一整张唱片的时间。</div>
+                <div class="footer-row"><span class="rating">★ 7.5<span class="max"> / 10</span></span><span class="ago">上周</span></div>
+              </div>
+            </div>
+            <div class="char-card">
+              <div class="art art-placeholder-6"><div class="char-mark">春</div></div>
+              <div class="top-strip"><span class="story-badge">💬 9 段故事</span></div>
+              <div class="bottom-info">
+                <div class="title">春昔 · 江户茶屋</div>
+                <div class="subtitle">同人卡。江户中期。茶屋女将与常客。</div>
+                <div class="footer-row"><span class="rating">★ 9.0<span class="max"> / 10</span></span><span class="ago">1 月前</span></div>
+              </div>
+            </div>
+            <div class="char-card">
+              <div class="art art-placeholder-7"><div class="char-mark">K</div></div>
+              <div class="top-strip"><span class="story-badge">💬 1 段故事</span></div>
+              <div class="bottom-info">
+                <div class="title">Kai · 电台深夜档</div>
+                <div class="subtitle">凌晨三点是他的时间，信号只对你一个人清晰。</div>
+                <div class="footer-row"><span class="rating">★ - <span class="max">/ 10</span></span><span class="ago">3 日前</span></div>
+              </div>
+            </div>
+            <div class="char-card">
+              <div class="art art-placeholder-8"><div class="char-mark">归</div></div>
+              <div class="top-strip"><span class="story-badge">💬 4 段故事</span></div>
+              <div class="bottom-info">
+                <div class="title">归舰 · 海祭</div>
+                <div class="subtitle">同人卡。江户末年。每四十年一次事关地祈式。</div>
+                <div class="footer-row"><span class="rating">★ 8.4<span class="max"> / 10</span></span><span class="ago">今日</span></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="status-bar">
+    <span>路径已同步 · Base · 挂载点：/user/文档/SillyTavern/data</span>
+    <span>存储 3.42 GB · 已归档 342 · 索引 up-to-date</span>
+  </div>
+</div>
+
+<!-- ============================================================
+     ③ 编辑区
+     ============================================================ -->
+<div class="section-title-wrap">
+  <h2>③ 编辑区</h2>
+  <div class="desc">侧栏折叠 · 二级列表 · 工具区留占位（复用现有布局）</div>
+  <div class="tag">Collapsed + Sub-list</div>
+</div>
+<div class="window">
+  <div class="titlebar">
+    <div class="brand-badge">
+      <div class="logo">S</div>
+      <b>STE</b>
+      <span class="brand-name-en">Silly Tavern Explorer 2.0</span>
+    </div>
+    <div class="grow"></div>
+    <div class="top-search">
+      <svg class="icon" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+      搜索…
+      <span class="kbd">⌘ K</span>
+    </div>
+    <div class="sync-btn"><svg class="icon" style="width:12px;height:12px" viewBox="0 0 24 24"><polyline points="1 4 1 10 7 10"/><polyline points="23 20 23 14 17 14"/><path d="M20.49 9A9 9 0 0 0 5.64 5.64L1 10m22 4l-4.64 4.36A9 9 0 0 1 3.51 15"/></svg>同步</div>
+    <div class="cta">＋ 拖入文件</div>
+    <div class="win-btns"><span>—</span><span>▢</span><span>×</span></div>
+  </div>
+  <div class="app-body">
+    <nav class="side-nav collapsed">
+      <div class="side-brand-block"><div class="b-logo">S</div><div class="b-txt">ST 处理器</div></div>
+      <div class="side-nav-section">
+        <div class="side-item" title="首页"><div class="side-ico"><svg class="icon" viewBox="0 0 24 24"><path d="M3 12l2-2 7-7 7 7 2 2"/><path d="M5 10v10a1 1 0 0 0 1 1h4v-6h4v6h4a1 1 0 0 0 1-1V10"/></svg></div><span class="side-label">首页</span></div>
+        <div class="side-item" title="角色库"><div class="side-ico"><svg class="icon" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 10h18"/><path d="M8 4v6"/></svg></div><span class="side-label">角色库</span></div>
+        <div class="side-item active" title="编辑区"><div class="side-ico"><svg class="icon" viewBox="0 0 24 24"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4z"/></svg></div><span class="side-label">编辑区</span></div>
+        <div class="side-item" title="其他资产"><div class="side-ico"><svg class="icon" viewBox="0 0 24 24"><path d="M20 7l-8-4-8 4 8 4 8-4z"/><path d="M4 12l8 4 8-4"/><path d="M4 17l8 4 8-4"/></svg></div><span class="side-label">其他资产</span></div>
+      </div>
+      <div class="side-footer">
+        <div class="side-item" title="主题"><div class="side-ico"><svg class="icon" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 3a9 9 0 0 0 0 18 4.5 4.5 0 0 0 0-9 4.5 4.5 0 0 1 0-9z"/></svg></div><span class="side-label">主题</span></div>
+        <div class="side-item" title="设置"><div class="side-ico"><svg class="icon" viewBox="0 0 24 24"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg></div><span class="side-label">设置</span></div>
+      </div>
+    </nav>
+    <div class="main-area">
+      <div class="editor-layout">
+        <div class="editor-sublist">
+          <div class="editor-sublist-group">
+            <div class="editor-sublist-label">工作类型</div>
+            <div class="editor-sublist-item active">
+              <div class="ei-ico"><svg class="icon" viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg></div>
+              聊天处理
+              <span class="ei-cnt">23</span>
+            </div>
+            <div class="editor-sublist-item">
+              <div class="ei-ico"><svg class="icon" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M2 12h20M12 2a15 15 0 0 1 4 10 15 15 0 0 1-4 10 15 15 0 0 1-4-10 15 15 0 0 1 4-10z"/></svg></div>
+              世界书
+              <span class="ei-cnt">79</span>
+            </div>
+            <div class="editor-sublist-item">
+              <div class="ei-ico"><svg class="icon" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M8 2v4M16 2v4M3 10h18"/></svg></div>
+              角色卡
+              <span class="ei-cnt">139</span>
+            </div>
+            <div class="editor-sublist-item">
+              <div class="ei-ico"><svg class="icon" viewBox="0 0 24 24"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg></div>
+              预设
+              <span class="ei-cnt">12</span>
+            </div>
+            <div class="editor-sublist-item">
+              <div class="ei-ico"><svg class="icon" viewBox="0 0 24 24"><polygon points="14 2 6 2 6 22 14 22"/></svg></div>
+              正则
+              <span class="ei-cnt">4</span>
+            </div>
+          </div>
+          <div class="editor-sublist-group">
+            <div class="editor-sublist-label">处理队列</div>
+            <div class="editor-sublist-item"><div class="ei-ico">📥</div>待处理文件<span class="ei-cnt">3</span></div>
+            <div class="editor-sublist-item"><div class="ei-ico">📦</div>归档记录</div>
+          </div>
+          <div class="editor-sublist-group">
+            <div class="editor-sublist-label">最近打开</div>
+            <div class="editor-sublist-item"><div class="ei-ico">◆</div>月下花园的邂逅</div>
+            <div class="editor-sublist-item"><div class="ei-ico">◆</div>怪谈社 · 第七夜</div>
+            <div class="editor-sublist-item"><div class="ei-ico">◆</div>Vesper · 星际值班日志</div>
+          </div>
+        </div>
+        <div class="editor-canvas">
+          <div class="breadcrumb-mini">编辑区 · <b>聊天处理</b> · 月下花园的邂逅</div>
+          <div class="placeholder-tools">
+            <svg class="icon" style="width:14px;height:14px" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M12 8v4M12 16h.01"/></svg>
+            <span>此处保留原有工具栏（外观 / 章节标记 / 正则 / 导入 / 导出 / 小说视图 / 绑定到角色）—— 复用现有布局</span>
+          </div>
+          <div class="doc-view">
+            <div class="doc-header">
+              <div class="doc-label">对 话 记 录</div>
+              <div class="doc-title">月下花园的邂逅</div>
+              <div class="doc-sub">樱 &amp; 旅人</div>
+            </div>
+            <div class="msg">
+              <div class="floor-idx">0</div>
+              <div>
+                <div class="speaker">樱</div>
+                <div class="content">月光如水般倾洒在庭院的青石路上，我独自坐在那株百年老樱下，看着花瓣随风飘落。听到脚步声，我微微抬起头，看到了你。</div>
+              </div>
+            </div>
+            <div class="msg">
+              <div class="floor-idx">1</div>
+              <div>
+                <div class="speaker">旅人</div>
+                <div class="content">抱歉打扰了，我只是被这里的景色吸引。这棵樱花树真美。</div>
+              </div>
+            </div>
+            <div class="msg">
+              <div class="floor-idx">2</div>
+              <div>
+                <div class="speaker">樱</div>
+                <div class="content">我轻轻摇了摇头，嘴角浮现一抹淡淡的笑意。"不必道歉。这棵树已经在这里守候了很久，它喜欢有人来欣赏它的美。"我拍了拍身边的空位，"要坐下来吗？"</div>
+              </div>
+            </div>
+            <div class="msg-note">— 共 7 条消息 —</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="status-bar">
+    <span>路径已同步 · Base · 挂载点：/user/文档/SillyTavern/data</span>
+    <span>存储 3.42 GB · 已归档 342 · 索引 up-to-date</span>
+  </div>
+</div>
+
+<!-- ============================================================
+     ④ 其他资产
+     ============================================================ -->
+<div class="section-title-wrap">
+  <h2>④ 其他资产</h2>
+  <div class="desc">侧栏折叠 · 分类 tabs · 卡片补齐元数据 + 绑定关系</div>
+  <div class="tag">Collapsed + Tabs</div>
+</div>
+<div class="window">
+  <div class="titlebar">
+    <div class="brand-badge"><div class="logo">S</div><b>STE</b><span class="brand-name-en">Silly Tavern Explorer 2.0</span></div>
+    <div class="grow"></div>
+    <div class="top-search">
+      <svg class="icon" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+      搜索资产…
+      <span class="kbd">⌘ K</span>
+    </div>
+    <div class="sync-btn"><svg class="icon" style="width:12px;height:12px" viewBox="0 0 24 24"><polyline points="1 4 1 10 7 10"/><polyline points="23 20 23 14 17 14"/><path d="M20.49 9A9 9 0 0 0 5.64 5.64L1 10m22 4l-4.64 4.36A9 9 0 0 1 3.51 15"/></svg>同步</div>
+    <div class="cta">＋ 新建 / 导入</div>
+    <div class="win-btns"><span>—</span><span>▢</span><span>×</span></div>
+  </div>
+  <div class="app-body">
+    <nav class="side-nav collapsed">
+      <div class="side-brand-block"><div class="b-logo">S</div><div class="b-txt">ST 处理器</div></div>
+      <div class="side-nav-section">
+        <div class="side-item" title="首页"><div class="side-ico"><svg class="icon" viewBox="0 0 24 24"><path d="M3 12l2-2 7-7 7 7 2 2"/><path d="M5 10v10a1 1 0 0 0 1 1h4v-6h4v6h4a1 1 0 0 0 1-1V10"/></svg></div><span class="side-label">首页</span></div>
+        <div class="side-item" title="角色库"><div class="side-ico"><svg class="icon" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 10h18"/><path d="M8 4v6"/></svg></div><span class="side-label">角色库</span></div>
+        <div class="side-item" title="编辑区"><div class="side-ico"><svg class="icon" viewBox="0 0 24 24"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4z"/></svg></div><span class="side-label">编辑区</span></div>
+        <div class="side-item active" title="其他资产"><div class="side-ico"><svg class="icon" viewBox="0 0 24 24"><path d="M20 7l-8-4-8 4 8 4 8-4z"/><path d="M4 12l8 4 8-4"/><path d="M4 17l8 4 8-4"/></svg></div><span class="side-label">其他资产</span></div>
+      </div>
+      <div class="side-footer">
+        <div class="side-item" title="主题"><div class="side-ico"><svg class="icon" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/></svg></div><span class="side-label">主题</span></div>
+        <div class="side-item" title="设置"><div class="side-ico"><svg class="icon" viewBox="0 0 24 24"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg></div><span class="side-label">设置</span></div>
+      </div>
+    </nav>
+    <div class="main-area">
+      <div class="main-header">
+        <h1>其他资产</h1>
+        <span class="meta">世界书 79 · 预设 12 · 正则 4 · 快照 6</span>
+        <span class="grow"></span>
+        <div class="sort-select">按最近修改 ▾</div>
+      </div>
+      <div class="main-content-inner">
+        <div class="filter-side">
+          <div class="filter-group">
+            <div class="filter-label">状态</div>
+            <div class="f-item active"><span>全部</span><span class="cnt">95</span></div>
+            <div class="f-item"><span>已启用</span><span class="cnt">62</span></div>
+            <div class="f-item"><span>未启用</span><span class="cnt">33</span></div>
+            <div class="f-item"><span>仅未绑定</span><span class="cnt">7</span></div>
+          </div>
+          <div class="filter-group">
+            <div class="filter-label">类别</div>
+            <div class="f-item"><span><span class="dot" style="background:var(--tag-review)"></span>常驻</span><span class="cnt">18</span></div>
+            <div class="f-item"><span><span class="dot" style="background:var(--tag-play)"></span>关键词</span><span class="cnt">54</span></div>
+            <div class="f-item"><span><span class="dot" style="background:var(--tag-nsfw)"></span>作者注</span><span class="cnt">7</span></div>
+          </div>
+          <div class="filter-group">
+            <div class="filter-label">来源</div>
+            <div class="f-item"><span>ST 导入</span><span class="cnt">71</span></div>
+            <div class="f-item"><span>手动创建</span><span class="cnt">18</span></div>
+            <div class="f-item"><span>AI 生成</span><span class="cnt">6</span></div>
+          </div>
+        </div>
+        <div class="canvas-area">
+          <div class="assets-tabs">
+            <div class="a-tab active">🌍 世界书 <span class="cnt">79</span></div>
+            <div class="a-tab">⚙ 预设 <span class="cnt">12</span></div>
+            <div class="a-tab">✂ 正则 <span class="cnt">4</span></div>
+            <div class="a-tab">📦 快照 <span class="cnt">6</span></div>
+          </div>
+          <div class="assets-list">
+            <div class="asset-card">
+              <div class="a-head">
+                <div class="a-icon"><svg class="icon" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M2 12h20M12 2a15 15 0 0 1 4 10 15 15 0 0 1-4 10 15 15 0 0 1-4-10 15 15 0 0 1 4-10z"/></svg></div>
+                <div class="a-title">仙界 · 主世界观<span class="status-pill">● 已启用</span></div>
+              </div>
+              <div class="a-desc">仙界世界观基础设定：五大灵脉、修炼阶梯、门派体系。作为主世界观导入，供仙侠向角色卡引用。</div>
+              <div class="a-stats-row">
+                <div class="a-stat"><span class="s-label">条目</span><span class="s-val">15</span></div>
+                <div class="a-stat"><span class="s-label">TOKENS</span><span class="s-val">782</span></div>
+                <div class="a-stat"><span class="s-label">ORDER</span><span class="s-val">100</span></div>
+              </div>
+              <div class="a-tags"><span>关键词</span><span>角色设定之前</span><span>历史向</span></div>
+              <div class="a-bindings">🔗 <b>魔幻假面喵</b> <b>怪谈社</b> <b>+2 卡</b></div>
+              <div class="a-footer"><span>修改于 2 天前</span><span>📤 导出 · ⋯</span></div>
+            </div>
+            <div class="asset-card">
+              <div class="a-head">
+                <div class="a-icon"><svg class="icon" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M2 12h20M12 2a15 15 0 0 1 4 10 15 15 0 0 1-4 10 15 15 0 0 1-4-10 15 15 0 0 1 4-10z"/></svg></div>
+                <div class="a-title">回复格式规范 v3<span class="status-pill">● 已启用</span></div>
+              </div>
+              <div class="a-desc">回复格式严格按照：主视角 / 人界 / 取次于反馈。作者注扉页顶部。全局挂载。</div>
+              <div class="a-stats-row">
+                <div class="a-stat"><span class="s-label">条目</span><span class="s-val">1</span></div>
+                <div class="a-stat"><span class="s-label">TOKENS</span><span class="s-val">52</span></div>
+                <div class="a-stat"><span class="s-label">ORDER</span><span class="s-val">100</span></div>
+              </div>
+              <div class="a-tags"><span>常驻</span><span>作者注</span></div>
+              <div class="a-bindings">🔗 <b>全局挂载</b></div>
+              <div class="a-footer"><span>修改于 1 周前</span><span>📤 导出 · ⋯</span></div>
+            </div>
+            <div class="asset-card">
+              <div class="a-head">
+                <div class="a-icon"><svg class="icon" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M2 12h20M12 2a15 15 0 0 1 4 10 15 15 0 0 1-4 10 15 15 0 0 1-4-10 15 15 0 0 1 4-10z"/></svg></div>
+                <div class="a-title">CoT · 思维链导入<span class="status-pill">● 已启用</span></div>
+              </div>
+              <div class="a-desc">The following must be added to the beginning of each reply. 示例消息之后 · 强制思考格式引导。</div>
+              <div class="a-stats-row">
+                <div class="a-stat"><span class="s-label">条目</span><span class="s-val">1</span></div>
+                <div class="a-stat"><span class="s-label">TOKENS</span><span class="s-val">362</span></div>
+                <div class="a-stat"><span class="s-label">ORDER</span><span class="s-val">100</span></div>
+              </div>
+              <div class="a-tags"><span>常驻</span><span>示例消息之后</span></div>
+              <div class="a-bindings">🔗 <b>Vesper · 深空调度员</b></div>
+              <div class="a-footer"><span>修改于 昨天</span><span>📤 导出 · ⋯</span></div>
+            </div>
+            <div class="asset-card">
+              <div class="a-head">
+                <div class="a-icon"><svg class="icon" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M2 12h20M12 2a15 15 0 0 1 4 10 15 15 0 0 1-4 10 15 15 0 0 1-4-10 15 15 0 0 1 4-10z"/></svg></div>
+                <div class="a-title">江户中期 · 时代设定<span class="status-pill off">○ 未启用</span></div>
+              </div>
+              <div class="a-desc">物价 / 街景 / 服饰 / 官职常识。同人卡专用。基于井原西鹤时期的社会档案考据。</div>
+              <div class="a-stats-row">
+                <div class="a-stat"><span class="s-label">条目</span><span class="s-val">28</span></div>
+                <div class="a-stat"><span class="s-label">TOKENS</span><span class="s-val">1.2k</span></div>
+                <div class="a-stat"><span class="s-label">ORDER</span><span class="s-val">80</span></div>
+              </div>
+              <div class="a-tags"><span>关键词</span><span>历史向</span></div>
+              <div class="a-bindings">🔗 <b>春昔 · 江户茶屋</b> <b>归舰 · 海祭</b></div>
+              <div class="a-footer"><span>修改于 3 周前</span><span>📤 导出 · ⋯</span></div>
+            </div>
+            <div class="asset-card">
+              <div class="a-head">
+                <div class="a-icon"><svg class="icon" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M2 12h20M12 2a15 15 0 0 1 4 10 15 15 0 0 1-4 10 15 15 0 0 1-4-10 15 15 0 0 1 4-10z"/></svg></div>
+                <div class="a-title">深空调度制度<span class="status-pill">● 已启用</span></div>
+              </div>
+              <div class="a-desc">21 世纪深空运输行业协会规范，涉及站点等级、值班制度、通讯延时等细节。Vesper 卡专用。</div>
+              <div class="a-stats-row">
+                <div class="a-stat"><span class="s-label">条目</span><span class="s-val">12</span></div>
+                <div class="a-stat"><span class="s-label">TOKENS</span><span class="s-val">640</span></div>
+                <div class="a-stat"><span class="s-label">ORDER</span><span class="s-val">90</span></div>
+              </div>
+              <div class="a-tags"><span>关键词</span><span>科幻</span></div>
+              <div class="a-bindings">🔗 <b>Vesper · 深空调度员</b></div>
+              <div class="a-footer"><span>修改于 5 天前</span><span>📤 导出 · ⋯</span></div>
+            </div>
+            <div class="asset-card">
+              <div class="a-head">
+                <div class="a-icon"><svg class="icon" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M2 12h20M12 2a15 15 0 0 1 4 10 15 15 0 0 1-4 10 15 15 0 0 1-4-10 15 15 0 0 1 4-10z"/></svg></div>
+                <div class="a-title">怪谈社 · 事件簿<span class="status-pill">● 已启用</span></div>
+              </div>
+              <div class="a-desc">怪谈社主线事件档案。按夜次编号记录，随剧情推进逐条解锁。当前 7/12 已解锁。</div>
+              <div class="a-stats-row">
+                <div class="a-stat"><span class="s-label">条目</span><span class="s-val">12</span></div>
+                <div class="a-stat"><span class="s-label">TOKENS</span><span class="s-val">2.1k</span></div>
+                <div class="a-stat"><span class="s-label">ORDER</span><span class="s-val">120</span></div>
+              </div>
+              <div class="a-tags"><span>关键词</span><span>悬疑</span><span>主线</span></div>
+              <div class="a-bindings">🔗 <b>怪谈社</b></div>
+              <div class="a-footer"><span>修改于 3 小时前</span><span>📤 导出 · ⋯</span></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="status-bar">
+    <span>路径已同步 · Base · 挂载点：/user/文档/SillyTavern/data</span>
+    <span>存储 3.42 GB · 已归档 342 · 索引 up-to-date</span>
+  </div>
+</div>
+
+<!-- ============================================================
+     全局主题切换器 (右下角) — 演示 data-theme 切换机制
+     ============================================================ -->
+<div class="theme-switcher-fab" id="fab">
+  <span class="fab-swatch" id="fabSwatch"></span>
+  <span id="fabName">深咖啡</span>
+  <span style="opacity:0.5;font-size:10px;">▾</span>
+</div>
+
+<div class="theme-popover" id="pop">
+  <div class="tp-title">选择主题</div>
+  <div class="tp-option" data-theme-key="cocoa">
+    <div class="swatch"><span class="chrome" style="background:#14100a"></span><span class="accent"></span></div>
+    <span>深咖啡</span>
+    <span class="tp-desc">保留品牌温度</span>
+    <svg class="icon tp-check" viewBox="0 0 24 24" style="display:none;"><polyline points="20 6 9 17 4 12"/></svg>
+  </div>
+  <div class="tp-option" data-theme-key="ink">
+    <div class="swatch" style="background:#0e0e10"><span class="chrome" style="background:#08080a"></span><span class="accent"></span></div>
+    <span>墨黑</span>
+    <span class="tp-desc">冷 · 沉</span>
+    <svg class="icon tp-check" viewBox="0 0 24 24" style="display:none;"><polyline points="20 6 9 17 4 12"/></svg>
+  </div>
+  <div class="tp-option" data-theme-key="midnight">
+    <div class="swatch" style="background:#0f131c"><span class="chrome" style="background:#080b13"></span><span class="accent"></span></div>
+    <span>深夜蓝</span>
+    <span class="tp-desc">冷底 + 暖点</span>
+    <svg class="icon tp-check" viewBox="0 0 24 24" style="display:none;"><polyline points="20 6 9 17 4 12"/></svg>
+  </div>
+  <div class="tp-option" data-theme-key="cream">
+    <div class="swatch" style="background:#f5f0e6"><span class="chrome" style="background:#ebe4d5"></span><span class="accent"></span></div>
+    <span>米色典雅</span>
+    <span class="tp-desc">你的原皮肤</span>
+    <svg class="icon tp-check" viewBox="0 0 24 24" style="display:none;"><polyline points="20 6 9 17 4 12"/></svg>
+  </div>
+  <div class="tp-divider"></div>
+  <div class="tp-option" style="opacity:0.6;">
+    <span style="width:32px;text-align:center;">⚙</span>
+    <span>自定义主题…</span>
+  </div>
+</div>
+
+<script>
+  // ============================================
+  // 主题切换机制
+  // ============================================
+  const THEMES = {
+    cocoa:    { name: '深咖啡',   canvas: '#1e1610' },
+    ink:      { name: '墨黑',     canvas: '#0e0e10' },
+    midnight: { name: '深夜蓝',   canvas: '#0f131c' },
+    cream:    { name: '米色典雅', canvas: '#f5f0e6' }
+  };
+
+  const html = document.documentElement;
+  const fab = document.getElementById('fab');
+  const pop = document.getElementById('pop');
+  const fabName = document.getElementById('fabName');
+  const fabSwatch = document.getElementById('fabSwatch');
+
+  function applyTheme(key) {
+    if (!THEMES[key]) return;
+    html.setAttribute('data-theme', key);
+    localStorage.setItem('ste-theme', key);
+    fabName.textContent = THEMES[key].name;
+    fabSwatch.style.background = THEMES[key].canvas;
+    document.querySelectorAll('.tp-option[data-theme-key]').forEach(el => {
+      const active = el.dataset.themeKey === key;
+      el.classList.toggle('active', active);
+      el.querySelector('.tp-check').style.display = active ? 'block' : 'none';
+    });
+  }
+
+  fab.addEventListener('click', (e) => {
+    e.stopPropagation();
+    pop.classList.toggle('open');
+  });
+  document.querySelectorAll('.tp-option[data-theme-key]').forEach(el => {
+    el.addEventListener('click', () => {
+      applyTheme(el.dataset.themeKey);
+      pop.classList.remove('open');
+    });
+  });
+  document.addEventListener('click', (e) => {
+    if (!pop.contains(e.target) && !fab.contains(e.target)) pop.classList.remove('open');
+  });
+
+  // 初始化：读取 localStorage 或默认 cocoa
+  applyTheme(localStorage.getItem('ste-theme') || 'cocoa');
+</script>
+
+</body>
+</html>

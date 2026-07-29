@@ -19,6 +19,23 @@ export default {
         display: ["'ZCOOL XiaoWei'", "serif"],
       },
       colors: {
+        // 2.1 客户端化主题层（src/themes.css 四主题变量，var 直引；带透明度需求请用 shadcn token）
+        brand: { DEFAULT: "var(--brand)", hi: "var(--brand-hi)" },
+        canvas: "var(--bg-canvas)",
+        chrome: "var(--bg-chrome)",
+        elevated: { DEFAULT: "var(--bg-elevated)", strong: "var(--bg-elevated-strong)" },
+        status: {
+          ok: "var(--status-ok)",
+          warn: "var(--status-warn)",
+          danger: "var(--status-danger)",
+        },
+        tag: {
+          review: "var(--tag-review)",
+          people: "var(--tag-people)",
+          play: "var(--tag-play)",
+          scene: "var(--tag-scene)",
+          nsfw: "var(--tag-nsfw)",
+        },
         border: "hsl(var(--border))",
         input: "hsl(var(--input))",
         ring: "hsl(var(--ring))",

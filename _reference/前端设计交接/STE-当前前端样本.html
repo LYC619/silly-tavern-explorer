@@ -1,0 +1,361 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>STE · 当前前端基线样本</title>
+  <style>
+    :root {
+      --bg: #f6f2ea;
+      --paper: #fbf8f2;
+      --surface: #f0e9df;
+      --surface-2: #ebe2d6;
+      --sidebar: #eee6da;
+      --text: #382b20;
+      --muted: #887768;
+      --faint: #a99c8d;
+      --border: #ded3c4;
+      --border-strong: #cdbda9;
+      --primary: #b86d29;
+      --primary-soft: #f1dfc8;
+      --primary-pale: #fbf0e2;
+      --danger: #af5548;
+      --shadow: 0 2px 12px rgba(83, 57, 32, .08);
+      --shadow-strong: 0 10px 28px rgba(83, 57, 32, .12);
+      --radius: 13px;
+      --display: "ZCOOL XiaoWei", "STKaiti", "KaiTi", serif;
+      --body: "Noto Serif SC", "Songti SC", "SimSun", serif;
+    }
+    * { box-sizing: border-box; }
+    html { background: #d8d0c5; }
+    body { margin: 0; min-width: 1040px; color: var(--text); background: var(--bg); font-family: var(--body); font-size: 14px; line-height: 1.55; }
+    button, input { font: inherit; }
+    button { color: inherit; }
+    .sample-banner { min-height: 42px; display: flex; align-items: center; gap: 14px; padding: 7px 18px; background: #28231f; color: #f6efe4; font-family: var(--body); font-size: 12px; }
+    .sample-banner strong { color: #e2a35f; letter-spacing: .04em; }
+    .sample-banner span { color: #cfc2b4; }
+    .banner-actions { margin-left: auto; display: flex; gap: 8px; }
+    .banner-button { border: 1px solid #6b5d50; background: transparent; color: #e8ddd0; border-radius: 999px; padding: 4px 10px; cursor: pointer; font-size: 11px; }
+    .banner-button:hover { border-color: #d99b59; color: #fff; }
+    .app-frame { display: grid; grid-template-columns: 88px minmax(0, 1fr); min-height: calc(100vh - 42px); max-width: 1600px; margin: 0 auto; background: var(--bg); box-shadow: 0 0 40px rgba(34, 27, 20, .16); }
+    .sidebar { display: flex; flex-direction: column; min-height: 100%; border-right: 1px solid var(--border); background: rgba(239, 231, 220, .86); }
+    .brand { display: flex; flex-direction: column; align-items: center; gap: 5px; padding: 16px 7px 14px; border-bottom: 1px solid var(--border); cursor: default; }
+    .brand-mark { width: 38px; height: 38px; display: grid; place-items: center; border-radius: 11px; color: #fff9ef; background: linear-gradient(145deg, #ca8337, #9d5b20); box-shadow: var(--shadow); font-family: Georgia, serif; font-size: 20px; font-weight: 700; }
+    .brand-label { font-size: 10px; color: var(--muted); white-space: nowrap; }
+    .nav-main { display: flex; flex-direction: column; gap: 4px; padding: 12px 8px; }
+    .nav-button { border: 0; border-radius: 10px; display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 10px 4px; background: transparent; color: var(--muted); cursor: pointer; font-size: 11px; transition: .18s ease; }
+    .nav-button:hover { background: rgba(255,255,255,.55); color: var(--text); }
+    .nav-button.active { background: var(--primary-soft); color: var(--primary); font-weight: 700; }
+    .nav-icon { font-family: Arial, sans-serif; font-size: 18px; line-height: 1; }
+    .nav-bottom { display: flex; flex-direction: column; gap: 4px; margin-top: auto; padding: 10px 8px 14px; border-top: 1px solid var(--border); }
+    .content { min-width: 0; min-height: 100%; background: linear-gradient(135deg, #f8f4ed 0%, #f1ebe2 50%, #f7f3ec 100%); }
+    .global-header { min-height: 58px; display: flex; align-items: center; justify-content: space-between; gap: 14px; padding: 10px 23px; border-bottom: 1px solid var(--border); background: rgba(252, 249, 243, .72); backdrop-filter: blur(10px); position: sticky; top: 0; z-index: 10; }
+    .header-title { display: flex; align-items: center; gap: 9px; min-width: 0; }
+    .header-title .mini-symbol { color: var(--primary); font-size: 17px; }
+    .header-title strong { font-family: var(--display); font-size: 19px; font-weight: 600; white-space: nowrap; }
+    .header-title small { color: var(--muted); font-size: 11px; white-space: nowrap; }
+    .header-actions { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; justify-content: flex-end; }
+    .screen-tabs { display: flex; gap: 5px; padding: 9px 23px 0; overflow-x: auto; }
+    .screen-tab { border: 1px solid transparent; border-bottom: 0; border-radius: 9px 9px 0 0; padding: 7px 12px; background: transparent; color: var(--muted); cursor: pointer; font-size: 12px; white-space: nowrap; }
+    .screen-tab:hover { color: var(--text); background: rgba(255,255,255,.42); }
+    .screen-tab.active { color: var(--primary); background: var(--bg); border-color: var(--border); font-weight: 700; }
+    .screen { display: none; padding: 22px 23px 38px; }
+    .screen.active { display: block; animation: appear .2s ease-out; }
+    @keyframes appear { from { opacity: .35; transform: translateY(3px); } to { opacity: 1; transform: none; } }
+    .page-heading { display: flex; align-items: flex-end; justify-content: space-between; gap: 16px; margin-bottom: 16px; }
+    .eyebrow { color: #a27d59; font-size: 10px; letter-spacing: .16em; text-transform: uppercase; }
+    h1, h2, h3, h4, p { margin-top: 0; }
+    h1 { margin-bottom: 3px; font-family: var(--display); font-size: 28px; line-height: 1.2; font-weight: 600; }
+    h2 { margin-bottom: 7px; font-family: var(--display); font-size: 20px; line-height: 1.25; font-weight: 600; }
+    h3 { margin-bottom: 5px; font-size: 14px; font-weight: 700; }
+    h4 { margin-bottom: 5px; font-size: 12px; font-weight: 700; }
+    .muted { color: var(--muted); }
+    .tiny { color: var(--muted); font-size: 11px; }
+    .button { display: inline-flex; align-items: center; gap: 6px; min-height: 32px; border: 1px solid var(--border-strong); border-radius: 8px; padding: 5px 11px; background: var(--paper); color: var(--text); cursor: pointer; font-size: 12px; transition: .18s ease; }
+    .button:hover { border-color: var(--primary); color: var(--primary); }
+    .button.primary { border-color: var(--primary); background: linear-gradient(135deg, #c98537, #a96123); color: #fffaf2; box-shadow: var(--shadow); }
+    .button.ghost { border-color: transparent; background: transparent; color: var(--muted); }
+    .button.ghost:hover { border-color: var(--border); background: var(--paper); color: var(--text); }
+    .surface { border: 1px solid var(--border); border-radius: var(--radius); background: rgba(251, 248, 242, .72); box-shadow: var(--shadow); }
+    .surface-title { display: flex; align-items: center; gap: 8px; margin-bottom: 12px; }
+    .surface-title .title-icon { color: var(--primary); font-size: 17px; }
+    .surface-title .count { color: var(--muted); font-size: 11px; }
+    .surface-title .more { margin-left: auto; color: var(--muted); font-size: 11px; }
+    .chip { display: inline-flex; align-items: center; gap: 4px; min-height: 20px; padding: 2px 7px; border: 1px solid transparent; border-radius: 999px; background: var(--surface-2); color: #795f46; font-size: 10px; white-space: nowrap; }
+    .chip.primary { border-color: rgba(184,109,41,.28); background: var(--primary-soft); color: #9b5e22; }
+    .chip.outline { border-color: var(--border); background: transparent; color: var(--muted); }
+    .cover { position: relative; overflow: hidden; border-radius: 9px; border: 1px solid var(--border); background: linear-gradient(145deg, #d3a073, #74586c); box-shadow: var(--shadow); }
+    .cover::after { content: ""; position: absolute; inset: 0; background: linear-gradient(120deg, rgba(255,255,255,.22), transparent 32%, rgba(38,22,15,.18)); mix-blend-mode: screen; }
+    .cover-a { background: linear-gradient(150deg,#cb9a71,#6f5265); }
+    .cover-b { background: linear-gradient(150deg,#78968a,#445d6c); }
+    .cover-c { background: linear-gradient(150deg,#d0ae6d,#786044); }
+    .cover-d { background: linear-gradient(150deg,#9c7ca7,#55445f); }
+    .cover-e { background: linear-gradient(150deg,#9eafb3,#536c76); }
+    .cover-f { background: linear-gradient(150deg,#c17b68,#5f4b59); }
+    .annotation { display: none; margin-top: 8px; border-left: 3px solid #d29a55; padding: 6px 9px; background: #fff4e5; color: #875c32; font-size: 11px; line-height: 1.45; }
+    .show-notes .annotation { display: block; }
+
+    /* Home */
+    .home-cover-strip { padding: 16px; }
+    .cover-wall { display: flex; gap: 13px; overflow: hidden; }
+    .cover-item { width: 82px; flex: 0 0 82px; text-align: center; cursor: pointer; }
+    .cover-item .cover { width: 82px; height: 123px; }
+    .cover-name { margin-top: 5px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 11px; }
+    .home-lower { display: grid; grid-template-columns: minmax(0, 1fr) 310px; gap: 16px; margin-top: 16px; }
+    .stories-panel { padding: 18px; min-height: 420px; }
+    .story-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+    .story-card { display: flex; gap: 11px; min-width: 0; padding: 11px; border: 1px solid var(--border); border-radius: 10px; background: rgba(255,253,249,.72); cursor: pointer; transition: .18s ease; }
+    .story-card:hover { border-color: var(--primary); transform: translateY(-1px); box-shadow: var(--shadow); }
+    .story-card .cover { width: 46px; height: 69px; flex: 0 0 46px; }
+    .story-main { min-width: 0; flex: 1; }
+    .story-heading { display: flex; align-items: center; gap: 6px; }
+    .story-heading strong { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 13px; }
+    .story-heading time { margin-left: auto; color: var(--muted); font-size: 10px; white-space: nowrap; }
+    .story-meta { display: flex; flex-wrap: wrap; gap: 4px 8px; margin-top: 4px; color: var(--muted); font-size: 10px; }
+    .story-tags { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 7px; }
+    .home-side { display: flex; flex-direction: column; gap: 16px; }
+    .tool-focus { display: flex; flex: 1; flex-direction: column; justify-content: space-between; min-height: 252px; padding: 19px; border: 1px solid rgba(184,109,41,.35); border-radius: var(--radius); background: linear-gradient(145deg, rgba(184,109,41,.12), rgba(255,250,242,.78)); cursor: pointer; }
+    .tool-focus .big-icon { width: 56px; height: 56px; display: grid; place-items: center; margin: 15px auto 11px; border-radius: 50%; background: rgba(184,109,41,.13); color: var(--primary); font-size: 27px; }
+    .tool-types { display: flex; flex-wrap: wrap; justify-content: center; gap: 5px; }
+    .asset-compact { padding: 15px; }
+    .asset-compact-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+    .asset-link { display: flex; align-items: center; gap: 7px; padding: 8px 9px; border: 1px solid var(--border); border-radius: 8px; background: rgba(255,255,255,.38); color: var(--muted); font-size: 11px; }
+    .asset-link b { margin-left: auto; color: var(--text); font-size: 10px; }
+
+    /* Library */
+    .toolbar { display: flex; align-items: center; gap: 7px; flex-wrap: wrap; margin-bottom: 17px; }
+    .input { min-height: 32px; width: 180px; border: 1px solid var(--border); border-radius: 8px; padding: 5px 9px; outline: none; background: var(--paper); color: var(--text); font-size: 12px; }
+    .input:focus { border-color: var(--primary); box-shadow: 0 0 0 3px rgba(184,109,41,.12); }
+    .select-like { min-height: 32px; display: inline-flex; align-items: center; gap: 8px; border: 1px solid var(--border); border-radius: 8px; padding: 5px 9px; background: var(--paper); color: var(--muted); font-size: 12px; }
+    .toolbar-spacer { flex: 1; }
+    .library-grid { display: grid; grid-template-columns: repeat(5, minmax(0,1fr)); gap: 16px; }
+    .character-card { position: relative; min-width: 0; cursor: pointer; }
+    .character-art { position: relative; aspect-ratio: 2/3; overflow: hidden; border: 1px solid var(--border); border-radius: 11px; background: var(--surface-2); box-shadow: var(--shadow); transition: .18s ease; }
+    .character-card:hover .character-art { transform: translateY(-3px); box-shadow: var(--shadow-strong); }
+    .character-art .cover { width: 100%; height: 100%; border: 0; border-radius: 0; box-shadow: none; }
+    .corner-badge { position: absolute; top: 8px; padding: 3px 6px; border-radius: 999px; background: rgba(252,249,243,.88); color: var(--text); box-shadow: 0 2px 7px rgba(50,30,15,.12); font-size: 10px; }
+    .corner-badge.left { left: 8px; }
+    .corner-badge.right { right: 8px; }
+    .card-progress { position: absolute; right: 8px; bottom: 8px; left: 8px; height: 5px; overflow: hidden; border-radius: 99px; background: rgba(255,255,255,.55); }
+    .card-progress span { display: block; height: 100%; border-radius: inherit; background: var(--primary); }
+    .character-name { margin: 7px 2px 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 13px; font-weight: 700; }
+    .character-tags { display: flex; gap: 4px; overflow: hidden; margin-top: 4px; }
+    .character-tags .chip { max-width: 82px; overflow: hidden; text-overflow: ellipsis; }
+
+    /* Character */
+    .profile { display: grid; grid-template-columns: 208px minmax(0,1fr); gap: 24px; padding: 21px; }
+    .profile-cover { width: 208px; aspect-ratio: 2/3; }
+    .profile-info { min-width: 0; }
+    .profile-info h1 { font-size: 32px; }
+    .profile-subtitle { margin-bottom: 14px; color: var(--muted); font-size: 13px; }
+    .tag-row { display: flex; flex-wrap: wrap; gap: 5px; margin: 12px 0; }
+    .status-row { display: flex; align-items: center; gap: 8px; margin: 10px 0 16px; }
+    .status { border: 1px solid #d4b68e; border-radius: 8px; padding: 5px 9px; background: var(--primary-pale); color: #925b26; font-size: 12px; }
+    .rating { color: #9b6c2e; font-size: 12px; }
+    .profile-actions { display: flex; gap: 8px; margin-top: 18px; }
+    .section-block { margin-top: 18px; }
+    .section-heading { display: flex; align-items: center; justify-content: space-between; margin-bottom: 9px; }
+    .resource-list { display: flex; flex-direction: column; gap: 7px; }
+    .resource-row { display: flex; align-items: center; gap: 11px; padding: 11px 13px; border: 1px solid var(--border); border-radius: 10px; background: rgba(251,248,242,.74); }
+    .resource-row .resource-icon { width: 30px; height: 30px; display: grid; place-items: center; border-radius: 8px; background: var(--surface-2); color: var(--primary); }
+    .resource-row .resource-body { min-width: 0; flex: 1; }
+    .resource-row strong { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 13px; }
+    .resource-row small { color: var(--muted); font-size: 10px; }
+
+    /* Workspace */
+    .workspace { display: grid; grid-template-columns: 224px minmax(0,1fr); min-height: 690px; margin: -22px -23px -38px; }
+    .workspace-nav { border-right: 1px solid var(--border); background: rgba(244,237,227,.78); padding: 17px 13px; }
+    .back-link { display: inline-flex; gap: 5px; align-items: center; margin-bottom: 8px; color: var(--muted); font-size: 12px; }
+    .workspace-title { margin-bottom: 1px; font-family: var(--display); font-size: 16px; }
+    .workspace-meta { display: flex; flex-wrap: wrap; gap: 7px; margin-bottom: 18px; color: var(--muted); font-size: 10px; }
+    .workspace-menu { display: flex; flex-direction: column; gap: 3px; }
+    .workspace-menu button { display: flex; align-items: center; gap: 7px; width: 100%; border: 0; border-radius: 7px; padding: 8px 9px; background: transparent; color: var(--muted); text-align: left; cursor: pointer; font-size: 12px; }
+    .workspace-menu button:hover { background: rgba(255,255,255,.5); color: var(--text); }
+    .workspace-menu button.active { background: var(--primary-soft); color: var(--primary); font-weight: 700; }
+    .workspace-group { margin: 12px 9px 4px; color: var(--faint); font-size: 10px; }
+    .branch-panel, .outline-panel { margin-top: 17px; border-top: 1px solid var(--border); padding-top: 13px; }
+    .branch-heading { display: flex; align-items: center; justify-content: space-between; margin-bottom: 7px; color: var(--muted); font-size: 11px; }
+    .branch-row { display: flex; justify-content: space-between; gap: 6px; border-radius: 7px; padding: 7px 8px; color: var(--muted); font-size: 11px; }
+    .branch-row.active { background: rgba(184,109,41,.1); color: var(--primary); }
+    .workspace-main { min-width: 0; background: rgba(250,247,241,.55); }
+    .work-toolbar { display: flex; align-items: center; gap: 7px; flex-wrap: wrap; min-height: 56px; padding: 10px 17px; border-bottom: 1px solid var(--border); background: rgba(252,249,243,.8); }
+    .work-toolbar .search { flex: 1; min-width: 160px; }
+    .reading-area { max-width: 900px; margin: 0 auto; padding: 22px 28px 50px; }
+    .story-breadcrumb { display: flex; align-items: center; gap: 8px; margin-bottom: 16px; color: var(--muted); font-size: 11px; }
+    .story-breadcrumb strong { color: var(--text); font-family: var(--display); font-size: 17px; }
+    .message { position: relative; padding: 13px 16px; border: 1px solid var(--border); border-radius: 11px; margin: 9px 0; background: rgba(255,253,249,.78); }
+    .message.user { background: rgba(236,227,215,.75); }
+    .message.ooc { border-style: dashed; background: rgba(246,241,233,.55); }
+    .message-head { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; color: var(--primary); font-size: 11px; font-weight: 700; }
+    .message-head time { margin-left: auto; color: var(--muted); font-size: 9px; font-weight: 400; }
+    .message p { margin: 0; color: #493b2f; font-size: 13px; line-height: 1.8; text-indent: 2em; }
+    .swipe { display: flex; align-items: center; gap: 7px; margin-top: 9px; color: var(--muted); font-size: 10px; }
+    .chapter-divider { display: flex; align-items: center; gap: 10px; margin: 19px 0 13px; color: var(--primary); font-family: var(--display); font-size: 17px; }
+    .chapter-divider::before, .chapter-divider::after { content:""; height: 1px; flex: 1; background: var(--border); }
+
+    /* Tools / Assets / Settings */
+    .center-narrow { max-width: 910px; margin: 0 auto; }
+    .dropzone { display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 192px; margin: 10px 0 17px; border: 2px dashed var(--border-strong); border-radius: var(--radius); background: rgba(251,248,242,.65); text-align: center; }
+    .drop-icon { width: 54px; height: 54px; display: grid; place-items: center; margin-bottom: 9px; border-radius: 50%; background: var(--surface-2); color: var(--primary); font-size: 25px; }
+    .tool-grid { display: flex; flex-wrap: wrap; gap: 10px; }
+    .tool-card { display: flex; align-items: flex-start; gap: 10px; flex: 1 1 250px; min-height: 82px; padding: 13px; border: 1px solid var(--border); border-radius: 10px; background: rgba(251,248,242,.72); cursor: pointer; }
+    .tool-card.primary { border-color: rgba(184,109,41,.35); background: var(--primary-pale); }
+    .tool-icon { width: 36px; height: 36px; display: grid; place-items: center; flex: 0 0 36px; border-radius: 9px; background: var(--surface-2); color: var(--muted); font-size: 17px; }
+    .tool-card.primary .tool-icon { background: linear-gradient(145deg,#c98537,#a96023); color: #fff9ef; }
+    .tool-card strong { display: block; margin-bottom: 3px; font-size: 13px; }
+    .tool-card small { color: var(--muted); font-size: 10px; line-height: 1.45; }
+    .st-import { margin-top: 18px; padding: 16px; border: 1px solid var(--border); border-radius: var(--radius); background: rgba(241,233,222,.7); }
+    .asset-tabs { display: flex; gap: 4px; margin-bottom: 13px; }
+    .asset-tab { border: 1px solid transparent; border-radius: 8px; padding: 7px 12px; background: transparent; color: var(--muted); cursor: pointer; font-size: 12px; }
+    .asset-tab.active { border-color: var(--border); background: var(--paper); color: var(--primary); font-weight: 700; }
+    .asset-list { display: flex; flex-direction: column; gap: 7px; }
+    .asset-row { display: flex; align-items: center; gap: 11px; padding: 11px 13px; border: 1px solid var(--border); border-radius: 10px; background: rgba(251,248,242,.74); }
+    .asset-symbol { width: 34px; height: 34px; display: grid; place-items: center; border-radius: 8px; background: var(--surface-2); color: var(--primary); }
+    .asset-row-main { min-width: 0; flex: 1; }
+    .asset-row-main strong { display: inline-block; max-width: 60%; overflow: hidden; text-overflow: ellipsis; vertical-align: bottom; white-space: nowrap; font-size: 13px; }
+    .asset-row-main small { display: block; margin-top: 3px; color: var(--muted); font-size: 10px; }
+    .settings-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+    .settings-card { padding: 18px; }
+    .settings-card h2 { margin-bottom: 13px; }
+    .field { margin: 11px 0; }
+    .field label { display: block; margin-bottom: 4px; color: var(--muted); font-size: 11px; }
+    .field .input { width: 100%; }
+    .setting-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 10px 0; border-bottom: 1px solid var(--border); font-size: 12px; }
+    .setting-row:last-child { border-bottom: 0; }
+    .switch { width: 32px; height: 18px; border-radius: 99px; background: #c8b9a7; position: relative; }
+    .switch::after { content:""; position: absolute; top: 3px; left: 3px; width: 12px; height: 12px; border-radius: 50%; background: #fff; box-shadow: var(--shadow); }
+    .switch.on { background: var(--primary); }
+    .switch.on::after { left: 17px; }
+    .footnote { max-width: 920px; margin: 26px auto 0; color: var(--muted); font-size: 11px; line-height: 1.7; }
+    .footnote code { border: 1px solid var(--border); border-radius: 5px; padding: 1px 4px; background: var(--surface); color: #80552e; }
+
+    @media (max-width: 1180px) {
+      body { min-width: 920px; }
+      .library-grid { grid-template-columns: repeat(4, minmax(0,1fr)); }
+      .home-lower { grid-template-columns: minmax(0, 1fr) 275px; }
+    }
+  </style>
+</head>
+<body>
+  <div class="sample-banner">
+    <strong>STE · 当前前端基线样本</strong>
+    <span>静态交接稿，不连接真实数据；用于后续设计 Agent 识别当前结构、组件和质感。</span>
+    <div class="banner-actions">
+      <a class="banner-button" href="../STE%20%E6%A6%82%E5%BF%B5%E8%AE%BE%E8%AE%A1/2.0%E8%8D%89%E5%9B%BE%E5%AD%98%E6%A1%A3/ste-home-structure-v4-preview.html" target="_blank" rel="noopener">打开早期概念参考</a>
+      <button class="banner-button" id="annotationToggle">显示基线标注</button>
+      <button class="banner-button" id="themeToggle">切换暗色预览</button>
+    </div>
+  </div>
+
+  <div class="app-frame" id="appFrame">
+    <aside class="sidebar">
+      <div class="brand"><div class="brand-mark">S</div><div class="brand-label">ST 处理器</div></div>
+      <nav class="nav-main" aria-label="一级导航">
+        <button class="nav-button active" data-screen="home"><span class="nav-icon">⌂</span><span>首页</span></button>
+        <button class="nav-button" data-screen="library"><span class="nav-icon">♧</span><span>角色库</span></button>
+        <button class="nav-button" data-screen="tools"><span class="nav-icon">⚒</span><span>处理区</span></button>
+      </nav>
+      <div class="nav-bottom"><button class="nav-button" data-screen="settings"><span class="nav-icon">⚙</span><span>设置</span></button><button class="nav-button" id="darkButton"><span class="nav-icon">☾</span><span>主题</span></button></div>
+    </aside>
+
+    <main class="content">
+      <header class="global-header">
+        <div class="header-title"><span class="mini-symbol">▤</span><strong id="currentTitle">首页</strong><small id="currentSubtitle">私人收藏馆</small></div>
+        <div class="header-actions"><button class="button ghost" data-screen="library">查看角色库</button><button class="button primary" data-screen="tools">开始处理</button></div>
+      </header>
+      <nav class="screen-tabs" aria-label="样本页面切换">
+        <button class="screen-tab active" data-screen="home">首页</button>
+        <button class="screen-tab" data-screen="library">角色库</button>
+        <button class="screen-tab" data-screen="character">角色主页</button>
+        <button class="screen-tab" data-screen="workspace">故事工作区</button>
+        <button class="screen-tab" data-screen="tools">处理区</button>
+        <button class="screen-tab" data-screen="assets">资产库</button>
+        <button class="screen-tab" data-screen="settings">设置</button>
+      </nav>
+
+      <section class="screen active" id="screen-home">
+        <div class="page-heading"><div><div class="eyebrow">Personal Archive</div><h1>首页</h1><p class="muted">角色卡、故事和处理工具都从这里开始。</p></div><button class="button">导入角色卡</button></div>
+        <section class="surface home-cover-strip" data-note="当前基线：封面条已是一行入口，但图片和故事内容之间的品牌关系还不够强。"><div class="surface-title"><span class="title-icon">♧</span><h2>角色库</h2><span class="count">6 张角色卡</span><span class="more">查看全部　→</span></div><div class="cover-wall"><div class="cover-item"><div class="cover cover-a"></div><div class="cover-name">五角</div></div><div class="cover-item"><div class="cover cover-b"></div><div class="cover-name">雨夜</div></div><div class="cover-item"><div class="cover cover-c"></div><div class="cover-name">夏目</div></div><div class="cover-item"><div class="cover cover-d"></div><div class="cover-name">雾岛</div></div><div class="cover-item"><div class="cover cover-e"></div><div class="cover-name">白昼</div></div><div class="cover-item"><div class="cover cover-f"></div><div class="cover-name">无名氏</div></div></div><div class="annotation">图片比例、裁切、名称、收藏感是首页最重要的视觉资产。</div></section>
+        <div class="home-lower"><section class="surface stories-panel" data-note="当前基线：故事主体区信息完整，但每个故事仍像普通管理列表，需要更强的时间、封面和回味感。"><div class="surface-title"><span class="title-icon">◷</span><h2>最近查看的故事</h2><span class="more">查看全部　→</span></div><div class="story-grid"><article class="story-card"><div class="cover cover-a"></div><div class="story-main"><div class="story-heading"><strong>五角主线</strong><time>刚刚</time></div><div class="story-meta"><span>五角</span><span>42 楼</span><span>Claude 3.7</span></div><div class="story-tags"><span class="chip primary">总结 3</span><span class="chip">故事树 1</span><span class="chip outline">2 条分支</span></div></div></article><article class="story-card"><div class="cover cover-b"></div><div class="story-main"><div class="story-heading"><strong>雨夜的第二次相遇</strong><time>昨天</time></div><div class="story-meta"><span>雨夜</span><span>128 楼</span><span>Gemini 2.5</span></div><div class="story-tags"><span class="chip">日记 2</span><span class="chip">分支 1</span></div></div></article><article class="story-card"><div class="cover cover-c"></div><div class="story-main"><div class="story-heading"><strong>夏目与海边小屋</strong><time>3 天前</time></div><div class="story-meta"><span>夏目</span><span>76 楼</span><span>未绑定</span></div><div class="story-tags"><span class="chip outline">未绑定</span><span class="chip">总结 1</span></div></div></article><article class="story-card"><div class="cover cover-d"></div><div class="story-main"><div class="story-heading"><strong>雾岛·初见</strong><time>7 月 22 日</time></div><div class="story-meta"><span>雾岛</span><span>31 楼</span><span>Claude 3.5</span></div><div class="story-tags"><span class="chip">故事树 1</span></div></div></article></div><div class="annotation">建议设计 Agent 重点观察：标题、封面、元信息、资源标签四层是否能一眼区分。</div></section><aside class="home-side"><section class="tool-focus" data-screen="tools" data-note="当前基线：处理区已放大为右列主入口，但仍像一张普通高亮卡。"><div><div class="surface-title"><span class="title-icon">⇧</span><h2>处理区</h2><span class="more">进入　→</span></div><div class="big-icon">⇧</div><p class="muted" style="text-align:center; margin-bottom:13px;">手上有文件要处理？丢进来，不用先建档。</p><div class="tool-types"><span class="chip primary">▤ 聊天记录</span><span class="chip">◎ 世界书</span><span class="chip">☷ 预设</span><span class="chip">▣ 角色卡</span><span class="chip">※ 正则</span></div></div><button class="button primary" data-screen="tools" style="justify-content:center;">打开处理区</button><div class="annotation">聊天处理是最高频工具；世界书、预设、正则与角色卡是同一处理区下的其他工具。</div></section><section class="surface asset-compact" data-note="当前基线：资产入口明确，但和工具入口仍使用相似的卡片语言。"><div class="surface-title"><h3 style="margin:0; color:var(--muted);">其他资产</h3><span class="more">资产库　→</span></div><div class="asset-compact-grid"><div class="asset-link">◎ 世界书 <b>12</b></div><div class="asset-link">☷ 预设 <b>8</b></div><div class="asset-link">※ 正则 <b>5</b></div><div class="asset-link">⚿ ST 配置</div></div><div class="annotation">资产独立存在，通过引用关联到角色；修改共享资产时写时复制。</div></section></aside></div>
+      </section>
+
+      <section class="screen" id="screen-library">
+        <div class="page-heading"><div><div class="eyebrow">Collection</div><h1>我的角色库</h1><p class="muted">6 张角色卡 · 标签、状态、评分都是 STE 本地整理信息。</p></div><button class="button primary">＋ 导入角色卡</button></div>
+        <div class="toolbar"><input class="input" placeholder="搜索角色…"><span class="select-like">最近修改　⌄</span><span class="select-like">全部状态　⌄</span><span class="select-like">全部评分　⌄</span><span class="select-like">人物　⌄</span><span class="select-like">玩法　⌄</span><span class="select-like">评价　⌄</span><span class="select-like">其他　⌄</span><span class="toolbar-spacer"></span><button class="button ghost">批量管理</button></div>
+        <div class="library-grid" data-note="当前基线：角色库已经有排序、筛选、角标和批量管理；后续重点是让它更像收藏馆而不是后台网格。"><article class="character-card" data-screen="character"><div class="character-art"><div class="cover cover-a"></div><span class="corner-badge left">★ 8.5</span><span class="corner-badge right">▤ 4</span><div class="card-progress"><span style="width:68%"></span></div></div><div class="character-name">五角</div><div class="character-tags"><span class="chip">人物/冷淡</span><span class="chip">玩法/长线</span></div></article><article class="character-card" data-screen="character"><div class="character-art"><div class="cover cover-b"></div><span class="corner-badge left">★ 9</span><span class="corner-badge right">▤ 2</span><div class="card-progress"><span style="width:42%"></span></div></div><div class="character-name">雨夜</div><div class="character-tags"><span class="chip">人物/温柔</span><span class="chip">评价/喜欢</span></div></article><article class="character-card" data-screen="character"><div class="character-art"><div class="cover cover-c"></div><span class="corner-badge right">▤ 1</span><div class="card-progress"><span style="width:19%"></span></div></div><div class="character-name">夏目</div><div class="character-tags"><span class="chip">玩法/日常</span></div></article><article class="character-card" data-screen="character"><div class="character-art"><div class="cover cover-d"></div><span class="corner-badge left">★ 7.5</span><span class="corner-badge right">▤ 3</span><div class="card-progress"><span style="width:86%"></span></div></div><div class="character-name">雾岛</div><div class="character-tags"><span class="chip">人物/神秘</span><span class="chip">其他/待整理</span></div></article><article class="character-card" data-screen="character"><div class="character-art"><div class="cover cover-e"></div><span class="corner-badge right">▤ 5</span><div class="card-progress"><span style="width:55%"></span></div></div><div class="character-name">白昼</div><div class="character-tags"><span class="chip">评价/收藏</span></div></article><article class="character-card" data-screen="character"><div class="character-art"><div class="cover cover-f"></div><span class="corner-badge left">★ 6.5</span><div class="card-progress"><span style="width:11%"></span></div></div><div class="character-name">无名氏</div><div class="character-tags"><span class="chip">其他/新卡</span></div></article></div>
+        <div class="annotation">当前卡片数据层级：封面 → 评分/故事数角标 → 进度 → 名称 → 前两个标签。视觉重做不得丢掉这些信息。</div>
+      </section>
+
+      <section class="screen" id="screen-character">
+        <div class="page-heading"><div><button class="button ghost" data-screen="library">← 角色库</button></div><button class="button primary">⇩ 导入聊天到此角色</button></div>
+        <section class="surface profile" data-note="当前基线：角色页已经把封面、简介、状态评分、故事、资产集中起来，但主视觉仍是常规详情页。"><div class="cover profile-cover cover-a"></div><div class="profile-info"><div class="eyebrow">Character Archive</div><h1>五角</h1><p class="profile-subtitle">一个不太愿意主动靠近人的工作区角色</p><div class="status-row"><span class="status">进行中　⌄</span><span class="rating">☆ 8.5 / 10</span></div><p>阶段 5 测试角色。这里是 AI 简介或用户编辑后的角色概览，用于帮助用户快速回忆角色，而不是展示完整卡原文。</p><div class="tag-row"><span class="chip primary">人物 / 冷淡</span><span class="chip">玩法 / 长线</span><span class="chip">评价 / 喜欢</span><span class="chip outline">＋ 添加标签</span></div><div class="profile-actions"><button class="button">编辑角色档案</button><button class="button">打开角色卡工具</button></div><div class="annotation">封面应成为身份锚点；简介、状态和评分是回忆辅助，不要压过故事列表。</div></div></section>
+        <div class="section-block"><div class="section-heading"><h2>故事</h2><span class="tiny">共 4 个</span></div><div class="resource-list"><div class="resource-row" data-screen="workspace"><div class="resource-icon">▤</div><div class="resource-body"><strong>五角主线</strong><small>42 楼 · 3 小时 18 分 · Claude 3.7 · 最近看过 · 2 条分支</small></div><span class="chip primary">总结 3</span><span class="chip">故事树 1</span><span class="tiny">→</span></div><div class="resource-row"><div class="resource-icon">▤</div><div class="resource-body"><strong>雨夜的第二次相遇</strong><small>128 楼 · 7 小时 02 分 · Gemini 2.5 · 昨天查看</small></div><span class="chip">日记 2</span><span class="tiny">→</span></div><div class="resource-row"><div class="resource-icon">▤</div><div class="resource-body"><strong>未命名故事</strong><small>76 楼 · 未绑定 · 需要在工作区中绑定角色</small></div><span class="chip outline">未绑定</span><span class="tiny">→</span></div></div></div>
+        <div class="section-block"><div class="section-heading"><h2>关联资产</h2><button class="button">＋ 添加引用</button></div><div class="resource-list"><div class="resource-row"><div class="resource-icon">◎</div><div class="resource-body"><strong>通用设定_五角</strong><small>世界书 · 24 个条目 · 派生副本 · 3 张角色卡引用</small></div><span class="chip primary">派生</span><button class="button ghost">处理</button></div><div class="resource-row"><div class="resource-icon">※</div><div class="resource-body"><strong>ST 全局正则</strong><small>正则 · 6 条规则 · 来自 ST</small></div><span class="chip">来自 ST</span><button class="button ghost">处理</button></div></div></div>
+      </section>
+
+      <section class="screen" id="screen-workspace">
+        <div class="workspace" data-note="当前基线：故事工作区是产品最重要的工作场景。阶段 9 已拆为六个子页面并退役右侧资源栏；视觉上要同时支持阅读沉浸和处理效率。"><aside class="workspace-nav"><button class="button ghost back-link" data-screen="character">← 五角</button><div class="workspace-title">五角主线</div><div class="workspace-meta"><span>42 楼</span><span>Claude 3.7</span></div><div class="workspace-menu"><button class="active">▤　阅读与编辑</button><div class="workspace-group">整理与记录</div><button>▥　分卷总结</button><button>▤　角色日记</button><button>✎　自定义记录</button><button>⌘　故事树</button><div class="workspace-group">　</div><button>⇵　导入与导出</button></div><div class="branch-panel"><div class="branch-heading"><span>分支</span><span>＋ 导入</span></div><div class="branch-row active"><span>⌁ 主线</span><span>42 楼</span></div><div class="branch-row"><span>⌁ 雨夜分支</span><span>18 楼</span></div></div><div class="outline-panel"><div class="branch-heading"><span>章节目录</span><span>书签</span></div><div class="branch-row"><span>第二章 · 转折</span><span>#18</span></div><div class="branch-row"><span>★ 主线消息 20</span><span>#20</span></div></div></aside><div class="workspace-main"><div class="work-toolbar"><button class="button">☷ 外观</button><input class="input search" placeholder="搜索正文…"><button class="button">⚑ 章节标记</button><button class="button">※ 正则 (0)</button><button class="button">▣ 小说视图</button><button class="button primary">▤ 沉浸阅读</button></div><div class="reading-area"><div class="story-breadcrumb"><strong>五角主线</strong><span>/</span><span>共 42 条消息</span><span>/</span><span class="chip primary">主线</span></div><div class="message user"><div class="message-head"><span>用户</span><time>楼 0</time></div><p>我把资料放在桌边，等着她决定要不要继续说下去。</p></div><div class="message"><div class="message-head"><span>五角</span><time>楼 1 · 候选 2/3</time></div><p>她没有立刻回答。窗外的光线慢慢移过桌面，像是给这段沉默划出了一条边界。</p><div class="swipe">‹　候选 2 / 3　›　　<span class="chip">编辑</span></div></div><div class="chapter-divider">第二章 · 转折</div><div class="message"><div class="message-head"><span>五角</span><time>楼 18</time></div><p>“如果你真的想知道，就先把门关上。”她终于抬起眼睛，语气仍然平静。</p></div></div></div></div>
+      </section>
+
+      <section class="screen" id="screen-tools">
+        <div class="center-narrow"><div class="page-heading"><div><div class="eyebrow">Workbench</div><h1>处理区</h1><p class="muted">丢进来一个文件，或直接打开工具。处理完可入库归档，也可以只导出、不留档。</p></div></div><div class="dropzone" data-note="当前基线：大拖放区是处理区的主要动作，聊天处理视觉上应比其他工具更突出。"><div class="drop-icon">⇧</div><h2>拖入文件开始处理</h2><p class="muted">聊天记录 (.jsonl/.json/.txt) · 角色卡 (.png/.json) · 世界书 / 预设 / 正则 (.json)</p><div class="annotation">文件类型由程序先猜测，用户确认后进入对应工具。</div></div><div class="tool-grid"><div class="tool-card primary"><div class="tool-icon">▤</div><div><strong>聊天处理　→</strong><small>正则清理、编辑、章节、导出与阅读</small></div></div><div class="tool-card"><div class="tool-icon">◎</div><div><strong>世界书　→</strong><small>条目浏览、编辑、批量整理、AI 追加</small></div></div><div class="tool-card"><div class="tool-icon">▣</div><div><strong>角色卡　→</strong><small>查看与编辑卡内字段，PNG/JSON 回写</small></div></div><div class="tool-card"><div class="tool-icon">☷</div><div><strong>预设　→</strong><small>提示词块可视化编辑与导出</small></div></div><div class="tool-card"><div class="tool-icon">※</div><div><strong>正则　→</strong><small>规则管理、批量导入、可视化生效预览</small></div></div></div><div class="st-import"><div class="surface-title"><span class="title-icon">⇄</span><h3 style="margin:0">接入 SillyTavern</h3><span class="chip outline">仅客户端</span></div><p class="muted">选择 ST 安装目录，勾选角色卡、聊天、世界书、预设和全局正则，导入到本地文件库。</p><button class="button">选择 ST 目录</button></div></div>
+      </section>
+
+      <section class="screen" id="screen-assets">
+        <div class="center-narrow"><div class="page-heading"><div><div class="eyebrow">Independent Assets</div><h1>资产库</h1><p class="muted">世界书、预设、正则规则集的收藏馆；资产可以被多个角色引用。</p></div><button class="button primary">＋ 打开当前工具</button></div><div class="asset-tabs"><button class="asset-tab active">◎ 世界书　12</button><button class="asset-tab">☷ 预设　8</button><button class="asset-tab">※ 正则　5</button></div><div class="asset-list"><div class="asset-row"><div class="asset-symbol">◎</div><div class="asset-row-main"><strong>通用设定_五角</strong><small>24 个条目 · 3 张角色卡引用 · 更新于 2026/07/27</small></div><span class="chip primary">派生副本</span><span class="chip">来自 ST</span><button class="button ghost">⋮</button></div><div class="asset-row"><div class="asset-symbol">◎</div><div class="asset-row-main"><strong>现代都市基础设定</strong><small>61 个条目 · 5 张角色卡引用 · 更新于 2026/07/25</small></div><span class="chip">共享</span><button class="button ghost">⋮</button></div><div class="asset-row"><div class="asset-symbol">◎</div><div class="asset-row-main"><strong>雨夜专用世界书</strong><small>18 个条目 · 1 张角色卡引用 · 更新于 2026/07/22</small></div><span class="chip">来自 ST</span><button class="button ghost">⋮</button></div><div class="asset-row"><div class="asset-symbol">◎</div><div class="asset-row-main"><strong>待整理的条目集</strong><small>9 个条目 · 未被引用 · 更新于 2026/07/19</small></div><button class="button ghost">⋮</button></div></div><div class="annotation">资产库的视觉重点是“独立存在 + 引用关系 + 派生来源”，不是把它们做成角色页里的附属小卡。</div></div>
+      </section>
+
+      <section class="screen" id="screen-settings">
+        <div class="center-narrow"><div class="page-heading"><div><div class="eyebrow">Local Settings</div><h1>设置</h1><p class="muted">AI 配置与数据存储是全局设置，不绑定某一张角色卡。</p></div></div><div class="settings-grid"><section class="surface settings-card"><h2>AI 配置</h2><p class="muted">配置多个供应商，生成简介、总结和评分时选择模型。</p><div class="field"><label>当前配置</label><div class="select-like" style="width:100%; justify-content:space-between;">OpenAI Compatible　⌄</div></div><div class="field"><label>模型</label><input class="input" value="claude-3-7-sonnet" readonly></div><div class="field"><label>接口地址</label><input class="input" value="https://api.example.com/v1" readonly></div><div style="display:flex; gap:8px; margin-top:16px;"><button class="button primary">测试连接</button><button class="button">保存配置</button></div><div class="annotation">API Key 只保存在本机配置；客户端会镜像到系统配置目录，不进入故事文件库。</div></section><section class="surface settings-card"><h2>数据与存储</h2><p class="muted">网页版使用 IndexedDB；客户端使用可读的本地文件库。</p><div class="setting-row"><span>当前存储模式</span><strong>客户端文件库</strong></div><div class="setting-row"><span>库路径</span><span class="tiny">D:\STE Library</span></div><div class="setting-row"><span>自动备份</span><span class="switch on"></span></div><div class="setting-row"><span>导出完整备份</span><button class="button">导出</button></div><div class="setting-row"><span>恢复备份</span><button class="button">选择文件</button></div><div class="annotation">设置不占主导航；它服务于全局配置、存储和安全操作。</div></section></div></div>
+      </section>
+
+      <p class="footnote">样本说明：页面采用当前源码的暖纸张 token、Noto Serif SC / ZCOOL XiaoWei 字体倾向、左侧三项主导航、圆角细边框卡片和当前中文文案。它是给设计 Agent 的基线，不是最终视觉稿。<br>当前实现对应的产品代码位于 <code>src/pages</code>、<code>src/components</code> 和 <code>src/index.css</code>。</p>
+    </main>
+  </div>
+
+  <script>
+    const titleMap = {
+      home: ['首页', '私人收藏馆'],
+      library: ['我的角色库', 'Collection'],
+      character: ['角色主页', 'Character Archive'],
+      workspace: ['故事工作区', '五角主线'],
+      tools: ['处理区', 'Workbench'],
+      assets: ['资产库', 'Independent Assets'],
+      settings: ['设置', 'Local Settings']
+    };
+    const allScreenButtons = [...document.querySelectorAll('[data-screen]')];
+    const panels = [...document.querySelectorAll('.screen')];
+    function showScreen(name) {
+      panels.forEach(panel => panel.classList.toggle('active', panel.id === 'screen-' + name));
+      allScreenButtons.forEach(button => button.classList.toggle('active', button.dataset.screen === name && (button.classList.contains('nav-button') || button.classList.contains('screen-tab'))));
+      const title = titleMap[name] || titleMap.home;
+      document.getElementById('currentTitle').textContent = title[0];
+      document.getElementById('currentSubtitle').textContent = title[1];
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+    allScreenButtons.forEach(button => button.addEventListener('click', () => showScreen(button.dataset.screen)));
+    document.getElementById('annotationToggle').addEventListener('click', () => {
+      document.body.classList.toggle('show-notes');
+      document.getElementById('annotationToggle').textContent = document.body.classList.contains('show-notes') ? '隐藏基线标注' : '显示基线标注';
+    });
+    function toggleTheme() {
+      const dark = document.body.classList.toggle('dark-preview');
+      document.getElementById('themeToggle').textContent = dark ? '恢复浅色预览' : '切换暗色预览';
+    }
+    document.getElementById('themeToggle').addEventListener('click', toggleTheme);
+    document.getElementById('darkButton').addEventListener('click', toggleTheme);
+  </script>
+  <style>
+    /* 样本只提供一个很克制的暗色预览，方便设计 Agent 看当前 dark token 的方向。 */
+    body.dark-preview { --bg:#1b1815; --paper:#24201c; --surface:#2b2520; --surface-2:#352d26; --sidebar:#211d19; --text:#f1e8dc; --muted:#b2a391; --faint:#8f8275; --border:#4b3f34; --border-strong:#695644; --primary:#dda15a; --primary-soft:#493722; --primary-pale:#3b2c1d; --shadow:0 2px 12px rgba(0,0,0,.25); --shadow-strong:0 10px 28px rgba(0,0,0,.34); }
+    body.dark-preview .content { background: linear-gradient(135deg,#201c18,#1a1714 55%,#221d18); }
+    body.dark-preview .global-header, body.dark-preview .screen-tab.active { background: rgba(35,30,25,.82); }
+    body.dark-preview .sidebar, body.dark-preview .workspace-nav { background: rgba(32,27,23,.9); }
+    body.dark-preview .story-card, body.dark-preview .surface, body.dark-preview .resource-row, body.dark-preview .asset-row, body.dark-preview .tool-card, body.dark-preview .dropzone, body.dark-preview .input, body.dark-preview .select-like { background: rgba(39,33,28,.82); }
+    body.dark-preview .message { background: rgba(44,37,31,.9); }
+    body.dark-preview .message.user { background: rgba(65,50,36,.86); }
+    body.dark-preview .message p { color:#eadfd2; }
+    body.dark-preview .annotation { background:#3d2c1e; color:#efbd7a; }
+  </style>
+</body>
+</html>

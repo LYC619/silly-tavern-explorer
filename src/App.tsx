@@ -6,6 +6,8 @@ import { ThemeProvider } from "next-themes";
 import { lazy, Suspense } from "react";
 import { Loader2 } from "lucide-react";
 import { VaultGate } from "@/components/vault/VaultGate";
+import { ThemeSync } from "@/components/ThemeSync";
+import { THEME_KEYS, DEFAULT_THEME } from "@/lib/theme";
 
 // 路由级代码分割：每个页面单独打包，首屏只加载首页所需 chunk，
 // 其余页面(世界书/AI工具等)按需懒加载，避免全部塞进一个大 bundle。
@@ -30,7 +32,14 @@ const PageFallback = () => (
 );
 
 const App = () => (
-  <ThemeProvider attribute="class" defaultTheme="light" enableSystem={false}>
+  <ThemeProvider
+    attribute="data-theme"
+    themes={[...THEME_KEYS]}
+    defaultTheme={DEFAULT_THEME}
+    enableSystem={false}
+    storageKey="ste-theme"
+  >
+    <ThemeSync />
     <TooltipProvider>
       <Toaster />
       <Sonner />

@@ -1,0 +1,171 @@
+/* ============================================================
+   STE · 主题变量系统
+   ============================================================
+   四套主题共享同一套 CSS 变量名，切换主题 = 切换 <html data-theme>
+   开发者：只需保证所有组件使用 var(--xxx)，不要硬编码颜色
+   ============================================================ */
+
+/* ---------- 全局品牌色（跨主题不变） ---------- */
+:root {
+  --brand: #E08A4A;
+  --brand-hi: #F0A15C;
+  --brand-active-bg: rgba(224, 138, 74, 0.14);
+  --brand-active-bg-strong: rgba(224, 138, 74, 0.20);
+  --brand-hairline: rgba(224, 138, 74, 0.30);
+
+  /* 语义色（跨主题不变） */
+  --status-ok: #96be8c;
+  --status-ok-bg: rgba(150, 190, 140, 0.15);
+  --status-warn: #E0B44A;
+  --status-danger: #E06A5A;
+
+  /* 卡片/资产的分类色点 */
+  --tag-review: #e08a4a;
+  --tag-people: #a08acc;
+  --tag-play: #8ac0a8;
+  --tag-scene: #c0a08a;
+  --tag-nsfw:  #7098c8;
+
+  /* 字体 */
+  --font-serif: "Source Han Serif SC", "Songti SC", "SimSun", serif;
+  --font-sans: -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", sans-serif;
+
+  /* 圆角 / 阴影 / 间距 */
+  --radius-sm: 6px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
+  --shadow-window: 0 30px 80px -20px rgba(0, 0, 0, 0.5);
+  --shadow-popover: 0 12px 40px rgba(0, 0, 0, 0.5);
+
+  /* 侧栏宽度 */
+  --sidenav-expanded: 180px;
+  --sidenav-collapsed: 52px;
+  --filter-side-width: 176px;
+  --editor-sublist-width: 220px;
+}
+
+/* ============================================================
+   ① 主题 · 深咖啡（默认，推荐主色）
+   ============================================================ */
+[data-theme="cocoa"] {
+  /* 三层底色（浅 → 深） */
+  --bg-canvas: #1e1610;         /* 主区背景 */
+  --bg-chrome: #14100a;         /* 标题栏 / 状态栏 / 侧栏 */
+  --bg-elevated: #241a10;       /* 卡片、面板 */
+  --bg-elevated-strong: #2a1f14;/* 卡片 hover / continue card */
+
+  /* 边线 & 分隔 */
+  --border-subtle: rgba(255, 255, 255, 0.04);
+  --border-normal: rgba(255, 255, 255, 0.08);
+  --border-strong: rgba(255, 255, 255, 0.15);
+  --hairline-inner: rgba(255, 255, 255, 0.03);
+
+  /* 文字 */
+  --text-primary: #f0e8dc;
+  --text-body: #d4cec2;
+  --text-muted: #a8987a;
+  --text-faint: #7a6f5d;
+
+  /* 交互反馈 */
+  --hover-overlay: rgba(255, 255, 255, 0.04);
+  --hover-overlay-strong: rgba(255, 255, 255, 0.08);
+
+  /* 表单 */
+  --input-bg: rgba(255, 255, 255, 0.04);
+  --input-border: rgba(255, 255, 255, 0.08);
+}
+
+/* ============================================================
+   ② 主题 · 墨黑
+   ============================================================ */
+[data-theme="ink"] {
+  --bg-canvas: #0e0e10;
+  --bg-chrome: #08080a;
+  --bg-elevated: #131316;
+  --bg-elevated-strong: #16161a;
+
+  --border-subtle: rgba(255, 255, 255, 0.04);
+  --border-normal: rgba(255, 255, 255, 0.08);
+  --border-strong: rgba(255, 255, 255, 0.15);
+  --hairline-inner: rgba(255, 255, 255, 0.03);
+
+  --text-primary: #ece8e0;
+  --text-body: #c8c4bd;
+  --text-muted: #8a857b;
+  --text-faint: #6a655c;
+
+  --hover-overlay: rgba(255, 255, 255, 0.04);
+  --hover-overlay-strong: rgba(255, 255, 255, 0.08);
+
+  --input-bg: rgba(255, 255, 255, 0.04);
+  --input-border: rgba(255, 255, 255, 0.08);
+}
+
+/* ============================================================
+   ③ 主题 · 深夜蓝
+   ============================================================ */
+[data-theme="midnight"] {
+  --bg-canvas: #0f131c;
+  --bg-chrome: #080b13;
+  --bg-elevated: #131824;
+  --bg-elevated-strong: #171d2b;
+
+  --border-subtle: rgba(255, 255, 255, 0.04);
+  --border-normal: rgba(255, 255, 255, 0.08);
+  --border-strong: rgba(255, 255, 255, 0.15);
+  --hairline-inner: rgba(255, 255, 255, 0.03);
+
+  --text-primary: #e0e6f0;
+  --text-body: #b8c0cf;
+  --text-muted: #7a8497;
+  --text-faint: #5a637a;
+
+  --hover-overlay: rgba(255, 255, 255, 0.04);
+  --hover-overlay-strong: rgba(255, 255, 255, 0.08);
+
+  --input-bg: rgba(255, 255, 255, 0.04);
+  --input-border: rgba(255, 255, 255, 0.08);
+}
+
+/* ============================================================
+   ④ 主题 · 米色典雅（原文档皮肤，浅色）
+   ============================================================ */
+[data-theme="cream"] {
+  --bg-canvas: #f5f0e6;
+  --bg-chrome: #ebe4d5;
+  --bg-elevated: #fbf8f1;
+  --bg-elevated-strong: #ffffff;
+
+  --border-subtle: #e6ddc9;
+  --border-normal: #d4c7a8;
+  --border-strong: #d4cec2;
+  --hairline-inner: #e6ddc9;
+
+  --text-primary: #2a2018;
+  --text-body: #4a4238;
+  --text-muted: #6b6255;
+  --text-faint: #8a7d6a;
+
+  --hover-overlay: rgba(0, 0, 0, 0.03);
+  --hover-overlay-strong: rgba(0, 0, 0, 0.06);
+
+  --input-bg: #fbf8f1;
+  --input-border: #d4cec2;
+}
+
+/* ============================================================
+   卡片渐变占位（用户真实立绘覆盖前的兜底）
+   ============================================================ */
+.art-placeholder-1  { background: linear-gradient(135deg, #5a3020, #a06450, #d4907a); }
+.art-placeholder-2  { background: linear-gradient(150deg, #1e2a3f, #3a5578, #6a89b0); }
+.art-placeholder-3  { background: linear-gradient(140deg, #4a1a1e, #7a2f38, #a85560); }
+.art-placeholder-4  { background: linear-gradient(160deg, #1e2a1e, #3a5a3a, #6a906a); }
+.art-placeholder-5  { background: linear-gradient(135deg, #2a1a3a, #4a3a6a, #7a6ab0); }
+.art-placeholder-6  { background: linear-gradient(155deg, #3a2818, #6a5030, #b08a5c); }
+.art-placeholder-7  { background: linear-gradient(145deg, #1a2a3a, #3a5580, #6088b8); }
+.art-placeholder-8  { background: linear-gradient(130deg, #3a1a2a, #6a3050, #a06080); }
+.art-placeholder-9  { background: linear-gradient(160deg, #2a2a1a, #5a5a30, #9a9a60); }
+.art-placeholder-10 { background: linear-gradient(140deg, #1a3a2a, #307050, #60a880); }
+.art-placeholder-11 { background: linear-gradient(150deg, #3a2a3a, #6a4a6a, #a07aa0); }
+.art-placeholder-12 { background: linear-gradient(135deg, #2a1a1a, #5a3030, #8a5a5a); }
+.art-placeholder-13 { background: linear-gradient(155deg, #1a1a3a, #3a3a6a, #6060a0); }

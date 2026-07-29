@@ -1,7 +1,7 @@
 import { useNavigate, useLocation } from 'react-router-dom';
-import { ScrollText, Moon, Sun, Users, Home, Wrench, Settings } from 'lucide-react';
-import { useTheme } from 'next-themes';
+import { ScrollText, Users, Home, Wrench, Settings } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { ThemeSwitcher } from '@/components/ThemeSwitcher';
 import { cn } from '@/lib/utils';
 
 interface AppLayoutProps {
@@ -35,7 +35,6 @@ const NAV_ITEMS = [
 export function AppLayout({ children, actions, leftActions }: AppLayoutProps) {
   const navigate = useNavigate();
   const location = useLocation();
-  const { theme, setTheme } = useTheme();
 
   const isActive = (matches: string[]) =>
     matches.some((m) => (m === '/' ? location.pathname === '/' : location.pathname.startsWith(m)));
@@ -80,7 +79,7 @@ export function AppLayout({ children, actions, leftActions }: AppLayoutProps) {
           })}
         </nav>
 
-        {/* 底部：设置页入口（阶段9.9 弹窗改独立页） + 暗色切换 */}
+        {/* 底部：设置页入口（阶段9.9 弹窗改独立页） + 主题弹层（2.1-P0） */}
         <div className="p-2 border-t border-border flex flex-col items-center gap-1">
           <Button
             variant="ghost"
@@ -92,15 +91,7 @@ export function AppLayout({ children, actions, leftActions }: AppLayoutProps) {
           >
             <Settings className="w-4 h-4" />
           </Button>
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
-            className="h-9 w-9"
-            aria-label={theme === 'dark' ? '切换到日间模式' : '切换到夜间模式'}
-          >
-            {theme === 'dark' ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
-          </Button>
+          <ThemeSwitcher side="right" />
         </div>
       </aside>
 
