@@ -1,9 +1,9 @@
 @echo off
 setlocal EnableExtensions
-
 chcp 65001 >nul
+
 echo ========================================
-echo   ST-Explore Web 预览版
+echo   ST-Explore - 客户端开发模式（Tauri）
 echo ========================================
 echo.
 
@@ -24,17 +24,9 @@ if not exist "node_modules" (
     echo.
 )
 
-:: 检查是否已构建
-if not exist "dist" (
-    echo [提示] 正在构建项目...
-    call npm run build
-    echo.
-)
-
-echo [启动] 正在启动本地服务器...
-echo 浏览器将自动打开，如未打开请访问: http://localhost:4173
-echo 按 Ctrl+C 停止服务器
+echo [启动] Tauri 客户端开发模式启动中（前端热更新，Rust 侧改动会自动重编译）...
+echo 首次运行需要编译 Rust，耗时较长属正常现象
+echo 测试期间请保持本窗口开启，按 Ctrl+C 停止
 echo.
 
-:: 启动预览服务器
-npm run preview
+npm run tauri:dev

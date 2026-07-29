@@ -1,0 +1,236 @@
+<div id="ste-home-structure-v3">
+  <style>
+    #ste-home-structure-v3 .home-shell {
+      overflow: hidden;
+    }
+    #ste-home-structure-v3 .topbar,
+    #ste-home-structure-v3 .section-head,
+    #ste-home-structure-v3 .sync-row,
+    #ste-home-structure-v3 .story-row,
+    #ste-home-structure-v3 .asset-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 0.75rem;
+      flex-wrap: wrap;
+    }
+    #ste-home-structure-v3 .topbar {
+      padding-bottom: 0.75rem;
+      border-bottom: 1px solid var(--border);
+    }
+    #ste-home-structure-v3 .sync-row {
+      padding: 0.75rem 0;
+      border-bottom: 1px solid var(--border);
+    }
+    #ste-home-structure-v3 .primary-grid {
+      display: grid;
+      grid-template-columns: minmax(0, 1.55fr) minmax(13rem, 0.8fr);
+      gap: 1rem;
+      padding: 1rem 0;
+    }
+    #ste-home-structure-v3 .cover-grid {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 0.55rem;
+      margin-top: 0.65rem;
+    }
+    #ste-home-structure-v3 .cover {
+      min-height: 6rem;
+      display: flex;
+      flex-direction: column;
+      justify-content: flex-end;
+      gap: 0.15rem;
+      padding: 0.65rem;
+      color: var(--foreground);
+      background: color-mix(in srgb, var(--viz-series-1) 15%, var(--card));
+    }
+    #ste-home-structure-v3 .cover:nth-child(2),
+    #ste-home-structure-v3 .cover:nth-child(5) {
+      background: color-mix(in srgb, var(--viz-series-2) 15%, var(--card));
+    }
+    #ste-home-structure-v3 .cover:nth-child(3),
+    #ste-home-structure-v3 .cover:nth-child(6) {
+      background: color-mix(in srgb, var(--viz-series-3) 15%, var(--card));
+    }
+    #ste-home-structure-v3 .process-area {
+      padding-left: 1rem;
+      border-left: 3px solid var(--primary);
+    }
+    #ste-home-structure-v3 .process-list {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 0.55rem;
+      margin-top: 0.75rem;
+    }
+    #ste-home-structure-v3 .process-item {
+      display: flex;
+      flex-direction: column;
+      gap: 0.25rem;
+      padding: 0.7rem;
+      background: color-mix(in srgb, var(--viz-series-1) 10%, var(--card));
+    }
+    #ste-home-structure-v3 .process-item.chat {
+      grid-column: 1 / -1;
+      background: color-mix(in srgb, var(--viz-series-1) 16%, var(--card));
+    }
+    #ste-home-structure-v3 .secondary-grid {
+      display: grid;
+      grid-template-columns: minmax(0, 1.25fr) minmax(0, 0.75fr);
+      gap: 1rem;
+      padding-top: 1rem;
+      border-top: 1px solid var(--border);
+    }
+    #ste-home-structure-v3 .story-list,
+    #ste-home-structure-v3 .asset-list {
+      display: grid;
+      gap: 0.6rem;
+      margin-top: 0.65rem;
+    }
+    #ste-home-structure-v3 .story-row,
+    #ste-home-structure-v3 .asset-row {
+      padding-bottom: 0.5rem;
+      border-bottom: 1px solid var(--border);
+    }
+    #ste-home-structure-v3 .story-main,
+    #ste-home-structure-v3 .asset-main {
+      min-width: 0;
+    }
+    #ste-home-structure-v3 .story-meta,
+    #ste-home-structure-v3 .resource-meta {
+      display: flex;
+      gap: 0.4rem;
+      flex-wrap: wrap;
+      margin-top: 0.2rem;
+    }
+    #ste-home-structure-v3 .confirm-row {
+      justify-content: flex-end;
+      margin-top: 1rem;
+    }
+    @media (max-width: 620px) {
+      #ste-home-structure-v3 .primary-grid,
+      #ste-home-structure-v3 .secondary-grid {
+        grid-template-columns: 1fr;
+      }
+      #ste-home-structure-v3 .cover-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+      #ste-home-structure-v3 .process-area {
+        padding-left: 0;
+        padding-top: 1rem;
+        border-left: 0;
+        border-top: 3px solid var(--primary);
+      }
+    }
+  </style>
+
+  <div class="card home-shell">
+    <div class="topbar">
+      <strong>我的收藏</strong>
+      <span class="text-small text-muted">搜索 · 导入 · 设置</span>
+    </div>
+
+    <div class="sync-row text-small">
+      <span><i data-lucide="folder-sync" aria-hidden="true"></i> ST 本地目录已连接</span>
+      <span class="text-muted">读取本地资产 · 修改前预览差异 · 确认后写回</span>
+    </div>
+
+    <div class="primary-grid">
+      <section aria-labelledby="ste-v3-library-heading">
+        <div class="section-head">
+          <div>
+            <strong id="ste-v3-library-heading">我的角色库</strong>
+            <div class="text-small text-muted">109 张角色卡 · 最近打开</div>
+          </div>
+          <button class="btn btn-ghost" type="button">查看全部</button>
+        </div>
+        <div class="cover-grid" aria-label="角色卡预览">
+          <div class="cover"><strong>角色 A</strong><span class="text-small">3 个故事</span></div>
+          <div class="cover"><strong>角色 B</strong><span class="text-small">同人 · 现代</span></div>
+          <div class="cover"><strong>角色 C</strong><span class="text-small">收藏</span></div>
+          <div class="cover"><strong>角色 D</strong><span class="text-small">最近加入</span></div>
+          <div class="cover"><strong>角色 E</strong><span class="text-small">草稿</span></div>
+          <div class="cover"><strong>角色 F</strong><span class="text-small">高评价</span></div>
+        </div>
+      </section>
+
+      <aside class="process-area" aria-labelledby="ste-v3-process-heading">
+        <div class="section-head">
+          <div>
+            <strong id="ste-v3-process-heading">处理区</strong>
+            <div class="text-small text-muted">选择资产类型后进入对应工作台</div>
+          </div>
+          <i data-lucide="wrench" aria-hidden="true"></i>
+        </div>
+        <div class="process-list">
+          <div class="process-item chat"><strong>聊天记录</strong><span class="text-small text-muted">导入、清理、编辑、章节、导出</span></div>
+          <div class="process-item"><strong>世界书</strong><span class="text-small text-muted">编辑与写回</span></div>
+          <div class="process-item"><strong>预设</strong><span class="text-small text-muted">可视化处理</span></div>
+          <div class="process-item"><strong>角色卡</strong><span class="text-small text-muted">查看与修改</span></div>
+          <div class="process-item"><strong>正则</strong><span class="text-small text-muted">独立管理</span></div>
+        </div>
+        <button class="btn btn-primary btn-block" type="button">进入处理区</button>
+      </aside>
+    </div>
+
+    <div class="secondary-grid">
+      <section aria-labelledby="ste-v3-stories-heading">
+        <div class="section-head">
+          <div>
+            <strong id="ste-v3-stories-heading">最近查看的故事</strong>
+            <div class="text-small text-muted">故事是总结、故事树等内容的归属根节点</div>
+          </div>
+          <button class="btn btn-ghost" type="button">全部故事</button>
+        </div>
+        <div class="story-list">
+          <div class="story-row">
+            <div class="story-main"><strong>图书馆主线</strong><div class="text-small text-muted">角色 A · 436 楼 · 昨天查看</div><div class="story-meta"><span class="viz-badge">总结 3</span><span class="viz-badge">故事树 1</span><span class="viz-badge">书签 7</span></div></div>
+            <span class="text-small text-muted">Claude Sonnet</span>
+          </div>
+          <div class="story-row">
+            <div class="story-main"><strong>雪夜支线</strong><div class="text-small text-muted">角色 C · 188 楼 · 3 天前查看</div><div class="story-meta"><span class="viz-badge">总结 1</span><span class="viz-badge">日记 4</span></div></div>
+            <span class="text-small text-muted">Gemini 2.5</span>
+          </div>
+          <div class="story-row">
+            <div class="story-main"><strong>第二周目</strong><div class="text-small text-muted">角色 B · 92 楼 · 上周查看</div><div class="story-meta"><span class="viz-badge">尚无衍生内容</span></div></div>
+            <span class="text-small text-muted">2 个模型</span>
+          </div>
+        </div>
+      </section>
+
+      <section aria-labelledby="ste-v3-assets-heading">
+        <div class="section-head">
+          <div>
+            <strong id="ste-v3-assets-heading">其他资产</strong>
+            <div class="text-small text-muted">独立存在，可被角色和故事引用</div>
+          </div>
+          <button class="btn btn-ghost" type="button">资产库</button>
+        </div>
+        <div class="asset-list text-small">
+          <div class="asset-row"><div class="asset-main"><strong>世界书</strong><div class="resource-meta text-muted"><span>36 项</span><span>角色派生 8 项</span></div></div><i data-lucide="book-open" aria-hidden="true"></i></div>
+          <div class="asset-row"><div class="asset-main"><strong>预设</strong><div class="resource-meta text-muted"><span>12 项</span><span>角色派生 3 项</span></div></div><i data-lucide="sliders-horizontal" aria-hidden="true"></i></div>
+          <div class="asset-row"><div class="asset-main"><strong>正则</strong><div class="resource-meta text-muted"><span>19 项</span><span>角色派生 5 项</span></div></div><i data-lucide="regex" aria-hidden="true"></i></div>
+          <div class="asset-row"><div class="asset-main"><strong>API 配置</strong><div class="resource-meta text-muted"><span>仅保存在本机</span><span>与角色无关联</span></div></div><i data-lucide="key-round" aria-hidden="true"></i></div>
+        </div>
+      </section>
+    </div>
+  </div>
+
+  <div class="viz-row confirm-row">
+    <button id="ste-v3-confirm" class="btn btn-primary" type="button">认可这版首页结构</button>
+  </div>
+
+  <script>
+    (() => {
+      const root = document.getElementById('ste-home-structure-v3');
+      const confirm = root.querySelector('#ste-v3-confirm');
+      confirm.addEventListener('click', async () => {
+        if (window.openai?.sendFollowUpMessage) {
+          await window.openai.sendFollowUpMessage({
+            prompt: '认可新版首页结构：角色库为主、通用处理区为第二入口、最近查看的故事为故事级入口、其他资产独立存在并可引用。请继续讨论下一部分设计。',
+            title: '确认首页结构'
+          });
+        }
+      });
+    })();
+  </script>
+</div>

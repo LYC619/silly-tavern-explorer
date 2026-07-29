@@ -1,0 +1,395 @@
+<div id="ste-home-structure-v4">
+  <style>
+    #ste-home-structure-v4 {
+      width: 100%;
+    }
+    #ste-home-structure-v4 * {
+      box-sizing: border-box;
+    }
+    #ste-home-structure-v4 .variant-bar,
+    #ste-home-structure-v4 .topbar,
+    #ste-home-structure-v4 .brand-row,
+    #ste-home-structure-v4 .top-actions,
+    #ste-home-structure-v4 .section-head,
+    #ste-home-structure-v4 .story-row,
+    #ste-home-structure-v4 .asset-row,
+    #ste-home-structure-v4 .story-resources {
+      display: flex;
+      align-items: center;
+    }
+    #ste-home-structure-v4 .variant-bar,
+    #ste-home-structure-v4 .top-actions,
+    #ste-home-structure-v4 .story-resources {
+      gap: 0.45rem;
+      flex-wrap: wrap;
+    }
+    #ste-home-structure-v4 .variant-bar {
+      margin-bottom: 0.65rem;
+    }
+    #ste-home-structure-v4 .variant-note {
+      margin: 0 0 0.65rem;
+    }
+    #ste-home-structure-v4 .desktop-frame {
+      width: 100%;
+      aspect-ratio: 16 / 10;
+      overflow: hidden;
+      border-top: 1px solid var(--border);
+      border-bottom: 1px solid var(--border);
+      background: var(--background);
+      display: flex;
+      flex-direction: column;
+    }
+    #ste-home-structure-v4 .topbar {
+      min-height: 3rem;
+      padding: 0.45rem 0.7rem;
+      border-bottom: 1px solid var(--border);
+      justify-content: space-between;
+      gap: 0.75rem;
+    }
+    #ste-home-structure-v4 .brand-row {
+      gap: 0.55rem;
+      min-width: 0;
+    }
+    #ste-home-structure-v4 .connection {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.25rem;
+      white-space: nowrap;
+    }
+    #ste-home-structure-v4 .home-content {
+      min-height: 0;
+      flex: 1;
+      padding: 0.7rem;
+      display: grid;
+      grid-template-rows: minmax(0, 1.08fr) minmax(0, 0.92fr);
+      gap: 0.7rem;
+    }
+    #ste-home-structure-v4 .primary-grid,
+    #ste-home-structure-v4 .secondary-grid {
+      min-height: 0;
+      display: grid;
+      gap: 0.8rem;
+    }
+    #ste-home-structure-v4 .primary-grid {
+      grid-template-columns: minmax(0, 1.65fr) minmax(13rem, 0.78fr);
+    }
+    #ste-home-structure-v4 .secondary-grid {
+      grid-template-columns: minmax(0, 1.35fr) minmax(13rem, 0.65fr);
+      padding-top: 0.7rem;
+      border-top: 1px solid var(--border);
+    }
+    #ste-home-structure-v4 section,
+    #ste-home-structure-v4 aside {
+      min-width: 0;
+      min-height: 0;
+    }
+    #ste-home-structure-v4 .section-head {
+      justify-content: space-between;
+      gap: 0.65rem;
+      margin-bottom: 0.45rem;
+    }
+    #ste-home-structure-v4 .section-head h3,
+    #ste-home-structure-v4 .section-head p {
+      margin: 0;
+    }
+    #ste-home-structure-v4 .cover-grid {
+      display: grid;
+      grid-template-columns: repeat(5, minmax(0, 1fr));
+      gap: 0.55rem;
+      align-items: start;
+    }
+    #ste-home-structure-v4 .character-card {
+      min-width: 0;
+      margin: 0;
+    }
+    #ste-home-structure-v4 .cover-art {
+      position: relative;
+      aspect-ratio: 2 / 3;
+      overflow: hidden;
+      display: flex;
+      align-items: flex-end;
+      justify-content: center;
+      padding: 0.4rem;
+      background:
+        radial-gradient(circle at 50% 28%, color-mix(in srgb, var(--foreground) 20%, transparent) 0 12%, transparent 13%),
+        linear-gradient(155deg, color-mix(in srgb, var(--viz-series-1) 42%, var(--card)), var(--card));
+    }
+    #ste-home-structure-v4 .character-card:nth-child(2n) .cover-art {
+      background:
+        radial-gradient(circle at 50% 28%, color-mix(in srgb, var(--foreground) 18%, transparent) 0 12%, transparent 13%),
+        linear-gradient(155deg, color-mix(in srgb, var(--viz-series-2) 40%, var(--card)), var(--card));
+    }
+    #ste-home-structure-v4 .character-card:nth-child(3n) .cover-art {
+      background:
+        radial-gradient(circle at 50% 28%, color-mix(in srgb, var(--foreground) 18%, transparent) 0 12%, transparent 13%),
+        linear-gradient(155deg, color-mix(in srgb, var(--viz-series-3) 40%, var(--card)), var(--card));
+    }
+    #ste-home-structure-v4 .cover-art::after {
+      content: "";
+      position: absolute;
+      left: 18%;
+      right: 18%;
+      bottom: -8%;
+      height: 58%;
+      border-radius: 48% 48% 0 0;
+      background: color-mix(in srgb, var(--foreground) 16%, transparent);
+    }
+    #ste-home-structure-v4 .cover-badge {
+      position: absolute;
+      z-index: 1;
+      top: 0.35rem;
+      right: 0.35rem;
+    }
+    #ste-home-structure-v4 .cover-caption {
+      padding-top: 0.3rem;
+      min-width: 0;
+    }
+    #ste-home-structure-v4 .cover-caption strong,
+    #ste-home-structure-v4 .cover-caption span {
+      display: block;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    #ste-home-structure-v4[data-density="b"] .cover-grid {
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+    }
+    #ste-home-structure-v4[data-density="b"] .character-card:nth-child(n+5) {
+      display: none;
+    }
+    #ste-home-structure-v4[data-density="c"] .cover-grid {
+      grid-template-columns: repeat(6, minmax(0, 1fr));
+    }
+    #ste-home-structure-v4[data-density="a"] .character-card:nth-child(n+6) {
+      display: none;
+    }
+    #ste-home-structure-v4 .process-area {
+      padding-left: 0.8rem;
+      border-left: 2px solid var(--primary);
+    }
+    #ste-home-structure-v4 .process-stack {
+      display: grid;
+      gap: 0.45rem;
+    }
+    #ste-home-structure-v4 .tool-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 0.4rem;
+    }
+    #ste-home-structure-v4 .tool-grid .btn {
+      width: 100%;
+    }
+    #ste-home-structure-v4 .story-list,
+    #ste-home-structure-v4 .asset-list {
+      display: grid;
+      gap: 0;
+    }
+    #ste-home-structure-v4 .story-row,
+    #ste-home-structure-v4 .asset-row {
+      min-width: 0;
+      justify-content: space-between;
+      gap: 0.7rem;
+      padding: 0.38rem 0;
+      border-bottom: 1px solid var(--border);
+    }
+    #ste-home-structure-v4 .story-main,
+    #ste-home-structure-v4 .asset-main {
+      min-width: 0;
+    }
+    #ste-home-structure-v4 .story-title {
+      display: block;
+      font-weight: 500;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    #ste-home-structure-v4 .story-resources {
+      justify-content: flex-end;
+    }
+    #ste-home-structure-v4 .asset-row:last-child,
+    #ste-home-structure-v4 .story-row:last-child {
+      border-bottom: 0;
+    }
+    @media (max-width: 620px) {
+      #ste-home-structure-v4 .desktop-frame {
+        aspect-ratio: auto;
+        overflow: visible;
+      }
+      #ste-home-structure-v4 .topbar,
+      #ste-home-structure-v4 .section-head {
+        align-items: flex-start;
+        flex-direction: column;
+      }
+      #ste-home-structure-v4 .home-content {
+        display: block;
+      }
+      #ste-home-structure-v4 .primary-grid,
+      #ste-home-structure-v4 .secondary-grid {
+        grid-template-columns: 1fr;
+      }
+      #ste-home-structure-v4 .primary-grid,
+      #ste-home-structure-v4 .secondary-grid,
+      #ste-home-structure-v4 .process-area {
+        margin-top: 0.8rem;
+      }
+      #ste-home-structure-v4 .process-area {
+        padding: 0.8rem 0 0;
+        border-left: 0;
+        border-top: 2px solid var(--primary);
+      }
+      #ste-home-structure-v4 .cover-grid,
+      #ste-home-structure-v4[data-density="a"] .cover-grid,
+      #ste-home-structure-v4[data-density="b"] .cover-grid,
+      #ste-home-structure-v4[data-density="c"] .cover-grid {
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+      }
+    }
+  </style>
+
+  <div class="variant-bar" aria-label="角色卡密度方案">
+    <span class="text-small text-muted">角色库密度</span>
+    <button class="btn btn-primary" type="button" data-density-choice="a" aria-pressed="true">A · 5 张单排</button>
+    <button class="btn" type="button" data-density-choice="b" aria-pressed="false">B · 4 张大图</button>
+    <button class="btn" type="button" data-density-choice="c" aria-pressed="false">C · 6 张紧凑</button>
+  </div>
+  <p id="ste-v4-density-note" class="variant-note text-small text-muted">推荐 A：保持 ST 常见的 2:3 竖版封面，在角色可见数量和一屏高度之间最均衡。</p>
+
+  <div class="desktop-frame" aria-label="STE 首页在 1440×900 桌面内容区中的缩放预览">
+    <header class="topbar">
+      <div class="brand-row">
+        <strong>STE · 我的收藏</strong>
+        <span class="connection text-small text-muted"><i data-lucide="folder-check" aria-hidden="true"></i>ST 目录已连接</span>
+      </div>
+      <div class="top-actions text-small text-muted">
+        <span>搜索</span><span>导入</span><span>设置</span>
+      </div>
+    </header>
+
+    <main class="home-content">
+      <div class="primary-grid">
+        <section aria-labelledby="ste-v4-library-heading">
+          <div class="section-head">
+            <div>
+              <h3 id="ste-v4-library-heading">我的角色库</h3>
+              <p class="text-small text-muted">109 张角色卡 · 最近打开</p>
+            </div>
+            <button class="btn btn-ghost" type="button">查看全部</button>
+          </div>
+          <div class="cover-grid" aria-label="角色卡预览，统一使用二比三竖版比例">
+            <figure class="character-card">
+              <div class="cover-art" role="img" aria-label="奏枝角色卡封面"><span class="cover-badge viz-badge">7 个故事</span></div>
+              <figcaption class="cover-caption"><strong>奏枝</strong><span class="text-small text-muted">图书馆管理员</span></figcaption>
+            </figure>
+            <figure class="character-card">
+              <div class="cover-art" role="img" aria-label="塞西莉亚角色卡封面"><span class="cover-badge viz-badge">3 个故事</span></div>
+              <figcaption class="cover-caption"><strong>塞西莉亚</strong><span class="text-small text-muted">雾港纪事</span></figcaption>
+            </figure>
+            <figure class="character-card">
+              <div class="cover-art" role="img" aria-label="林默角色卡封面"><span class="cover-badge viz-badge">5 个故事</span></div>
+              <figcaption class="cover-caption"><strong>林默</strong><span class="text-small text-muted">现代 · 悬疑</span></figcaption>
+            </figure>
+            <figure class="character-card">
+              <div class="cover-art" role="img" aria-label="诺娅角色卡封面"><span class="cover-badge viz-badge">1 个故事</span></div>
+              <figcaption class="cover-caption"><strong>诺娅</strong><span class="text-small text-muted">最近加入</span></figcaption>
+            </figure>
+            <figure class="character-card">
+              <div class="cover-art" role="img" aria-label="夏洛特角色卡封面"><span class="cover-badge viz-badge">4 个故事</span></div>
+              <figcaption class="cover-caption"><strong>夏洛特</strong><span class="text-small text-muted">收藏</span></figcaption>
+            </figure>
+            <figure class="character-card">
+              <div class="cover-art" role="img" aria-label="伊芙角色卡封面"><span class="cover-badge viz-badge">2 个故事</span></div>
+              <figcaption class="cover-caption"><strong>伊芙</strong><span class="text-small text-muted">奇幻 · 长线</span></figcaption>
+            </figure>
+          </div>
+        </section>
+
+        <aside class="process-area" aria-labelledby="ste-v4-process-heading">
+          <div class="section-head">
+            <div>
+              <h3 id="ste-v4-process-heading">处理工具</h3>
+              <p class="text-small text-muted">直接进入对应资产工作台</p>
+            </div>
+            <button class="btn btn-ghost" type="button">全部工具</button>
+          </div>
+          <div class="process-stack">
+            <button class="btn btn-primary btn-block" type="button"><i data-lucide="messages-square" aria-hidden="true"></i>处理聊天记录</button>
+            <span class="text-small text-muted">清理、编辑、分章、总结与导出</span>
+            <div class="tool-grid">
+              <button class="btn" type="button">世界书</button>
+              <button class="btn" type="button">预设</button>
+              <button class="btn" type="button">角色卡</button>
+              <button class="btn" type="button">正则</button>
+            </div>
+          </div>
+        </aside>
+      </div>
+
+      <div class="secondary-grid">
+        <section aria-labelledby="ste-v4-stories-heading">
+          <div class="section-head">
+            <div>
+              <h3 id="ste-v4-stories-heading">最近查看的故事</h3>
+              <p class="text-small text-muted">故事下统一收纳总结、日记、故事树与书签</p>
+            </div>
+            <button class="btn btn-ghost" type="button">全部故事</button>
+          </div>
+          <div class="story-list">
+            <div class="story-row">
+              <div class="story-main"><span class="story-title">图书馆主线 · 书店真正的主人</span><span class="text-small text-muted">奏枝 · 436 条消息 · 昨天查看</span></div>
+              <div class="story-resources"><span class="viz-badge">总结 3</span><span class="viz-badge">故事树 1</span><span class="text-small text-muted">Claude Sonnet</span></div>
+            </div>
+            <div class="story-row">
+              <div class="story-main"><span class="story-title">雪夜支线 · 雨停后的第三天</span><span class="text-small text-muted">塞西莉亚 · 188 条消息 · 3 天前</span></div>
+              <div class="story-resources"><span class="viz-badge">日记 4</span><span class="viz-badge">书签 7</span><span class="text-small text-muted">Gemini 2.5</span></div>
+            </div>
+            <div class="story-row">
+              <div class="story-main"><span class="story-title">第二周目 · 未寄出的信</span><span class="text-small text-muted">林默 · 92 条消息 · 上周查看</span></div>
+              <div class="story-resources"><span class="viz-badge">暂无衍生内容</span><span class="text-small text-muted">2 个模型</span></div>
+            </div>
+          </div>
+        </section>
+
+        <section aria-labelledby="ste-v4-assets-heading">
+          <div class="section-head">
+            <div>
+              <h3 id="ste-v4-assets-heading">其他资产</h3>
+              <p class="text-small text-muted">独立保存，可被角色或故事引用</p>
+            </div>
+            <button class="btn btn-ghost" type="button">资产库</button>
+          </div>
+          <div class="asset-list">
+            <div class="asset-row"><div class="asset-main"><strong>世界书</strong><span class="text-small text-muted">36 项 · 派生 8 项</span></div><i data-lucide="book-open" aria-hidden="true"></i></div>
+            <div class="asset-row"><div class="asset-main"><strong>预设</strong><span class="text-small text-muted">12 项 · 派生 3 项</span></div><i data-lucide="sliders-horizontal" aria-hidden="true"></i></div>
+            <div class="asset-row"><div class="asset-main"><strong>正则</strong><span class="text-small text-muted">19 项 · 派生 5 项</span></div><i data-lucide="regex" aria-hidden="true"></i></div>
+            <div class="asset-row"><div class="asset-main"><strong>API 配置</strong><span class="text-small text-muted">仅本机保存 · 不关联角色</span></div><i data-lucide="key-round" aria-hidden="true"></i></div>
+          </div>
+        </section>
+      </div>
+    </main>
+  </div>
+
+  <script>
+    (() => {
+      const root = document.getElementById('ste-home-structure-v4');
+      const note = root.querySelector('#ste-v4-density-note');
+      const notes = {
+        a: '推荐 A：保持 ST 常见的 2:3 竖版封面，在角色可见数量和一屏高度之间最均衡。',
+        b: 'B：角色封面更醒目，但首页一次只能看到 4 张最近角色卡。',
+        c: 'C：一次看到 6 张卡，但卡名和状态空间更紧，封面辨识度也会下降。'
+      };
+      root.dataset.density = 'a';
+      root.querySelectorAll('[data-density-choice]').forEach((button) => {
+        button.addEventListener('click', () => {
+          const density = button.dataset.densityChoice;
+          root.dataset.density = density;
+          note.textContent = notes[density];
+          root.querySelectorAll('[data-density-choice]').forEach((peer) => {
+            const active = peer === button;
+            peer.setAttribute('aria-pressed', String(active));
+            peer.classList.toggle('btn-primary', active);
+          });
+        });
+      });
+    })();
+  </script>
+</div>

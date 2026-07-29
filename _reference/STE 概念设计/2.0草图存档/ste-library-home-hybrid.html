@@ -1,0 +1,182 @@
+<div id="ste-library-home-hybrid">
+  <style>
+    #ste-library-home-hybrid .mockup {
+      overflow: hidden;
+    }
+    #ste-library-home-hybrid .mock-top,
+    #ste-library-home-hybrid .section-head,
+    #ste-library-home-hybrid .mock-footer {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 0.75rem;
+      flex-wrap: wrap;
+    }
+    #ste-library-home-hybrid .mock-top {
+      padding-bottom: 0.75rem;
+      border-bottom: 1px solid var(--border);
+    }
+    #ste-library-home-hybrid .mock-main {
+      display: grid;
+      grid-template-columns: minmax(0, 1.65fr) minmax(12rem, 0.75fr);
+      gap: 1rem;
+      padding: 1rem 0;
+    }
+    #ste-library-home-hybrid .gallery {
+      min-width: 0;
+    }
+    #ste-library-home-hybrid .cover-grid {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 0.55rem;
+      margin-top: 0.65rem;
+    }
+    #ste-library-home-hybrid .cover {
+      min-height: 6rem;
+      display: flex;
+      flex-direction: column;
+      justify-content: flex-end;
+      gap: 0.15rem;
+      padding: 0.65rem;
+      color: var(--foreground);
+      background: color-mix(in srgb, var(--viz-series-1) 15%, var(--card));
+    }
+    #ste-library-home-hybrid .cover:nth-child(2),
+    #ste-library-home-hybrid .cover:nth-child(5) {
+      background: color-mix(in srgb, var(--viz-series-2) 15%, var(--card));
+    }
+    #ste-library-home-hybrid .cover:nth-child(3),
+    #ste-library-home-hybrid .cover:nth-child(6) {
+      background: color-mix(in srgb, var(--viz-series-3) 15%, var(--card));
+    }
+    #ste-library-home-hybrid .chat-entry {
+      display: flex;
+      flex-direction: column;
+      align-items: flex-start;
+      gap: 0.65rem;
+      padding: 1rem;
+      border-left: 3px solid var(--primary);
+      background: color-mix(in srgb, var(--viz-series-1) 12%, var(--card));
+    }
+    #ste-library-home-hybrid .chat-entry .chat-mark {
+      color: var(--primary);
+    }
+    #ste-library-home-hybrid .lower {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+      gap: 1rem;
+      padding-top: 1rem;
+      border-top: 1px solid var(--border);
+    }
+    #ste-library-home-hybrid .recent-list,
+    #ste-library-home-hybrid .tool-list {
+      display: grid;
+      gap: 0.55rem;
+      margin-top: 0.65rem;
+    }
+    #ste-library-home-hybrid .recent-item,
+    #ste-library-home-hybrid .tool-item {
+      display: flex;
+      justify-content: space-between;
+      gap: 0.75rem;
+      padding-bottom: 0.45rem;
+      border-bottom: 1px solid var(--border);
+    }
+    #ste-library-home-hybrid .tool-list {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+    #ste-library-home-hybrid .tool-item {
+      display: block;
+    }
+    #ste-library-home-hybrid .mock-footer {
+      padding-top: 0.75rem;
+    }
+    @media (max-width: 620px) {
+      #ste-library-home-hybrid .mock-main,
+      #ste-library-home-hybrid .lower {
+        grid-template-columns: 1fr;
+      }
+      #ste-library-home-hybrid .cover-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+    }
+  </style>
+
+  <div class="card mockup">
+    <div class="mock-top text-small">
+      <span>我的收藏</span>
+      <span class="text-muted">搜索 · 导入 · ST 同步正常</span>
+    </div>
+
+    <div class="mock-main">
+      <section class="gallery" aria-labelledby="ste-gallery-heading">
+        <div class="section-head">
+          <div>
+            <strong id="ste-gallery-heading">我的角色库</strong>
+            <div class="text-small text-muted">109 张卡 · 最近打开</div>
+          </div>
+          <button class="btn btn-ghost" type="button">查看全部</button>
+        </div>
+        <div class="cover-grid" aria-label="角色卡预览">
+          <div class="cover"><strong>角色 A</strong><span class="text-small">最近打开 · 3 个故事</span></div>
+          <div class="cover"><strong>角色 B</strong><span class="text-small">同人 · 现代</span></div>
+          <div class="cover"><strong>角色 C</strong><span class="text-small">收藏</span></div>
+          <div class="cover"><strong>角色 D</strong><span class="text-small">最近加入</span></div>
+          <div class="cover"><strong>角色 E</strong><span class="text-small">草稿</span></div>
+          <div class="cover"><strong>角色 F</strong><span class="text-small">高评价</span></div>
+        </div>
+      </section>
+
+      <aside class="chat-entry" aria-labelledby="ste-chat-heading">
+        <span class="chat-mark" aria-hidden="true"><i data-lucide="message-square-more"></i></span>
+        <strong id="ste-chat-heading">聊天处理</strong>
+        <span>直接打开或导入聊天记录，清理、编辑、总结并导出。</span>
+        <button class="btn btn-primary" type="button">开始处理聊天</button>
+        <span class="text-small text-muted">上次处理：角色 A · 昨天</span>
+      </aside>
+    </div>
+
+    <div class="lower">
+      <section aria-labelledby="ste-recent-heading">
+        <div class="section-head"><strong id="ste-recent-heading">最近整理</strong><span class="text-small text-muted">历史入口，不是待办</span></div>
+        <div class="recent-list text-small">
+          <div class="recent-item"><span>聊天处理 · 角色 A</span><span class="text-muted">昨天</span></div>
+          <div class="recent-item"><span>世界书 · 城市设定</span><span class="text-muted">3 天前</span></div>
+          <div class="recent-item"><span>总结 · 第 2 卷</span><span class="text-muted">上周</span></div>
+        </div>
+      </section>
+      <section aria-labelledby="ste-tools-heading">
+        <div class="section-head"><strong id="ste-tools-heading">其他工具</strong><span class="text-small text-muted">按需使用</span></div>
+        <div class="tool-list text-small">
+          <div class="tool-item"><strong>总结与回顾</strong><span class="text-muted">沉淀故事内容</span></div>
+          <div class="tool-item"><strong>故事树</strong><span class="text-muted">整理事实锚点</span></div>
+          <div class="tool-item"><strong>世界书</strong><span class="text-muted">编辑设定资产</span></div>
+          <div class="tool-item"><strong>预设 / 角色卡</strong><span class="text-muted">独立编辑</span></div>
+        </div>
+      </section>
+    </div>
+
+    <div class="mock-footer">
+      <span class="text-small text-muted">主视觉：角色库　·　第二主入口：聊天处理　·　辅助入口：最近整理 / 其他工具</span>
+    </div>
+  </div>
+
+  <div class="viz-row" style="justify-content: flex-end; margin-top: 1rem;">
+    <button id="ste-home-hybrid-confirm" class="btn btn-primary" type="button">这个层级可以，继续细化</button>
+  </div>
+
+  <script>
+    (() => {
+      const root = document.getElementById('ste-library-home-hybrid');
+      const confirm = root.querySelector('#ste-home-hybrid-confirm');
+      confirm.addEventListener('click', async () => {
+        if (window.openai?.sendFollowUpMessage) {
+          await window.openai.sendFollowUpMessage({
+            prompt: '确认首页采用 A2 为底、吸收 A3 的结构：角色库为主视觉，聊天处理为更大的第二主入口，最近整理为辅助回归入口。请继续细化首页内容和交互。',
+            title: '确认首页层级'
+          });
+        }
+      });
+    })();
+  </script>
+</div>

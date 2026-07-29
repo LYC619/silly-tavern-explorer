@@ -9,10 +9,6 @@ export async function getAllSummaries(): Promise<SummaryItem[]> {
   return summaryRepo.list();
 }
 
-export async function getSummary(id: string): Promise<SummaryItem | undefined> {
-  return summaryRepo.get(id);
-}
-
 export async function saveSummary(item: SummaryItem): Promise<void> {
   return summaryRepo.put(item);
 }

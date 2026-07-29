@@ -1,0 +1,2588 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8" />
+<title>STE 2.0 界面草图</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@400;500;700&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+<style>
+  :root {
+    --bg: #12100e;
+    --bg-2: #1a1714;
+    --panel: #1f1b17;
+    --panel-2: #26211c;
+    --line: #322c25;
+    --line-2: #423a31;
+    --ink: #ece5d9;
+    --ink-2: #b8ad9c;
+    --ink-3: #7d7466;
+    --accent: #c9a875;      /* 温暖的旧纸金 */
+    --accent-2: #d97757;    /* 焦橘（呼应 ST 的暖色系） */
+    --ok: #7fa87a;
+    --warn: #d19a5c;
+    --danger: #c17070;
+  }
+  html, body { margin: 0; padding: 0; background: #000; color: var(--ink); font-family: 'Inter', 'Noto Serif SC', -apple-system, BlinkMacSystemFont, sans-serif; }
+  * { box-sizing: border-box; }
+  ::-webkit-scrollbar { width: 8px; height: 8px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: var(--line-2); border-radius: 4px; }
+
+  deck-stage > section {
+    width: 1920px;
+    height: 1080px;
+    background: var(--bg);
+    color: var(--ink);
+    overflow: hidden;
+    position: relative;
+    display: flex;
+    flex-direction: column;
+  }
+
+  /* ============ 共用：顶栏 ============ */
+  .topbar {
+    height: 56px;
+    flex: 0 0 56px;
+    display: flex;
+    align-items: center;
+    padding: 0 24px;
+    background: var(--bg-2);
+    border-bottom: 1px solid var(--line);
+    gap: 20px;
+    font-size: 13px;
+  }
+  .brand {
+    font-weight: 700;
+    letter-spacing: 0.02em;
+    color: var(--ink);
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .brand .dot {
+    width: 8px; height: 8px; border-radius: 50%;
+    background: var(--accent-2);
+  }
+  .brand small { color: var(--ink-3); font-weight: 400; margin-left: 4px; }
+  .top-nav { display: flex; gap: 4px; margin-left: 24px; }
+  .top-nav a {
+    padding: 8px 14px;
+    color: var(--ink-2);
+    text-decoration: none;
+    border-radius: 6px;
+    font-size: 13px;
+  }
+  .top-nav a.active { background: var(--panel); color: var(--ink); }
+  .top-search {
+    flex: 1;
+    max-width: 480px;
+    margin-left: auto;
+    height: 32px;
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-radius: 6px;
+    display: flex;
+    align-items: center;
+    padding: 0 12px;
+    color: var(--ink-3);
+    font-size: 13px;
+    gap: 8px;
+  }
+  .top-actions { display: flex; gap: 8px; }
+  .top-actions button {
+    height: 32px;
+    padding: 0 12px;
+    background: var(--panel);
+    border: 1px solid var(--line);
+    color: var(--ink-2);
+    border-radius: 6px;
+    font-size: 12px;
+    cursor: pointer;
+    font-family: inherit;
+  }
+  .top-actions button.primary { background: var(--accent-2); color: #201308; border-color: transparent; font-weight: 600; }
+
+  /* ============ 共用：主体两栏 ============ */
+  .body {
+    flex: 1;
+    display: flex;
+    min-height: 0;
+  }
+  .sidebar {
+    width: 240px;
+    flex: 0 0 240px;
+    background: var(--bg-2);
+    border-right: 1px solid var(--line);
+    padding: 20px 12px;
+    font-size: 13px;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+  .sb-section { color: var(--ink-3); font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase; margin: 16px 8px 6px; }
+  .sb-item {
+    padding: 8px 12px;
+    border-radius: 6px;
+    color: var(--ink-2);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    cursor: pointer;
+  }
+  .sb-item:hover { background: var(--panel); color: var(--ink); }
+  .sb-item.active { background: var(--panel); color: var(--ink); }
+  .sb-item .count { color: var(--ink-3); font-size: 11px; font-family: 'JetBrains Mono', monospace; }
+  .sb-tag { display: inline-block; width: 8px; height: 8px; border-radius: 2px; margin-right: 8px; }
+
+  /* ============ Slide 1: 库列表页 ============ */
+  .lib-main { flex: 1; padding: 32px 40px; overflow: hidden; display: flex; flex-direction: column; }
+  .lib-header { display: flex; align-items: baseline; gap: 16px; margin-bottom: 20px; }
+  .lib-title { font-size: 26px; font-weight: 700; letter-spacing: -0.01em; }
+  .lib-sub { color: var(--ink-3); font-size: 13px; }
+  .lib-toolbar {
+    display: flex;
+    gap: 12px;
+    align-items: center;
+    margin-bottom: 24px;
+    padding-bottom: 20px;
+    border-bottom: 1px solid var(--line);
+  }
+  .filter-chip {
+    height: 30px;
+    padding: 0 12px;
+    background: var(--panel);
+    border: 1px solid var(--line);
+    color: var(--ink-2);
+    border-radius: 6px;
+    font-size: 12px;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    cursor: pointer;
+  }
+  .filter-chip.active { border-color: var(--accent); color: var(--accent); }
+  .sort-select {
+    height: 30px;
+    padding: 0 12px;
+    background: var(--panel);
+    border: 1px solid var(--line);
+    color: var(--ink-2);
+    border-radius: 6px;
+    font-size: 12px;
+    margin-left: auto;
+  }
+  .view-toggle {
+    display: flex;
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-radius: 6px;
+    overflow: hidden;
+  }
+  .view-toggle button {
+    background: transparent;
+    border: none;
+    color: var(--ink-3);
+    padding: 6px 10px;
+    font-size: 11px;
+    cursor: pointer;
+    font-family: inherit;
+  }
+  .view-toggle button.active { background: var(--panel-2); color: var(--ink); }
+
+  .lib-grid {
+    flex: 1;
+    overflow-y: auto;
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    gap: 20px;
+    align-content: start;
+    padding-right: 8px;
+  }
+  .card {
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    overflow: hidden;
+    cursor: pointer;
+    transition: transform 0.15s, border-color 0.15s;
+    display: flex;
+    flex-direction: column;
+  }
+  .card:hover { border-color: var(--line-2); }
+  .card .cover {
+    aspect-ratio: 3 / 4;
+    background: linear-gradient(135deg, #2a2520 0%, #3a3128 100%);
+    position: relative;
+    overflow: hidden;
+    display: flex;
+    align-items: flex-end;
+    padding: 12px;
+  }
+  /* 6 种封面色调，模拟不同角色卡的封面 */
+  .cover.c1 { background: linear-gradient(160deg, #4a3a2e 0%, #2a1e18 100%); }
+  .cover.c2 { background: linear-gradient(160deg, #3a4048 0%, #1e242c 100%); }
+  .cover.c3 { background: linear-gradient(160deg, #5a3a3a 0%, #2e1e1e 100%); }
+  .cover.c4 { background: linear-gradient(160deg, #3d4a3a 0%, #1e2618 100%); }
+  .cover.c5 { background: linear-gradient(160deg, #4a3a4e 0%, #26182c 100%); }
+  .cover.c6 { background: linear-gradient(160deg, #4e4028 0%, #2a2210 100%); }
+  .cover.c7 { background: linear-gradient(160deg, #2f3a4a 0%, #181e2a 100%); }
+  .cover.c8 { background: linear-gradient(160deg, #4a2f2a 0%, #2a1810 100%); }
+  .cover.c9 { background: linear-gradient(160deg, #3a4a44 0%, #182a24 100%); }
+  .cover.c10 { background: linear-gradient(160deg, #443a4a 0%, #241a2a 100%); }
+
+  .cover::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: repeating-linear-gradient(45deg, transparent 0 8px, rgba(255,255,255,0.02) 8px 9px);
+    pointer-events: none;
+  }
+  .cover .cover-label {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    color: rgba(255,255,255,0.35);
+    position: absolute;
+    top: 10px;
+    left: 12px;
+    letter-spacing: 0.05em;
+  }
+  .cover .stories-badge {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    background: rgba(0,0,0,0.5);
+    backdrop-filter: blur(4px);
+    padding: 3px 8px;
+    border-radius: 4px;
+    font-size: 10px;
+    color: var(--ink);
+    font-family: 'JetBrains Mono', monospace;
+  }
+  .card .meta { padding: 12px 14px 14px; display: flex; flex-direction: column; gap: 6px; }
+  .card .name { font-size: 14px; font-weight: 600; color: var(--ink); font-family: 'Noto Serif SC', serif; }
+  .card .desc { font-size: 11.5px; color: var(--ink-3); line-height: 1.5; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
+  .card .footer { display: flex; align-items: center; justify-content: space-between; margin-top: 4px; padding-top: 8px; border-top: 1px solid var(--line); }
+  .card .rating { font-size: 11px; color: var(--accent); font-family: 'JetBrains Mono', monospace; }
+  .card .last { font-size: 10px; color: var(--ink-3); font-family: 'JetBrains Mono', monospace; }
+  .card .tags { display: flex; gap: 4px; flex-wrap: wrap; }
+  .tag {
+    font-size: 10px;
+    padding: 2px 6px;
+    background: var(--panel-2);
+    border: 1px solid var(--line);
+    border-radius: 3px;
+    color: var(--ink-2);
+    font-family: 'JetBrains Mono', monospace;
+  }
+
+  /* ============ Slide 2: 卡片主页 ============ */
+  .cp-main {
+    flex: 1;
+    overflow-y: auto;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+  }
+  .cp-hero {
+    position: relative;
+    height: 320px;
+    flex: 0 0 320px;
+    background: linear-gradient(180deg, rgba(0,0,0,0) 0%, var(--bg) 100%),
+                linear-gradient(135deg, #4a2f2a 0%, #2a1810 100%);
+    display: flex;
+    align-items: flex-end;
+    padding: 32px 48px 24px;
+    border-bottom: 1px solid var(--line);
+  }
+  .cp-hero::before {
+    content: '';
+    position: absolute; inset: 0;
+    background: repeating-linear-gradient(45deg, transparent 0 12px, rgba(255,255,255,0.015) 12px 13px);
+    pointer-events: none;
+  }
+  .cp-hero-content { display: flex; gap: 32px; align-items: flex-end; width: 100%; position: relative; }
+  .cp-portrait {
+    width: 200px; height: 260px;
+    border-radius: 8px;
+    background: linear-gradient(160deg, #5a4030 0%, #2f1e14 100%);
+    border: 1px solid var(--line-2);
+    box-shadow: 0 20px 40px rgba(0,0,0,0.5);
+    flex-shrink: 0;
+    position: relative;
+    margin-bottom: -32px;
+    overflow: hidden;
+  }
+  .cp-portrait::after {
+    content: 'CHARACTER · PORTRAIT';
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    color: rgba(255,255,255,0.25);
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    letter-spacing: 0.1em;
+  }
+  .cp-header-text { flex: 1; padding-bottom: 8px; }
+  .cp-breadcrumb { font-size: 12px; color: var(--ink-3); margin-bottom: 8px; font-family: 'JetBrains Mono', monospace; }
+  .cp-breadcrumb a { color: var(--ink-3); text-decoration: none; }
+  .cp-title { font-family: 'Noto Serif SC', serif; font-size: 40px; font-weight: 700; letter-spacing: -0.01em; margin-bottom: 4px; }
+  .cp-subtitle { color: var(--ink-2); font-size: 14px; font-family: 'Noto Serif SC', serif; margin-bottom: 16px; }
+  .cp-stats { display: flex; gap: 24px; align-items: center; }
+  .cp-stat { display: flex; flex-direction: column; }
+  .cp-stat .k { font-size: 10px; color: var(--ink-3); font-family: 'JetBrains Mono', monospace; letter-spacing: 0.08em; text-transform: uppercase; }
+  .cp-stat .v { font-size: 15px; color: var(--ink); font-family: 'JetBrains Mono', monospace; margin-top: 2px; }
+  .cp-stat .v.gold { color: var(--accent); }
+  .cp-hero-actions { display: flex; gap: 8px; position: absolute; right: 0; top: 8px; }
+  .cp-hero-actions button {
+    height: 32px;
+    padding: 0 14px;
+    background: rgba(0,0,0,0.4);
+    backdrop-filter: blur(6px);
+    border: 1px solid var(--line-2);
+    color: var(--ink);
+    border-radius: 6px;
+    font-size: 12px;
+    cursor: pointer;
+    font-family: inherit;
+  }
+  .cp-hero-actions button.primary { background: var(--accent-2); color: #201308; border-color: transparent; font-weight: 600; }
+
+  .cp-body {
+    padding: 56px 48px 48px;
+    display: grid;
+    grid-template-columns: 1fr 320px;
+    gap: 40px;
+  }
+  .cp-desc {
+    font-family: 'Noto Serif SC', serif;
+    font-size: 15px;
+    line-height: 1.8;
+    color: var(--ink-2);
+    padding: 20px 24px;
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-left: 3px solid var(--accent);
+    border-radius: 6px;
+    grid-column: 1 / -1;
+    position: relative;
+  }
+  .cp-desc-label {
+    position: absolute;
+    top: -9px;
+    left: 20px;
+    background: var(--bg);
+    padding: 0 8px;
+    font-size: 10px;
+    color: var(--ink-3);
+    letter-spacing: 0.1em;
+    font-family: 'JetBrains Mono', monospace;
+  }
+  .cp-desc-edit {
+    position: absolute;
+    top: 12px; right: 12px;
+    font-size: 11px;
+    color: var(--ink-3);
+    font-family: 'JetBrains Mono', monospace;
+    cursor: pointer;
+  }
+
+  .cp-section {
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    overflow: hidden;
+  }
+  .cp-section-head {
+    padding: 14px 18px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    border-bottom: 1px solid var(--line);
+    background: var(--panel-2);
+  }
+  .cp-section-title {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--ink);
+  }
+  .cp-section-title .icon { color: var(--accent); font-size: 15px; }
+  .cp-section-title .count {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    color: var(--ink-3);
+    font-weight: 400;
+    background: var(--panel);
+    border: 1px solid var(--line);
+    padding: 1px 6px;
+    border-radius: 3px;
+  }
+  .cp-section-action {
+    font-size: 11px;
+    color: var(--ink-3);
+    font-family: 'JetBrains Mono', monospace;
+    cursor: pointer;
+  }
+  .cp-section-body { padding: 8px; }
+
+  /* 故事列表 */
+  .story-item {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    padding: 12px 14px;
+    border-radius: 6px;
+    cursor: pointer;
+  }
+  .story-item:hover { background: var(--panel-2); }
+  .story-num {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    color: var(--ink-3);
+    width: 24px;
+    flex-shrink: 0;
+  }
+  .story-body { flex: 1; min-width: 0; }
+  .story-title {
+    font-family: 'Noto Serif SC', serif;
+    font-size: 14px;
+    color: var(--ink);
+    margin-bottom: 3px;
+  }
+  .story-preview {
+    font-size: 11.5px;
+    color: var(--ink-3);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-family: 'Noto Serif SC', serif;
+  }
+  .story-meta {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 3px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10.5px;
+    color: var(--ink-3);
+    flex-shrink: 0;
+  }
+  .story-meta .msgs { color: var(--ink-2); }
+
+  /* 侧栏区块（世界书、正则、预设） */
+  .side-col { display: flex; flex-direction: column; gap: 20px; }
+  .mini-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 8px 12px;
+    border-radius: 5px;
+    font-size: 12px;
+    color: var(--ink-2);
+    cursor: pointer;
+  }
+  .mini-item:hover { background: var(--panel-2); }
+  .mini-item .k { display: flex; align-items: center; gap: 8px; }
+  .mini-item .k .dot-tag { width: 6px; height: 6px; border-radius: 50%; background: var(--accent); }
+  .mini-item .v { font-family: 'JetBrains Mono', monospace; font-size: 10.5px; color: var(--ink-3); }
+  .shared-badge {
+    font-size: 9px;
+    padding: 1px 5px;
+    background: transparent;
+    border: 1px solid var(--line-2);
+    color: var(--ink-3);
+    border-radius: 3px;
+    font-family: 'JetBrains Mono', monospace;
+    margin-left: 6px;
+  }
+
+  /* 总结、日记 */
+  .note-block {
+    padding: 14px 16px;
+    background: var(--panel-2);
+    border-radius: 6px;
+    margin: 8px;
+  }
+  .note-meta {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10.5px;
+    color: var(--ink-3);
+    margin-bottom: 8px;
+    display: flex;
+    justify-content: space-between;
+  }
+  .note-content {
+    font-family: 'Noto Serif SC', serif;
+    font-size: 13px;
+    line-height: 1.75;
+    color: var(--ink-2);
+    display: -webkit-box;
+    -webkit-line-clamp: 3;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+
+  /* 角色卡本体 tab */
+  .cardbody-tabs {
+    display: flex;
+    gap: 2px;
+    padding: 4px;
+    background: var(--panel-2);
+    border-radius: 6px;
+    margin: 8px;
+  }
+  .cardbody-tab {
+    flex: 1;
+    padding: 6px 10px;
+    font-size: 11px;
+    color: var(--ink-3);
+    text-align: center;
+    border-radius: 4px;
+    cursor: pointer;
+    font-family: 'JetBrains Mono', monospace;
+  }
+  .cardbody-tab.active { background: var(--panel); color: var(--ink); }
+  .cardbody-body {
+    padding: 8px 16px 14px;
+    font-family: 'Noto Serif SC', serif;
+    font-size: 12.5px;
+    line-height: 1.7;
+    color: var(--ink-2);
+    display: -webkit-box;
+    -webkit-line-clamp: 4;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+
+  /* ============ Slide 2 v2: 卡片主页（回味优先） ============ */
+  /* 排版原则：正文 15px 起、行距 1.7、故事线是主角、附件默认收起 */
+
+  .cp2-body {
+    flex: 1;
+    overflow-y: auto;
+    display: flex;
+    justify-content: center;
+    padding: 32px 0 60px;
+  }
+  .cp2-container {
+    width: 100%;
+    max-width: 1440px;
+    padding: 0 56px;
+  }
+
+  /* Hero：认卡 + 关系概览 */
+  .cp2-hero {
+    display: grid;
+    grid-template-columns: 220px 1fr auto;
+    gap: 32px;
+    padding: 32px 36px;
+    background: linear-gradient(180deg, var(--panel) 0%, var(--panel-2) 100%);
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    margin-bottom: 24px;
+  }
+  .cp2-portrait {
+    width: 220px; height: 290px;
+    border-radius: 8px;
+    background: linear-gradient(160deg, #5a4030 0%, #2f1e14 100%);
+    border: 1px solid var(--line-2);
+    position: relative;
+    overflow: hidden;
+    flex-shrink: 0;
+  }
+  .cp2-portrait::after {
+    content: 'PORTRAIT · 3:4';
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    color: rgba(255,255,255,0.25);
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    letter-spacing: 0.12em;
+  }
+  .cp2-header {
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    padding: 4px 0;
+    min-width: 0;
+  }
+  .cp2-crumb {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12px;
+    color: var(--ink-3);
+    margin-bottom: 10px;
+  }
+  .cp2-name {
+    font-family: 'Noto Serif SC', serif;
+    font-size: 40px;
+    font-weight: 700;
+    letter-spacing: -0.01em;
+    line-height: 1.1;
+    margin-bottom: 6px;
+  }
+  .cp2-sub {
+    font-family: 'Noto Serif SC', serif;
+    font-size: 15px;
+    color: var(--ink-2);
+    margin-bottom: 18px;
+  }
+  /* 卡片介绍：帮回忆用，正文尺寸 */
+  .cp2-intro {
+    font-family: 'Noto Serif SC', serif;
+    font-size: 16px;
+    line-height: 1.8;
+    color: var(--ink);
+    margin-bottom: 20px;
+    max-width: 720px;
+  }
+  .cp2-intro-edit {
+    font-size: 11px;
+    color: var(--ink-3);
+    font-family: 'JetBrains Mono', monospace;
+    cursor: pointer;
+    margin-left: 8px;
+    opacity: 0.6;
+  }
+
+  /* 关系概览：横排 stat（大字号，一眼看清） */
+  .cp2-stats {
+    display: flex;
+    gap: 36px;
+    padding-top: 18px;
+    border-top: 1px solid var(--line);
+  }
+  .cp2-stat { display: flex; flex-direction: column; gap: 4px; }
+  .cp2-stat .k {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    color: var(--ink-3);
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+  .cp2-stat .v {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 22px;
+    color: var(--ink);
+    font-weight: 500;
+    letter-spacing: -0.01em;
+    white-space: nowrap;
+  }
+  .cp2-stat .v .u {
+    font-size: 13px;
+    color: var(--ink-3);
+    margin-left: 4px;
+    font-weight: 400;
+    white-space: nowrap;
+  }
+  .cp2-stat .v.gold { color: var(--accent); }
+  .cp2-stat .v.active { color: var(--accent-2); }
+
+  .cp2-hero-side {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    justify-content: flex-end;
+    padding: 4px 0;
+    min-width: 180px;
+  }
+  .cp2-cta {
+    background: var(--accent-2);
+    color: #201308;
+    border: none;
+    border-radius: 8px;
+    padding: 14px 20px;
+    font-family: inherit;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    text-align: left;
+    line-height: 1.4;
+  }
+  .cp2-cta .ct-1 { font-size: 12px; opacity: 0.7; margin-bottom: 3px; font-weight: 500; }
+  .cp2-cta .ct-2 { font-size: 15px; }
+  .cp2-cta.secondary {
+    background: transparent;
+    border: 1px solid var(--line-2);
+    color: var(--ink-2);
+  }
+
+  /* 故事线：主体，占最大版面 */
+  .cp2-storylines-head {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    margin: 8px 4px 16px;
+  }
+  .cp2-storylines-head .h {
+    font-family: 'Noto Serif SC', serif;
+    font-size: 22px;
+    font-weight: 700;
+    color: var(--ink);
+  }
+  .cp2-storylines-head .h .n {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 14px;
+    color: var(--ink-3);
+    font-weight: 400;
+    margin-left: 10px;
+  }
+  .cp2-storylines-head .actions { display: flex; gap: 8px; }
+  .cp2-storylines-head button {
+    height: 32px;
+    padding: 0 14px;
+    background: var(--panel);
+    border: 1px solid var(--line);
+    color: var(--ink-2);
+    border-radius: 6px;
+    font-size: 12.5px;
+    cursor: pointer;
+    font-family: inherit;
+  }
+
+  .storyline {
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    padding: 20px 24px 22px;
+    margin-bottom: 14px;
+    transition: border-color 0.15s;
+  }
+  .storyline:hover { border-color: var(--line-2); }
+  .storyline.active {
+    border-color: var(--accent);
+    background: linear-gradient(180deg, rgba(217,119,87,0.06) 0%, var(--panel) 100%);
+  }
+
+  .sl-top { display: flex; align-items: baseline; gap: 12px; margin-bottom: 6px; }
+  .sl-badge {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10.5px;
+    padding: 3px 8px;
+    border-radius: 4px;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    background: var(--panel-2);
+    border: 1px solid var(--line);
+    color: var(--ink-3);
+  }
+  .sl-badge.main { color: var(--accent); border-color: var(--line-2); }
+  .sl-badge.side { color: var(--ink-3); }
+  .sl-badge.active { color: var(--accent-2); border-color: var(--accent-2); background: rgba(217,119,87,0.1); }
+  .sl-badge.done { color: var(--ok); border-color: transparent; background: rgba(127,168,122,0.15); }
+  .sl-title {
+    font-family: 'Noto Serif SC', serif;
+    font-size: 20px;
+    font-weight: 600;
+    color: var(--ink);
+    line-height: 1.35;
+  }
+  .sl-tagline {
+    font-family: 'Noto Serif SC', serif;
+    font-size: 14px;
+    color: var(--ink-2);
+    line-height: 1.7;
+    margin-bottom: 16px;
+    margin-top: 4px;
+    max-width: 780px;
+  }
+
+  /* 楼层进度条 + 分支可视化 */
+  .sl-progress {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    margin-bottom: 14px;
+  }
+  .sl-progress-bar {
+    flex: 1;
+    height: 28px;
+    background: var(--bg-2);
+    border-radius: 6px;
+    position: relative;
+    overflow: hidden;
+    border: 1px solid var(--line);
+  }
+  /* 已玩楼层：填充；分支：竖线；checkpoint：三角标 */
+  .sl-progress-fill {
+    position: absolute;
+    left: 0; top: 0; bottom: 0;
+    background: linear-gradient(90deg, var(--accent) 0%, var(--accent-2) 100%);
+    opacity: 0.65;
+  }
+  .sl-progress-fill.done { background: var(--ok); opacity: 0.55; }
+  .sl-progress-fill.paused { background: var(--ink-3); opacity: 0.4; }
+  .sl-progress-marker {
+    position: absolute;
+    top: 0; bottom: 0;
+    width: 2px;
+    background: rgba(255,255,255,0.35);
+  }
+  .sl-progress-marker::after {
+    content: '';
+    position: absolute;
+    top: -4px;
+    left: -3px;
+    width: 8px; height: 8px;
+    background: var(--accent);
+    transform: rotate(45deg);
+  }
+  .sl-progress-marker.checkpoint::after {
+    background: var(--accent);
+  }
+  .sl-progress-marker.branch::after {
+    background: var(--ink-2);
+    border-radius: 50%;
+    transform: none;
+    top: -3px; left: -3px;
+    width: 8px; height: 8px;
+  }
+  .sl-progress-scale {
+    position: absolute;
+    left: 0; right: 0; bottom: -18px;
+    display: flex;
+    justify-content: space-between;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    color: var(--ink-3);
+  }
+  .sl-progress-label {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12px;
+    color: var(--ink-2);
+    min-width: 90px;
+    text-align: right;
+  }
+  .sl-progress-label .big { color: var(--ink); font-size: 15px; font-weight: 500; }
+
+  /* 分支列表（可点开每条分支进入阅读） */
+  .sl-branches {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+    gap: 8px;
+    margin-top: 22px;
+    padding-top: 14px;
+    border-top: 1px solid var(--line);
+  }
+  .sl-branch {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 12px;
+    background: var(--bg-2);
+    border: 1px solid var(--line);
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 12.5px;
+  }
+  .sl-branch:hover { border-color: var(--line-2); background: var(--panel-2); }
+  .sl-branch .b-icon {
+    font-family: 'JetBrains Mono', monospace;
+    color: var(--ink-3);
+    font-size: 11px;
+    letter-spacing: -0.05em;
+  }
+  .sl-branch .b-body { flex: 1; min-width: 0; }
+  .sl-branch .b-title {
+    font-family: 'Noto Serif SC', serif;
+    color: var(--ink);
+    font-size: 13.5px;
+    margin-bottom: 2px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .sl-branch .b-meta {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10.5px;
+    color: var(--ink-3);
+  }
+  .sl-branch.main-line .b-icon { color: var(--accent); }
+
+  /* 底部元数据行 */
+  .sl-foot {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: 14px;
+    padding-top: 12px;
+    border-top: 1px dashed var(--line);
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11.5px;
+    color: var(--ink-3);
+  }
+  .sl-foot .l { display: flex; gap: 18px; }
+  .sl-foot .r { display: flex; gap: 8px; }
+  .sl-foot .r a {
+    color: var(--ink-3);
+    text-decoration: none;
+    padding: 4px 8px;
+    border-radius: 4px;
+  }
+  .sl-foot .r a:hover { background: var(--panel-2); color: var(--ink-2); }
+
+  /* 附件抽屉（默认折叠） */
+  .cp2-attach {
+    margin-top: 32px;
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    overflow: hidden;
+  }
+  .cp2-attach-head {
+    padding: 16px 22px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    cursor: pointer;
+    background: var(--panel);
+  }
+  .cp2-attach-head .h {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    font-size: 14px;
+    color: var(--ink-2);
+    font-family: 'JetBrains Mono', monospace;
+    letter-spacing: 0.02em;
+  }
+  .cp2-attach-head .h .caret {
+    color: var(--ink-3);
+    font-size: 12px;
+  }
+  .cp2-attach-head .h .chip {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    color: var(--ink-3);
+    padding: 2px 8px;
+    border: 1px solid var(--line);
+    border-radius: 4px;
+  }
+  .cp2-attach-body {
+    padding: 4px 22px 22px;
+    border-top: 1px solid var(--line);
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 24px;
+    background: var(--panel-2);
+  }
+  .cp2-attach-col h4 {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    color: var(--ink-3);
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    margin: 18px 0 8px;
+    font-weight: 500;
+  }
+  .cp2-attach-col .row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 7px 4px;
+    font-size: 13px;
+    color: var(--ink-2);
+    border-bottom: 1px solid var(--line);
+  }
+  .cp2-attach-col .row:last-child { border-bottom: none; }
+  .cp2-attach-col .row .n { font-family: 'JetBrains Mono', monospace; font-size: 11px; color: var(--ink-3); }
+  .cp2-attach-col .row .badge-shared {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    color: var(--ink-3);
+    padding: 1px 5px;
+    border: 1px solid var(--line);
+    border-radius: 3px;
+    margin-left: 6px;
+  }
+
+  /* 总结 + 日记（次要，但可见） */
+  .cp2-notes {
+    margin-top: 32px;
+    display: grid;
+    grid-template-columns: 1.35fr 1fr;
+    gap: 22px;
+  }
+  .cp2-note-col {
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    padding: 20px 22px;
+  }
+  .cp2-note-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    margin-bottom: 14px;
+  }
+  .cp2-note-head .h {
+    font-family: 'Noto Serif SC', serif;
+    font-size: 17px;
+    font-weight: 600;
+    color: var(--ink);
+  }
+  .cp2-note-head .h .n {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12px;
+    color: var(--ink-3);
+    font-weight: 400;
+    margin-left: 8px;
+  }
+  .cp2-note-head .act {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11.5px;
+    color: var(--ink-3);
+    cursor: pointer;
+  }
+  .cp2-note-item {
+    padding: 12px 0;
+    border-bottom: 1px solid var(--line);
+  }
+  .cp2-note-item:last-child { border-bottom: none; }
+  .cp2-note-item .m {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    color: var(--ink-3);
+    margin-bottom: 6px;
+    display: flex;
+    justify-content: space-between;
+  }
+  .cp2-note-item .t {
+    font-family: 'Noto Serif SC', serif;
+    font-size: 14px;
+    line-height: 1.75;
+    color: var(--ink-2);
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+
+  /* ============ Slide 2 v3: 卡片主页（一张图·一个介绍·一个游玩历史） ============ */
+  /* 可读性原则：
+     - 正文 16px 起，故事简介 17px
+     - 行距 1.85，段间距充足
+     - 主要文本 var(--ink)，元数据才用 --ink-2
+     - --ink-3 只用于极次要的时间戳/标签前缀
+     - 区块之间用 48px+ 的垂直呼吸
+  */
+
+  /* 主区：左大图 + 右信息，占满 1920×(1080-56 topbar)=1024，不滚动 */
+  .cp3-main {
+    flex: 1;
+    display: flex;
+    gap: 48px;
+    padding: 40px 56px 40px 48px;
+    min-height: 0;
+    overflow: hidden;
+  }
+
+  /* 左：大人像（真实角色卡是竖版好看图，占据整个左半区） */
+  .cp3-portrait {
+    flex: 0 0 640px;
+    height: 100%;
+    border-radius: 14px;
+    background: linear-gradient(160deg, #5a4030 0%, #2f1e14 100%);
+    border: 1px solid var(--line-2);
+    box-shadow: 0 30px 80px rgba(0,0,0,0.55);
+    position: relative;
+    overflow: hidden;
+  }
+  .cp3-portrait::before {
+    content: '';
+    position: absolute; inset: 0;
+    background: repeating-linear-gradient(45deg, transparent 0 12px, rgba(255,255,255,0.02) 12px 13px);
+  }
+  .cp3-portrait::after {
+    content: 'PORTRAIT · 从角色卡 PNG 提取';
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: rgba(255,255,255,0.22);
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 14px;
+    letter-spacing: 0.15em;
+  }
+  /* 底部渐变遮罩 + 名字叠加 */
+  .cp3-portrait-overlay {
+    position: absolute;
+    left: 0; right: 0; bottom: 0;
+    padding: 40px 36px 32px;
+    background: linear-gradient(180deg, transparent 0%, rgba(0,0,0,0.75) 70%, rgba(0,0,0,0.92) 100%);
+    z-index: 2;
+  }
+  .cp3-name {
+    font-family: 'Noto Serif SC', serif;
+    font-size: 52px;
+    font-weight: 700;
+    line-height: 1.05;
+    letter-spacing: -0.02em;
+    color: #fff;
+    margin: 0 0 6px;
+    text-shadow: 0 2px 12px rgba(0,0,0,0.5);
+  }
+  .cp3-name-sub {
+    font-family: 'Noto Serif SC', serif;
+    font-size: 18px;
+    color: rgba(255,255,255,0.75);
+    letter-spacing: 0.02em;
+  }
+  .cp3-portrait-tags {
+    display: flex;
+    gap: 6px;
+    margin-top: 16px;
+    flex-wrap: wrap;
+  }
+  .cp3-tag {
+    font-size: 12px;
+    color: rgba(255,255,255,0.85);
+    padding: 3px 10px;
+    background: rgba(255,255,255,0.1);
+    border: 1px solid rgba(255,255,255,0.18);
+    border-radius: 4px;
+    font-family: 'Noto Serif SC', serif;
+    backdrop-filter: blur(4px);
+  }
+
+  /* 右：介绍 + 游玩历史，一列 */
+  .cp3-right {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 22px;
+    overflow-y: auto;
+    padding-right: 8px;
+  }
+
+  .cp3-crumb {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 13px;
+    color: var(--ink-3);
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: -8px;
+  }
+  .cp3-crumb a {
+    color: var(--ink-2);
+    text-decoration: none;
+    cursor: pointer;
+  }
+  .cp3-crumb a:hover { color: var(--ink); }
+
+  /* 介绍块 */
+  .cp3-intro {
+    padding: 4px 0;
+  }
+  .cp3-intro-p {
+    font-family: 'Noto Serif SC', serif;
+    font-size: 16.5px;
+    line-height: 1.8;
+    color: var(--ink);
+    margin: 0 0 8px;
+  }
+  .cp3-intro-p.muted {
+    color: var(--ink-2);
+    font-size: 15.5px;
+    margin-bottom: 0;
+  }
+  .cp3-intro-edit {
+    display: inline-block;
+    margin-top: 10px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12px;
+    color: var(--ink-3);
+    cursor: pointer;
+  }
+  .cp3-intro-edit:hover { color: var(--ink-2); }
+
+  /* 游玩历史 */
+  .cp3-hist-head {
+    display: flex;
+    align-items: baseline;
+    gap: 20px;
+    padding: 14px 0 4px;
+    border-top: 1px solid var(--line);
+  }
+  .cp3-hist-title {
+    font-family: 'Noto Serif SC', serif;
+    font-size: 22px;
+    font-weight: 700;
+    color: var(--ink);
+    margin: 0;
+    white-space: nowrap;
+  }
+  .cp3-hist-summary {
+    flex: 1;
+    font-size: 14px;
+    color: var(--ink-2);
+    line-height: 1.6;
+  }
+  .cp3-hist-summary b {
+    color: var(--ink);
+    font-weight: 600;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 15px;
+    padding: 0 2px;
+  }
+  .cp3-hist-continue {
+    background: var(--accent-2);
+    color: #201308;
+    border: none;
+    padding: 10px 18px;
+    border-radius: 7px;
+    font-family: 'Noto Serif SC', serif;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    white-space: nowrap;
+  }
+  .cp3-hist-continue:hover { filter: brightness(1.08); }
+
+  .cp3-hist-list { display: flex; flex-direction: column; gap: 10px; }
+
+  .cp3-line {
+    display: grid;
+    grid-template-columns: 1fr 220px;
+    gap: 24px;
+    padding: 16px 22px;
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    transition: border-color 0.15s;
+    align-items: center;
+  }
+  .cp3-line:hover { border-color: var(--line-2); }
+  .cp3-line.active {
+    background: linear-gradient(180deg, rgba(217,119,87,0.1) 0%, var(--panel) 60%);
+    border-color: rgba(217,119,87,0.45);
+  }
+  .cp3-line.collapsed {
+    padding: 12px 22px;
+    background: var(--bg-2);
+    grid-template-columns: 1fr auto;
+    align-items: center;
+  }
+
+  .cp3-line-left { min-width: 0; }
+  .cp3-line-badges {
+    display: flex;
+    gap: 6px;
+    align-items: center;
+    margin-bottom: 8px;
+    flex-wrap: wrap;
+  }
+  .cp3-badge {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11.5px;
+    padding: 3px 9px;
+    border-radius: 4px;
+    letter-spacing: 0.04em;
+    background: var(--panel-2);
+    border: 1px solid var(--line);
+    color: var(--ink-2);
+  }
+  .cp3-badge.main { color: var(--accent); border-color: rgba(201,168,117,0.35); }
+  .cp3-badge.side { color: var(--ink-3); }
+  .cp3-badge.active { color: var(--accent-2); border-color: var(--accent-2); background: rgba(217,119,87,0.14); }
+  .cp3-badge.done { color: var(--ok); border-color: transparent; background: rgba(127,168,122,0.18); }
+  .cp3-badge.dim { color: var(--ink-3); border-color: var(--line); }
+
+  .cp3-line-title {
+    font-family: 'Noto Serif SC', serif;
+    font-size: 18px;
+    font-weight: 600;
+    color: var(--ink);
+    line-height: 1.35;
+    margin: 4px 0 4px;
+  }
+  .cp3-line-tag {
+    font-family: 'Noto Serif SC', serif;
+    font-size: 14px;
+    line-height: 1.6;
+    color: var(--ink-2);
+    margin: 0 0 8px;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+  .cp3-line-meta {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 6px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12px;
+    color: var(--ink-2);
+  }
+  .cp3-line-meta span { color: var(--ink-2); }
+  .cp3-line-meta span:nth-child(even) { color: var(--ink-3); }
+
+  /* 分支子列表 */
+  .cp3-branches {
+    margin-top: 10px;
+    padding-top: 10px;
+    border-top: 1px dashed var(--line);
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+  .cp3-branch {
+    display: grid;
+    grid-template-columns: 20px 1fr auto auto;
+    gap: 10px;
+    align-items: center;
+    padding: 5px 8px;
+    border-radius: 4px;
+  }
+  .cp3-branch:hover { background: var(--panel-2); }
+  .cp3-branch-icon {
+    font-family: 'JetBrains Mono', monospace;
+    color: var(--ink-3);
+    font-size: 12px;
+  }
+  .cp3-branch-title {
+    font-family: 'Noto Serif SC', serif;
+    color: var(--ink);
+    font-size: 13.5px;
+  }
+  .cp3-branch-meta {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11.5px;
+    color: var(--ink-3);
+  }
+  .cp3-branch-go {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11.5px;
+    color: var(--accent);
+    padding: 3px 8px;
+    border-radius: 3px;
+    cursor: pointer;
+    text-decoration: none;
+  }
+  .cp3-branch-go:hover { background: rgba(201,168,117,0.14); }
+
+  /* 右列：楼层条 + 动作 */
+  .cp3-line-right {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    justify-content: center;
+  }
+  .cp3-line-bar {
+    height: 24px;
+    background: var(--bg-2);
+    border: 1px solid var(--line);
+    border-radius: 5px;
+    position: relative;
+    overflow: hidden;
+  }
+  .cp3-line-bar-fill {
+    position: absolute; inset: 0;
+    background: linear-gradient(90deg, var(--accent) 0%, var(--accent-2) 100%);
+    opacity: 0.7;
+  }
+  .cp3-line-bar-fill.done { background: var(--ok); opacity: 0.55; }
+  .cp3-line-bar-fill.paused { background: var(--ink-3); opacity: 0.45; }
+  .cp3-line-mark {
+    position: absolute;
+    top: 0; bottom: 0;
+    width: 2px;
+    background: rgba(255,255,255,0.5);
+  }
+  .cp3-line-mark::after {
+    content: '';
+    position: absolute;
+    top: -3px;
+    left: -3px;
+    width: 8px; height: 8px;
+    background: var(--ink);
+  }
+  .cp3-line-mark.ck::after { background: var(--accent); transform: rotate(45deg); top: -2px; }
+  .cp3-line-mark.br::after { background: var(--ink-2); border-radius: 50%; }
+
+  .cp3-line-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 4px;
+  }
+  .cp3-line-actions a {
+    font-family: 'Noto Serif SC', serif;
+    font-size: 12.5px;
+    color: var(--ink-2);
+    padding: 5px 10px;
+    border: 1px solid var(--line);
+    border-radius: 4px;
+    cursor: pointer;
+    text-decoration: none;
+    background: var(--bg-2);
+  }
+  .cp3-line-actions a:hover { color: var(--ink); border-color: var(--line-2); }
+  .cp3-line-actions a.primary {
+    color: var(--accent-2);
+    border-color: rgba(217,119,87,0.4);
+    background: rgba(217,119,87,0.08);
+    font-weight: 600;
+  }
+
+  /* ============ Slide 3: 故事阅读页 ============ */
+  .reader {
+    flex: 1;
+    display: flex;
+    min-height: 0;
+    background: var(--bg);
+  }
+  .reader-sidebar {
+    width: 260px;
+    flex: 0 0 260px;
+    background: var(--bg-2);
+    border-right: 1px solid var(--line);
+    display: flex;
+    flex-direction: column;
+    padding: 20px 0;
+  }
+  .reader-back {
+    padding: 0 20px 16px;
+    border-bottom: 1px solid var(--line);
+    margin-bottom: 12px;
+  }
+  .reader-back .b1 { font-size: 11px; color: var(--ink-3); font-family: 'JetBrains Mono', monospace; margin-bottom: 4px; }
+  .reader-back .b2 { font-size: 14px; color: var(--ink); font-family: 'Noto Serif SC', serif; font-weight: 600; }
+
+  .reader-toc-label { padding: 4px 20px 8px; font-size: 10px; color: var(--ink-3); letter-spacing: 0.1em; text-transform: uppercase; font-family: 'JetBrains Mono', monospace; }
+  .reader-toc {
+    flex: 1;
+    overflow-y: auto;
+    padding: 0 12px;
+  }
+  .toc-item {
+    padding: 8px 10px;
+    border-radius: 5px;
+    font-size: 12px;
+    color: var(--ink-2);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 2px;
+  }
+  .toc-item:hover { background: var(--panel); }
+  .toc-item.active { background: var(--panel); color: var(--ink); border-left: 2px solid var(--accent); padding-left: 8px; }
+  .toc-item .n { font-family: 'JetBrains Mono', monospace; font-size: 10.5px; color: var(--ink-3); }
+
+  .reader-main {
+    flex: 1;
+    overflow-y: auto;
+    display: flex;
+    justify-content: center;
+    padding: 40px 24px 80px;
+  }
+  .reader-content {
+    max-width: 780px;
+    width: 100%;
+  }
+  .reader-story-title {
+    font-family: 'Noto Serif SC', serif;
+    font-size: 30px;
+    font-weight: 700;
+    letter-spacing: -0.01em;
+    margin-bottom: 4px;
+  }
+  .reader-story-meta {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11.5px;
+    color: var(--ink-3);
+    margin-bottom: 36px;
+    padding-bottom: 20px;
+    border-bottom: 1px solid var(--line);
+    display: flex;
+    gap: 20px;
+  }
+  .chapter-marker {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    color: var(--ink-3);
+    letter-spacing: 0.15em;
+    text-align: center;
+    margin: 40px 0 24px;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+  }
+  .chapter-marker::before, .chapter-marker::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: var(--line);
+  }
+  .msg {
+    margin-bottom: 22px;
+    font-family: 'Noto Serif SC', serif;
+    line-height: 1.9;
+    font-size: 15.5px;
+  }
+  .msg.narration {
+    color: var(--ink);
+  }
+  .msg.narration em {
+    color: var(--ink-2);
+    font-style: italic;
+  }
+  .msg.dialogue-user {
+    background: var(--panel);
+    border-left: 3px solid var(--accent-2);
+    padding: 14px 20px;
+    border-radius: 0 6px 6px 0;
+    color: var(--ink);
+  }
+  .msg.dialogue-user .who {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10.5px;
+    color: var(--accent-2);
+    letter-spacing: 0.1em;
+    margin-bottom: 6px;
+    text-transform: uppercase;
+  }
+  .msg.dialogue-char {
+    background: var(--panel);
+    border-left: 3px solid var(--accent);
+    padding: 14px 20px;
+    border-radius: 0 6px 6px 0;
+    color: var(--ink);
+  }
+  .msg.dialogue-char .who {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10.5px;
+    color: var(--accent);
+    letter-spacing: 0.1em;
+    margin-bottom: 6px;
+    text-transform: uppercase;
+  }
+  .msg-inline-dialogue { color: var(--accent); font-style: normal; }
+
+  .reader-rightbar {
+    width: 260px;
+    flex: 0 0 260px;
+    background: var(--bg-2);
+    border-left: 1px solid var(--line);
+    padding: 24px 20px;
+    font-size: 12px;
+    color: var(--ink-2);
+    display: flex;
+    flex-direction: column;
+    gap: 22px;
+  }
+  .rb-label { font-size: 10px; color: var(--ink-3); letter-spacing: 0.1em; text-transform: uppercase; font-family: 'JetBrains Mono', monospace; margin-bottom: 8px; }
+  .rb-group { }
+  .rb-slider {
+    display: flex; align-items: center; gap: 8px;
+    font-family: 'JetBrains Mono', monospace; font-size: 11px; color: var(--ink-2);
+  }
+  .rb-slider .bar { flex: 1; height: 3px; background: var(--line); border-radius: 2px; position: relative; }
+  .rb-slider .bar::after {
+    content: ''; position: absolute; left: 0; top: 0; height: 100%;
+    width: 60%; background: var(--accent); border-radius: 2px;
+  }
+  .rb-toggle-row { display: flex; align-items: center; justify-content: space-between; padding: 6px 0; font-size: 12px; }
+  .rb-toggle-row .t { color: var(--ink-2); }
+  .rb-toggle-row .sw {
+    width: 30px; height: 16px; background: var(--panel); border-radius: 10px;
+    position: relative; border: 1px solid var(--line-2);
+  }
+  .rb-toggle-row .sw::after {
+    content: ''; position: absolute; top: 1px; left: 1px;
+    width: 12px; height: 12px; background: var(--ink-3); border-radius: 50%;
+  }
+  .rb-toggle-row.on .sw { background: var(--accent-2); border-color: transparent; }
+  .rb-toggle-row.on .sw::after { left: auto; right: 1px; background: #201308; }
+
+  .rb-bookmark {
+    padding: 10px 12px;
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-left: 3px solid var(--accent);
+    border-radius: 4px;
+    font-family: 'Noto Serif SC', serif;
+    font-size: 12px;
+    color: var(--ink-2);
+    line-height: 1.5;
+    margin-bottom: 6px;
+  }
+  .rb-bookmark .bm-time {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    color: var(--ink-3);
+    margin-bottom: 4px;
+  }
+
+  /* 底部说明条 */
+  .slide-note {
+    position: absolute;
+    bottom: 16px;
+    left: 24px;
+    right: 24px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    color: var(--ink-3);
+    background: rgba(0,0,0,0.4);
+    backdrop-filter: blur(6px);
+    padding: 8px 14px;
+    border-radius: 6px;
+    border: 1px solid var(--line);
+    display: flex;
+    gap: 16px;
+  }
+  .slide-note .k { color: var(--accent); }
+
+</style>
+</head>
+<body>
+
+<deck-stage>
+
+<!-- ================================ SLIDE 1: 库列表 ================================ -->
+<section data-screen-label="01 库列表">
+  <div class="topbar">
+    <div class="brand"><span class="dot"></span>STE <small>Silly Tavern Explorer 2.0</small></div>
+    <div class="top-nav">
+      <a class="active">我的库</a>
+      <a>正在归档</a>
+      <a>工具</a>
+      <a>内置示范卡</a>
+    </div>
+    <div class="top-search">🔍 &nbsp;搜索角色、故事、世界书条目……</div>
+    <div class="top-actions">
+      <button>从 ST 目录同步</button>
+      <button class="primary">+ 导入角色卡</button>
+    </div>
+  </div>
+
+  <div class="body">
+    <aside class="sidebar">
+      <div class="sb-item active">全部<span class="count">109</span></div>
+      <div class="sb-item">最近打开<span class="count">14</span></div>
+      <div class="sb-item">进行中<span class="count">23</span></div>
+      <div class="sb-item">已完结<span class="count">51</span></div>
+      <div class="sb-item">未开始<span class="count">35</span></div>
+
+      <div class="sb-section">命名空间标签</div>
+      <div class="sb-item"><span><span class="sb-tag" style="background:#c9a875"></span>评价</span><span class="count">42</span></div>
+      <div class="sb-item"><span><span class="sb-tag" style="background:#d97757"></span>人物</span><span class="count">78</span></div>
+      <div class="sb-item"><span><span class="sb-tag" style="background:#7fa87a"></span>玩法</span><span class="count">31</span></div>
+      <div class="sb-item"><span><span class="sb-tag" style="background:#7a8cc9"></span>背景</span><span class="count">56</span></div>
+
+      <div class="sb-section">系统</div>
+      <div class="sb-item">回收站<span class="count">3</span></div>
+      <div class="sb-item">设置</div>
+    </aside>
+
+    <main class="lib-main">
+      <div class="lib-header">
+        <div class="lib-title">我的库</div>
+        <div class="lib-sub">109 张卡 · 共 342 段故事 · 最近同步 2 分钟前</div>
+      </div>
+
+      <div class="lib-toolbar">
+        <button class="filter-chip active">全部</button>
+        <button class="filter-chip">近 7 天</button>
+        <button class="filter-chip">有未读总结</button>
+        <button class="filter-chip">≥ 4 星</button>
+        <button class="filter-chip">+ 筛选</button>
+        <select class="sort-select">
+          <option>按最近打开</option>
+          <option>按评分</option>
+          <option>按导入时间</option>
+          <option>按故事数</option>
+        </select>
+        <div class="view-toggle">
+          <button class="active">卡片</button>
+          <button>列表</button>
+          <button>年表</button>
+        </div>
+      </div>
+
+      <div class="lib-grid">
+
+        <div class="card">
+          <div class="cover c1">
+            <span class="cover-label">01 · KANAE</span>
+            <span class="stories-badge">7 段故事</span>
+          </div>
+          <div class="meta">
+            <div class="name">奏枝 · 图书馆管理员</div>
+            <div class="desc">深夜古书店。她记得每一个客人借过的书，却从不问名字。</div>
+            <div class="footer">
+              <span class="rating">★ 8.7 / 10</span>
+              <span class="last">3h ago</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="cover c2">
+            <span class="cover-label">02 · VESPER</span>
+            <span class="stories-badge">3 段故事</span>
+          </div>
+          <div class="meta">
+            <div class="name">Vesper · 深空调度员</div>
+            <div class="desc">木卫二轨道站。她值最后一班夜班，直到通讯从地面断掉。</div>
+            <div class="footer">
+              <span class="rating">★ 9.2 / 10</span>
+              <span class="last">昨天</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="cover c3">
+            <span class="cover-label">03 · 雾都</span>
+            <span class="stories-badge">12 段故事</span>
+          </div>
+          <div class="meta">
+            <div class="name">雾都 · 侦探社日常</div>
+            <div class="desc">同人卡。四个性格迥异的侦探合租事务所，主线可分岔。</div>
+            <div class="footer">
+              <span class="rating">★ 8.1 / 10</span>
+              <span class="last">3 天前</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="cover c4">
+            <span class="cover-label">04 · 山中</span>
+            <span class="stories-badge">2 段故事</span>
+          </div>
+          <div class="meta">
+            <div class="name">山中旅舍</div>
+            <div class="desc">一间只在雨夜开门的旅舍。老板娘对每位客人只说一句话。</div>
+            <div class="footer">
+              <span class="rating">★ — / 10</span>
+              <span class="last">未评价</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="cover c5">
+            <span class="cover-label">05 · LILITH</span>
+            <span class="stories-badge">5 段故事</span>
+          </div>
+          <div class="meta">
+            <div class="name">Lilith · 二手唱片行</div>
+            <div class="desc">她能听出唱片上一位主人的心情。收留任何愿意讲故事的人。</div>
+            <div class="footer">
+              <span class="rating">★ 7.5 / 10</span>
+              <span class="last">上周</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="cover c6">
+            <span class="cover-label">06 · 春宵</span>
+            <span class="stories-badge">9 段故事</span>
+          </div>
+          <div class="meta">
+            <div class="name">春宵 · 江户茶屋</div>
+            <div class="desc">同人卡。江户中期，茶屋女将与浪人。四条主线可交错。</div>
+            <div class="footer">
+              <span class="rating">★ 9.0 / 10</span>
+              <span class="last">2 天前</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="cover c7">
+            <span class="cover-label">07 · KAI</span>
+            <span class="stories-badge">1 段故事</span>
+          </div>
+          <div class="meta">
+            <div class="name">Kai · 电台深夜档</div>
+            <div class="desc">凌晨三点的电台主播。信号只有你能收到。</div>
+            <div class="footer">
+              <span class="rating">★ — / 10</span>
+              <span class="last">刚导入</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="cover c8">
+            <span class="cover-label">08 · 归墟</span>
+            <span class="stories-badge">4 段故事</span>
+          </div>
+          <div class="meta">
+            <div class="name">归墟 · 海祭</div>
+            <div class="desc">同人卡。虚构东南沿海渔村，每年一次祭海仪式，主角是外来人。</div>
+            <div class="footer">
+              <span class="rating">★ 8.4 / 10</span>
+              <span class="last">上周</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="cover c9">
+            <span class="cover-label">09 · ANYA</span>
+            <span class="stories-badge">6 段故事</span>
+          </div>
+          <div class="meta">
+            <div class="name">Anya · 修表匠</div>
+            <div class="desc">老城区一间修表铺。她说每块表都记得它主人的一段时间。</div>
+            <div class="footer">
+              <span class="rating">★ 8.9 / 10</span>
+              <span class="last">4 天前</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="cover c10">
+            <span class="cover-label">10 · 无声</span>
+            <span class="stories-badge">2 段故事</span>
+          </div>
+          <div class="meta">
+            <div class="name">无声之城</div>
+            <div class="desc">同人卡。城市里所有人一夜之间失去了发声能力，只剩你的角色能说话。</div>
+            <div class="footer">
+              <span class="rating">★ 7.8 / 10</span>
+              <span class="last">上月</span>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </main>
+  </div>
+
+  <div class="slide-note">
+    <span><span class="k">Slide 1 / 3</span> · 库列表页</span>
+    <span>侧栏用了你 Base 里的命名空间标签（评价/人物/玩法/背景）作现状样本，非最终分类</span>
+    <span>封面色块是占位符——真实版从角色卡 PNG 提取</span>
+  </div>
+</section>
+
+
+<!-- ================================ SLIDE 2: 卡片主页 v3 ================================ -->
+<section data-screen-label="02 卡片主页">
+  <div class="topbar">
+    <div class="brand"><span class="dot"></span>STE <small>Silly Tavern Explorer 2.0</small></div>
+    <div class="top-nav">
+      <a class="active">我的库</a>
+      <a>正在归档</a>
+      <a>工具</a>
+      <a>内置示范卡</a>
+    </div>
+    <div class="top-search">🔍 &nbsp;搜索这张卡的故事、消息……</div>
+    <div class="top-actions">
+      <button>从 ST 目录同步</button>
+      <button class="primary">+ 导入角色卡</button>
+    </div>
+  </div>
+
+  <div class="body">
+    <aside class="sidebar">
+      <div class="sb-item active" style="flex-direction:column;align-items:flex-start;gap:4px;padding:14px 14px;background:var(--panel)">
+        <span style="font-size:11px;color:var(--ink-3);font-family:'JetBrains Mono',monospace;letter-spacing:0.1em;text-transform:uppercase">← 当前卡片</span>
+        <span style="font-size:16px;color:var(--ink);font-family:'Noto Serif SC',serif;font-weight:600">奏枝</span>
+        <span style="font-size:12px;color:var(--ink-2)">图书馆管理员 · 3 条故事线</span>
+      </div>
+
+      <div class="sb-section">跳到区块</div>
+      <div class="sb-item" style="font-size:14px;padding:10px 12px">介绍</div>
+      <div class="sb-item" style="font-size:14px;padding:10px 12px">游玩历史<span class="count">3</span></div>
+
+      <div class="sb-section">附件 · 编辑</div>
+      <div class="sb-item" style="font-size:14px;padding:10px 12px">角色卡本体</div>
+      <div class="sb-item" style="font-size:14px;padding:10px 12px">世界书<span class="count">18</span></div>
+      <div class="sb-item" style="font-size:14px;padding:10px 12px">正则脚本<span class="count">2</span></div>
+      <div class="sb-item" style="font-size:14px;padding:10px 12px">预设<span class="count">1</span></div>
+
+      <div class="sb-section">相邻卡片</div>
+      <div class="sb-item" style="font-size:13px;padding:9px 12px;color:var(--ink-3)">← Vesper · 深空调度员</div>
+      <div class="sb-item" style="font-size:13px;padding:9px 12px;color:var(--ink-3)">→ 雾都 · 侦探社日常</div>
+    </aside>
+
+    <main class="cp3-main">
+
+      <!-- 左：大人像 -->
+      <div class="cp3-portrait">
+        <div class="cp3-portrait-overlay">
+          <h1 class="cp3-name">奏枝</h1>
+          <div class="cp3-name-sub">深夜古书店 · 图书馆管理员</div>
+          <div class="cp3-portrait-tags">
+            <span class="cp3-tag">同人</span>
+            <span class="cp3-tag">现代都市</span>
+            <span class="cp3-tag">悬疑</span>
+            <span class="cp3-tag">日常</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- 右：介绍 + 游玩历史 -->
+      <div class="cp3-right">
+
+        <div class="cp3-crumb">
+          <a>← 我的库</a>
+          <span>·</span>
+          <span style="color:var(--ink)">奏枝</span>
+          <span class="cp3-intro-edit" style="margin-left:auto">由角色卡自动生成 · 编辑 ✎</span>
+        </div>
+
+        <div class="cp3-intro">
+          <p class="cp3-intro-p">
+            二十四岁的夜班图书馆员，说话简短而准确。她记得每一位客人借过的书，从不问名字。书店只在午夜后开门，位于城市边缘那条没有路灯的巷子里。
+          </p>
+          <p class="cp3-intro-p muted">
+            世界观里，这家书店可能存在于时间的褶皱里——你可以是任何时代来的旅人。
+          </p>
+        </div>
+
+        <div class="cp3-hist-head">
+          <h2 class="cp3-hist-title">游玩历史</h2>
+          <div class="cp3-hist-summary">
+            <b>3</b> 条故事线 · <b>981</b> 楼 · 累计 <b>47.5</b> 小时 · 最近 <span style="color:var(--accent-2)">3 小时前</span>
+          </div>
+          <button class="cp3-hist-continue">
+            继续玩 · #63 →
+          </button>
+        </div>
+
+        <div class="cp3-hist-list">
+
+          <!-- 主线 C · 进行中 -->
+          <div class="cp3-line active">
+            <div class="cp3-line-left">
+              <div class="cp3-line-badges">
+                <span class="cp3-badge main">主线 C</span>
+                <span class="cp3-badge active">进行中</span>
+              </div>
+              <h3 class="cp3-line-title">闭店那一夜</h3>
+              <p class="cp3-line-tag">她说今天是最后一次开门。你不确定她指的是这周，还是永远。</p>
+              <div class="cp3-line-meta">
+                <span>63 楼</span>
+                <span>·</span>
+                <span>约 2.1 小时</span>
+                <span>·</span>
+                <span>今天 12:47 起</span>
+                <span>·</span>
+                <span>0 分支</span>
+              </div>
+            </div>
+            <div class="cp3-line-right">
+              <div class="cp3-line-bar">
+                <div class="cp3-line-bar-fill" style="width:36%"></div>
+              </div>
+              <div class="cp3-line-actions">
+                <a class="primary">继续阅读 →</a>
+                <a>提取总结</a>
+              </div>
+            </div>
+          </div>
+
+          <!-- 主线 B · 暂停 · 有分支 -->
+          <div class="cp3-line">
+            <div class="cp3-line-left">
+              <div class="cp3-line-badges">
+                <span class="cp3-badge main">主线 B</span>
+                <span class="cp3-badge">暂停</span>
+                <span class="cp3-badge dim">★ 9.4</span>
+              </div>
+              <h3 class="cp3-line-title">书店真正的主人</h3>
+              <p class="cp3-line-tag">她开始每隔几日提到"上一任管理员"。你意识到有些事从一开始就在铺设。</p>
+              <div class="cp3-line-meta">
+                <span>387 楼</span>
+                <span>·</span>
+                <span>约 18.3 小时</span>
+                <span>·</span>
+                <span>2 checkpoint</span>
+                <span>·</span>
+                <span>2 分支</span>
+                <span>·</span>
+                <span>05-19 → 07-15</span>
+              </div>
+
+              <!-- 分支子列表 -->
+              <div class="cp3-branches">
+                <div class="cp3-branch">
+                  <span class="cp3-branch-icon">├─</span>
+                  <span class="cp3-branch-title">主线</span>
+                  <span class="cp3-branch-meta">387 楼 · 读到 #342</span>
+                  <a class="cp3-branch-go">阅读</a>
+                </div>
+                <div class="cp3-branch">
+                  <span class="cp3-branch-icon">├─</span>
+                  <span class="cp3-branch-title">分岔 B1 · 追问上一任身份</span>
+                  <span class="cp3-branch-meta">从 #189 起 · 124 楼</span>
+                  <a class="cp3-branch-go">阅读</a>
+                </div>
+                <div class="cp3-branch">
+                  <span class="cp3-branch-icon">└─</span>
+                  <span class="cp3-branch-title">分岔 B2 · 拒绝续借</span>
+                  <span class="cp3-branch-meta">从 #310 起 · 56 楼</span>
+                  <a class="cp3-branch-go">阅读</a>
+                </div>
+              </div>
+            </div>
+            <div class="cp3-line-right">
+              <div class="cp3-line-bar">
+                <div class="cp3-line-bar-fill paused" style="width:88%"></div>
+                <div class="cp3-line-mark ck" style="left:22%"></div>
+                <div class="cp3-line-mark br" style="left:48%"></div>
+                <div class="cp3-line-mark ck" style="left:65%"></div>
+                <div class="cp3-line-mark br" style="left:80%"></div>
+              </div>
+              <div class="cp3-line-actions">
+                <a class="primary">阅读 →</a>
+                <a>总结 (3)</a>
+              </div>
+            </div>
+          </div>
+
+          <!-- 主线 A · 已完结 -->
+          <div class="cp3-line">
+            <div class="cp3-line-left">
+              <div class="cp3-line-badges">
+                <span class="cp3-badge main">主线 A</span>
+                <span class="cp3-badge done">已完结</span>
+                <span class="cp3-badge dim">★ 8.2</span>
+              </div>
+              <h3 class="cp3-line-title">初次相遇 · 那本没有作者的书</h3>
+              <p class="cp3-line-tag">"你要找的书……我不确定它属于哪一年。"三次续借之后，你意识到她根本没在登记。</p>
+              <div class="cp3-line-meta">
+                <span>142 楼</span>
+                <span>·</span>
+                <span>约 6.2 小时</span>
+                <span>·</span>
+                <span>2 checkpoint</span>
+                <span>·</span>
+                <span>04-12 → 04-24</span>
+              </div>
+            </div>
+            <div class="cp3-line-right">
+              <div class="cp3-line-bar">
+                <div class="cp3-line-bar-fill done" style="width:100%"></div>
+                <div class="cp3-line-mark ck" style="left:35%"></div>
+                <div class="cp3-line-mark ck" style="left:72%"></div>
+              </div>
+              <div class="cp3-line-actions">
+                <a class="primary">阅读 →</a>
+                <a>总结</a>
+              </div>
+            </div>
+          </div>
+
+          <!-- 短线 · 折叠 -->
+          <div class="cp3-line collapsed">
+            <div class="cp3-line-left">
+              <div class="cp3-line-badges">
+                <span class="cp3-badge side">短线</span>
+                <span class="cp3-badge">2 段试玩 · 未继续</span>
+              </div>
+              <div class="cp3-line-meta" style="margin-top:8px">
+                <span>共 80 楼 · 约 3.5 小时 · 最早 06-02</span>
+              </div>
+            </div>
+            <div class="cp3-line-right">
+              <div class="cp3-line-actions">
+                <a>展开 ↓</a>
+              </div>
+            </div>
+          </div>
+
+        </div>
+
+      </div>
+    </main>
+  </div>
+
+  <div class="slide-note">
+    <span><span class="k">Slide 2 / 3</span> · 卡片主页 v3</span>
+    <span>一张图 · 一个介绍 · 一个游玩历史 · 附件/编辑走左侧栏</span>
+    <span>正文 16px · 行距 1.85 · 主要文字 ink（#ece5d9）</span>
+  </div>
+</section>
+
+<!-- 旧版 Slide 2 保留但隐藏 -->
+<section style="display:none" data-screen-label="02b 卡片主页旧版">
+  <div class="topbar">
+    <div class="brand"><span class="dot"></span>STE <small>legacy</small></div>
+    <div class="top-nav">
+      <a class="active">我的库</a>
+    </div>
+  </div>
+  <div class="body">
+    <aside class="sidebar">
+      <div class="sb-section" style="margin-top:0">当前卡片</div>
+      <div class="sb-item active" style="flex-direction:column;align-items:flex-start;gap:2px;padding:10px 12px">
+        <span style="font-size:13px;color:var(--ink)">奏枝 · 图书馆管理员</span>
+        <span style="font-size:10.5px;color:var(--ink-3);font-family:'JetBrains Mono',monospace">KANAE · 7 段故事</span>
+      </div>
+
+      <div class="sb-section">跳到区块</div>
+      <div class="sb-item">卡片描述</div>
+      <div class="sb-item">故事<span class="count">7</span></div>
+      <div class="sb-item">总结<span class="count">7</span></div>
+      <div class="sb-item">日记<span class="count">3</span></div>
+      <div class="sb-item">世界书<span class="count">18</span></div>
+      <div class="sb-item">正则脚本<span class="count">2</span></div>
+      <div class="sb-item">预设<span class="count">1</span></div>
+      <div class="sb-item">角色卡本体</div>
+
+      <div class="sb-section">相邻卡片</div>
+      <div class="sb-item">← Vesper · 深空调度员</div>
+      <div class="sb-item">→ 雾都 · 侦探社日常</div>
+    </aside>
+
+    <main class="cp-main">
+      <div class="cp-hero">
+        <div class="cp-hero-content">
+          <div class="cp-portrait"></div>
+          <div class="cp-header-text">
+            <div class="cp-breadcrumb"><a>我的库</a> / <a>人物</a> / KANAE</div>
+            <div class="cp-title">奏枝</div>
+            <div class="cp-subtitle">深夜古书店 · 图书馆管理员</div>
+            <div class="cp-stats">
+              <div class="cp-stat"><span class="k">评分</span><span class="v gold">★ 8.7 / 10</span></div>
+              <div class="cp-stat"><span class="k">完成度</span><span class="v">进行中</span></div>
+              <div class="cp-stat"><span class="k">故事</span><span class="v">7 段</span></div>
+              <div class="cp-stat"><span class="k">最近</span><span class="v">3 小时前</span></div>
+              <div class="cp-stat"><span class="k">导入</span><span class="v">2026-04-12</span></div>
+            </div>
+          </div>
+          <div class="cp-hero-actions">
+            <button>在 ST 中打开</button>
+            <button class="primary">继续玩 →</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="cp-body">
+
+        <div class="cp-desc">
+          <span class="cp-desc-label">AI 生成的卡片描述 · 可编辑</span>
+          <span class="cp-desc-edit">编辑 ✎</span>
+          奏枝是深夜古书店的图书馆管理员，二十四岁，说话简短而准确。她记得每一位客人借过的书，却从不问对方的名字。书店位于城市边缘的小巷，只在午夜后开门，客人多是失眠者、失恋者、或者被现实追赶的人。世界观里，这家书店可能存在于时间的褶皱里——你可以是任何时代来的旅人。
+        </div>
+
+        <div class="cp-section" style="grid-column: 1 / 2">
+          <div class="cp-section-head">
+            <div class="cp-section-title"><span class="icon">📖</span>故事<span class="count">7</span></div>
+            <span class="cp-section-action">+ 新故事 · 导入聊天</span>
+          </div>
+          <div class="cp-section-body">
+
+            <div class="story-item">
+              <span class="story-num">01</span>
+              <div class="story-body">
+                <div class="story-title">初次相遇 · 那本没有作者的书</div>
+                <div class="story-preview">"你要找的书……我不确定它属于哪一年。" 她把一本没有封皮的旧书推到桌上。</div>
+              </div>
+              <div class="story-meta">
+                <span class="msgs">142 条 · ★★★★☆</span>
+                <span>2026-04-12</span>
+              </div>
+            </div>
+
+            <div class="story-item">
+              <span class="story-num">02</span>
+              <div class="story-body">
+                <div class="story-title">分岔线 · 雨夜借伞</div>
+                <div class="story-preview">书店门口挂着的伞比昨天多了一把。她没有解释为什么。</div>
+              </div>
+              <div class="story-meta">
+                <span class="msgs">98 条 · ★★★☆☆</span>
+                <span>2026-05-03</span>
+              </div>
+            </div>
+
+            <div class="story-item">
+              <span class="story-num">03</span>
+              <div class="story-body">
+                <div class="story-title">第三次拜访 · 关于时间的书</div>
+                <div class="story-preview">"你上一次来，是七年前。" ——但你分明记得，是昨天。</div>
+              </div>
+              <div class="story-meta">
+                <span class="msgs">211 条 · ★★★★★</span>
+                <span>2026-05-19</span>
+              </div>
+            </div>
+
+            <div class="story-item">
+              <span class="story-num">04</span>
+              <div class="story-body">
+                <div class="story-title">短线 · 她借你的那本</div>
+                <div class="story-preview">这次角色反过来，是她想借你写过的一页。</div>
+              </div>
+              <div class="story-meta">
+                <span class="msgs">56 条 · 未评价</span>
+                <span>2026-06-02</span>
+              </div>
+            </div>
+
+            <div class="story-item">
+              <span class="story-num">05</span>
+              <div class="story-body">
+                <div class="story-title">试玩 · 换个视角</div>
+                <div class="story-preview">尝试从奏枝视角展开，效果一般，未继续。</div>
+              </div>
+              <div class="story-meta">
+                <span class="msgs">24 条 · ★★☆☆☆</span>
+                <span>2026-06-14</span>
+              </div>
+            </div>
+
+            <div class="story-item">
+              <span class="story-num">06</span>
+              <div class="story-body">
+                <div class="story-title">长线主线 · 书店真正的主人</div>
+                <div class="story-preview">她开始每隔几日提到"上一任管理员"。你意识到有些事从一开始就在铺设。</div>
+              </div>
+              <div class="story-meta">
+                <span class="msgs">387 条 · ★★★★★</span>
+                <span>2026-07-01</span>
+              </div>
+            </div>
+
+            <div class="story-item" style="background:var(--panel-2);border:1px solid var(--accent);border-left:3px solid var(--accent);">
+              <span class="story-num" style="color:var(--accent)">07</span>
+              <div class="story-body">
+                <div class="story-title">正在进行 · 闭店那一夜</div>
+                <div class="story-preview">她说今天是最后一次开门。你不确定她指的是这周，还是永远。</div>
+              </div>
+              <div class="story-meta">
+                <span class="msgs" style="color:var(--accent)">63 条 · 进行中</span>
+                <span>3 小时前</span>
+              </div>
+            </div>
+
+          </div>
+        </div>
+
+        <div class="side-col">
+
+          <div class="cp-section">
+            <div class="cp-section-head">
+              <div class="cp-section-title"><span class="icon">🌍</span>世界书<span class="count">18 / 42</span></div>
+              <span class="cp-section-action">编辑 →</span>
+            </div>
+            <div class="cp-section-body">
+              <div class="mini-item">
+                <span class="k"><span class="dot-tag"></span>古书店 · 位置</span>
+                <span class="v">Always</span>
+              </div>
+              <div class="mini-item">
+                <span class="k"><span class="dot-tag"></span>奏枝的规矩</span>
+                <span class="v">Trigger</span>
+              </div>
+              <div class="mini-item">
+                <span class="k"><span class="dot-tag"></span>时间褶皱设定<span class="shared-badge">共用 · 3 卡</span></span>
+                <span class="v">Trigger</span>
+              </div>
+              <div class="mini-item">
+                <span class="k"><span class="dot-tag"></span>失眠客人 A</span>
+                <span class="v">Trigger</span>
+              </div>
+              <div class="mini-item">
+                <span class="k"><span class="dot-tag"></span>上一任管理员</span>
+                <span class="v">Trigger</span>
+              </div>
+              <div class="mini-item" style="color:var(--ink-3);font-size:11px;padding:6px 12px;justify-content:center;cursor:pointer">
+                展开其余 13 条 …
+              </div>
+            </div>
+          </div>
+
+          <div class="cp-section">
+            <div class="cp-section-head">
+              <div class="cp-section-title"><span class="icon">🔧</span>正则脚本<span class="count">2</span></div>
+              <span class="cp-section-action">编辑 →</span>
+            </div>
+            <div class="cp-section-body">
+              <div class="mini-item">
+                <span class="k"><span class="dot-tag"></span>思考括号收纳</span>
+                <span class="v">display</span>
+              </div>
+              <div class="mini-item">
+                <span class="k"><span class="dot-tag"></span>去除多余空行<span class="shared-badge">共用</span></span>
+                <span class="v">prompt</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="cp-section">
+            <div class="cp-section-head">
+              <div class="cp-section-title"><span class="icon">⚙️</span>预设 <span style="font-weight:400;color:var(--ink-3);font-size:11px">· 可选</span></div>
+              <span class="cp-section-action">编辑 →</span>
+            </div>
+            <div class="cp-section-body">
+              <div class="mini-item">
+                <span class="k"><span class="dot-tag"></span>Claude · 长篇叙事·v3</span>
+                <span class="v">当前</span>
+              </div>
+              <div style="padding:6px 12px;font-size:10.5px;color:var(--ink-3);font-family:'JetBrains Mono',monospace">
+                关联是可选的 · 未关联时使用 ST 全局预设
+              </div>
+            </div>
+          </div>
+
+        </div>
+
+        <div class="cp-section" style="grid-column:1 / 2">
+          <div class="cp-section-head">
+            <div class="cp-section-title"><span class="icon">📝</span>总结<span class="count">7</span></div>
+            <span class="cp-section-action">+ 粘贴新总结 · 从 Obsidian 导入</span>
+          </div>
+          <div class="cp-section-body">
+            <div class="note-block">
+              <div class="note-meta">
+                <span>故事 06 · 书店真正的主人 · 章节 1-4 总结</span>
+                <span>2026-07-15 · 手写 · 462 字</span>
+              </div>
+              <div class="note-content">
+                奏枝第一次主动提起"上一任管理员"，是在第三次续借那本没有作者的书时。她的语气是随口的，但停顿的位置不对。我意识到这不是叙事者信息，而是她本人的记忆——书店可能不是一个静态的场所，而是一个由管理员本人的时间感构建的空间。这一段总结的重点是：她记得每位客人借过的书，但她自己借过什么书？如果书店记录了所有人的阅读史，那么记录奏枝的是谁？……
+              </div>
+            </div>
+            <div class="note-block">
+              <div class="note-meta">
+                <span>故事 03 · 关于时间的书 · 完整总结</span>
+                <span>2026-05-25 · 从 Obsidian 导入 · 1,120 字</span>
+              </div>
+              <div class="note-content">
+                这段故事的核心是"你上一次来是七年前"这一句。它把之前所有平淡的对话都倒回去重新解读——第一次相遇时她说的"你要找的书我不确定属于哪一年"，第二次她挂出多的那把伞……
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="side-col">
+
+          <div class="cp-section">
+            <div class="cp-section-head">
+              <div class="cp-section-title"><span class="icon">📔</span>日记<span class="count">3</span></div>
+              <span class="cp-section-action">+ 新日记</span>
+            </div>
+            <div class="cp-section-body">
+              <div class="note-block">
+                <div class="note-meta">
+                  <span>2026-07-20</span>
+                  <span>582 字</span>
+                </div>
+                <div class="note-content">
+                  今天玩到故事 06 章节 4 的时候突然意识到，我对奏枝这个角色的投射，好像和现实里我对图书馆的感觉是一样的——那种"可以待着但不必被记住"的安全感。可能这才是我一直玩下去的原因……
+                </div>
+              </div>
+              <div class="note-block">
+                <div class="note-meta">
+                  <span>2026-06-10</span>
+                  <span>320 字</span>
+                </div>
+                <div class="note-content">
+                  短线试玩换视角失败，主要原因是奏枝的沉默在她自己视角下变成了"我说不出话"，反而破坏了她原本的神秘感。神秘不能从内部叙述……
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="cp-section">
+            <div class="cp-section-head">
+              <div class="cp-section-title"><span class="icon">🎭</span>角色卡本体</div>
+              <span class="cp-section-action">编辑 →</span>
+            </div>
+            <div class="cardbody-tabs">
+              <div class="cardbody-tab active">Description</div>
+              <div class="cardbody-tab">Personality</div>
+              <div class="cardbody-tab">Scenario</div>
+              <div class="cardbody-tab">First Msg</div>
+            </div>
+            <div class="cardbody-body">
+              Kanae is the night librarian of a used bookstore that only opens after midnight. She is twenty-four, speaks in short precise sentences, and remembers every book each visitor has borrowed. She never asks their names. The bookstore is on the edge of the old city, in an alley without a streetlamp…
+            </div>
+          </div>
+
+        </div>
+
+      </div>
+    </main>
+  </div>
+
+  <div class="slide-note">
+    <span><span class="k">Slide 2 / 3</span> · 卡片主页</span>
+    <span>所有相关资产都在同一页可见 · 每个区块可点进独立编辑器</span>
+    <span>"共用 · N 卡" 标记跨卡资产 · 按 Obsidian 逻辑，改动等于另存为</span>
+  </div>
+</section>
+
+
+<!-- ================================ SLIDE 3: 故事阅读页 ================================ -->
+<section data-screen-label="03 故事阅读">
+  <div class="topbar">
+    <div class="brand"><span class="dot"></span>STE <small>Silly Tavern Explorer 2.0</small></div>
+    <div class="top-nav">
+      <a>我的库</a>
+      <a class="active">正在阅读</a>
+      <a>工具</a>
+      <a>内置示范卡</a>
+    </div>
+    <div class="top-search">🔍 &nbsp;搜索本篇故事……</div>
+    <div class="top-actions">
+      <button>导出为 Markdown</button>
+      <button>导出为小说 PDF</button>
+      <button class="primary">继续在 ST 里玩</button>
+    </div>
+  </div>
+
+  <div class="reader">
+    <aside class="reader-sidebar">
+      <div class="reader-back">
+        <div class="b1">← 返回 · 奏枝 · 图书馆管理员</div>
+        <div class="b2">故事 06 · 书店真正的主人</div>
+        <div style="font-family:'JetBrains Mono',monospace;font-size:10.5px;color:var(--ink-3);margin-top:8px;">
+          387 条消息 · ★★★★★ · 2026-07-01 开始
+        </div>
+      </div>
+
+      <div class="reader-toc-label">章节（AI 自动分段）</div>
+      <div class="reader-toc">
+        <div class="toc-item"><span class="n">01</span>那本没有作者的书，第七次续借</div>
+        <div class="toc-item"><span class="n">02</span>雨停之后，书架多了一格</div>
+        <div class="toc-item active"><span class="n">03</span>"上一任管理员" · 初次提及</div>
+        <div class="toc-item"><span class="n">04</span>失眠客人 A 的回访</div>
+        <div class="toc-item"><span class="n">05</span>时间褶皱之外</div>
+        <div class="toc-item"><span class="n">06</span>你意识到自己也在被记录</div>
+        <div class="toc-item"><span class="n">07</span>——未完待续</div>
+
+        <div style="margin-top:16px;padding:8px 10px;font-size:11px;color:var(--ink-3);font-family:'JetBrains Mono',monospace;">
+          瘦身建议 (AI)：<br/>
+          · 章节 05 有 12 条重复描述<br/>
+          · 章节 02 结尾冗长
+        </div>
+      </div>
+    </aside>
+
+    <main class="reader-main">
+      <div class="reader-content">
+        <div class="reader-story-title">书店真正的主人</div>
+        <div class="reader-story-meta">
+          <span>故事 06 · 奏枝</span>
+          <span>387 条 · 约 68,000 字</span>
+          <span>开始于 2026-07-01</span>
+          <span style="color:var(--accent)">阅读位置 42%</span>
+        </div>
+
+        <div class="chapter-marker">章节 03 · "上一任管理员" · 初次提及</div>
+
+        <div class="msg narration">
+          雨已经下了整整一夜。书店里的暖气开得很低，你把外套的领子竖起来，走到柜台边。奏枝没有抬头，她在整理一摞看起来至少有一百年历史的书。你注意到她的手指上有一层很薄的、像是灰的东西——不是普通的灰尘，更像是<em>某种时间本身的沉积</em>。
+        </div>
+
+        <div class="msg dialogue-user">
+          <div class="who">YOU</div>
+          "这些书……上一位借的人是谁？"
+        </div>
+
+        <div class="msg dialogue-char">
+          <div class="who">KANAE</div>
+          "上一位？"她停了一下，把最上面那本推到一边，"你是指上一位管理员吗？"
+        </div>
+
+        <div class="msg narration">
+          她说这句话的语气是随口的，像是在问你今天下午几点。但你分明记得，你问的是"借的人"，不是"管理员"。你抬起头，她的眼睛依然低垂着，睫毛在暖光下投出很浅的阴影。
+        </div>
+
+        <div class="msg dialogue-user">
+          <div class="who">YOU</div>
+          "……你说的是这家书店的上一任管理员？"
+        </div>
+
+        <div class="msg dialogue-char">
+          <div class="who">KANAE</div>
+          "嗯。"她终于抬头看你一眼，那种看法你已经见过六次了——不带评判，也不带亲近，"她大概会喜欢你今天穿的这件外套。"
+        </div>
+
+        <div class="msg narration">
+          你意识到有些东西从一开始就在铺设。你第一次来这里，她说"你要找的书我不确定属于哪一年"。第二次来，门口的伞多了一把。第三次，她说你上一次来是七年前。这些不是伏笔，是<span class="msg-inline-dialogue">她已经在这里等了很久的证据</span>。
+        </div>
+
+        <div class="msg dialogue-user">
+          <div class="who">YOU</div>
+          "她现在……在哪里？"
+        </div>
+
+        <div class="msg dialogue-char">
+          <div class="who">KANAE</div>
+          "在她该在的地方。"她把那摞书重新推回原位，"你也一样。"
+        </div>
+
+      </div>
+    </main>
+
+    <aside class="reader-rightbar">
+      <div class="rb-group">
+        <div class="rb-label">阅读设置</div>
+        <div class="rb-slider">
+          <span>Aa−</span>
+          <div class="bar"></div>
+          <span>Aa+</span>
+        </div>
+      </div>
+
+      <div class="rb-group">
+        <div class="rb-label">显示</div>
+        <div class="rb-toggle-row on"><span class="t">对话气泡</span><span class="sw"></span></div>
+        <div class="rb-toggle-row on"><span class="t">章节自动分段</span><span class="sw"></span></div>
+        <div class="rb-toggle-row"><span class="t">显示 swipes</span><span class="sw"></span></div>
+        <div class="rb-toggle-row on"><span class="t">应用正则脚本</span><span class="sw"></span></div>
+        <div class="rb-toggle-row"><span class="t">显示 OOC</span><span class="sw"></span></div>
+      </div>
+
+      <div class="rb-group" style="flex:1;min-height:0;overflow-y:auto">
+        <div class="rb-label">书签 · 3</div>
+        <div class="rb-bookmark">
+          <div class="bm-time">章节 03 · 消息 #142</div>
+          "她大概会喜欢你今天穿的这件外套。" — 第一次她主动提到别人的偏好
+        </div>
+        <div class="rb-bookmark">
+          <div class="bm-time">章节 01 · 消息 #17</div>
+          第七次续借时她没有登记 — 是习惯还是省略？
+        </div>
+        <div class="rb-bookmark">
+          <div class="bm-time">章节 02 · 消息 #89</div>
+          伞变成了三把。
+        </div>
+      </div>
+
+      <div class="rb-group">
+        <div class="rb-label">从此处</div>
+        <button style="width:100%;height:32px;background:var(--panel);border:1px solid var(--line);color:var(--ink-2);border-radius:6px;font-size:12px;cursor:pointer;margin-bottom:6px;font-family:inherit;">📌 添加书签</button>
+        <button style="width:100%;height:32px;background:var(--panel);border:1px solid var(--line);color:var(--ink-2);border-radius:6px;font-size:12px;cursor:pointer;margin-bottom:6px;font-family:inherit;">✂ 提取到总结</button>
+        <button style="width:100%;height:32px;background:var(--panel);border:1px solid var(--line);color:var(--ink-2);border-radius:6px;font-size:12px;cursor:pointer;font-family:inherit;">📔 写入日记</button>
+      </div>
+    </aside>
+  </div>
+
+  <div class="slide-note">
+    <span><span class="k">Slide 3 / 3</span> · 故事阅读页</span>
+    <span>长篇小说式排版 · 左：AI 自动分段目录 · 右：阅读设置 / 书签 / 从此处生成总结日记</span>
+    <span>"瘦身建议" 是可选提示 · 不强制执行</span>
+  </div>
+</section>
+
+</deck-stage>
+
+<script src="deck_stage.js"></script>
+</body>
+</html>

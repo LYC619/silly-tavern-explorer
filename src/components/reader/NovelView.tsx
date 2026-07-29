@@ -5,6 +5,7 @@
  * 2. 章节层：沿用章节标记；「AI 建议章节」只看分卷总结/抽样定边界，结果为可编辑草稿。
  * 3. AI 润色层：按章走自定义记录的「小说化」模板重写（复用 summary-engine），
  *    成果存为该故事的自定义记录（整理与记录里可见可编辑）。
+ * 2026-07 整理确认：与 ReaderView（沉浸分页阅读）双轨保留，有进一步发展空间。
  */
 import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import {

@@ -1,14 +1,10 @@
 import type { StoryTree } from '@/types/story-tree';
-import { createRepo, pruneAutoSaved } from '@/lib/repo';
+import { createRepo } from '@/lib/repo';
 
 const repo = createRepo<StoryTree>('stories');
 
 export async function getAllStoryTrees(): Promise<StoryTree[]> {
   return repo.list();
-}
-
-export async function getStoryTree(id: string): Promise<StoryTree | undefined> {
-  return repo.get(id);
 }
 
 export async function saveStoryTree(item: StoryTree): Promise<void> {
@@ -17,12 +13,4 @@ export async function saveStoryTree(item: StoryTree): Promise<void> {
 
 export async function deleteStoryTree(id: string): Promise<void> {
   return repo.remove(id);
-}
-
-/**
- * 只保留最近 `keep` 份「自动暂存」(autoSaved) 的故事树，超出的按 updatedAt 由旧到新删除。
- * 手动保存(autoSaved 非 true)的不受影响。返回被删除的 id 数组。
- */
-export async function pruneAutoSavedStoryTrees(keep = 5): Promise<string[]> {
-  return pruneAutoSaved(repo, keep);
 }

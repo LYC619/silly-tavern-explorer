@@ -218,10 +218,6 @@ export function getCharacterName(card: STCharacterCard): string {
   return card.data?.name || card.name || 'Character';
 }
 
-export function getCharacterDescription(card: STCharacterCard): string {
-  return card.data?.description || card.description || '';
-}
-
 export function getFirstMessage(card: STCharacterCard): string {
   return card.data?.first_mes || card.first_mes || '';
 }

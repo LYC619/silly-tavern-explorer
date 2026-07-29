@@ -12,10 +12,6 @@ export async function getAllRatingTemplates(): Promise<RatingTemplateItem[]> {
   return repo.list();
 }
 
-export async function getRatingTemplate(id: string): Promise<RatingTemplateItem | undefined> {
-  return repo.get(id);
-}
-
 export async function saveRatingTemplate(item: RatingTemplateItem): Promise<void> {
   return repo.put(item);
 }

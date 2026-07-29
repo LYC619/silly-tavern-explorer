@@ -1,0 +1,251 @@
+<div id="ste-library-home-vis">
+  <style>
+    #ste-library-home-vis .home-options {
+      align-items: stretch;
+    }
+    #ste-library-home-vis .home-option {
+      display: flex;
+      flex-direction: column;
+      gap: 0.75rem;
+      min-width: 0;
+    }
+    #ste-library-home-vis .home-option > .card {
+      flex: 1;
+      overflow: hidden;
+    }
+    #ste-library-home-vis .mock-top {
+      display: flex;
+      justify-content: space-between;
+      gap: 0.5rem;
+      padding-bottom: 0.65rem;
+      border-bottom: 1px solid var(--border);
+    }
+    #ste-library-home-vis .mock-body {
+      display: grid;
+      gap: 0.75rem;
+      padding-top: 0.75rem;
+    }
+    #ste-library-home-vis .mock-meta,
+    #ste-library-home-vis .mock-tools {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.4rem;
+    }
+    #ste-library-home-vis .mock-gallery {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 0.45rem;
+    }
+    #ste-library-home-vis .mock-cover {
+      min-height: 5.5rem;
+      display: flex;
+      flex-direction: column;
+      justify-content: flex-end;
+      gap: 0.15rem;
+      padding: 0.55rem;
+      color: var(--foreground);
+      background: color-mix(in srgb, var(--viz-series-1) 16%, var(--card));
+    }
+    #ste-library-home-vis .mock-cover:nth-child(2),
+    #ste-library-home-vis .mock-cover:nth-child(5) {
+      background: color-mix(in srgb, var(--viz-series-2) 16%, var(--card));
+    }
+    #ste-library-home-vis .mock-cover:nth-child(3),
+    #ste-library-home-vis .mock-cover:nth-child(6) {
+      background: color-mix(in srgb, var(--viz-series-3) 16%, var(--card));
+    }
+    #ste-library-home-vis .mock-hero {
+      display: grid;
+      grid-template-columns: 1.25fr 0.75fr;
+      gap: 0.65rem;
+      min-height: 9rem;
+    }
+    #ste-library-home-vis .mock-feature {
+      display: flex;
+      flex-direction: column;
+      justify-content: flex-end;
+      gap: 0.2rem;
+      padding: 0.75rem;
+      color: var(--foreground);
+      background: color-mix(in srgb, var(--viz-series-1) 20%, var(--card));
+    }
+    #ste-library-home-vis .mock-overview,
+    #ste-library-home-vis .mock-recent {
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+      padding-left: 0.65rem;
+      border-left: 1px solid var(--border);
+    }
+    #ste-library-home-vis .mock-split {
+      display: grid;
+      grid-template-columns: 1.45fr 0.55fr;
+      gap: 0.65rem;
+    }
+    #ste-library-home-vis .mock-recent-row {
+      padding-bottom: 0.45rem;
+      border-bottom: 1px solid var(--border);
+    }
+    #ste-library-home-vis .choice-footer {
+      justify-content: space-between;
+      align-items: center;
+      margin-top: 1rem;
+    }
+    @media (max-width: 560px) {
+      #ste-library-home-vis .mock-gallery {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+      #ste-library-home-vis .mock-hero,
+      #ste-library-home-vis .mock-split {
+        grid-template-columns: 1fr;
+      }
+      #ste-library-home-vis .mock-overview,
+      #ste-library-home-vis .mock-recent {
+        padding-left: 0;
+        padding-top: 0.65rem;
+        border-left: 0;
+        border-top: 1px solid var(--border);
+      }
+    }
+  </style>
+
+  <div class="viz-grid home-options">
+    <section class="home-option">
+      <label class="form-check">
+        <input class="form-check-input" type="radio" name="home-layout" id="ste-home-a1" value="A1 典藏门厅">
+        <span class="form-check-label"><strong>A1 典藏门厅</strong> · 一张代表性角色建立记忆点</span>
+      </label>
+      <div class="card">
+        <div class="mock-top text-small">
+          <span>我的收藏</span>
+          <span class="text-muted">搜索 · 同步正常</span>
+        </div>
+        <div class="mock-body">
+          <div>
+            <strong>你的角色库</strong>
+            <div class="mock-meta text-small text-muted"><span>109 张卡</span><span>23 个标签</span><span>最近加入 4 张</span></div>
+          </div>
+          <div class="mock-hero">
+            <div class="mock-feature">
+              <strong>代表性角色</strong>
+              <span class="text-small">进入角色主页 · 3 个故事</span>
+            </div>
+            <div class="mock-overview text-small">
+              <strong>收藏概览</strong>
+              <span class="text-muted">最高评价、最常打开，或由用户手动指定。</span>
+              <span class="viz-badge">查看图库</span>
+            </div>
+          </div>
+          <div class="mock-gallery">
+            <div class="mock-cover"><strong>角色 A</strong><span class="text-small">最近打开</span></div>
+            <div class="mock-cover"><strong>角色 B</strong><span class="text-small">同人 · 现代</span></div>
+            <div class="mock-cover"><strong>角色 C</strong><span class="text-small">收藏</span></div>
+          </div>
+        </div>
+      </div>
+      <p class="text-small text-muted">展馆感最强，但需要解释主页为什么选中这一张角色。</p>
+    </section>
+
+    <section class="home-option">
+      <label class="form-check">
+        <input class="form-check-input" type="radio" name="home-layout" id="ste-home-a2" value="A2 图库预览">
+        <span class="form-check-label"><strong>A2 图库预览</strong> · 直接让收藏成为首页主体</span>
+      </label>
+      <div class="card">
+        <div class="mock-top text-small">
+          <span>我的收藏</span>
+          <span class="text-muted">搜索 · 导入 · 同步正常</span>
+        </div>
+        <div class="mock-body">
+          <div>
+            <strong>我的角色库</strong>
+            <div class="mock-meta text-small text-muted"><span>109 张卡</span><span>按最近打开</span><span>查看全部 →</span></div>
+          </div>
+          <div class="mock-gallery">
+            <div class="mock-cover"><strong>角色 A</strong><span class="text-small">3 个故事</span></div>
+            <div class="mock-cover"><strong>角色 B</strong><span class="text-small">同人 · 现代</span></div>
+            <div class="mock-cover"><strong>角色 C</strong><span class="text-small">未开始</span></div>
+            <div class="mock-cover"><strong>角色 D</strong><span class="text-small">最近加入</span></div>
+            <div class="mock-cover"><strong>角色 E</strong><span class="text-small">收藏</span></div>
+            <div class="mock-cover"><strong>角色 F</strong><span class="text-small">草稿</span></div>
+          </div>
+          <div class="mock-tools text-small">
+            <span class="viz-badge">聊天处理</span>
+            <span class="viz-badge">总结与回顾</span>
+            <span class="viz-badge">世界书 / 预设 / 角色卡</span>
+          </div>
+        </div>
+      </div>
+      <p class="text-small text-muted">最直接、最友好，不需要替用户决定哪张角色最有代表性。</p>
+    </section>
+
+    <section class="home-option">
+      <label class="form-check">
+        <input class="form-check-input" type="radio" name="home-layout" id="ste-home-a3" value="A3 收藏加最近整理">
+        <span class="form-check-label"><strong>A3 收藏 + 最近整理</strong> · 兼顾回到上次工作位置</span>
+      </label>
+      <div class="card">
+        <div class="mock-top text-small">
+          <span>我的收藏</span>
+          <span class="text-muted">搜索 · 同步正常</span>
+        </div>
+        <div class="mock-body">
+          <div>
+            <strong>我的角色库</strong>
+            <div class="mock-meta text-small text-muted"><span>109 张卡</span><span>最近加入 4 张</span></div>
+          </div>
+          <div class="mock-split">
+            <div class="mock-gallery">
+              <div class="mock-cover"><strong>角色 A</strong><span class="text-small">最近打开</span></div>
+              <div class="mock-cover"><strong>角色 B</strong><span class="text-small">收藏</span></div>
+              <div class="mock-cover"><strong>角色 C</strong><span class="text-small">最近加入</span></div>
+              <div class="mock-cover"><strong>角色 D</strong><span class="text-small">3 个故事</span></div>
+            </div>
+            <div class="mock-recent text-small">
+              <strong>最近整理</strong>
+              <div class="mock-recent-row"><span>聊天处理</span><br><span class="text-muted">角色 A · 昨天</span></div>
+              <div class="mock-recent-row"><span>世界书</span><br><span class="text-muted">城市设定 · 3 天前</span></div>
+              <div><span>总结</span><br><span class="text-muted">第 2 卷 · 上周</span></div>
+            </div>
+          </div>
+          <div class="mock-tools text-small">
+            <span class="viz-badge">处理工具</span>
+            <span class="viz-badge">导入同步</span>
+            <span class="viz-badge">收藏集</span>
+          </div>
+        </div>
+      </div>
+      <p class="text-small text-muted">对老用户方便，但“最近整理”必须保持为历史入口，不能变成待办清单。</p>
+    </section>
+  </div>
+
+  <div class="viz-row choice-footer">
+    <span id="ste-home-selected" class="text-muted">尚未选择。我的建议是 A2 为底，吸收 A3 的一小块。</span>
+    <button id="ste-home-submit" class="btn btn-primary" type="button" disabled>按这个方向继续</button>
+  </div>
+
+  <script>
+    (() => {
+      const root = document.getElementById('ste-library-home-vis');
+      const radios = root.querySelectorAll('input[name="home-layout"]');
+      const selectedText = root.querySelector('#ste-home-selected');
+      const submit = root.querySelector('#ste-home-submit');
+
+      radios.forEach((radio) => {
+        radio.addEventListener('change', () => {
+          selectedText.textContent = `已选择：${radio.value}`;
+          submit.disabled = false;
+        });
+      });
+
+      submit.addEventListener('click', async () => {
+        const selected = root.querySelector('input[name="home-layout"]:checked');
+        if (!selected) return;
+        const prompt = `首页方向选择：${selected.value}。请继续讨论这个方案的具体内容与交互。`;
+        if (window.openai?.sendFollowUpMessage) {
+          await window.openai.sendFollowUpMessage({ prompt, title: '确认首页方向' });
+        }
+      });
+    })();
+  </script>
+</div>

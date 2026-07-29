@@ -28,10 +28,6 @@ export const BUILTIN_RATING_TEMPLATE: RatingTemplateItem = {
 
 export const BUILTIN_RATING_TEMPLATES: RatingTemplateItem[] = [BUILTIN_RATING_TEMPLATE];
 
-export function isBuiltinRatingTemplate(t: RatingTemplateItem): boolean {
-  return t.builtin === true;
-}
-
 /** 列出全部可用模板：内置在前，自定义在后 */
 export async function listRatingTemplates(): Promise<RatingTemplateItem[]> {
   const custom = await getAllRatingTemplates();

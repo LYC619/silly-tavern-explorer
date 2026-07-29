@@ -1,3 +1,7 @@
+/**
+ * 沉浸式阅读视图：分页/字号/主题的覆盖层。
+ * 2026-07 整理确认：与 NovelView（小说化改写覆盖层）功能相邻但定位不同，双轨保留，有进一步发展空间。
+ */
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { ChevronLeft, ChevronRight, X, Settings, BookOpen, List } from 'lucide-react';
 import { Button } from '@/components/ui/button';

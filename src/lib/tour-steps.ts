@@ -63,14 +63,6 @@ export const WORLDBOOK_TOUR_STEPS: TourStep[] = [
   },
 ];
 
-export const AITOOLS_TOUR_STEPS: TourStep[] = [
-  {
-    targetSelector: '[data-tour="ai-config"]',
-    content: '全应用的 AI 能力都从这里读取配置。可保存多个提供商（OpenAI 兼容），一键切换、拉取模型列表、测试连通；密钥仅保存在本地浏览器。',
-    action: 'next',
-  },
-];
-
 export const CARDVIEWER_TOUR_STEPS: TourStep[] = [
   {
     targetSelector: '[data-tour="card-import"]',

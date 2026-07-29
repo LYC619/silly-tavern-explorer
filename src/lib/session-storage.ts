@@ -114,12 +114,6 @@ export function loadCustomRegexRules(): RegexRule[] {
   return [];
 }
 
-// 合并内置规则和自定义规则
-export function getMergedRegexRules(): RegexRule[] {
-  const customRules = loadCustomRegexRules();
-  return [...DEFAULT_REGEX_RULES, ...customRules];
-}
-
 export function saveBuiltinRuleStates(rules: RegexRule[]): void {
   try {
     const states: Record<string, boolean> = {};
