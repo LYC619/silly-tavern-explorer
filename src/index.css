@@ -265,6 +265,27 @@
 }
 
 @layer components {
+  /* 交接包 layout.css：立绘占位容器 + 首字水印（生产环境有图时不渲染） */
+  .art { width: 100%; height: 100%; position: relative; }
+  .art::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background:
+      radial-gradient(circle at 30% 30%, rgba(255,255,255,0.15), transparent 50%),
+      radial-gradient(circle at 70% 70%, rgba(0,0,0,0.2), transparent 50%);
+  }
+  .art .char-mark {
+    position: absolute;
+    top: 50%; left: 50%;
+    transform: translate(-50%, -50%);
+    font-family: var(--font-serif);
+    font-size: 40px;
+    color: rgba(255,255,255,0.15);
+    font-weight: 700;
+    z-index: 1;
+  }
+
   .paper-bg {
     background: var(--paper-texture);
   }
