@@ -1,21 +1,18 @@
 /**
- * 首页（2.0 阶段5，定稿第三章；阶段9.2 按首轮真机反馈重排比例）：私人收藏馆。
- * 四块内容与占比（用户 2026-07-27 反馈）：
- *   ① 角色库=顶部一行封面条（入口性质，不再占大头）
- *   ② 最近查看的故事=主体（回味入口，放大卡片）
- *   ③ 处理区=右列主位（第二主入口，做大）
- *   ④ 其他资产=右列底部紧凑格（只是计数+直达）
- * 硬约束：一屏无滚动（基准 1440×900、100% 缩放），超出内容走「查看全部」进二级页；
- * 不出现「继续游玩」。
+ * 首页（2.1-P4，按新前端交接包 demo ① 重排；内容沿用定稿四块语义，无「继续游玩」）：
+ * - 顶部：问候 + 接入 SillyTavern 目录卡（红线：显眼置顶，不进侧栏；网页版组件自隐藏）
+ * - 左主列：最近查看的故事（story-continue-card 两列）→ 你的角色库（4 张 3:4 精选卡）
+ * - 右列 300px：编辑区拖放入口（drop-panel）→ 其他资产统计格（stat-panel）
+ * 硬约束：一屏无滚动（基准 1440×900、100% 缩放），超出内容走「查看全部」进二级页。
  */
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
-  Users, UploadCloud, ArrowRight, Globe, SlidersHorizontal, Regex as RegexIcon,
-  ScrollText, IdCard, Clock, MessageSquare, Cpu, BookOpenText, KeyRound,
+  Users, UploadCloud, ArrowRight, MessageSquare, Cpu, BookOpenText, KeyRound,
 } from 'lucide-react';
 import { isTauri } from '@/lib/vault/tauri-fs';
 import { STAIConfigDialog } from '@/components/tools/STAIConfigDialog';
+import { STImportCard } from '@/components/tools/STImportCard';
 import { AppLayout } from '@/components/AppLayout';
 import { Badge } from '@/components/ui/badge';
 import type { ArchiveCharacter, ArchiveStory } from '@/types/archive';
@@ -44,12 +41,26 @@ function relativeTime(ts: number): string {
   return new Date(ts).toLocaleDateString('zh-CN');
 }
 
+function hashName(name: string): number {
+  let hash = 0;
+  for (let i = 0; i < name.length; i++) hash = ((hash << 5) - hash + name.charCodeAt(i)) | 0;
+  return Math.abs(hash);
+}
+
+function greeting(): string {
+  const h = new Date().getHours();
+  if (h < 6) return '夜深了';
+  if (h < 12) return '早上好';
+  if (h < 18) return '下午好';
+  return '晚上好';
+}
+
 const Home = () => {
   const navigate = useNavigate();
   const [characters, setCharacters] = useState<ArchiveCharacter[]>([]);
   const [recentStories, setRecentStories] = useState<ArchiveStory[]>([]);
   const [resources, setResources] = useState<Record<string, StoryResources>>({});
-  const [assetCounts, setAssetCounts] = useState({ worldbooks: 0, presets: 0, regexes: 0 });
+  const [assetCounts, setAssetCounts] = useState({ worldbooks: 0, presets: 0, regexes: 0, stories: 0 });
   const [stConfigOpen, setStConfigOpen] = useState(false);
 
   useEffect(() => {
@@ -71,7 +82,7 @@ const Home = () => {
         const viewed = stories
           .filter((s) => s.lastViewedAt !== undefined)
           .sort((a, b) => b.lastViewedAt! - a.lastViewedAt!)
-          .slice(0, 6);
+          .slice(0, 4);
         setRecentStories(viewed);
         const res: Record<string, StoryResources> = {};
         for (const s of viewed) {
@@ -82,216 +93,224 @@ const Home = () => {
           };
         }
         setResources(res);
-        setAssetCounts({ worldbooks: wbs.length, presets: presets.length, regexes: regexes.length });
+        setAssetCounts({ worldbooks: wbs.length, presets: presets.length, regexes: regexes.length, stories: stories.length });
       } catch { /* 首页加载失败不弹错，各区显示空态 */ }
     })();
     return () => { cancelled = true; };
   }, []);
 
   const characterById = Object.fromEntries(characters.map((c) => [c.id, c]));
-  // 角色库封面条：最近加入在前，一行放得下多少显示多少（overflow-hidden 裁掉多余）
-  const coverWall = [...characters].sort((a, b) => b.createdAt - a.createdAt).slice(0, 12);
+  /** 精选 4 张：最近有动静的（updatedAt），入口性质 */
+  const featured = [...characters].sort((a, b) => b.updatedAt - a.updatedAt).slice(0, 4);
+  const lastViewed = recentStories[0];
 
-  // 阶段9.8：其他资产直达资产库列表页（不再直接进处理界面）。
-  // 应用自身 AI 配置在设置页（9.9）；「ST 配置」= 用户在 ST 使用的 AI 连接概况（只读，仅客户端）。
-  const OTHER_ASSETS = [
-    { label: '世界书', icon: Globe, path: '/assets?tab=worldbook', count: assetCounts.worldbooks },
-    { label: '预设', icon: SlidersHorizontal, path: '/assets?tab=preset', count: assetCounts.presets },
-    { label: '正则', icon: RegexIcon, path: '/assets?tab=regex', count: assetCounts.regexes },
+  const STAT_CELLS = [
+    { label: '角色卡', count: characters.length, onClick: () => navigate('/library') },
+    { label: '故事', count: assetCounts.stories, onClick: () => navigate('/library') },
+    { label: '世界书', count: assetCounts.worldbooks, onClick: () => navigate('/assets?tab=worldbook') },
+    { label: '预设', count: assetCounts.presets, onClick: () => navigate('/assets?tab=preset') },
+    { label: '正则', count: assetCounts.regexes, onClick: () => navigate('/assets?tab=regex') },
   ];
 
   return (
     <AppLayout>
-      {/* 一屏无滚动：新外壳主区高度内填满（h-full），内部各区自行收纳，超出走「查看全部」 */}
-      <div className="h-full overflow-hidden flex flex-col px-6 py-5 gap-4">
-        {/* ① 角色库：顶部一行封面条 */}
-        <section
-          className="shrink-0 rounded-xl border border-border bg-card/60 p-4 cursor-pointer hover:border-primary/40 transition-colors"
-          onClick={() => navigate('/library')}
-          data-tour="home-library"
-        >
-          <div className="flex items-center gap-2 mb-3">
-            <Users className="w-5 h-5 text-primary" />
-            <h2 className="font-display text-lg font-semibold">角色库</h2>
-            <span className="text-sm text-muted-foreground">{characters.length} 张角色卡</span>
-            <span className="ml-auto text-xs text-muted-foreground flex items-center gap-1">
-              查看全部 <ArrowRight className="w-3.5 h-3.5" />
+      <div className="h-full overflow-hidden flex flex-col px-6 py-4 gap-3.5">
+        {/* 问候行（demo .main-header：真实数据——上次离开的故事） */}
+        <div className="shrink-0 flex items-baseline gap-3.5 flex-wrap">
+          <h1 className="font-serif text-[22px] font-semibold tracking-wide text-[color:var(--text-primary)]">{greeting()}</h1>
+          {lastViewed?.lastViewedAt !== undefined && (
+            <span className="text-[11px] text-[color:var(--text-faint)] truncate">
+              你上次在 {relativeTime(lastViewed.lastViewedAt)}离开《{lastViewed.title}》· 第 {lastViewed.session.messages.length} 楼
             </span>
-          </div>
-          {coverWall.length === 0 ? (
-            <div className="h-40 flex flex-col items-center justify-center text-center gap-1.5">
-              <Users className="w-10 h-10 text-muted-foreground/40" />
-              <p className="text-sm text-muted-foreground">还没有角色卡</p>
-              <p className="text-xs text-muted-foreground/70">去角色库导入 PNG/JSON 角色卡，开始你的收藏</p>
-            </div>
-          ) : (
-            <div className="h-44 flex gap-3 overflow-hidden">
-              {coverWall.map((c) => (
-                <div
-                  key={c.id}
-                  className="w-24 shrink-0"
-                  onClick={(e) => { e.stopPropagation(); navigate(`/character/${c.id}`); }}
-                >
-                  {/* 统一 2:3 受控比例，原图尺寸不影响布局 */}
-                  <div className="w-24 h-36 rounded-lg overflow-hidden border border-border bg-secondary shadow-card hover:shadow-lg transition-shadow">
-                    {c.pngBase64 ? (
-                      <img
-                        src={`data:image/png;base64,${c.pngBase64}`}
-                        alt={c.name}
-                        className="w-full h-full object-cover object-top"
-                        loading="lazy"
-                      />
-                    ) : (
-                      <div className="w-full h-full flex items-center justify-center">
-                        <IdCard className="w-8 h-8 text-muted-foreground/50" />
-                      </div>
-                    )}
-                  </div>
-                  <p className="mt-1 text-xs font-medium truncate text-center" title={c.name}>{c.name}</p>
-                </div>
-              ))}
-            </div>
           )}
-        </section>
+        </div>
 
-        {/* 中部：② 最近查看的故事（主体） + 右列（③ 处理区 / ④ 其他资产） */}
+        {/* 接入 ST 目录：首页顶部显眼卡（客户端；网页版组件自隐藏） */}
+        <div className="shrink-0 empty:hidden">
+          <STImportCard />
+        </div>
+
         <div className="flex-1 min-h-0 flex gap-4">
-          <section
-            className="flex-1 min-w-0 rounded-xl border border-border bg-card/60 p-5 flex flex-col"
-            data-tour="home-recent"
-          >
-            <div className="flex items-center gap-2 mb-3 shrink-0">
-              <Clock className="w-5 h-5 text-primary" />
-              <h2 className="font-display text-lg font-semibold">最近查看的故事</h2>
-            </div>
-            {recentStories.length === 0 ? (
-              <div className="flex-1 flex flex-col items-center justify-center text-center gap-2">
-                <BookOpenText className="w-12 h-12 text-muted-foreground/40" />
-                <p className="text-sm text-muted-foreground">还没有看过的故事</p>
-                <p className="text-xs text-muted-foreground/70">从角色卡进入故事，这里会记下你上次读到哪，方便随时回味</p>
+          {/* ===== 左主列 ===== */}
+          <div className="flex-1 min-w-0 flex flex-col gap-3.5">
+            {/* ② 最近查看的故事 */}
+            <section className="shrink-0" data-tour="home-recent">
+              <div className="flex items-baseline justify-between mb-2.5">
+                <h3 className="font-serif text-[15px] font-semibold text-[color:var(--text-primary)]">
+                  最近查看的故事
+                  {recentStories.length > 0 && (
+                    <span className="text-[11px] text-[color:var(--text-faint)] font-sans font-normal ml-1.5">
+                      回味入口 · 记住你读到哪
+                    </span>
+                  )}
+                </h3>
               </div>
-            ) : (
-              <div className="flex-1 min-h-0 overflow-hidden grid grid-cols-1 xl:grid-cols-2 gap-3 content-start">
-                {recentStories.map((s) => {
-                  const char = s.characterId ? characterById[s.characterId] : undefined;
-                  const res = resources[s.id];
-                  // 未绑定故事也进完整工作区（阶段9.10）；工作区内可随时绑定
-                  const target = `/story/${s.id}`;
-                  return (
-                    <button
-                      key={s.id}
-                      onClick={() => navigate(target)}
-                      className="rounded-lg border border-border bg-card p-3 text-left hover:border-primary/40 transition-colors flex gap-3 min-w-0 h-fit"
-                    >
-                      {/* 角色封面缩略（2:3），未绑定给占位图 */}
-                      <div className="w-12 h-[72px] shrink-0 rounded overflow-hidden bg-secondary border border-border">
-                        {char?.pngBase64 ? (
-                          <img
-                            src={`data:image/png;base64,${char.pngBase64}`}
-                            alt={char.name}
-                            className="w-full h-full object-cover object-top"
-                            loading="lazy"
-                          />
-                        ) : (
-                          <div className="w-full h-full flex items-center justify-center">
-                            <BookOpenText className="w-4 h-4 text-muted-foreground/50" />
-                          </div>
-                        )}
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2">
-                          <p className="text-sm font-medium truncate flex-1" title={s.title}>{s.title}</p>
-                          {s.lastViewedAt !== undefined && (
-                            <span className="text-[11px] text-muted-foreground shrink-0">{relativeTime(s.lastViewedAt)}</span>
+              {recentStories.length === 0 ? (
+                <div className="rounded-xl bg-elevated p-6 flex flex-col items-center gap-1.5 text-center">
+                  <BookOpenText className="w-8 h-8 text-muted-foreground/40" />
+                  <p className="text-sm text-muted-foreground">还没有看过的故事</p>
+                  <p className="text-xs text-muted-foreground/70">从角色卡进入故事，这里会记下你上次读到哪，方便随时回味</p>
+                </div>
+              ) : (
+                <div className="grid grid-cols-2 gap-3">
+                  {recentStories.map((s) => {
+                    const char = s.characterId ? characterById[s.characterId] : undefined;
+                    const res = resources[s.id];
+                    return (
+                      <button
+                        key={s.id}
+                        onClick={() => navigate(`/story/${s.id}`)}
+                        className="rounded-xl bg-elevated-strong hover:bg-elevated transition-colors p-3.5 text-left flex gap-3 items-center min-w-0"
+                      >
+                        {/* 角色封面缩略（demo .story-thumb 44×60），未绑定给占位 */}
+                        <div className="w-11 h-[60px] shrink-0 rounded-md overflow-hidden bg-[var(--hover-overlay)]">
+                          {char?.pngBase64 ? (
+                            <img
+                              src={`data:image/png;base64,${char.pngBase64}`}
+                              alt={char.name}
+                              className="w-full h-full object-cover object-top"
+                              loading="lazy"
+                            />
+                          ) : (
+                            <div className="w-full h-full flex items-center justify-center">
+                              <BookOpenText className="w-4 h-4 text-muted-foreground/50" />
+                            </div>
                           )}
                         </div>
-                        <p className="text-xs text-muted-foreground mt-1 flex items-center gap-2 flex-wrap">
-                          {char && <span className="truncate max-w-28">{char.name}</span>}
-                          {!s.characterId && <Badge variant="outline" className="h-4 px-1 text-[10px]">未绑定</Badge>}
-                          <span className="flex items-center gap-0.5 shrink-0">
-                            <MessageSquare className="w-3 h-3" />{s.session.messages.length} 楼
-                          </span>
-                          {s.meta.lastModel && (
-                            <span className="flex items-center gap-0.5 min-w-0">
-                              <Cpu className="w-3 h-3 shrink-0" /><span className="truncate max-w-32">{s.meta.lastModel}</span>
+                        <div className="flex-1 min-w-0">
+                          <p className="font-serif text-[13px] font-semibold text-[color:var(--text-primary)] truncate" title={s.title}>
+                            {s.title}
+                          </p>
+                          <p className="text-[10.5px] text-[color:var(--text-faint)] mt-0.5 truncate flex items-center gap-1.5">
+                            {char && <span className="truncate">{char.name}</span>}
+                            {!s.characterId && <Badge variant="outline" className="h-4 px-1 text-[10px]">未绑定</Badge>}
+                            {s.meta.lastModel && (
+                              <span className="flex items-center gap-0.5 min-w-0">
+                                <Cpu className="w-3 h-3 shrink-0" /><span className="truncate max-w-28">{s.meta.lastModel}</span>
+                              </span>
+                            )}
+                          </p>
+                          <p className="text-[10px] text-[color:var(--text-faint)] mt-1 flex items-center gap-1.5 flex-wrap">
+                            <span className="flex items-center gap-0.5">
+                              <MessageSquare className="w-3 h-3" />{s.session.messages.length} 楼
                             </span>
-                          )}
-                        </p>
-                        {/* 下属资源小标签（有才显示，不硬凑） */}
-                        {res && (res.summaries > 0 || res.diaries > 0 || res.trees > 0 || (s.branches?.length ?? 0) > 0) && (
-                          <p className="mt-1.5 flex items-center gap-1.5 flex-wrap">
-                            {res.summaries > 0 && <Badge variant="secondary" className="h-4 px-1 text-[10px]">总结 {res.summaries}</Badge>}
-                            {res.diaries > 0 && <Badge variant="secondary" className="h-4 px-1 text-[10px]">日记 {res.diaries}</Badge>}
-                            {res.trees > 0 && <Badge variant="secondary" className="h-4 px-1 text-[10px]">故事树 {res.trees}</Badge>}
+                            {s.lastViewedAt !== undefined && <span>{relativeTime(s.lastViewedAt)}</span>}
+                            {res && res.summaries > 0 && <Badge variant="secondary" className="h-4 px-1 text-[10px]">总结 {res.summaries}</Badge>}
+                            {res && res.diaries > 0 && <Badge variant="secondary" className="h-4 px-1 text-[10px]">日记 {res.diaries}</Badge>}
+                            {res && res.trees > 0 && <Badge variant="secondary" className="h-4 px-1 text-[10px]">故事树 {res.trees}</Badge>}
                             {(s.branches?.length ?? 0) > 0 && <Badge variant="secondary" className="h-4 px-1 text-[10px]">分支 {s.branches!.length}</Badge>}
                           </p>
-                        )}
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+            </section>
+
+            {/* ① 你的角色库：4 张 3:4 精选卡（入口性质） */}
+            <section className="flex-1 min-h-0 flex flex-col" data-tour="home-library">
+              <div className="flex items-baseline justify-between mb-2.5 shrink-0">
+                <h3 className="font-serif text-[15px] font-semibold text-[color:var(--text-primary)]">
+                  你的角色库
+                  <span className="text-[11px] text-[color:var(--text-faint)] font-sans font-normal ml-1.5">
+                    {characters.length} 张{featured.length > 0 ? ' · 最近有动静的 4 张' : ''}
+                  </span>
+                </h3>
+                <button
+                  className="text-[11px] text-[color:var(--text-muted)] hover:text-[color:var(--text-body)] flex items-center gap-1"
+                  onClick={() => navigate('/library')}
+                >
+                  进入角色库 <ArrowRight className="w-3 h-3" />
+                </button>
+              </div>
+              {featured.length === 0 ? (
+                <div className="flex-1 rounded-xl bg-elevated flex flex-col items-center justify-center gap-1.5 text-center p-6">
+                  <Users className="w-10 h-10 text-muted-foreground/40" />
+                  <p className="text-sm text-muted-foreground">还没有角色卡</p>
+                  <p className="text-xs text-muted-foreground/70">去角色库导入 PNG/JSON 角色卡，开始你的收藏</p>
+                </div>
+              ) : (
+                <div className="flex-1 min-h-0 grid grid-cols-4 gap-3 content-start overflow-hidden">
+                  {featured.map((c) => (
+                    <button
+                      key={c.id}
+                      onClick={() => navigate(`/character/${c.id}`)}
+                      className="relative aspect-[3/4] max-h-full rounded-xl overflow-hidden bg-elevated transition-transform duration-200 hover:-translate-y-0.5 text-left"
+                    >
+                      {c.pngBase64 ? (
+                        <img
+                          src={`data:image/png;base64,${c.pngBase64}`}
+                          alt={c.name}
+                          className="absolute inset-0 w-full h-full object-cover object-top"
+                          loading="lazy"
+                        />
+                      ) : (
+                        <div className={`absolute inset-0 art art-placeholder-${(hashName(c.name) % 13) + 1}`}>
+                          <div className="char-mark" style={{ fontSize: 24 }}>{c.name.slice(0, 1)}</div>
+                        </div>
+                      )}
+                      <div className="absolute left-0 right-0 bottom-0 px-3 pb-2.5 pt-8 bg-[linear-gradient(transparent,rgba(0,0,0,0.75)_40%,rgba(0,0,0,0.92))]">
+                        <p className="font-serif text-xs font-semibold text-white truncate [text-shadow:0_1px_4px_rgba(0,0,0,0.5)]">{c.name}</p>
+                        <div className="flex items-center justify-between mt-1 text-[10px]">
+                          <span className="font-semibold text-[color:var(--brand-hi)]">
+                            ★ {c.rating !== undefined ? c.rating : '-'}
+                          </span>
+                          <span className="text-white/50">{relativeTime(c.updatedAt)}</span>
+                        </div>
                       </div>
                     </button>
-                  );
-                })}
-              </div>
-            )}
-          </section>
+                  ))}
+                </div>
+              )}
+            </section>
+          </div>
 
-          {/* 右列 */}
-          <div className="w-80 basis-80 shrink-0 grow-0 flex flex-col gap-4 min-h-0">
-            {/* ③ 处理区：右列主位 */}
+          {/* ===== 右列 300px ===== */}
+          <div className="w-[300px] shrink-0 flex flex-col gap-3 min-h-0">
+            {/* ③ 编辑区入口：拖放面板（demo .drop-panel） */}
             <section
-              className="flex-1 min-h-0 rounded-xl border border-primary/30 bg-primary/5 p-5 cursor-pointer hover:border-primary/60 transition-colors flex flex-col"
+              className="shrink-0 rounded-xl bg-elevated border-[1.5px] border-dashed border-[color:var(--border-normal)] px-4 py-[18px] text-center cursor-pointer hover:border-[color:var(--brand-hairline)] transition-colors"
               onClick={() => navigate('/tools')}
               data-tour="home-tools"
             >
-              <div className="flex items-center gap-2 shrink-0">
-                <UploadCloud className="w-5 h-5 text-primary" />
-                <h2 className="font-display text-lg font-semibold">处理区</h2>
-                <span className="ml-auto text-xs text-muted-foreground flex items-center gap-1">
-                  进入 <ArrowRight className="w-3.5 h-3.5" />
-                </span>
+              <div className="w-10 h-10 mx-auto mb-2.5 rounded-full bg-[var(--brand-active-bg)] text-brand flex items-center justify-center">
+                <UploadCloud className="w-5 h-5" />
               </div>
-              <div className="flex-1 flex flex-col items-center justify-center gap-3 text-center">
-                <div className="w-14 h-14 rounded-full bg-primary/10 flex items-center justify-center">
-                  <UploadCloud className="w-7 h-7 text-primary" />
-                </div>
-                <p className="text-sm text-muted-foreground px-2">手上有文件要处理？丢进来，不用先建档。</p>
-                <div className="flex flex-wrap justify-center gap-1.5">
-                  <Badge className="gold-gradient text-primary-foreground border-0">
-                    <ScrollText className="w-3 h-3 mr-1" /> 聊天记录
-                  </Badge>
-                  <Badge variant="secondary"><Globe className="w-3 h-3 mr-1" /> 世界书</Badge>
-                  <Badge variant="secondary"><SlidersHorizontal className="w-3 h-3 mr-1" /> 预设</Badge>
-                  <Badge variant="secondary"><IdCard className="w-3 h-3 mr-1" /> 角色卡</Badge>
-                  <Badge variant="secondary"><RegexIcon className="w-3 h-3 mr-1" /> 正则</Badge>
-                </div>
+              <p className="text-[11px] leading-relaxed text-[color:var(--text-body)] mb-3">
+                手上有文件要处理？<br />
+                <span className="opacity-60">丢进来，不用先建档。</span>
+              </p>
+              <div className="flex flex-wrap gap-1 justify-center">
+                {['聊天记录', '世界书', '预设', '角色卡', '正则'].map((t) => (
+                  <span key={t} className="px-2 py-[3px] rounded-full text-[10px] bg-[var(--hover-overlay)] text-[color:var(--text-muted)]">
+                    {t}
+                  </span>
+                ))}
               </div>
             </section>
 
-            {/* ④ 其他资产：紧凑 2×2 */}
-            <section className="shrink-0 rounded-xl border border-border bg-card/60 p-4" data-tour="home-assets">
-              <h2 className="font-display text-sm font-semibold mb-2 text-muted-foreground">其他资产</h2>
-              <div className="grid grid-cols-2 gap-1.5">
-                {OTHER_ASSETS.map((a) => {
-                  const Icon = a.icon;
-                  return (
-                    <button
-                      key={a.path}
-                      onClick={() => navigate(a.path)}
-                      className="flex items-center gap-2 rounded-lg border border-border bg-card px-2.5 py-2 text-sm hover:border-primary/40 transition-colors"
-                    >
-                      <Icon className="w-4 h-4 text-muted-foreground shrink-0" />
-                      <span className="flex-1 text-left truncate">{a.label}</span>
-                      {a.count !== null && <span className="text-xs text-muted-foreground">{a.count}</span>}
-                    </button>
-                  );
-                })}
+            {/* ④ 其他资产：统计格（demo .stat-panel） */}
+            <section className="shrink-0 rounded-xl bg-elevated p-4" data-tour="home-assets">
+              <p className="text-[11px] tracking-widest text-[color:var(--text-faint)] mb-2.5">你的资产</p>
+              <div className="grid grid-cols-2 gap-2">
+                {STAT_CELLS.map((cell) => (
+                  <button
+                    key={cell.label}
+                    onClick={cell.onClick}
+                    className="flex items-center justify-between px-3 py-2.5 rounded-lg bg-chrome text-[11px] text-[color:var(--text-body)] hover:bg-elevated-strong transition-colors"
+                  >
+                    <span>{cell.label}</span>
+                    <span className="font-serif font-bold text-[15px] text-[color:var(--text-primary)]">{cell.count}</span>
+                  </button>
+                ))}
                 {/* ST 配置（仅客户端）：用户在 ST 使用的 AI 连接概况，只读快照 */}
                 {isTauri() && (
                   <button
                     onClick={() => setStConfigOpen(true)}
-                    className="flex items-center gap-2 rounded-lg border border-border bg-card px-2.5 py-2 text-sm hover:border-primary/40 transition-colors"
+                    className="flex items-center justify-between px-3 py-2.5 rounded-lg bg-chrome text-[11px] text-[color:var(--text-body)] hover:bg-elevated-strong transition-colors"
                   >
-                    <KeyRound className="w-4 h-4 text-muted-foreground shrink-0" />
-                    <span className="flex-1 text-left truncate">ST 配置</span>
+                    <span className="flex items-center gap-1.5"><KeyRound className="w-3.5 h-3.5 text-muted-foreground" />ST 配置</span>
                   </button>
                 )}
               </div>
