@@ -35,9 +35,12 @@ self.addEventListener('fetch', (event) => {
   // 只接管同源请求；跨域（如用户配置的 AI 提供商）一律放行、绝不进缓存
   if (url.origin !== self.location.origin) return;
 
+  // cache-first 只给带 hash 的构建产物（/assets/）和不可变媒体/字体。
+  // 千万别把裸 .js/.css 也算进来：dev 的 /src/index.css 没有 hash，一旦 cache-first
+  // 就被永久钉死，出现"新 JS + 旧 CSS"的半新半旧页面（2.1-P4 实测踩坑）。
   const isStaticAsset =
     url.pathname.startsWith('/assets/') ||
-    /\.(js|css|woff2?|png|jpe?g|gif|svg|ico|webp)$/.test(url.pathname);
+    /\.(woff2?|png|jpe?g|gif|svg|ico|webp)$/.test(url.pathname);
 
   if (isStaticAsset) {
     // 带 hash 的构建产物：cache-first（命中直接用，未命中取网络并只在成功时入缓存）

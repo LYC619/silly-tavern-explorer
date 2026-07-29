@@ -236,7 +236,7 @@ const Home = () => {
                     <button
                       key={c.id}
                       onClick={() => navigate(`/character/${c.id}`)}
-                      className="relative aspect-[3/4] max-h-full rounded-xl overflow-hidden bg-elevated transition-transform duration-200 hover:-translate-y-0.5 text-left"
+                      className="relative self-start w-full aspect-[3/4] rounded-xl overflow-hidden bg-elevated transition-transform duration-200 hover:-translate-y-0.5 text-left"
                     >
                       {c.pngBase64 ? (
                         <img

@@ -15,7 +15,9 @@ export function registerServiceWorker(): void {
   // 让旧版资产盖住新 exe（sw.js 字节不变时浏览器永不触发更新）。同时注销历史注册
   // 并清空 CacheStorage，解救此前版本已在 WebView 里装过 SW 的安装；清理成功后
   // 重载一次脱离旧 controller（此后 getRegistrations 为空，不会再次重载）。
-  if (isTauri()) {
+  // dev 同理不注册并清理：历史 SW 曾把无 hash 的 /src/index.css 等 dev 资源 cache-first
+  // 钉死，造成"新 JS + 旧 CSS"的半新半旧页面（2.1-P4 实测踩坑）。
+  if (isTauri() || import.meta.env.DEV) {
     void (async () => {
       try {
         const regs = await navigator.serviceWorker.getRegistrations();
