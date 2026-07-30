@@ -1,20 +1,23 @@
 /**
- * 角色库（2.1-P2，按新前端交接包 demo ② 重写）：
+ * 角色库（2.1-P2，按新前端交接包 demo ② 重写；后续按真机反馈补 UX）：
  * - 左侧 176px 二级筛选栏：进度分类 / 分级标签（带类别色点）/ 系统（批量管理）
- * - 主区 4 列 3:4 角色卡墙：立绘满铺 + 顶部故事数角标 + 底部渐变信息条，hover 浮起
- * - 红线：3:4 比例不可改、不加左上角编号
+ * - 主区角色卡墙：立绘 2:3 满铺 + 顶部故事数角标 + 底部渐变信息条（名字/两行简介/评分），hover 浮起
+ * - 红线：2:3 比例（ST 标准卡 400×600）不可改、不加左上角编号
+ * - 视图偏好（localStorage 持久化）：网格/列表切换、卡片宽度滑杆（auto-fill 自动分列）、每页张数+分页
  * 数据与操作逻辑沿用 9.4 版：导入/删除/批量/搜索/排序/评分筛选/分级标签筛选。
  */
 import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Plus, Trash2, Search, MessageSquare, BookOpen, MoreVertical, ExternalLink,
+  LayoutGrid, List as ListIcon, ChevronLeft, ChevronRight,
 } from 'lucide-react';
 import { HelpCard } from '@/components/HelpCard';
 import { AppLayout } from '@/components/AppLayout';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Checkbox } from '@/components/ui/checkbox';
+import { Slider } from '@/components/ui/slider';
 import {
   Select,
   SelectContent,
@@ -99,6 +102,54 @@ const RATING_LABELS: Record<RatingFilter, string> = {
   ge6: '6 分以上',
 };
 
+type ViewMode = 'grid' | 'list';
+/** 每页张数选项；'all' = 不分页 */
+const PAGE_SIZES = ['12', '24', '48', '96', 'all'] as const;
+type PageSize = (typeof PAGE_SIZES)[number];
+const PAGE_SIZE_LABELS: Record<PageSize, string> = {
+  '12': '每页 12 张',
+  '24': '每页 24 张',
+  '48': '每页 48 张',
+  '96': '每页 96 张',
+  all: '不分页',
+};
+/** 卡片最小宽度（px）可调范围；网格用 auto-fill 按此值自动排列数 */
+const CARD_W_MIN = 150;
+const CARD_W_MAX = 300;
+const CARD_W_DEFAULT = 200;
+
+function lsGet(key: string): string | null {
+  try {
+    return localStorage.getItem(key);
+  } catch {
+    return null;
+  }
+}
+function lsSet(key: string, value: string) {
+  try {
+    localStorage.setItem(key, value);
+  } catch {
+    /* 隐私模式等场景静默忽略 */
+  }
+}
+
+/**
+ * 卡片简介文案：STE 简介（intro 功能）→ 卡的 creator_notes 首行（subtitle）→ 卡内 description 摘要。
+ * description 是角色定义原文，可能含 {{char}}/{{user}} 宏，展示前替换为角色名/「你」。
+ */
+function introOf(c: ArchiveCharacter): string | undefined {
+  const intro = c.intro?.current.content.trim();
+  if (intro) return intro;
+  if (c.subtitle) return c.subtitle;
+  const card = c.card as { data?: { description?: string }; description?: string };
+  const desc = (card.data?.description ?? card.description ?? '')
+    .replace(/\{\{char\}\}/gi, c.name)
+    .replace(/\{\{user\}\}/gi, '你')
+    .replace(/\s+/g, ' ')
+    .trim();
+  return desc ? desc.slice(0, 120) : undefined;
+}
+
 /** 二级筛选栏条目（demo .f-item） */
 function FilterItem({
   label, count, active, dot, onClick,
@@ -113,7 +164,7 @@ function FilterItem({
     <button
       onClick={onClick}
       className={cn(
-        'w-full flex items-center justify-between gap-1.5 px-2.5 py-1.5 rounded-md text-xs mb-px text-left',
+        'w-full flex items-center justify-between gap-1.5 px-2.5 py-1.5 rounded-md text-[13px] mb-px text-left',
         active
           ? 'bg-[var(--brand-active-bg)] text-brand'
           : 'text-[color:var(--text-muted)] hover:bg-[var(--hover-overlay)] hover:text-[color:var(--text-body)]',
@@ -124,7 +175,7 @@ function FilterItem({
         <span className="truncate">{label}</span>
       </span>
       {count !== undefined && (
-        <span className={cn('text-[10px] shrink-0', active ? 'opacity-90' : 'opacity-50')}>{count}</span>
+        <span className={cn('text-[11px] shrink-0', active ? 'opacity-90' : 'opacity-50')}>{count}</span>
       )}
     </button>
   );
@@ -147,6 +198,23 @@ const Library = () => {
   const [selected, setSelected] = useState<Set<string>>(new Set());
   /** 待确认删除（单删=长度1，批量=多条）；null=无弹窗 */
   const [pendingDelete, setPendingDelete] = useState<ArchiveCharacter[] | null>(null);
+  /** 视图偏好（持久化）：网格/列表、卡片宽度、每页张数 */
+  const [viewMode, setViewMode] = useState<ViewMode>(() =>
+    lsGet('ste-library-view') === 'list' ? 'list' : 'grid',
+  );
+  const [cardWidth, setCardWidth] = useState<number>(() => {
+    const n = Number(lsGet('ste-library-card-width'));
+    return n >= CARD_W_MIN && n <= CARD_W_MAX ? n : CARD_W_DEFAULT;
+  });
+  const [pageSize, setPageSize] = useState<PageSize>(() => {
+    const v = lsGet('ste-library-page-size');
+    return PAGE_SIZES.includes(v as PageSize) ? (v as PageSize) : '24';
+  });
+  const [page, setPage] = useState(1);
+
+  useEffect(() => lsSet('ste-library-view', viewMode), [viewMode]);
+  useEffect(() => lsSet('ste-library-card-width', String(cardWidth)), [cardWidth]);
+  useEffect(() => lsSet('ste-library-page-size', pageSize), [pageSize]);
 
   const load = useCallback(async () => {
     try {
@@ -278,6 +346,22 @@ const Library = () => {
     return sorted;
   }, [characters, searchQuery, tagFilters, statusFilter, ratingFilter, sortKey]);
 
+  // 筛选/搜索/排序/每页数变化时回到第 1 页
+  useEffect(() => {
+    setPage(1);
+  }, [searchQuery, tagFilters, statusFilter, ratingFilter, sortKey, pageSize]);
+
+  const pageCount = pageSize === 'all' ? 1 : Math.max(1, Math.ceil(filtered.length / Number(pageSize)));
+  // 删除等操作使总页数缩小时收敛到最后一页
+  useEffect(() => {
+    if (page > pageCount) setPage(pageCount);
+  }, [page, pageCount]);
+  const pageItems = useMemo(() => {
+    if (pageSize === 'all') return filtered;
+    const n = Number(pageSize);
+    return filtered.slice((page - 1) * n, page * n);
+  }, [filtered, page, pageSize]);
+
   const toggleSelect = (id: string) => {
     setSelected((prev) => {
       const next = new Set(prev);
@@ -307,7 +391,7 @@ const Library = () => {
         {/* ===== 页头（demo .main-header）===== */}
         <div className="shrink-0 flex items-baseline gap-3.5 px-6 pt-4 pb-1 flex-wrap">
           <h1 className="font-serif text-[22px] font-semibold tracking-wide text-[color:var(--text-primary)]">我的库</h1>
-          <span className="text-[11px] text-[color:var(--text-faint)]">{characters.length} 张角色卡</span>
+          <span className="text-xs text-[color:var(--text-faint)]">{characters.length} 张角色卡</span>
           <HelpCard>
             角色库是私人收藏馆：导入 ST 角色卡（PNG/JSON）建立档案，聊天记录以「故事」形式挂在角色名下。标签、状态、评分都是 STE 本地整理信息，不会写回角色卡文件。
           </HelpCard>
@@ -319,12 +403,12 @@ const Library = () => {
                 placeholder="搜索角色..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="h-8 w-40 pl-7 text-xs"
+                className="h-8 w-44 pl-7 text-sm"
               />
             </div>
           )}
           <Select value={sortKey} onValueChange={(v) => setSortKey(v as SortKey)}>
-            <SelectTrigger className="h-8 w-32 text-xs self-center">
+            <SelectTrigger className="h-8 w-32 text-[13px] self-center">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -404,7 +488,7 @@ const Library = () => {
           </aside>
 
           <div className="flex-1 min-w-0 overflow-y-auto scrollbar-thin px-6 py-3">
-            {/* 评分筛选 chips（demo .canvas-toolbar .chip） */}
+            {/* 评分筛选 chips + 视图工具（网格/列表切换、卡片大小） */}
             {characters.length > 0 && (
               <div className="flex items-center gap-2 mb-3.5 flex-wrap">
                 {(Object.keys(RATING_LABELS) as RatingFilter[]).map((k) => (
@@ -412,7 +496,7 @@ const Library = () => {
                     key={k}
                     onClick={() => setRatingFilter(k)}
                     className={cn(
-                      'px-2.5 py-1 rounded-full text-[11px] border transition-colors',
+                      'px-3 py-1 rounded-full text-xs border transition-colors',
                       ratingFilter === k
                         ? 'bg-brand text-white border-transparent'
                         : 'border-border text-[color:var(--text-muted)] hover:text-[color:var(--text-body)]',
@@ -431,13 +515,57 @@ const Library = () => {
                     清除筛选
                   </Button>
                 )}
+                <span className="flex-1" />
+                {viewMode === 'grid' && (
+                  <div className="flex items-center gap-2" title="卡片大小">
+                    <LayoutGrid className="w-3.5 h-3.5 text-muted-foreground" />
+                    <Slider
+                      value={[cardWidth]}
+                      min={CARD_W_MIN}
+                      max={CARD_W_MAX}
+                      step={10}
+                      onValueChange={([v]) => setCardWidth(v)}
+                      className="w-28"
+                      aria-label="卡片大小"
+                    />
+                  </div>
+                )}
+                <div className="flex items-center rounded-md border border-border overflow-hidden">
+                  <button
+                    aria-label="网格视图"
+                    onClick={() => setViewMode('grid')}
+                    className={cn(
+                      'h-8 w-8 flex items-center justify-center transition-colors',
+                      viewMode === 'grid'
+                        ? 'bg-[var(--brand-active-bg)] text-brand'
+                        : 'text-muted-foreground hover:text-[color:var(--text-body)]',
+                    )}
+                  >
+                    <LayoutGrid className="w-4 h-4" />
+                  </button>
+                  <button
+                    aria-label="列表视图"
+                    onClick={() => setViewMode('list')}
+                    className={cn(
+                      'h-8 w-8 flex items-center justify-center transition-colors border-l border-border',
+                      viewMode === 'list'
+                        ? 'bg-[var(--brand-active-bg)] text-brand'
+                        : 'text-muted-foreground hover:text-[color:var(--text-body)]',
+                    )}
+                  >
+                    <ListIcon className="w-4 h-4" />
+                  </button>
+                </div>
               </div>
             )}
 
             {loading ? (
-              <div className="grid grid-cols-4 gap-3.5">
+              <div
+                className="grid gap-3.5"
+                style={{ gridTemplateColumns: `repeat(auto-fill, minmax(${cardWidth}px, 1fr))` }}
+              >
                 {Array.from({ length: 4 }).map((_, i) => (
-                  <div key={i} className="aspect-[3/4] rounded-xl bg-muted animate-pulse" />
+                  <div key={i} className="aspect-[2/3] rounded-xl bg-muted animate-pulse" />
                 ))}
               </div>
             ) : characters.length === 0 ? (
@@ -455,90 +583,230 @@ const Library = () => {
                 {filtered.length === 0 && (
                   <p className="py-10 text-center text-sm text-muted-foreground">没有符合当前筛选的角色卡</p>
                 )}
-                {/* 卡墙：4 列 3:4（红线：比例不可改、不加编号） */}
-                <div className="grid grid-cols-4 gap-3.5 content-start">
-                  {filtered.map((c) => {
-                    const isSelected = selected.has(c.id);
-                    return (
-                      <div
-                        key={c.id}
-                        className={cn(
-                          'group relative aspect-[3/4] rounded-xl overflow-hidden cursor-pointer bg-elevated transition-transform duration-200 hover:-translate-y-0.5',
-                          batchMode && isSelected && 'ring-2 ring-primary',
-                        )}
-                        onClick={() => (batchMode ? toggleSelect(c.id) : navigate(`/character/${c.id}`))}
-                      >
-                        {/* 立绘满铺；无图用交接包渐变占位 + 首字水印 */}
-                        {c.pngBase64 ? (
-                          <img
-                            src={`data:image/png;base64,${c.pngBase64}`}
-                            alt={c.name}
-                            className="absolute inset-0 w-full h-full object-cover object-top"
-                            loading="lazy"
-                          />
-                        ) : (
-                          <div className={`absolute inset-0 art art-placeholder-${(hashName(c.name) % 13) + 1}`}>
-                            <div className="char-mark">{c.name.slice(0, 1)}</div>
+                {viewMode === 'grid' ? (
+                  /* 卡墙：auto-fill 按卡宽自动分列；卡图 2:3（ST 标准比例；红线：比例不可改、不加编号） */
+                  <div
+                    className="grid gap-3.5 content-start"
+                    style={{ gridTemplateColumns: `repeat(auto-fill, minmax(${cardWidth}px, 1fr))` }}
+                  >
+                    {pageItems.map((c) => {
+                      const isSelected = selected.has(c.id);
+                      const intro = introOf(c);
+                      return (
+                        <div
+                          key={c.id}
+                          className={cn(
+                            'group relative aspect-[2/3] rounded-xl overflow-hidden cursor-pointer bg-elevated transition-transform duration-200 hover:-translate-y-0.5',
+                            batchMode && isSelected && 'ring-2 ring-primary',
+                          )}
+                          onClick={() => (batchMode ? toggleSelect(c.id) : navigate(`/character/${c.id}`))}
+                        >
+                          {/* 立绘满铺；无图用交接包渐变占位 + 首字水印 */}
+                          {c.pngBase64 ? (
+                            <img
+                              src={`data:image/png;base64,${c.pngBase64}`}
+                              alt={c.name}
+                              className="absolute inset-0 w-full h-full object-cover object-top"
+                              loading="lazy"
+                            />
+                          ) : (
+                            <div className={`absolute inset-0 art art-placeholder-${(hashName(c.name) % 13) + 1}`}>
+                              <div className="char-mark">{c.name.slice(0, 1)}</div>
+                            </div>
+                          )}
+                          {/* 顶部角标条：左=操作菜单（hover 显）/批量勾选，右=故事数 */}
+                          <div className="absolute top-0 left-0 right-0 z-10 flex justify-between items-start px-3 py-2.5">
+                            {batchMode ? (
+                              <span onClick={(e) => e.stopPropagation()}>
+                                <Checkbox checked={isSelected} onCheckedChange={() => toggleSelect(c.id)} />
+                              </span>
+                            ) : (
+                              <DropdownMenu>
+                                <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
+                                  <button
+                                    aria-label="更多操作"
+                                    className="w-6 h-6 rounded-full bg-[rgba(0,0,0,0.5)] backdrop-blur-sm text-white/80 flex items-center justify-center opacity-0 group-hover:opacity-100 data-[state=open]:opacity-100 transition-opacity"
+                                  >
+                                    <MoreVertical className="w-3.5 h-3.5" />
+                                  </button>
+                                </DropdownMenuTrigger>
+                                <DropdownMenuContent align="start" onClick={(e) => e.stopPropagation()}>
+                                  <DropdownMenuItem onClick={() => navigate(`/character/${c.id}`)}>
+                                    <ExternalLink className="w-3.5 h-3.5 mr-2" />
+                                    打开角色主页
+                                  </DropdownMenuItem>
+                                  <DropdownMenuItem
+                                    className="text-destructive focus:text-destructive"
+                                    onClick={() => setPendingDelete([c])}
+                                  >
+                                    <Trash2 className="w-3.5 h-3.5 mr-2" />
+                                    删除角色
+                                  </DropdownMenuItem>
+                                </DropdownMenuContent>
+                              </DropdownMenu>
+                            )}
+                            {(storyCounts[c.id] ?? 0) > 0 && (
+                              <span className="ml-auto text-[11px] px-2 py-[3px] rounded-full bg-[rgba(0,0,0,0.5)] backdrop-blur-sm text-white border border-[rgba(255,255,255,0.08)] flex items-center gap-1">
+                                <MessageSquare className="w-3 h-3" />
+                                {storyCounts[c.id]} 段故事
+                              </span>
+                            )}
                           </div>
-                        )}
-                        {/* 顶部角标条：左=操作菜单（hover 显）/批量勾选，右=故事数 */}
-                        <div className="absolute top-0 left-0 right-0 z-10 flex justify-between items-start px-3 py-2.5">
-                          {batchMode ? (
+                          {/* 底部渐变信息条（设计稿 .bottom-info）：名字 → 两行简介 → 评分/时间，全部在卡内 */}
+                          <div className="absolute left-0 right-0 bottom-0 z-10 px-3.5 pb-3 pt-12 bg-[linear-gradient(transparent,rgba(0,0,0,0.75)_40%,rgba(0,0,0,0.92))]">
+                            <p className="font-serif text-[15px] font-semibold text-white tracking-wide truncate [text-shadow:0_1px_4px_rgba(0,0,0,0.5)]">
+                              {c.name}
+                            </p>
+                            {intro && (
+                              <p className="text-xs leading-snug text-white/70 line-clamp-2 mt-1">{intro}</p>
+                            )}
+                            <div className="flex items-center justify-between mt-2 text-[11px]">
+                              <span className="font-semibold text-[color:var(--brand-hi)]">
+                                ★ {c.rating !== undefined ? c.rating : '-'}
+                                <span className="font-normal text-white/40"> / 10</span>
+                              </span>
+                              <span className="text-white/50">{relativeTime(c.updatedAt)}</span>
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                ) : (
+                  /* 列表视图：小缩略图 + 名字/简介 + 评分/故事数/时间 */
+                  <div className="rounded-xl border border-border overflow-hidden divide-y divide-[color:var(--hairline-inner)]">
+                    {pageItems.map((c) => {
+                      const isSelected = selected.has(c.id);
+                      const intro = introOf(c);
+                      return (
+                        <div
+                          key={c.id}
+                          className={cn(
+                            'flex items-center gap-3.5 px-3.5 py-2.5 cursor-pointer transition-colors hover:bg-[var(--hover-overlay)]',
+                            batchMode && isSelected && 'bg-[var(--brand-active-bg)]',
+                          )}
+                          onClick={() => (batchMode ? toggleSelect(c.id) : navigate(`/character/${c.id}`))}
+                        >
+                          {batchMode && (
                             <span onClick={(e) => e.stopPropagation()}>
                               <Checkbox checked={isSelected} onCheckedChange={() => toggleSelect(c.id)} />
                             </span>
-                          ) : (
-                            <DropdownMenu>
-                              <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
-                                <button
-                                  aria-label="更多操作"
-                                  className="w-6 h-6 rounded-full bg-[rgba(0,0,0,0.5)] backdrop-blur-sm text-white/80 flex items-center justify-center opacity-0 group-hover:opacity-100 data-[state=open]:opacity-100 transition-opacity"
-                                >
-                                  <MoreVertical className="w-3.5 h-3.5" />
-                                </button>
-                              </DropdownMenuTrigger>
-                              <DropdownMenuContent align="start" onClick={(e) => e.stopPropagation()}>
-                                <DropdownMenuItem onClick={() => navigate(`/character/${c.id}`)}>
-                                  <ExternalLink className="w-3.5 h-3.5 mr-2" />
-                                  打开角色主页
-                                </DropdownMenuItem>
-                                <DropdownMenuItem
-                                  className="text-destructive focus:text-destructive"
-                                  onClick={() => setPendingDelete([c])}
-                                >
-                                  <Trash2 className="w-3.5 h-3.5 mr-2" />
-                                  删除角色
-                                </DropdownMenuItem>
-                              </DropdownMenuContent>
-                            </DropdownMenu>
                           )}
-                          {(storyCounts[c.id] ?? 0) > 0 && (
-                            <span className="ml-auto text-[10px] px-2 py-[3px] rounded-full bg-[rgba(0,0,0,0.5)] backdrop-blur-sm text-white border border-[rgba(255,255,255,0.08)] flex items-center gap-1">
-                              <MessageSquare className="w-3 h-3" />
-                              {storyCounts[c.id]} 段故事
-                            </span>
-                          )}
-                        </div>
-                        {/* 底部渐变信息条（demo .bottom-info） */}
-                        <div className="absolute left-0 right-0 bottom-0 z-10 px-3.5 pb-3 pt-10 bg-[linear-gradient(transparent,rgba(0,0,0,0.75)_40%,rgba(0,0,0,0.92))]">
-                          <p className="font-serif text-[13px] font-semibold text-white tracking-wide truncate [text-shadow:0_1px_4px_rgba(0,0,0,0.5)]">
-                            {c.name}
-                          </p>
-                          {c.subtitle && (
-                            <p className="text-[10.5px] leading-snug text-white/70 line-clamp-2 mt-1">{c.subtitle}</p>
-                          )}
-                          <div className="flex items-center justify-between mt-2 text-[10px]">
-                            <span className="font-semibold text-[color:var(--brand-hi)]">
-                              ★ {c.rating !== undefined ? c.rating : '-'}
-                              <span className="font-normal text-white/40"> / 10</span>
-                            </span>
-                            <span className="text-white/50">{relativeTime(c.updatedAt)}</span>
+                          <div className="w-[42px] h-[63px] shrink-0 rounded-md overflow-hidden bg-elevated relative">
+                            {c.pngBase64 ? (
+                              <img
+                                src={`data:image/png;base64,${c.pngBase64}`}
+                                alt={c.name}
+                                className="absolute inset-0 w-full h-full object-cover object-top"
+                                loading="lazy"
+                              />
+                            ) : (
+                              <div className={`absolute inset-0 art art-placeholder-${(hashName(c.name) % 13) + 1}`} />
+                            )}
                           </div>
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm font-medium text-[color:var(--text-primary)] truncate">{c.name}</p>
+                            <p
+                              className={cn(
+                                'text-xs leading-snug line-clamp-1 mt-0.5',
+                                intro ? 'text-[color:var(--text-muted)]' : 'text-[color:var(--text-faint)]',
+                              )}
+                            >
+                              {intro ?? '暂无简介'}
+                            </p>
+                          </div>
+                          <span className="shrink-0 text-xs font-semibold text-[color:var(--brand-hi)]">
+                            ★ {c.rating !== undefined ? c.rating : '-'}
+                            <span className="font-normal text-[color:var(--text-faint)]"> / 10</span>
+                          </span>
+                          <span className="shrink-0 w-16 text-right text-xs text-[color:var(--text-muted)]">
+                            {(storyCounts[c.id] ?? 0) > 0 ? `${storyCounts[c.id]} 段故事` : '—'}
+                          </span>
+                          <span className="shrink-0 w-20 text-right text-xs text-[color:var(--text-faint)]">
+                            {relativeTime(c.updatedAt)}
+                          </span>
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
+                              <button
+                                aria-label="更多操作"
+                                className="shrink-0 w-7 h-7 rounded-md flex items-center justify-center text-muted-foreground hover:bg-[var(--hover-overlay)] hover:text-[color:var(--text-body)]"
+                              >
+                                <MoreVertical className="w-4 h-4" />
+                              </button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end" onClick={(e) => e.stopPropagation()}>
+                              <DropdownMenuItem onClick={() => navigate(`/character/${c.id}`)}>
+                                <ExternalLink className="w-3.5 h-3.5 mr-2" />
+                                打开角色主页
+                              </DropdownMenuItem>
+                              <DropdownMenuItem
+                                className="text-destructive focus:text-destructive"
+                                onClick={() => setPendingDelete([c])}
+                              >
+                                <Trash2 className="w-3.5 h-3.5 mr-2" />
+                                删除角色
+                              </DropdownMenuItem>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
                         </div>
+                      );
+                    })}
+                  </div>
+                )}
+
+                {/* 分页栏：每页张数 + 上下页 */}
+                {filtered.length > 0 && (
+                  <div className="flex items-center gap-2 mt-4 pb-2">
+                    <span className="text-xs text-[color:var(--text-faint)]">
+                      共 {filtered.length} 张
+                      {pageSize !== 'all' && pageCount > 1 && (
+                        <>
+                          {' · 第 '}
+                          {(page - 1) * Number(pageSize) + 1}–{Math.min(page * Number(pageSize), filtered.length)}
+                          {' 张'}
+                        </>
+                      )}
+                    </span>
+                    <span className="flex-1" />
+                    <Select value={pageSize} onValueChange={(v) => setPageSize(v as PageSize)}>
+                      <SelectTrigger className="h-8 w-28 text-xs">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {PAGE_SIZES.map((s) => (
+                          <SelectItem key={s} value={s}>{PAGE_SIZE_LABELS[s]}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    {pageSize !== 'all' && pageCount > 1 && (
+                      <div className="flex items-center gap-1">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="h-8 w-8 p-0"
+                          disabled={page <= 1}
+                          onClick={() => setPage((p) => p - 1)}
+                          aria-label="上一页"
+                        >
+                          <ChevronLeft className="w-4 h-4" />
+                        </Button>
+                        <span className="text-xs text-[color:var(--text-muted)] min-w-[3.5rem] text-center">
+                          {page} / {pageCount}
+                        </span>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="h-8 w-8 p-0"
+                          disabled={page >= pageCount}
+                          onClick={() => setPage((p) => p + 1)}
+                          aria-label="下一页"
+                        >
+                          <ChevronRight className="w-4 h-4" />
+                        </Button>
                       </div>
-                    );
-                  })}
-                </div>
+                    )}
+                  </div>
+                )}
               </>
             )}
           </div>

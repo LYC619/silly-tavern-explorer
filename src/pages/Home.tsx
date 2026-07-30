@@ -1,7 +1,7 @@
 /**
  * 首页（2.1-P4，按新前端交接包 demo ① 重排；内容沿用定稿四块语义，无「继续游玩」）：
  * - 顶部：问候 + 接入 SillyTavern 目录卡（红线：显眼置顶，不进侧栏；网页版组件自隐藏）
- * - 左主列：最近查看的故事（story-continue-card 两列）→ 你的角色库（4 张 3:4 精选卡）
+ * - 左主列：最近查看的故事（story-continue-card 两列）→ 你的角色库（4 张 2:3 精选卡）
  * - 右列 300px：编辑区拖放入口（drop-panel）→ 其他资产统计格（stat-panel）
  * 硬约束：一屏无滚动（基准 1440×900、100% 缩放），超出内容走「查看全部」进二级页。
  */
@@ -208,7 +208,7 @@ const Home = () => {
               )}
             </section>
 
-            {/* ① 你的角色库：4 张 3:4 精选卡（入口性质） */}
+            {/* ① 你的角色库：4 张 2:3 精选卡（ST 标准比例，入口性质） */}
             <section className="flex-1 min-h-0 flex flex-col" data-tour="home-library">
               <div className="flex items-baseline justify-between mb-2.5 shrink-0">
                 <h3 className="font-serif text-[15px] font-semibold text-[color:var(--text-primary)]">
@@ -236,7 +236,7 @@ const Home = () => {
                     <button
                       key={c.id}
                       onClick={() => navigate(`/character/${c.id}`)}
-                      className="relative self-start w-full aspect-[3/4] rounded-xl overflow-hidden bg-elevated transition-transform duration-200 hover:-translate-y-0.5 text-left"
+                      className="relative self-start w-full aspect-[2/3] rounded-xl overflow-hidden bg-elevated transition-transform duration-200 hover:-translate-y-0.5 text-left"
                     >
                       {c.pngBase64 ? (
                         <img

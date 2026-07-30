@@ -1,0 +1,686 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>我的库 · STE 角色库</title>
+<style>
+  :root {
+    --brand: #E08A4A;
+    --brand-hi: #F0A15C;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body {
+    background: #14100a;
+    font-family: -apple-system, "PingFang SC", "Microsoft YaHei", sans-serif;
+    color: #d4cec2;
+    height: 100%;
+    overflow: hidden;
+  }
+  body { display: flex; flex-direction: column; }
+
+  /* ============ 窗口容器 ============ */
+  .window {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    background: #1e1610;
+  }
+
+  /* ============ 标题栏 ============ */
+  .titlebar {
+    height: 40px;
+    display: flex;
+    align-items: center;
+    padding: 0 16px;
+    font-size: 12px;
+    flex-shrink: 0;
+    background: #14100a;
+    color: #a8987a;
+    border-bottom: 1px solid rgba(255,255,255,0.04);
+  }
+  .titlebar .brand-badge {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-family: "Source Han Serif SC", "Songti SC", "SimSun", serif;
+    font-weight: 600;
+    letter-spacing: 0.5px;
+  }
+  .titlebar .brand-badge .logo {
+    width: 22px; height: 22px;
+    background: var(--brand);
+    color: #fff;
+    border-radius: 5px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 11px;
+    font-weight: 700;
+    font-family: -apple-system, sans-serif;
+    letter-spacing: 0;
+  }
+  .titlebar .brand-name-en {
+    opacity: 0.5;
+    font-size: 11px;
+    font-family: -apple-system, sans-serif;
+    font-weight: 400;
+    letter-spacing: 0.3px;
+  }
+  .titlebar .top-nav {
+    display: flex;
+    gap: 6px;
+    margin-left: 32px;
+  }
+  .titlebar .top-nav .tab {
+    padding: 5px 12px;
+    border-radius: 6px;
+    font-size: 12px;
+    cursor: pointer;
+    position: relative;
+    color: #a8987a;
+  }
+  .titlebar .top-nav .tab.active {
+    background: rgba(224,138,74,0.14);
+    color: var(--brand);
+  }
+  .titlebar .grow { flex: 1; }
+  .titlebar .top-search {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 14px;
+    border-radius: 20px;
+    font-size: 11px;
+    min-width: 320px;
+    background: rgba(255,255,255,0.04);
+    color: #a8987a;
+  }
+  .titlebar .top-search svg { width: 12px; height: 12px; opacity: 0.5; flex-shrink: 0; }
+  .titlebar .sync-btn {
+    padding: 6px 12px;
+    border-radius: 6px;
+    font-size: 11px;
+    margin-left: 10px;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    cursor: pointer;
+    color: #a8987a;
+    background: rgba(255,255,255,0.03);
+  }
+  .titlebar .sync-btn:hover { background: rgba(255,255,255,0.06); }
+  .titlebar .cta {
+    padding: 6px 12px;
+    border-radius: 6px;
+    font-size: 11px;
+    background: var(--brand);
+    color: #fff;
+    margin-left: 8px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    font-weight: 500;
+    user-select: none;
+  }
+  .titlebar .cta:hover { background: var(--brand-hi); }
+
+  /* ============ 主体 ============ */
+  .app-body {
+    flex: 1;
+    display: flex;
+    min-height: 0;
+    overflow: hidden;
+  }
+
+  /* 左侧筛选 */
+  .sidebar-filter {
+    width: 200px;
+    flex-shrink: 0;
+    padding: 18px 14px;
+    overflow-y: auto;
+    background: #1a130c;
+    border-right: 1px solid rgba(255,255,255,0.04);
+  }
+  .sidebar-filter .filter-group { margin-bottom: 22px; }
+  .sidebar-filter .filter-label {
+    font-size: 10px;
+    letter-spacing: 1.5px;
+    opacity: 0.5;
+    margin-bottom: 8px;
+    font-family: -apple-system, sans-serif;
+  }
+  .sidebar-filter .filter-item {
+    padding: 6px 10px;
+    border-radius: 6px;
+    font-size: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    cursor: pointer;
+    gap: 6px;
+    margin-bottom: 2px;
+    color: #d4cec2;
+  }
+  .sidebar-filter .filter-item:hover:not(.active) { background: rgba(255,255,255,0.03); }
+  .sidebar-filter .filter-item .cnt {
+    font-size: 10px;
+    opacity: 0.5;
+    font-family: -apple-system, sans-serif;
+  }
+  .sidebar-filter .filter-item.active {
+    background: rgba(224,138,74,0.16);
+    color: var(--brand);
+  }
+  .sidebar-filter .filter-item.active .cnt { opacity: 0.9; }
+  .sidebar-filter .dot {
+    display: inline-block;
+    width: 6px; height: 6px;
+    border-radius: 50%;
+    margin-right: 6px;
+  }
+
+  /* 主区 */
+  .main-area {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    padding: 20px 24px;
+    overflow: hidden;
+    min-width: 0;
+    background: #1e1610;
+  }
+  .main-header {
+    display: flex;
+    align-items: baseline;
+    gap: 14px;
+    margin-bottom: 4px;
+  }
+  .main-header h1 {
+    font-family: "Source Han Serif SC", "Songti SC", "SimSun", serif;
+    font-size: 22px;
+    font-weight: 600;
+    letter-spacing: 0.5px;
+    color: #f0e8dc;
+  }
+  .main-header .meta { font-size: 11px; opacity: 0.5; }
+  .main-header .grow { flex: 1; }
+  .main-header .sort-select {
+    font-size: 11px;
+    padding: 5px 10px;
+    border-radius: 6px;
+    opacity: 0.7;
+    cursor: pointer;
+    background: rgba(255,255,255,0.04);
+    color: #a8987a;
+  }
+
+  .toolbar-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin: 14px 0 16px;
+    flex-wrap: wrap;
+  }
+  .toolbar-row .chip {
+    padding: 5px 12px;
+    border-radius: 20px;
+    font-size: 11px;
+    cursor: pointer;
+    border: 1px solid rgba(255,255,255,0.08);
+    background: transparent;
+    color: #a8987a;
+  }
+  .toolbar-row .chip.active {
+    background: var(--brand);
+    color: #fff;
+    font-weight: 500;
+    border-color: transparent;
+  }
+  .toolbar-row .grow { flex: 1; }
+  .toolbar-row .view-toggle {
+    display: flex;
+    gap: 2px;
+    border-radius: 6px;
+    overflow: hidden;
+    font-size: 11px;
+    padding: 2px;
+    background: rgba(255,255,255,0.04);
+  }
+  .toolbar-row .view-toggle span {
+    padding: 3px 10px;
+    cursor: pointer;
+    border-radius: 5px;
+    color: #7a6f5d;
+  }
+  .toolbar-row .view-toggle span.active { background: rgba(255,255,255,0.08); color: #f0e8dc; }
+
+  /* 卡片网格 */
+  .card-grid {
+    flex: 1;
+    overflow-y: auto;
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+    gap: 14px;
+    padding-bottom: 4px;
+  }
+  .char-card {
+    border-radius: 12px;
+    position: relative;
+    overflow: hidden;
+    cursor: pointer;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    aspect-ratio: 3 / 4;
+    background: #000;
+    transition: transform 0.2s, box-shadow 0.2s;
+  }
+  .char-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 12px 32px -8px rgba(0,0,0,0.6);
+  }
+  .char-card .art {
+    position: absolute;
+    inset: 0;
+    z-index: 0;
+  }
+  .char-card .art img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+  }
+  .char-card .top-strip {
+    position: relative;
+    z-index: 2;
+    display: flex;
+    justify-content: space-between;
+    padding: 10px 12px;
+    align-items: flex-start;
+  }
+  .char-card .code-label {
+    font-family: -apple-system, sans-serif;
+    font-size: 10px;
+    color: rgba(255,255,255,0.6);
+    letter-spacing: 1px;
+    text-shadow: 0 1px 4px rgba(0,0,0,0.6);
+  }
+  .char-card .code-label b {
+    color: rgba(255,255,255,0.9);
+    font-weight: 600;
+    margin-right: 5px;
+  }
+  .char-card .story-badge {
+    background: rgba(0,0,0,0.5);
+    backdrop-filter: blur(8px);
+    color: #fff;
+    font-size: 10px;
+    padding: 3px 8px;
+    border-radius: 20px;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    border: 1px solid rgba(255,255,255,0.08);
+    white-space: nowrap;
+  }
+  .char-card .bottom-info {
+    position: relative;
+    z-index: 2;
+    padding: 40px 14px 12px;
+    background: linear-gradient(transparent, rgba(0,0,0,0.75) 40%, rgba(0,0,0,0.92));
+    backdrop-filter: blur(2px);
+  }
+  .char-card .title {
+    color: #fff;
+    font-size: 13px;
+    font-weight: 600;
+    margin-bottom: 4px;
+    text-shadow: 0 1px 4px rgba(0,0,0,0.5);
+    font-family: "Source Han Serif SC", "Songti SC", "SimSun", serif;
+    letter-spacing: 0.3px;
+  }
+  .char-card .subtitle {
+    color: rgba(255,255,255,0.7);
+    font-size: 10.5px;
+    line-height: 1.4;
+    margin-bottom: 8px;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+  .char-card .footer-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 10px;
+  }
+  .char-card .rating {
+    color: var(--brand-hi);
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    gap: 3px;
+  }
+  .char-card .rating .max {
+    color: rgba(255,255,255,0.4);
+    font-weight: 400;
+  }
+  .char-card .ago { color: rgba(255,255,255,0.5); }
+
+  /* 状态栏 */
+  .status-bar {
+    height: 28px;
+    display: flex;
+    align-items: center;
+    padding: 0 14px;
+    font-size: 10px;
+    opacity: 0.4;
+    border-top: 1px solid rgba(255,255,255,0.04);
+    justify-content: space-between;
+    flex-shrink: 0;
+    background: #14100a;
+    color: #a8987a;
+  }
+
+  .icon { stroke: currentColor; fill: none; stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; }
+
+  /* 滚动条 */
+  ::-webkit-scrollbar { width: 8px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: rgba(224,138,74,0.18); border-radius: 4px; }
+  ::-webkit-scrollbar-thumb:hover { background: rgba(224,138,74,0.35); }
+</style>
+</head>
+<body>
+
+<div class="window">
+  <!-- 标题栏 -->
+  <div class="titlebar">
+    <div class="brand-badge">
+      <div class="logo">S</div>
+      <span>STE</span>
+      <span class="brand-name-en">Silly Tavern Explorer 2.0</span>
+    </div>
+    <div class="top-nav">
+      <div class="tab active">我的库</div>
+      <div class="tab">正在归档</div>
+      <div class="tab">工具</div>
+      <div class="tab">内置示范卡</div>
+    </div>
+    <div class="grow"></div>
+    <div class="top-search">
+      <svg class="icon" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+      搜索角色、故事、世界书条目…
+    </div>
+    <div class="sync-btn">
+      <svg class="icon" style="width:12px;height:12px" viewBox="0 0 24 24"><polyline points="1 4 1 10 7 10"/><polyline points="23 20 23 14 17 14"/><path d="M20.49 9A9 9 0 0 0 5.64 5.64L1 10m22 4l-4.64 4.36A9 9 0 0 1 3.51 15"/></svg>
+      从 ST 目录同步
+    </div>
+    <div class="cta">＋ 导入角色卡</div>
+  </div>
+
+  <!-- Body -->
+  <div class="app-body">
+    <!-- 筛选侧栏 -->
+    <div class="sidebar-filter">
+      <div class="filter-group">
+        <div class="filter-item active">
+          <span>全部</span><span class="cnt">139</span>
+        </div>
+        <div class="filter-item">
+          <span>最近打开</span><span class="cnt">14</span>
+        </div>
+        <div class="filter-item">
+          <span>进行中</span><span class="cnt">22</span>
+        </div>
+        <div class="filter-item">
+          <span>已完结</span><span class="cnt">51</span>
+        </div>
+        <div class="filter-item">
+          <span>未开始</span><span class="cnt">35</span>
+        </div>
+      </div>
+      <div class="filter-group">
+        <div class="filter-label">标签 · 常用</div>
+        <div class="filter-item"><span><span class="dot" style="background:#e08a4a"></span>评价</span><span class="cnt">42</span></div>
+        <div class="filter-item"><span><span class="dot" style="background:#a08acc"></span>人物</span><span class="cnt">78</span></div>
+        <div class="filter-item"><span><span class="dot" style="background:#8ac0a8"></span>玩法</span><span class="cnt">31</span></div>
+        <div class="filter-item"><span><span class="dot" style="background:#c0a08a"></span>背景</span><span class="cnt">56</span></div>
+      </div>
+      <div class="filter-group">
+        <div class="filter-label">系统</div>
+        <div class="filter-item"><span>回收站</span><span class="cnt">3</span></div>
+        <div class="filter-item"><span>设置</span><span class="cnt"></span></div>
+      </div>
+    </div>
+
+    <!-- 主区 -->
+    <div class="main-area">
+      <div class="main-header">
+        <h1>我的库</h1>
+        <span class="meta">139 张卡 · 共 342 段故事 · 最后同步 2 分钟前</span>
+        <span class="grow"></span>
+        <div class="sort-select">按最近打开 ▾</div>
+      </div>
+      <div class="toolbar-row">
+        <span class="chip active">全部</span>
+        <span class="chip">近 7 天</span>
+        <span class="chip">有未读章节</span>
+        <span class="chip">★ 4 星以上</span>
+        <span class="chip">＋ 筛选</span>
+        <span class="grow"></span>
+        <div class="view-toggle">
+          <span class="active">卡片</span>
+          <span>列表</span>
+          <span>紧凑</span>
+        </div>
+      </div>
+
+      <div class="card-grid">
+        <div class="char-card">
+          <div class="art"><img src="https://picsum.photos/seed/kanae/600/800" alt="奏枝"></div>
+          <div class="top-strip">
+            <span class="code-label"><b>#01</b>KANAE</span>
+            <span class="story-badge">💬 9 段故事</span>
+          </div>
+          <div class="bottom-info">
+            <div class="title">奏枝 · 图书馆管理员</div>
+            <div class="subtitle">深秋本本店。她记得每一位老顾客的书，却从不问名字。</div>
+            <div class="footer-row">
+              <span class="rating">★ 8.7<span class="max"> / 10</span></span>
+              <span class="ago">2h ago</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="char-card">
+          <div class="art"><img src="https://picsum.photos/seed/vesper/600/800" alt="Vesper"></div>
+          <div class="top-strip">
+            <span class="code-label"><b>#02</b>VESPER</span>
+            <span class="story-badge">💬 3 段故事</span>
+          </div>
+          <div class="bottom-info">
+            <div class="title">Vesper · 深空调度员</div>
+            <div class="subtitle">第 21 号站点，独自值守一整轮班。里格达河从时间的一端流过。</div>
+            <div class="footer-row">
+              <span class="rating">★ 9.2<span class="max"> / 10</span></span>
+              <span class="ago">昨日</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="char-card">
+          <div class="art"><img src="https://picsum.photos/seed/wuying/600/800" alt="雾影"></div>
+          <div class="top-strip">
+            <span class="code-label"><b>#03</b>雾影</span>
+            <span class="story-badge">💬 12 段故事</span>
+          </div>
+          <div class="bottom-info">
+            <div class="title">雾影 · 侦探社日常</div>
+            <div class="subtitle">同人卡。四个性格迥异的女侦探组成事务所，主线校勘中。</div>
+            <div class="footer-row">
+              <span class="rating">★ 8.1<span class="max"> / 10</span></span>
+              <span class="ago">3 日前</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="char-card">
+          <div class="art"><img src="https://picsum.photos/seed/shanzhong/600/800" alt="山中饭舍"></div>
+          <div class="top-strip">
+            <span class="code-label"><b>#04</b>山中饭舍</span>
+            <span class="story-badge">💬 2 段故事</span>
+          </div>
+          <div class="bottom-info">
+            <div class="title">山中饭舍</div>
+            <div class="subtitle">一间只在雨夜开门的客栈，老板娘对每位客人只问一句话。</div>
+            <div class="footer-row">
+              <span class="rating">★ - <span class="max">/ 10</span></span>
+              <span class="ago">本周</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="char-card">
+          <div class="art"><img src="https://picsum.photos/seed/lilith/600/800" alt="Lilith"></div>
+          <div class="top-strip">
+            <span class="code-label"><b>#05</b>LILITH</span>
+            <span class="story-badge">💬 5 段故事</span>
+          </div>
+          <div class="bottom-info">
+            <div class="title">Lilith · 二手唱片行</div>
+            <div class="subtitle">她愿意告诉你上一位主人的名字，但要你先讲完一整张唱片的时间。</div>
+            <div class="footer-row">
+              <span class="rating">★ 7.5<span class="max"> / 10</span></span>
+              <span class="ago">上周</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="char-card">
+          <div class="art"><img src="https://picsum.photos/seed/chunxi/600/800" alt="春昔"></div>
+          <div class="top-strip">
+            <span class="code-label"><b>#06</b>春昔</span>
+            <span class="story-badge">💬 9 段故事</span>
+          </div>
+          <div class="bottom-info">
+            <div class="title">春昔 · 江户茶屋</div>
+            <div class="subtitle">同人卡。江户中期。茶屋女将与常客。历史向主线突入。</div>
+            <div class="footer-row">
+              <span class="rating">★ 9.0<span class="max"> / 10</span></span>
+              <span class="ago">1 月前</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="char-card">
+          <div class="art"><img src="https://picsum.photos/seed/kai/600/800" alt="Kai"></div>
+          <div class="top-strip">
+            <span class="code-label"><b>#07</b>KAI</span>
+            <span class="story-badge">💬 1 段故事</span>
+          </div>
+          <div class="bottom-info">
+            <div class="title">Kai · 电台深夜档</div>
+            <div class="subtitle">凌晨三点是他的时间，信号只对你一个人清晰。</div>
+            <div class="footer-row">
+              <span class="rating">★ - <span class="max">/ 10</span></span>
+              <span class="ago">3 日前</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="char-card">
+          <div class="art"><img src="https://picsum.photos/seed/guican/600/800" alt="归舰"></div>
+          <div class="top-strip">
+            <span class="code-label"><b>#08</b>归舰</span>
+            <span class="story-badge">💬 4 段故事</span>
+          </div>
+          <div class="bottom-info">
+            <div class="title">归舰 · 海祭</div>
+            <div class="subtitle">同人卡。江户末年。每四十年一次事关地祈式。主线由此展开。</div>
+            <div class="footer-row">
+              <span class="rating">★ 8.4<span class="max"> / 10</span></span>
+              <span class="ago">今日</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="char-card">
+          <div class="art"><img src="https://picsum.photos/seed/anya/600/800" alt="Anya"></div>
+          <div class="top-strip">
+            <span class="code-label"><b>#09</b>ANYA</span>
+            <span class="story-badge">💬 6 段故事</span>
+          </div>
+          <div class="bottom-info">
+            <div class="title">Anya · 修表匠</div>
+            <div class="subtitle">她相信一颗坏掉的表比一颗好表更懂它的主人。手工作坊在西区。</div>
+            <div class="footer-row">
+              <span class="rating">★ 8.9<span class="max"> / 10</span></span>
+              <span class="ago">3 日前</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="char-card">
+          <div class="art"><img src="https://picsum.photos/seed/wusheng/600/800" alt="无声之城"></div>
+          <div class="top-strip">
+            <span class="code-label"><b>#10</b>无声之城</span>
+            <span class="story-badge">💬 2 段故事</span>
+          </div>
+          <div class="bottom-info">
+            <div class="title">无声之城</div>
+            <div class="subtitle">世界卡。城市里所有人一夜之间失语了。角色围绕这个前提展开。</div>
+            <div class="footer-row">
+              <span class="rating">★ 7.8<span class="max"> / 10</span></span>
+              <span class="ago">1 月前</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="char-card">
+          <div class="art"><img src="https://picsum.photos/seed/jiantang/600/800" alt="见泷"></div>
+          <div class="top-strip">
+            <span class="code-label"><b>#11</b>见泷</span>
+            <span class="story-badge">💬 4 段故事</span>
+          </div>
+          <div class="bottom-info">
+            <div class="title">见泷 · 奇妙冒险</div>
+            <div class="subtitle">日剧同人。时间线收束前的最后一次巡礼。</div>
+            <div class="footer-row">
+              <span class="rating">★ 8.3<span class="max"> / 10</span></span>
+              <span class="ago">上周</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="char-card">
+          <div class="art"><img src="https://picsum.photos/seed/luli/600/800" alt="陆离"></div>
+          <div class="top-strip">
+            <span class="code-label"><b>#12</b>陆离</span>
+            <span class="story-badge">💬 7 段故事</span>
+          </div>
+          <div class="bottom-info">
+            <div class="title">陆离 · 拾荒诗人</div>
+            <div class="subtitle">在废弃乐园里收存 broken merry-go-round 的金属心脏。</div>
+            <div class="footer-row">
+              <span class="rating">★ 8.8<span class="max"> / 10</span></span>
+              <span class="ago">2 周前</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 状态栏 -->
+  <div class="status-bar">
+    <span>路径已同步 · Base · 挂载点：/user/文档/SillyTavern/data</span>
+    <span>存储 3.42 GB · 已归档 342 · 索引 up-to-date</span>
+  </div>
+</div>
+
+</body>
+</html>
