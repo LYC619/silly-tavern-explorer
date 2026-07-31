@@ -4,6 +4,7 @@ import {
   buildStoryFromSession,
   buildBranchFromSession,
   getBranchLine,
+  getLastViewedLine,
   updateBranchLine,
 } from '@/lib/archive-db';
 
@@ -78,5 +79,21 @@ describe('分支：buildBranchFromSession / getBranchLine / updateBranchLine', (
     expect(next.session.id).toBe('s1');
 
     expect(updateBranchLine(story, 'ghost', { lastFloor: 1 })).toBe(story);
+  });
+
+  it('getLastViewedLine：默认主线，记录分支时取分支，失效 id 回退主线', () => {
+    const story = buildStoryFromSession(makeSession('main'), 'char_1');
+    story.lastFloor = 12;
+    const branch = buildBranchFromSession(makeSession('branch'), '支线');
+    branch.lastFloor = 7;
+    story.branches = [branch];
+
+    expect(getLastViewedLine(story)).toMatchObject({ branchId: null, line: { lastFloor: 12 } });
+
+    story.lastViewedBranchId = branch.id;
+    expect(getLastViewedLine(story)).toMatchObject({ branchId: branch.id, line: { lastFloor: 7 } });
+
+    story.lastViewedBranchId = 'missing';
+    expect(getLastViewedLine(story)).toMatchObject({ branchId: null, line: { lastFloor: 12 } });
   });
 });

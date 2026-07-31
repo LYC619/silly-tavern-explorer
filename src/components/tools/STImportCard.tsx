@@ -57,12 +57,20 @@ const toggle = (set: Set<string>, key: string, on: boolean) => {
   return next;
 };
 
-export function STImportCard() {
+interface STImportCardProps {
+  onChanged?: () => void;
+}
+
+export function STImportCard({ onChanged }: STImportCardProps) {
   const { toast } = useToast();
   const [scanning, setScanning] = useState(false);
   const [importing, setImporting] = useState(false);
   const [state, setState] = useState<ScanState | null>(null);
   const [picks, setPicks] = useState<Picks>(pickNone());
+
+  const notifyChanged = () => {
+    try { onChanged?.(); } catch { /* UI 刷新不能把成功导入误报为失败 */ }
+  };
 
   const pickedCount = picks.chars.size + picks.strays.size + picks.wbs.size + picks.presets.size + (picks.regex ? 1 : 0);
   const summaryLine = useMemo(() => {
@@ -89,6 +97,7 @@ export function STImportCard() {
       }
       // 目录有效即记住（7.4 检查更新用），与本次是否导入无关
       await setAppConfig('stRoot', root);
+      notifyChanged();
       setState({ root, fs, scan });
       setPicks(pickAll(scan));
     } catch (err) {
@@ -116,6 +125,7 @@ export function STImportCard() {
       if (summary.skipped) parts.push(`跳过已导入 ${summary.skipped}`);
       if (summary.failed) parts.push(`解析失败 ${summary.failed}`);
       toast({ title: '导入完成', description: parts.join('，') });
+      notifyChanged();
       setState(null);
     } catch (err) {
       toast({ title: '导入失败', description: String(err), variant: 'destructive' });

@@ -5,7 +5,7 @@
  * - 右列 300px：编辑区拖放入口（drop-panel）→ 其他资产统计格（stat-panel）
  * 硬约束：一屏无滚动（基准 1440×900、100% 缩放），超出内容走「查看全部」进二级页。
  */
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Users, UploadCloud, ArrowRight, MessageSquare, Cpu, BookOpenText, KeyRound,
@@ -16,7 +16,7 @@ import { STImportCard } from '@/components/tools/STImportCard';
 import { AppLayout } from '@/components/AppLayout';
 import { Badge } from '@/components/ui/badge';
 import type { ArchiveCharacter, ArchiveStory } from '@/types/archive';
-import { getAllCharacters, getAllArchiveStories } from '@/lib/archive-db';
+import { getAllCharacters, getAllArchiveStories, getLastViewedLine } from '@/lib/archive-db';
 import { getAllWorldBooks } from '@/lib/worldbook-db';
 import { getAllPresets } from '@/lib/preset-db';
 import { getAllRegexCollections } from '@/lib/regex-db';
@@ -62,47 +62,51 @@ const Home = () => {
   const [resources, setResources] = useState<Record<string, StoryResources>>({});
   const [assetCounts, setAssetCounts] = useState({ worldbooks: 0, presets: 0, regexes: 0, stories: 0 });
   const [stConfigOpen, setStConfigOpen] = useState(false);
+  const [statusRefreshKey, setStatusRefreshKey] = useState(0);
 
-  useEffect(() => {
-    let cancelled = false;
-    (async () => {
-      try {
-        const [chars, stories, wbs, presets, regexes, summaries, trees] = await Promise.all([
-          getAllCharacters(),
-          getAllArchiveStories(),
-          getAllWorldBooks().catch(() => []),
-          getAllPresets().catch(() => []),
-          getAllRegexCollections().catch(() => []),
-          getAllSummaries().catch(() => []),
-          getAllStoryTrees().catch(() => []),
-        ]);
-        if (cancelled) return;
-        setCharacters(chars);
-        // 最近查看的故事：只列看过的（无记录的还谈不上「最近查看」），绑定与未绑定都算
-        const viewed = stories
-          .filter((s) => s.lastViewedAt !== undefined)
-          .sort((a, b) => b.lastViewedAt! - a.lastViewedAt!)
-          .slice(0, 4);
-        setRecentStories(viewed);
-        const res: Record<string, StoryResources> = {};
-        for (const s of viewed) {
-          res[s.id] = {
-            summaries: summaries.filter((x) => x.bookId === s.id && x.kind !== 'diary').length,
-            diaries: summaries.filter((x) => x.bookId === s.id && x.kind === 'diary').length,
-            trees: trees.filter((x) => x.bookId === s.id).length,
-          };
-        }
-        setResources(res);
-        setAssetCounts({ worldbooks: wbs.length, presets: presets.length, regexes: regexes.length, stories: stories.length });
-      } catch { /* 首页加载失败不弹错，各区显示空态 */ }
-    })();
-    return () => { cancelled = true; };
+  const loadData = useCallback(async () => {
+    try {
+      const [chars, stories, wbs, presets, regexes, summaries, trees] = await Promise.all([
+        getAllCharacters(),
+        getAllArchiveStories(),
+        getAllWorldBooks().catch(() => []),
+        getAllPresets().catch(() => []),
+        getAllRegexCollections().catch(() => []),
+        getAllSummaries().catch(() => []),
+        getAllStoryTrees().catch(() => []),
+      ]);
+      setCharacters(chars);
+      // 最近查看的故事：只列看过的（无记录的还谈不上「最近查看」），绑定与未绑定都算
+      const viewed = stories
+        .filter((s) => s.lastViewedAt !== undefined)
+        .sort((a, b) => b.lastViewedAt! - a.lastViewedAt!)
+        .slice(0, 4);
+      setRecentStories(viewed);
+      const res: Record<string, StoryResources> = {};
+      for (const s of viewed) {
+        res[s.id] = {
+          summaries: summaries.filter((x) => x.bookId === s.id && x.kind !== 'diary').length,
+          diaries: summaries.filter((x) => x.bookId === s.id && x.kind === 'diary').length,
+          trees: trees.filter((x) => x.bookId === s.id).length,
+        };
+      }
+      setResources(res);
+      setAssetCounts({ worldbooks: wbs.length, presets: presets.length, regexes: regexes.length, stories: stories.length });
+    } catch { /* 首页加载失败不弹错，各区显示空态 */ }
   }, []);
+
+  useEffect(() => { void loadData(); }, [loadData]);
+
+  const handleSTChanged = useCallback(() => {
+    setStatusRefreshKey((key) => key + 1);
+    void loadData();
+  }, [loadData]);
 
   const characterById = Object.fromEntries(characters.map((c) => [c.id, c]));
   /** 精选 4 张：最近有动静的（updatedAt），入口性质 */
   const featured = [...characters].sort((a, b) => b.updatedAt - a.updatedAt).slice(0, 4);
   const lastViewed = recentStories[0];
+  const lastViewedFloor = lastViewed ? getLastViewedLine(lastViewed).line.lastFloor : undefined;
 
   const STAT_CELLS = [
     { label: '角色卡', count: characters.length, onClick: () => navigate('/library') },
@@ -113,21 +117,22 @@ const Home = () => {
   ];
 
   return (
-    <AppLayout>
+    <AppLayout statusRefreshKey={statusRefreshKey}>
       <div className="h-full overflow-hidden flex flex-col px-6 py-4 gap-3.5">
         {/* 问候行（demo .main-header：真实数据——上次离开的故事） */}
         <div className="shrink-0 flex items-baseline gap-3.5 flex-wrap">
           <h1 className="font-serif text-[22px] font-semibold tracking-wide text-[color:var(--text-primary)]">{greeting()}</h1>
           {lastViewed?.lastViewedAt !== undefined && (
             <span className="text-[11px] text-[color:var(--text-faint)] truncate">
-              你上次在 {relativeTime(lastViewed.lastViewedAt)}离开《{lastViewed.title}》· 第 {lastViewed.session.messages.length} 楼
+              你上次在 {relativeTime(lastViewed.lastViewedAt)}离开《{lastViewed.title}》
+              {typeof lastViewedFloor === 'number' ? ` · 第 ${lastViewedFloor} 楼` : ''}
             </span>
           )}
         </div>
 
         {/* 接入 ST 目录：首页顶部显眼卡（客户端；网页版组件自隐藏） */}
         <div className="shrink-0 empty:hidden">
-          <STImportCard />
+          <STImportCard onChanged={handleSTChanged} />
         </div>
 
         <div className="flex-1 min-h-0 flex gap-4">

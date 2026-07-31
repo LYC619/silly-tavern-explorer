@@ -103,6 +103,8 @@ export interface ArchiveStory {
   meta: StoryMeta;
   /** 分支列表（主线不在其中，主线=本体字段）；无分支时为空/缺省 */
   branches?: StoryBranch[];
+  /** 最近查看的脉络；缺省=主线，旧归档天然兼容 */
+  lastViewedBranchId?: string;
   /** 阅读进度：最近查看楼层（主线的；分支阅读位置在各分支上） */
   lastFloor?: number;
   /** 最近查看时间（列表排序用；无记录按 createdAt） */

@@ -145,6 +145,14 @@ export function getBranchLine(story: ArchiveStory, branchId: string | null): Bra
   return b ? { session: b.session, markers: b.markers, favorites: b.favorites ?? [], lastFloor: b.lastFloor } : undefined;
 }
 
+/** 取最近查看的脉络；旧归档或失效分支记录均回退主线。 */
+export function getLastViewedLine(story: ArchiveStory): { branchId: string | null; line: BranchLine } {
+  const branchId = story.lastViewedBranchId ?? null;
+  const line = getBranchLine(story, branchId);
+  if (line) return { branchId, line };
+  return { branchId: null, line: getBranchLine(story, null)! };
+}
+
 /**
  * 把某条脉络的修改写回故事（返回新对象，不改入参）。
  * 内容变化（session/markers/favorites）才 bump updatedAt——lastFloor 只是阅读位置，不算内容修改；

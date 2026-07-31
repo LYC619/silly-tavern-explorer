@@ -56,34 +56,37 @@ const Tools = () => {
   /** 二级列表计数与最近打开（加载失败静默为 0/空，不挡工具入口） */
   const [counts, setCounts] = useState<Partial<Record<ToolFileType, number>>>({});
   const [recent, setRecent] = useState<ArchiveStory[]>([]);
+  const [statusRefreshKey, setStatusRefreshKey] = useState(0);
 
-  useEffect(() => {
-    let cancelled = false;
-    (async () => {
-      const [stories, wbs, cards, presets, regexes] = await Promise.all([
-        getAllArchiveStories().catch(() => []),
-        getAllWorldBooks().catch(() => []),
-        getAllCharacters().catch(() => []),
-        getAllPresets().catch(() => []),
-        getAllRegexCollections().catch(() => []),
-      ]);
-      if (cancelled) return;
-      setCounts({
-        chat: stories.length,
-        worldbook: wbs.length,
-        card: cards.length,
-        preset: presets.length,
-        regex: regexes.length,
-      });
-      setRecent(
-        stories
-          .filter((s) => s.lastViewedAt !== undefined)
-          .sort((a, b) => b.lastViewedAt! - a.lastViewedAt!)
-          .slice(0, 3),
-      );
-    })();
-    return () => { cancelled = true; };
+  const loadData = useCallback(async () => {
+    const [stories, wbs, cards, presets, regexes] = await Promise.all([
+      getAllArchiveStories().catch(() => []),
+      getAllWorldBooks().catch(() => []),
+      getAllCharacters().catch(() => []),
+      getAllPresets().catch(() => []),
+      getAllRegexCollections().catch(() => []),
+    ]);
+    setCounts({
+      chat: stories.length,
+      worldbook: wbs.length,
+      card: cards.length,
+      preset: presets.length,
+      regex: regexes.length,
+    });
+    setRecent(
+      stories
+        .filter((s) => s.lastViewedAt !== undefined)
+        .sort((a, b) => b.lastViewedAt! - a.lastViewedAt!)
+        .slice(0, 3),
+    );
   }, []);
+
+  useEffect(() => { void loadData(); }, [loadData]);
+
+  const handleSTChanged = useCallback(() => {
+    setStatusRefreshKey((key) => key + 1);
+    void loadData();
+  }, [loadData]);
 
   const handleFile = useCallback(async (file: File) => {
     // .json 需要读内容嗅探；其他类型看扩展名即可
@@ -115,7 +118,7 @@ const Tools = () => {
   };
 
   return (
-    <AppLayout>
+    <AppLayout statusRefreshKey={statusRefreshKey}>
       <div className="h-full flex overflow-hidden">
         {/* ===== 左侧 220px 二级列表（demo .editor-sublist）===== */}
         <aside className="w-[var(--editor-sublist-width)] shrink-0 overflow-y-auto scrollbar-thin py-3 px-2 border-r border-[color:var(--border-subtle)]">
@@ -199,7 +202,7 @@ const Tools = () => {
             </div>
 
             {/* 客户端专属：首次接入 ST（网页版 isTauri=false 不渲染）；P4 将随首页置顶卡整合 */}
-            <STImportCard />
+            <STImportCard onChanged={handleSTChanged} />
           </div>
         </div>
       </div>

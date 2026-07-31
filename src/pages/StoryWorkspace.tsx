@@ -106,10 +106,16 @@ const StoryWorkspace = () => {
           setStory(null);
           return;
         }
+        const restoredBranchId = s.lastViewedBranchId
+          && s.branches?.some((branch) => branch.id === s.lastViewedBranchId)
+          ? s.lastViewedBranchId
+          : null;
+        setBranchId(restoredBranchId);
         const withView: ArchiveStory = {
           ...s,
           settings: s.settings ?? getDefaultExportSettings(),
           lastViewedAt: Date.now(),
+          lastViewedBranchId: restoredBranchId ?? undefined,
         };
         setStory(withView);
         saveArchiveStory(withView).catch(() => {});
@@ -154,13 +160,21 @@ const StoryWorkspace = () => {
     mutateStory((cur) => ({ ...cur, settings: next, updatedAt: Date.now() }));
   }, [mutateStory]);
 
+  const handleSwitchBranch = useCallback((nextBranchId: string | null) => {
+    setBranchId(nextBranchId);
+    mutateStory((cur) => {
+      if ((cur.lastViewedBranchId ?? null) === nextBranchId) return cur;
+      return { ...cur, lastViewedBranchId: nextBranchId ?? undefined };
+    });
+  }, [mutateStory]);
+
   // 整理与记录「跳回聊天对应楼层」：切分支（保留分支上下文）+ 回阅读视图，
   // 等 ChatWorkbench（按脉络 key 重挂）挂载渲染后再滚到楼层
   const handleJumpToChat = useCallback((bid: string | null, floor: number) => {
     pendingJumpRef.current = floor;
-    setBranchId(bid);
+    handleSwitchBranch(bid);
     setView('read');
-  }, []);
+  }, [handleSwitchBranch]);
 
   useEffect(() => {
     if (view !== 'read' || pendingJumpRef.current === null) return;
@@ -207,7 +221,7 @@ const StoryWorkspace = () => {
         branches: [...(cur.branches ?? []), ...newBranches],
         updatedAt: Date.now(),
       }));
-      setBranchId(lastId);
+      handleSwitchBranch(lastId);
     }
     toast({ title: `导入分支：成功 ${ok} 个${fail ? `，失败 ${fail} 个` : ''}` });
   };
@@ -226,7 +240,7 @@ const StoryWorkspace = () => {
       branches: (cur.branches ?? []).filter((b) => b.id !== bid),
       updatedAt: Date.now(),
     }));
-    if (branchId === bid) setBranchId(null);
+    if (branchId === bid) handleSwitchBranch(null);
     toast({ title: '分支已删除' });
   };
 
@@ -334,7 +348,7 @@ const StoryWorkspace = () => {
               <BranchPanel
                 story={story}
                 activeBranchId={branchId}
-                onSwitch={setBranchId}
+                onSwitch={handleSwitchBranch}
                 onImportBranch={handleImportBranch}
                 onRenameBranch={handleRenameBranch}
                 onDeleteBranch={handleDeleteBranch}

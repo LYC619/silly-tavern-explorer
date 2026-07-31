@@ -21,6 +21,8 @@ interface AppLayoutProps {
   actions?: React.ReactNode;
   /** 操作条左侧的常驻区（页面标题、外观设置等），与 actions 分列两端，互不遮挡 */
   leftActions?: React.ReactNode;
+  /** ST 接入或导入完成后递增，触发状态栏重新查询 */
+  statusRefreshKey?: number;
 }
 
 /** 4 个一级入口（交接包定稿）："处理区"改名"编辑区"，"其他资产"升顶级；matches 列出点亮该入口的路径前缀 */
@@ -79,35 +81,34 @@ const SideItem = forwardRef<HTMLButtonElement, SideItemProps>(function SideItem(
   );
 });
 
-/** 状态栏真实数据：版本/运行环境 + ST 接入状态 + 本地数据体量。模块级缓存避免每次路由切换重复查询 */
-let statusCache: { stRoot: string | null; usage: string | null } | null = null;
-
-function useStatusInfo() {
-  const [info, setInfo] = useState(statusCache);
+/** 状态栏真实数据：版本/运行环境 + ST 接入状态 + 本地数据体量。 */
+function useStatusInfo(refreshKey = 0) {
+  const [info, setInfo] = useState<{ stRoot: string | null; usage: string | null } | null>(null);
   useEffect(() => {
-    if (statusCache) return;
     let cancelled = false;
     (async () => {
+      const client = isTauri();
       const [stRoot, usage] = await Promise.all([
-        isTauri() ? getAppConfig<string>('stRoot').catch(() => null) : Promise.resolve(null),
-        navigator.storage?.estimate?.().then((e) => {
-          const mb = (e.usage ?? 0) / 1024 / 1024;
-          return mb >= 1024 ? `${(mb / 1024).toFixed(2)} GB` : `${mb.toFixed(1)} MB`;
-        }).catch(() => null) ?? Promise.resolve(null),
+        client ? getAppConfig<string>('stRoot').catch(() => null) : Promise.resolve(null),
+        client
+          ? Promise.resolve(null)
+          : navigator.storage?.estimate?.().then((estimate) => {
+              const mb = (estimate.usage ?? 0) / 1024 / 1024;
+              return mb >= 1024 ? `${(mb / 1024).toFixed(2)} GB` : `${mb.toFixed(1)} MB`;
+            }).catch(() => null) ?? Promise.resolve(null),
       ]);
-      statusCache = { stRoot, usage };
-      if (!cancelled) setInfo(statusCache);
+      if (!cancelled) setInfo({ stRoot, usage });
     })();
     return () => { cancelled = true; };
-  }, []);
+  }, [refreshKey]);
   return info;
 }
 
-export function AppLayout({ children, actions, leftActions }: AppLayoutProps) {
+export function AppLayout({ children, actions, leftActions, statusRefreshKey }: AppLayoutProps) {
   const navigate = useNavigate();
   const location = useLocation();
   const { expanded, toggle } = useSidenavState(location.pathname === '/' ? 'expanded' : 'collapsed');
-  const status = useStatusInfo();
+  const status = useStatusInfo(statusRefreshKey);
 
   const isActive = (matches: string[]) =>
     matches.some((m) => (m === '/' ? location.pathname === '/' : location.pathname.startsWith(m)));
