@@ -46,3 +46,29 @@ describe('四主题覆盖契约', () => {
     expect(footer).not.toContain('opacity-70');
   });
 });
+
+describe('卡片键盘操作契约', () => {
+  it('角色卡和资产卡提供聚焦与键盘激活', () => {
+    const library = read('src/pages/Library.tsx');
+    const assets = read('src/pages/AssetLibrary.tsx');
+    for (const source of [library, assets]) {
+      expect(source).toContain('tabIndex={0}');
+      expect(source).toContain("e.key === 'Enter' || e.key === ' '");
+      expect(source).toContain('focus-visible:ring-2');
+      expect(source).toContain('e.target !== e.currentTarget');
+    }
+  });
+
+  it('首页编辑区入口不伪装成拖放区', () => {
+    const home = read('src/pages/Home.tsx');
+    expect(home).toContain('进入编辑区');
+    expect(home).not.toContain('丢进来，不用先建档');
+  });
+
+  it('编辑区使用紧凑 ST 扫描入口', () => {
+    const card = read('src/components/tools/STImportCard.tsx');
+    const tools = read('src/pages/Tools.tsx');
+    expect(card).toContain("variant?: 'full' | 'compact'");
+    expect(tools).toContain('variant="compact"');
+  });
+});

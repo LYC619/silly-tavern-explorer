@@ -595,11 +595,21 @@ const Library = () => {
                       return (
                         <div
                           key={c.id}
+                          role="button"
+                          tabIndex={0}
                           className={cn(
-                            'group relative aspect-[2/3] rounded-xl overflow-hidden cursor-pointer bg-elevated transition-transform duration-200 hover:-translate-y-0.5',
+                            'group relative aspect-[2/3] rounded-xl overflow-hidden cursor-pointer bg-elevated transition-transform duration-200 hover:-translate-y-0.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--bg-canvas)]',
                             batchMode && isSelected && 'ring-2 ring-primary',
                           )}
                           onClick={() => (batchMode ? toggleSelect(c.id) : navigate(`/character/${c.id}`))}
+                          onKeyDown={(e) => {
+                            if (e.target !== e.currentTarget) return;
+                            if (e.key === 'Enter' || e.key === ' ') {
+                              e.preventDefault();
+                              if (batchMode) toggleSelect(c.id);
+                              else navigate(`/character/${c.id}`);
+                            }
+                          }}
                         >
                           {/* 立绘满铺；无图用交接包渐变占位 + 首字水印 */}
                           {c.pngBase64 ? (
@@ -681,11 +691,21 @@ const Library = () => {
                       return (
                         <div
                           key={c.id}
+                          role="button"
+                          tabIndex={0}
                           className={cn(
-                            'flex items-center gap-3.5 px-3.5 py-2.5 cursor-pointer transition-colors hover:bg-[var(--hover-overlay)]',
+                            'flex items-center gap-3.5 px-3.5 py-2.5 cursor-pointer transition-colors hover:bg-[var(--hover-overlay)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--bg-canvas)]',
                             batchMode && isSelected && 'bg-[var(--brand-active-bg)]',
                           )}
                           onClick={() => (batchMode ? toggleSelect(c.id) : navigate(`/character/${c.id}`))}
+                          onKeyDown={(e) => {
+                            if (e.target !== e.currentTarget) return;
+                            if (e.key === 'Enter' || e.key === ' ') {
+                              e.preventDefault();
+                              if (batchMode) toggleSelect(c.id);
+                              else navigate(`/character/${c.id}`);
+                            }
+                          }}
                         >
                           {batchMode && (
                             <span onClick={(e) => e.stopPropagation()}>

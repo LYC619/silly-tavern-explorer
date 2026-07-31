@@ -59,9 +59,10 @@ const toggle = (set: Set<string>, key: string, on: boolean) => {
 
 interface STImportCardProps {
   onChanged?: () => void;
+  variant?: 'full' | 'compact';
 }
 
-export function STImportCard({ onChanged }: STImportCardProps) {
+export function STImportCard({ onChanged, variant = 'full' }: STImportCardProps) {
   const { toast } = useToast();
   const [scanning, setScanning] = useState(false);
   const [importing, setImporting] = useState(false);
@@ -136,21 +137,28 @@ export function STImportCard({ onChanged }: STImportCardProps) {
 
   return (
     <>
-      <Card className="p-4 flex flex-wrap items-center gap-3">
-        <div className="w-9 h-9 rounded-lg bg-secondary flex items-center justify-center shrink-0">
-          <FolderSearch className="w-5 h-5 text-muted-foreground" />
-        </div>
-        <div className="min-w-0 basis-[14rem] grow">
-          <p className="font-medium text-sm">接入 SillyTavern</p>
-          <p className="text-xs text-muted-foreground mt-0.5">
-            指定 ST 目录，扫描角色卡 / 聊天 / 世界书 / 预设 / 全局正则，勾选后复制进库并记住来源
-          </p>
-        </div>
+      {variant === 'full' ? (
+        <Card className="p-4 flex flex-wrap items-center gap-3">
+          <div className="w-9 h-9 rounded-lg bg-secondary flex items-center justify-center shrink-0">
+            <FolderSearch className="w-5 h-5 text-muted-foreground" />
+          </div>
+          <div className="min-w-0 basis-[14rem] grow">
+            <p className="font-medium text-sm">接入 SillyTavern</p>
+            <p className="text-xs text-muted-foreground mt-0.5">
+              指定 ST 目录，扫描角色卡 / 聊天 / 世界书 / 预设 / 全局正则，勾选后复制进库并记住来源
+            </p>
+          </div>
+          <Button variant="outline" size="sm" onClick={handlePick} disabled={scanning}>
+            {scanning ? <Loader2 className="w-4 h-4 mr-1 animate-spin" /> : <FolderSearch className="w-4 h-4 mr-1" />}
+            选择 ST 目录
+          </Button>
+        </Card>
+      ) : (
         <Button variant="outline" size="sm" onClick={handlePick} disabled={scanning}>
           {scanning ? <Loader2 className="w-4 h-4 mr-1 animate-spin" /> : <FolderSearch className="w-4 h-4 mr-1" />}
-          选择 ST 目录
+          重新扫描 ST
         </Button>
-      </Card>
+      )}
 
       <Dialog open={!!state} onOpenChange={(v) => { if (!v && !importing) setState(null); }}>
         <DialogContent className="max-w-2xl">

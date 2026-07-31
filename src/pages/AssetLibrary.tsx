@@ -22,6 +22,7 @@ import {
 } from '@/components/ui/alert-dialog';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
+import { classifyAssetSource, type AssetSource } from '@/lib/asset-source';
 import type { WorldBookItem } from '@/types/worldbook';
 import type { PresetItem } from '@/types/preset';
 import type { RegexCollectionItem } from '@/lib/regex-db';
@@ -39,7 +40,7 @@ const TAB_META: Record<AssetTab, { label: string; icon: typeof Globe; toolPath: 
 };
 
 type RefFilter = 'all' | 'referenced' | 'unreferenced';
-type SourceFilter = 'all' | 'fromST' | 'manual' | 'derived' | 'autoSaved';
+type SourceFilter = 'all' | AssetSource;
 const SOURCE_LABELS: Record<Exclude<SourceFilter, 'all'>, string> = {
   fromST: '来自 ST',
   manual: '工具入库',
@@ -176,13 +177,9 @@ const AssetLibrary = () => {
   const tabList = rows[tab];
   const counts = { worldbook: worldbooks.length, preset: presets.length, regex: regexes.length };
 
-  const matchSource = useCallback((a: AssetRow, f: SourceFilter) => {
-    if (f === 'all') return true;
-    if (f === 'fromST') return !!a.fromST;
-    if (f === 'manual') return !a.fromST && !a.derived;
-    if (f === 'derived') return !!a.derived;
-    return !!a.autoSaved;
-  }, []);
+  const matchSource = useCallback((asset: AssetRow, filter: SourceFilter) => (
+    filter === 'all' || classifyAssetSource(asset) === filter
+  ), []);
 
   const filtered = useMemo(() => tabList.filter((a) => {
     const refs = refNames[a.id]?.length ?? 0;
@@ -295,8 +292,17 @@ const AssetLibrary = () => {
                   return (
                     <div
                       key={a.id}
-                      className="flex flex-col gap-2.5 rounded-lg border border-[color:var(--border-subtle)] bg-elevated hover:bg-elevated-strong transition-colors cursor-pointer p-4"
+                      role="button"
+                      tabIndex={0}
+                      className="flex flex-col gap-2.5 rounded-lg border border-[color:var(--border-subtle)] bg-elevated hover:bg-elevated-strong transition-colors cursor-pointer p-4 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--bg-canvas)]"
                       onClick={() => openAsset(a.id)}
+                      onKeyDown={(e) => {
+                        if (e.target !== e.currentTarget) return;
+                        if (e.key === 'Enter' || e.key === ' ') {
+                          e.preventDefault();
+                          openAsset(a.id);
+                        }
+                      }}
                     >
                       {/* 头：图标 + 标题 + 徽标 + 菜单 */}
                       <div className="flex items-center gap-2.5">

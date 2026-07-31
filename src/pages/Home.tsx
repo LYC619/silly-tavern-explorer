@@ -8,7 +8,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
-  Users, UploadCloud, ArrowRight, MessageSquare, Cpu, BookOpenText, KeyRound,
+  Users, PenLine, ArrowRight, MessageSquare, Cpu, BookOpenText, KeyRound,
 } from 'lucide-react';
 import { isTauri } from '@/lib/vault/tauri-fs';
 import { STAIConfigDialog } from '@/components/tools/STAIConfigDialog';
@@ -273,18 +273,19 @@ const Home = () => {
 
           {/* ===== 右列 300px ===== */}
           <div className="w-[300px] shrink-0 flex flex-col gap-3 min-h-0">
-            {/* ③ 编辑区入口：拖放面板（demo .drop-panel） */}
-            <section
-              className="shrink-0 rounded-xl bg-elevated border-[1.5px] border-dashed border-[color:var(--border-normal)] px-4 py-[18px] text-center cursor-pointer hover:border-[color:var(--brand-hairline)] transition-colors"
+            {/* ③ 编辑区入口 */}
+            <button
+              type="button"
+              className="w-full shrink-0 rounded-xl bg-elevated border-[1.5px] border-[color:var(--border-normal)] px-4 py-[18px] text-center hover:border-[color:var(--brand-hairline)] transition-colors"
               onClick={() => navigate('/tools')}
               data-tour="home-tools"
             >
               <div className="w-10 h-10 mx-auto mb-2.5 rounded-full bg-[var(--brand-active-bg)] text-brand flex items-center justify-center">
-                <UploadCloud className="w-5 h-5" />
+                <PenLine className="w-5 h-5" />
               </div>
-              <p className="text-[11px] leading-relaxed text-[color:var(--text-body)] mb-3">
-                手上有文件要处理？<br />
-                <span className="opacity-60">丢进来，不用先建档。</span>
+              <p className="text-sm font-medium text-[color:var(--text-primary)]">进入编辑区</p>
+              <p className="text-[11px] leading-relaxed text-[color:var(--text-muted)] mt-1 mb-3">
+                进入后选择或拖入要处理的文件
               </p>
               <div className="flex flex-wrap gap-1 justify-center">
                 {['聊天记录', '世界书', '预设', '角色卡', '正则'].map((t) => (
@@ -293,7 +294,7 @@ const Home = () => {
                   </span>
                 ))}
               </div>
-            </section>
+            </button>
 
             {/* ④ 其他资产：统计格（demo .stat-panel） */}
             <section className="shrink-0 rounded-xl bg-elevated p-4" data-tour="home-assets">

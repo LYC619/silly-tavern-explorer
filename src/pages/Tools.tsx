@@ -201,8 +201,10 @@ const Tools = () => {
               </div>
             </div>
 
-            {/* 客户端专属：首次接入 ST（网页版 isTauri=false 不渲染）；P4 将随首页置顶卡整合 */}
-            <STImportCard onChanged={handleSTChanged} />
+            {/* 客户端专属：复用首页的 ST 扫描与导入逻辑，仅收紧为命令入口 */}
+            <div className="flex justify-end">
+              <STImportCard variant="compact" onChanged={handleSTChanged} />
+            </div>
           </div>
         </div>
       </div>
