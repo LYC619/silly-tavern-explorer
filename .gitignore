@@ -45,5 +45,6 @@ bun.lock
 # 本地开发过程文件：puppeteer 冒烟脚本(硬编码本机 Edge 路径)、brainstorm 运行时产物、真机测试清单
 scripts/
 .superpowers/
+.worktrees/
 *测试清单*.md
 *复测清单*.md
