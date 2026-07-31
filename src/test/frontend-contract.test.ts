@@ -27,3 +27,22 @@ describe('前端状态刷新契约', () => {
     expect(home).not.toContain('lastViewed.session.messages.length} 楼');
   });
 });
+
+describe('四主题覆盖契约', () => {
+  it('全屏阅读器使用主题画布而非固定黑白背景', () => {
+    for (const path of [
+      'src/components/reader/ReaderView.tsx',
+      'src/components/reader/NovelView.tsx',
+    ]) {
+      const source = read(path);
+      expect(source).toContain('bg-canvas');
+      expect(source).not.toMatch(/bg-\[#f8f5ec\]|dark:bg-\[#1a1a1a\]/);
+    }
+  });
+
+  it('状态栏不在文字 token 之外叠加整体透明度', () => {
+    const source = read('src/components/AppLayout.tsx');
+    const footer = source.match(/<footer[\s\S]*?<\/footer>/)?.[0] ?? '';
+    expect(footer).not.toContain('opacity-70');
+  });
+});

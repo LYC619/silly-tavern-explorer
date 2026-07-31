@@ -123,7 +123,7 @@ const Home = () => {
         <div className="shrink-0 flex items-baseline gap-3.5 flex-wrap">
           <h1 className="font-serif text-[22px] font-semibold tracking-wide text-[color:var(--text-primary)]">{greeting()}</h1>
           {lastViewed?.lastViewedAt !== undefined && (
-            <span className="text-[11px] text-[color:var(--text-faint)] truncate">
+            <span className="text-[11px] text-[color:var(--text-muted)] truncate">
               你上次在 {relativeTime(lastViewed.lastViewedAt)}离开《{lastViewed.title}》
               {typeof lastViewedFloor === 'number' ? ` · 第 ${lastViewedFloor} 楼` : ''}
             </span>
@@ -186,7 +186,7 @@ const Home = () => {
                           <p className="font-serif text-[13px] font-semibold text-[color:var(--text-primary)] truncate" title={s.title}>
                             {s.title}
                           </p>
-                          <p className="text-[10.5px] text-[color:var(--text-faint)] mt-0.5 truncate flex items-center gap-1.5">
+                          <p className="text-[10.5px] text-[color:var(--text-muted)] mt-0.5 truncate flex items-center gap-1.5">
                             {char && <span className="truncate">{char.name}</span>}
                             {!s.characterId && <Badge variant="outline" className="h-4 px-1 text-[10px]">未绑定</Badge>}
                             {s.meta.lastModel && (
@@ -195,7 +195,7 @@ const Home = () => {
                               </span>
                             )}
                           </p>
-                          <p className="text-[10px] text-[color:var(--text-faint)] mt-1 flex items-center gap-1.5 flex-wrap">
+                          <p className="text-[10px] text-[color:var(--text-muted)] mt-1 flex items-center gap-1.5 flex-wrap">
                             <span className="flex items-center gap-0.5">
                               <MessageSquare className="w-3 h-3" />{s.session.messages.length} 楼
                             </span>
@@ -218,7 +218,7 @@ const Home = () => {
               <div className="flex items-baseline justify-between mb-2.5 shrink-0">
                 <h3 className="font-serif text-[15px] font-semibold text-[color:var(--text-primary)]">
                   你的角色库
-                  <span className="text-[11px] text-[color:var(--text-faint)] font-sans font-normal ml-1.5">
+                  <span className="text-[11px] text-[color:var(--text-muted)] font-sans font-normal ml-1.5">
                     {characters.length} 张{featured.length > 0 ? ' · 最近有动静的 4 张' : ''}
                   </span>
                 </h3>
@@ -297,7 +297,7 @@ const Home = () => {
 
             {/* ④ 其他资产：统计格（demo .stat-panel） */}
             <section className="shrink-0 rounded-xl bg-elevated p-4" data-tour="home-assets">
-              <p className="text-[11px] tracking-widest text-[color:var(--text-faint)] mb-2.5">你的资产</p>
+              <p className="text-[11px] tracking-widest text-[color:var(--text-muted)] mb-2.5">你的资产</p>
               <div className="grid grid-cols-2 gap-2">
                 {STAT_CELLS.map((cell) => (
                   <button

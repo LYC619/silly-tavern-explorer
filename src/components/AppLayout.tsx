@@ -216,7 +216,7 @@ export function AppLayout({ children, actions, leftActions, statusRefreshKey }: 
       </div>
 
       {/* ===== 状态栏 ===== */}
-      <footer className="h-[26px] shrink-0 bg-chrome border-t border-[color:var(--border-subtle)] flex items-center justify-between px-3.5 text-[10px] text-[color:var(--text-muted)] opacity-70">
+      <footer className="h-[26px] shrink-0 bg-chrome border-t border-[color:var(--border-subtle)] flex items-center justify-between px-3.5 text-[10px] text-[color:var(--text-muted)]">
         <span className="truncate">
           {isTauri()
             ? status?.stRoot

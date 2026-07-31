@@ -246,7 +246,7 @@ const ReaderView = ({
   return (
     <div 
       ref={containerRef}
-      className="fixed inset-0 z-50 bg-[#f8f5ec] dark:bg-[#1a1a1a] select-none overflow-hidden"
+      className="fixed inset-0 z-50 bg-canvas text-[color:var(--text-body)] select-none overflow-hidden"
       onTouchStart={handleTouchStart}
       onTouchMove={handleTouchMove}
       onTouchEnd={handleTouchEnd}

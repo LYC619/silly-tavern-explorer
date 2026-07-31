@@ -205,7 +205,7 @@ const AssetLibrary = () => {
         {/* ===== 页头（demo .main-header）===== */}
         <div className="shrink-0 flex items-baseline gap-3.5 px-6 pt-4 pb-1 flex-wrap">
           <h1 className="font-serif text-[22px] font-semibold tracking-wide text-[color:var(--text-primary)]">其他资产</h1>
-          <span className="text-[11px] text-[color:var(--text-faint)]">
+          <span className="text-[11px] text-[color:var(--text-muted)]">
             世界书 {counts.worldbook} · 预设 {counts.preset} · 正则 {counts.regex}
           </span>
           <HelpCard>
@@ -222,13 +222,13 @@ const AssetLibrary = () => {
         <div className="flex-1 min-h-0 flex">
           <aside className="w-[var(--filter-side-width)] shrink-0 overflow-y-auto scrollbar-thin py-3 pl-6 pr-2.5 border-r border-[color:var(--hairline-inner)]">
             <div>
-              <div className="text-[10px] tracking-[1.5px] text-[color:var(--text-faint)] mb-2 pl-1.5">状态</div>
+              <div className="text-[10px] tracking-[1.5px] text-[color:var(--text-muted)] mb-2 pl-1.5">状态</div>
               <FilterItem label="全部" count={tabList.length} active={refFilter === 'all'} onClick={() => setRefFilter('all')} />
               <FilterItem label="已被引用" count={refCounts.referenced} active={refFilter === 'referenced'} onClick={() => setRefFilter(refFilter === 'referenced' ? 'all' : 'referenced')} />
               <FilterItem label="未被引用" count={refCounts.unreferenced} active={refFilter === 'unreferenced'} onClick={() => setRefFilter(refFilter === 'unreferenced' ? 'all' : 'unreferenced')} />
             </div>
             <div className="mt-4 pt-3.5 border-t border-[color:var(--hairline-inner)]">
-              <div className="text-[10px] tracking-[1.5px] text-[color:var(--text-faint)] mb-2 pl-1.5">来源</div>
+              <div className="text-[10px] tracking-[1.5px] text-[color:var(--text-muted)] mb-2 pl-1.5">来源</div>
               {(Object.keys(SOURCE_LABELS) as Exclude<SourceFilter, 'all'>[]).map((f) => (
                 <FilterItem
                   key={f}
@@ -308,10 +308,10 @@ const AssetLibrary = () => {
                             {a.title}
                           </span>
                           {a.derived && (
-                            <span className="text-[9px] px-1.5 py-px rounded-full bg-[var(--hover-overlay)] text-[color:var(--text-faint)]">派生副本</span>
+                            <span className="text-[9px] px-1.5 py-px rounded-full bg-[var(--hover-overlay)] text-[color:var(--text-muted)]">派生副本</span>
                           )}
                           {a.autoSaved && (
-                            <span className="text-[9px] px-1.5 py-px rounded-full bg-[var(--hover-overlay)] text-[color:var(--text-faint)]">自动保留</span>
+                            <span className="text-[9px] px-1.5 py-px rounded-full bg-[var(--hover-overlay)] text-[color:var(--text-muted)]">自动保留</span>
                           )}
                           {a.fromST && (
                             <span className="text-[9px] px-1.5 py-px rounded-full bg-[var(--status-ok-bg)] text-[color:var(--status-ok)]">来自 ST</span>
@@ -341,22 +341,22 @@ const AssetLibrary = () => {
                       {/* 统计行（demo .a-stats-row） */}
                       <div className="flex gap-3 py-2 border-y border-[color:var(--hairline-inner)]">
                         <div className="flex-1 flex flex-col gap-0.5">
-                          <span className="text-[9.5px] tracking-wide text-[color:var(--text-faint)]">{meta.unit}</span>
+                          <span className="text-[9.5px] tracking-wide text-[color:var(--text-muted)]">{meta.unit}</span>
                           <span className="font-serif font-semibold text-[13px] text-[color:var(--text-primary)]">{a.itemCount}</span>
                         </div>
                         <div className="flex-1 flex flex-col gap-0.5">
-                          <span className="text-[9.5px] tracking-wide text-[color:var(--text-faint)]">引用角色</span>
+                          <span className="text-[9.5px] tracking-wide text-[color:var(--text-muted)]">引用角色</span>
                           <span className="font-serif font-semibold text-[13px] text-[color:var(--text-primary)]">{refs.length}</span>
                         </div>
                         <div className="flex-1 flex flex-col gap-0.5">
-                          <span className="text-[9.5px] tracking-wide text-[color:var(--text-faint)]">更新于</span>
+                          <span className="text-[9.5px] tracking-wide text-[color:var(--text-muted)]">更新于</span>
                           <span className="font-serif font-semibold text-[13px] text-[color:var(--text-primary)]">
                             {new Date(a.updatedAt).toLocaleDateString('zh-CN')}
                           </span>
                         </div>
                       </div>
                       {/* 绑定关系（demo .a-bindings） */}
-                      <div className="flex items-center gap-1.5 flex-wrap text-[10.5px] text-[color:var(--text-faint)] min-h-5">
+                      <div className="flex items-center gap-1.5 flex-wrap text-[10.5px] text-[color:var(--text-muted)] min-h-5">
                         <Link2 className="w-3 h-3 shrink-0" />
                         {refs.length === 0 ? (
                           <span>未被角色引用</span>

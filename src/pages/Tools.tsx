@@ -123,7 +123,7 @@ const Tools = () => {
         {/* ===== 左侧 220px 二级列表（demo .editor-sublist）===== */}
         <aside className="w-[var(--editor-sublist-width)] shrink-0 overflow-y-auto scrollbar-thin py-3 px-2 border-r border-[color:var(--border-subtle)]">
           <div>
-            <div className="text-[10px] tracking-[1.2px] text-[color:var(--text-faint)] px-2.5 pt-1 pb-1.5">工作类型</div>
+            <div className="text-[10px] tracking-[1.2px] text-[color:var(--text-muted)] px-2.5 pt-1 pb-1.5">工作类型</div>
             {TOOLS.map((tool) => {
               const Icon = tool.icon;
               return (
@@ -144,7 +144,7 @@ const Tools = () => {
           </div>
           {recent.length > 0 && (
             <div className="mt-2.5 pt-2.5 border-t border-[color:var(--hairline-inner)]">
-              <div className="text-[10px] tracking-[1.2px] text-[color:var(--text-faint)] px-2.5 pb-1.5">最近打开</div>
+              <div className="text-[10px] tracking-[1.2px] text-[color:var(--text-muted)] px-2.5 pb-1.5">最近打开</div>
               {recent.map((s) => (
                 <button
                   key={s.id}
@@ -164,7 +164,7 @@ const Tools = () => {
           <div className="max-w-3xl mx-auto space-y-5 animate-fade-in">
             <div>
               <h1 className="font-serif text-[22px] font-semibold tracking-wide text-[color:var(--text-primary)]">编辑区</h1>
-              <p className="text-[11px] text-[color:var(--text-faint)] mt-1">
+              <p className="text-[11px] text-[color:var(--text-muted)] mt-1">
                 丢进来一个文件，或从左侧打开工具。处理完可入库归档，也可以只导出、不留档。
               </p>
             </div>

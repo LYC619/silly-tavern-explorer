@@ -285,7 +285,7 @@ const NovelView = ({ session, markers, regexRules, onClose, onMarkersChange, pro
   }));
 
   return (
-    <div className="fixed inset-0 z-50 bg-[#f8f5ec] dark:bg-[#1a1a1a] flex flex-col">
+    <div className="fixed inset-0 z-50 bg-canvas text-[color:var(--text-body)] flex flex-col">
       {/* ===== 顶栏 ===== */}
       <div className="shrink-0 border-b border-border/60 bg-card/70 backdrop-blur-sm">
         <div className="flex items-center gap-2 px-4 py-2 flex-wrap">
