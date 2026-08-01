@@ -1,23 +1,29 @@
 /**
- * 角色库（2.1-P2，按新前端交接包 demo ② 重写；后续按真机反馈补 UX）：
- * - 左侧 176px 二级筛选栏：进度分类 / 分级标签（带类别色点）/ 系统（批量管理）
- * - 主区角色卡墙：立绘 2:3 满铺 + 顶部故事数角标 + 底部渐变信息条（名字/两行简介/评分），hover 浮起
+ * 角色库（10.2 重构，0801 实测反馈）：
+ * - 左侧筛选栏 = 标签系统：顶部「标签管理」→ 类型单选组（互斥，10.0 type 字段）→ 分类法 v2 各组（问号说明；
+ *   内置打底常显 + 库内自建；每类至多选一，类别间交集）；旧五档进度组已废弃移除
+ * - 顶栏一行：搜索 / 激活筛选 chip+一键清除 / 排序（+最后游玩 +方向钮）/ 批量管理 / 外观（视图·卡片大小·字体大小）/ 导入
+ * - 卡面重排：左上=评分数字（未评分）+时间（≤7天相对/hover 完整），右上=故事数角标（对比度修正）+菜单；
+ *   下方只留 名称（tooltip）+清洗简介；NSFW 卡面按全局设置模糊（hover 揭示）
+ * - 批量模式：点选/Ctrl 点选/Shift 范围选/全选当前筛选结果；常驻条=打标签/导出（逐卡原件）/删除
  * - 红线：2:3 比例（ST 标准卡 400×600）不可改、不加左上角编号
- * - 视图偏好（localStorage 持久化）：网格/列表切换、卡片宽度滑杆（auto-fill 自动分列）、每页张数+分页
- * 数据与操作逻辑沿用 9.4 版：导入/删除/批量/搜索/排序/评分筛选/分级标签筛选。
  */
 import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Plus, Trash2, Search, MessageSquare, BookOpen, MoreVertical, ExternalLink,
-  LayoutGrid, List as ListIcon, ChevronLeft, ChevronRight,
+  LayoutGrid, List as ListIcon, ChevronLeft, ChevronRight, HelpCircle,
+  ArrowDownWideNarrow, ArrowUpNarrowWide, SlidersHorizontal, Tags, Download, X,
 } from 'lucide-react';
 import { HelpCard } from '@/components/HelpCard';
 import { AppLayout } from '@/components/AppLayout';
+import { TagManagerDialog } from '@/components/library/TagManagerDialog';
+import { BatchTagDialog } from '@/components/library/BatchTagDialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Slider } from '@/components/ui/slider';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import {
   Select,
   SelectContent,
@@ -44,9 +50,12 @@ import {
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
 import { introOf } from '@/lib/character-intro';
-import type { ArchiveCharacter } from '@/types/archive';
+import { formatListTime, formatFullTime } from '@/lib/time-display';
+import { getNsfwBlur } from '@/lib/local-settings';
+import { exportCardJson } from '@/lib/card-export';
+import type { ArchiveCharacter, CharacterType } from '@/types/archive';
 import {
-  CHARACTER_STATUSES,
+  CHARACTER_TYPES,
   getAllCharacters,
   saveCharacter,
   deleteCharacter,
@@ -58,7 +67,7 @@ import {
 import { extractCharacterFromPng, parseCharacterCardJson } from '@/lib/adapters/st';
 import { importEmbeddedAssets } from '@/lib/card-embedded-assets';
 import {
-  TAG_CATEGORIES, parseTag, tagOptionsByCategory, type TagCategory,
+  TAG_CATEGORIES, CATEGORY_HELP, tagOptionsByCategory, type TagCategory,
 } from '@/lib/tag-taxonomy';
 
 /** 类别 → 交接包分类色点（--tag-*）；分类法 v2（10.0），「未分类」用背景色点 */
@@ -78,33 +87,17 @@ function hashName(name: string): number {
   return Math.abs(hash);
 }
 
-function relativeTime(ts: number): string {
-  const min = Math.floor((Date.now() - ts) / 60000);
-  if (min < 1) return '刚刚';
-  if (min < 60) return `${min} 分钟前`;
-  const h = Math.floor(min / 60);
-  if (h < 24) return `${h} 小时前`;
-  const d = Math.floor(h / 24);
-  if (d < 30) return `${d} 天前`;
-  return new Date(ts).toLocaleDateString('zh-CN');
-}
-
-type SortKey = 'recent' | 'added' | 'name' | 'rating';
+type SortKey = 'recent' | 'added' | 'name' | 'rating' | 'lastPlayed';
 const SORT_LABELS: Record<SortKey, string> = {
   recent: '按最近修改',
   added: '按最近加入',
   name: '按名称',
   rating: '按评分',
+  lastPlayed: '按最后游玩',
 };
 
-type RatingFilter = 'all' | 'rated' | 'unrated' | 'ge8' | 'ge6';
-const RATING_LABELS: Record<RatingFilter, string> = {
-  all: '全部评分',
-  rated: '已评分',
-  unrated: '未评分',
-  ge8: '8 分以上',
-  ge6: '6 分以上',
-};
+/** 类型筛选：all=不筛；none=未分类（type 为空） */
+type TypeFilter = 'all' | CharacterType | 'none';
 
 type ViewMode = 'grid' | 'list';
 /** 每页张数选项；'all' = 不分页 */
@@ -121,6 +114,9 @@ const PAGE_SIZE_LABELS: Record<PageSize, string> = {
 const CARD_W_MIN = 150;
 const CARD_W_MAX = 300;
 const CARD_W_DEFAULT = 200;
+/** 卡面字体缩放（外观钮）：作用于名称/简介 */
+const FONT_MIN = 0.85;
+const FONT_MAX = 1.3;
 
 function lsGet(key: string): string | null {
   try {
@@ -136,10 +132,6 @@ function lsSet(key: string, value: string) {
     /* 隐私模式等场景静默忽略 */
   }
 }
-
-/**
- * 卡片简介文案：抽至 lib/character-intro（10.1 起与首页共用；10.0 将升级为 intro-clean 清洗管道）。
- */
 
 /** 二级筛选栏条目（demo .f-item） */
 function FilterItem({
@@ -172,24 +164,50 @@ function FilterItem({
   );
 }
 
+/** 逐卡导出原件：有 PNG 存原字节，JSON 卡导出卡数据 */
+function downloadCharacterFile(c: ArchiveCharacter) {
+  let blob: Blob;
+  let filename: string;
+  if (c.pngBase64) {
+    const bytes = Uint8Array.from(atob(c.pngBase64), (ch) => ch.charCodeAt(0));
+    blob = new Blob([bytes], { type: 'image/png' });
+    filename = `${c.name}.png`;
+  } else {
+    blob = new Blob([exportCardJson(c.card)], { type: 'application/json' });
+    filename = `${c.name}.json`;
+  }
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
 const Library = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [characters, setCharacters] = useState<ArchiveCharacter[]>([]);
   const [storyCounts, setStoryCounts] = useState<Record<string, number>>({});
+  /** 每角色最后游玩时间 = 名下故事 lastMessageAt 最大值（10.0 物化） */
+  const [lastPlayed, setLastPlayed] = useState<Record<string, number>>({});
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
-  /** 分级标签筛选（9.4）：每个类别至多选一个子标签（raw），类别间取交集 */
+  /** 分级标签筛选：每个类别至多选一个子标签（raw），类别间取交集 */
   const [tagFilters, setTagFilters] = useState<Partial<Record<TagCategory, string>>>({});
-  const [statusFilter, setStatusFilter] = useState<string>('all');
-  const [ratingFilter, setRatingFilter] = useState<RatingFilter>('all');
+  const [typeFilter, setTypeFilter] = useState<TypeFilter>('all');
   const [sortKey, setSortKey] = useState<SortKey>('recent');
+  const [sortAsc, setSortAsc] = useState(false);
   const [batchMode, setBatchMode] = useState(false);
   const [selected, setSelected] = useState<Set<string>>(new Set());
+  /** Shift 范围选锚点：filtered 里的下标 */
+  const anchorRef = useRef<number | null>(null);
+  const [tagManagerOpen, setTagManagerOpen] = useState(false);
+  const [batchTagOpen, setBatchTagOpen] = useState(false);
   /** 待确认删除（单删=长度1，批量=多条）；null=无弹窗 */
   const [pendingDelete, setPendingDelete] = useState<ArchiveCharacter[] | null>(null);
-  /** 视图偏好（持久化）：网格/列表、卡片宽度、每页张数 */
+  /** 视图偏好（持久化）：网格/列表、卡片宽度、字体缩放、每页张数 */
   const [viewMode, setViewMode] = useState<ViewMode>(() =>
     lsGet('ste-library-view') === 'list' ? 'list' : 'grid',
   );
@@ -197,14 +215,20 @@ const Library = () => {
     const n = Number(lsGet('ste-library-card-width'));
     return n >= CARD_W_MIN && n <= CARD_W_MAX ? n : CARD_W_DEFAULT;
   });
+  const [fontScale, setFontScale] = useState<number>(() => {
+    const n = Number(lsGet('ste-library-font-scale'));
+    return n >= FONT_MIN && n <= FONT_MAX ? n : 1;
+  });
   const [pageSize, setPageSize] = useState<PageSize>(() => {
     const v = lsGet('ste-library-page-size');
     return PAGE_SIZES.includes(v as PageSize) ? (v as PageSize) : '24';
   });
   const [page, setPage] = useState(1);
+  const nsfwBlur = useMemo(() => getNsfwBlur(), []);
 
   useEffect(() => lsSet('ste-library-view', viewMode), [viewMode]);
   useEffect(() => lsSet('ste-library-card-width', String(cardWidth)), [cardWidth]);
+  useEffect(() => lsSet('ste-library-font-scale', String(fontScale)), [fontScale]);
   useEffect(() => lsSet('ste-library-page-size', pageSize), [pageSize]);
 
   const load = useCallback(async () => {
@@ -212,10 +236,16 @@ const Library = () => {
       const [chars, stories] = await Promise.all([getAllCharacters(), getAllArchiveStories()]);
       setCharacters(chars);
       const counts: Record<string, number> = {};
+      const played: Record<string, number> = {};
       for (const s of stories) {
-        if (s.characterId) counts[s.characterId] = (counts[s.characterId] ?? 0) + 1;
+        if (!s.characterId) continue;
+        counts[s.characterId] = (counts[s.characterId] ?? 0) + 1;
+        if (s.lastMessageAt !== undefined) {
+          played[s.characterId] = Math.max(played[s.characterId] ?? 0, s.lastMessageAt);
+        }
       }
       setStoryCounts(counts);
+      setLastPlayed(played);
     } catch {
       toast({ title: '加载失败', description: '无法读取角色库数据', variant: 'destructive' });
     } finally {
@@ -279,17 +309,23 @@ const Library = () => {
     }
   };
 
+  /** 逐卡导出所选（间隔触发下载，避免浏览器拦截连发） */
+  const handleBatchExport = () => {
+    const targets = characters.filter((c) => selected.has(c.id));
+    targets.forEach((c, i) => setTimeout(() => downloadCharacterFile(c), i * 200));
+    toast({ title: `开始导出 ${targets.length} 张卡（PNG 原件 / JSON）` });
+  };
+
   /** 分类下的可选项：内置子标签 ∪ 库里已出现的 STE 标签（卡内原始 tags 不参与） */
   const tagOptions = useMemo(
     () => tagOptionsByCategory(characters.flatMap((c) => c.tags)),
     [characters],
   );
-  const activeTagFilterCount = Object.keys(tagFilters).length;
 
-  /** 筛选栏计数：进度按 status，标签按 raw 出现次数 */
-  const statusCounts = useMemo(() => {
+  /** 筛选栏计数：类型按 type 字段，标签按 raw 出现次数 */
+  const typeCounts = useMemo(() => {
     const m: Record<string, number> = {};
-    for (const c of characters) m[c.status] = (m[c.status] ?? 0) + 1;
+    for (const c of characters) m[c.type ?? 'none'] = (m[c.type ?? 'none'] ?? 0) + 1;
     return m;
   }, [characters]);
   const tagCounts = useMemo(() => {
@@ -306,17 +342,11 @@ const Library = () => {
         (c) => c.name.toLowerCase().includes(q) || c.subtitle?.toLowerCase().includes(q),
       );
     }
+    if (typeFilter !== 'all') {
+      list = list.filter((c) => (typeFilter === 'none' ? c.type === undefined : c.type === typeFilter));
+    }
     for (const raw of Object.values(tagFilters)) {
       list = list.filter((c) => c.tags.includes(raw));
-    }
-    if (statusFilter !== 'all') list = list.filter((c) => c.status === statusFilter);
-    if (ratingFilter !== 'all') {
-      list = list.filter((c) => {
-        if (ratingFilter === 'rated') return c.rating !== undefined;
-        if (ratingFilter === 'unrated') return c.rating === undefined;
-        if (ratingFilter === 'ge8') return (c.rating ?? -1) >= 8;
-        return (c.rating ?? -1) >= 6;
-      });
     }
     const sorted = [...list];
     switch (sortKey) {
@@ -333,14 +363,19 @@ const Library = () => {
         // 未评分垫底
         sorted.sort((a, b) => (b.rating ?? -1) - (a.rating ?? -1));
         break;
+      case 'lastPlayed':
+        // 没玩过（无故事对话时间）垫底
+        sorted.sort((a, b) => (lastPlayed[b.id] ?? -1) - (lastPlayed[a.id] ?? -1));
+        break;
     }
+    if (sortAsc) sorted.reverse();
     return sorted;
-  }, [characters, searchQuery, tagFilters, statusFilter, ratingFilter, sortKey]);
+  }, [characters, searchQuery, tagFilters, typeFilter, sortKey, sortAsc, lastPlayed]);
 
   // 筛选/搜索/排序/每页数变化时回到第 1 页
   useEffect(() => {
     setPage(1);
-  }, [searchQuery, tagFilters, statusFilter, ratingFilter, sortKey, pageSize]);
+  }, [searchQuery, tagFilters, typeFilter, sortKey, sortAsc, pageSize]);
 
   const pageCount = pageSize === 'all' ? 1 : Math.max(1, Math.ceil(filtered.length / Number(pageSize)));
   // 删除等操作使总页数缩小时收敛到最后一页
@@ -353,11 +388,23 @@ const Library = () => {
     return filtered.slice((page - 1) * n, page * n);
   }, [filtered, page, pageSize]);
 
-  const toggleSelect = (id: string) => {
+  /** 批量点选：普通/Ctrl 点=切换并记锚点；Shift 点=从锚点到当前的范围全选（filtered 顺序） */
+  const batchClick = (c: ArchiveCharacter, e: React.MouseEvent) => {
+    const idx = filtered.findIndex((x) => x.id === c.id);
+    if (e.shiftKey && anchorRef.current !== null && idx >= 0) {
+      const [lo, hi] = [Math.min(anchorRef.current, idx), Math.max(anchorRef.current, idx)];
+      setSelected((prev) => {
+        const next = new Set(prev);
+        for (let i = lo; i <= hi; i++) next.add(filtered[i].id);
+        return next;
+      });
+      return;
+    }
+    anchorRef.current = idx >= 0 ? idx : null;
     setSelected((prev) => {
       const next = new Set(prev);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
+      if (next.has(c.id)) next.delete(c.id);
+      else next.add(c.id);
       return next;
     });
   };
@@ -365,6 +412,7 @@ const Library = () => {
   const exitBatch = () => {
     setBatchMode(false);
     setSelected(new Set());
+    anchorRef.current = null;
   };
 
   const toggleTagFilter = (cat: TagCategory, raw: string) => {
@@ -376,30 +424,61 @@ const Library = () => {
     });
   };
 
+  /** 激活筛选 chips（0801 补充：搜索+筛选叠加要可感知 + 一键清除） */
+  const activeFilterChips = [
+    ...(typeFilter !== 'all' ? [{ key: 'type', label: `类型:${typeFilter === 'none' ? '未分类' : typeFilter}`, clear: () => setTypeFilter('all') }] : []),
+    ...Object.entries(tagFilters).map(([cat, raw]) => ({
+      key: raw,
+      label: raw,
+      clear: () => toggleTagFilter(cat as TagCategory, raw),
+    })),
+  ];
+
+  const nameSize = Math.round(15 * fontScale);
+  const introSize = Math.round(12 * fontScale);
+
   return (
     <AppLayout>
       <div className="h-full flex flex-col overflow-hidden">
-        {/* ===== 页头（demo .main-header）===== */}
-        <div className="shrink-0 flex items-baseline gap-3.5 px-6 pt-4 pb-1 flex-wrap">
-          <h1 className="font-serif text-[22px] font-semibold tracking-wide text-[color:var(--text-primary)]">我的库</h1>
-          <span className="text-xs text-[color:var(--text-faint)]">{characters.length} 张角色卡</span>
+        {/* ===== 顶栏一行（B2）：标题 / 搜索 / 激活筛选 / 排序+方向 / 批量 / 外观 / 导入 ===== */}
+        <div className="shrink-0 flex items-center gap-2.5 px-6 pt-4 pb-2 flex-wrap">
+          <h1 className="font-serif text-[22px] font-semibold tracking-wide text-[color:var(--text-primary)]">角色库</h1>
+          <span className="text-xs text-[color:var(--text-faint)]">{characters.length} 张</span>
           <HelpCard>
-            角色库是私人收藏馆：导入 ST 角色卡（PNG/JSON）建立档案，聊天记录以「故事」形式挂在角色名下。标签、状态、评分都是 STE 本地整理信息，不会写回角色卡文件。
+            角色库是私人收藏馆：导入 ST 角色卡（PNG/JSON）建立档案，聊天记录以「故事」形式挂在角色名下。类型、标签、评分都是 STE 本地整理信息，不会写回角色卡文件。
           </HelpCard>
-          <span className="flex-1" />
-          {characters.length > 3 && (
-            <div className="relative self-center">
-              <Search className="absolute left-2 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
-              <Input
-                placeholder="搜索角色..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="h-8 w-44 pl-7 text-sm"
-              />
-            </div>
+          <div className="relative">
+            <Search className="absolute left-2 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
+            <Input
+              placeholder="搜索角色..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="h-8 w-40 pl-7 text-sm"
+            />
+          </div>
+          {/* 激活筛选 chip + 一键清除 */}
+          {activeFilterChips.map((chip) => (
+            <button
+              key={chip.key}
+              onClick={chip.clear}
+              className="flex items-center gap-1 px-2 py-1 rounded-full text-[11px] bg-[var(--brand-active-bg)] text-brand"
+              title="点击移除该筛选"
+            >
+              {chip.label}
+              <X className="w-3 h-3" />
+            </button>
+          ))}
+          {(activeFilterChips.length > 1 || (activeFilterChips.length > 0 && searchQuery.trim())) && (
+            <button
+              onClick={() => { setTagFilters({}); setTypeFilter('all'); setSearchQuery(''); }}
+              className="text-[11px] text-[color:var(--text-muted)] hover:text-[color:var(--text-body)] underline underline-offset-2"
+            >
+              清除所有筛选
+            </button>
           )}
+          <span className="flex-1" />
           <Select value={sortKey} onValueChange={(v) => setSortKey(v as SortKey)}>
-            <SelectTrigger className="h-8 w-32 text-[13px] self-center">
+            <SelectTrigger className="h-8 w-32 text-[13px]">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -408,7 +487,91 @@ const Library = () => {
               ))}
             </SelectContent>
           </Select>
-          <Button size="sm" className="h-8 self-center" onClick={() => fileInputRef.current?.click()}>
+          <Button
+            variant="outline"
+            size="sm"
+            className="h-8 w-8 p-0"
+            title={sortAsc ? '当前升序，点击切换降序' : '当前降序，点击切换升序'}
+            aria-label="切换排序方向"
+            onClick={() => setSortAsc((v) => !v)}
+          >
+            {sortAsc ? <ArrowUpNarrowWide className="w-4 h-4" /> : <ArrowDownWideNarrow className="w-4 h-4" />}
+          </Button>
+          {characters.length > 1 && (
+            <Button
+              variant={batchMode ? 'default' : 'outline'}
+              size="sm"
+              className="h-8"
+              onClick={() => (batchMode ? exitBatch() : setBatchMode(true))}
+            >
+              {batchMode ? '退出批量' : '批量管理'}
+            </Button>
+          )}
+          {/* 外观（B2：替代右上滑块）：视图/卡片大小/字体大小 */}
+          <Popover>
+            <PopoverTrigger asChild>
+              <Button variant="outline" size="sm" className="h-8" title="外观：视图、卡片与字体大小">
+                <SlidersHorizontal className="w-3.5 h-3.5 mr-1.5" />
+                外观
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent align="end" className="w-64 space-y-4">
+              <div>
+                <p className="text-xs font-medium text-muted-foreground mb-2">视图</p>
+                <div className="flex items-center rounded-md border border-border overflow-hidden w-fit">
+                  <button
+                    aria-label="网格视图"
+                    onClick={() => setViewMode('grid')}
+                    className={cn(
+                      'h-8 w-10 flex items-center justify-center transition-colors',
+                      viewMode === 'grid'
+                        ? 'bg-[var(--brand-active-bg)] text-brand'
+                        : 'text-muted-foreground hover:text-[color:var(--text-body)]',
+                    )}
+                  >
+                    <LayoutGrid className="w-4 h-4" />
+                  </button>
+                  <button
+                    aria-label="列表视图"
+                    onClick={() => setViewMode('list')}
+                    className={cn(
+                      'h-8 w-10 flex items-center justify-center transition-colors border-l border-border',
+                      viewMode === 'list'
+                        ? 'bg-[var(--brand-active-bg)] text-brand'
+                        : 'text-muted-foreground hover:text-[color:var(--text-body)]',
+                    )}
+                  >
+                    <ListIcon className="w-4 h-4" />
+                  </button>
+                </div>
+              </div>
+              {viewMode === 'grid' && (
+                <div>
+                  <p className="text-xs font-medium text-muted-foreground mb-2">卡片大小</p>
+                  <Slider
+                    value={[cardWidth]}
+                    min={CARD_W_MIN}
+                    max={CARD_W_MAX}
+                    step={10}
+                    onValueChange={([v]) => setCardWidth(v)}
+                    aria-label="卡片大小"
+                  />
+                </div>
+              )}
+              <div>
+                <p className="text-xs font-medium text-muted-foreground mb-2">卡面字体大小</p>
+                <Slider
+                  value={[fontScale]}
+                  min={FONT_MIN}
+                  max={FONT_MAX}
+                  step={0.05}
+                  onValueChange={([v]) => setFontScale(v)}
+                  aria-label="卡面字体大小"
+                />
+              </div>
+            </PopoverContent>
+          </Popover>
+          <Button size="sm" className="h-8" onClick={() => fileInputRef.current?.click()}>
             <Plus className="w-4 h-4 mr-1.5" />
             导入角色卡
           </Button>
@@ -422,36 +585,65 @@ const Library = () => {
           />
         </div>
 
-        {/* ===== 内容区：176px 筛选栏 + 卡墙 ===== */}
+        {/* ===== 内容区：176px 标签筛选栏 + 卡墙 ===== */}
         <div className="flex-1 min-h-0 flex">
           <aside className="w-[var(--filter-side-width)] shrink-0 overflow-y-auto scrollbar-thin py-3 pl-6 pr-2.5 border-r border-[color:var(--hairline-inner)]">
-            {/* 进度 */}
+            {/* 标签管理（B1：左上角） */}
+            <Button
+              variant="outline"
+              size="sm"
+              className="w-full h-8 mb-3 text-xs"
+              onClick={() => setTagManagerOpen(true)}
+            >
+              <Tags className="w-3.5 h-3.5 mr-1.5" />
+              标签管理
+            </Button>
+            {/* 类型（互斥，置顶；替代旧五档游玩状态） */}
             <div>
+              <div className="text-[10px] tracking-[1.5px] text-[color:var(--text-faint)] mb-2 pl-1.5 flex items-center gap-1">
+                类型
+                <span title="每张卡只归一类（人物/剧情/玩法/综合/同人），替代旧版的游玩状态；状态改到每个故事上维护" className="cursor-help">
+                  <HelpCircle className="w-3 h-3" />
+                </span>
+              </div>
               <FilterItem
                 label="全部"
                 count={characters.length}
-                active={statusFilter === 'all'}
-                onClick={() => setStatusFilter('all')}
+                active={typeFilter === 'all'}
+                onClick={() => setTypeFilter('all')}
               />
-              {CHARACTER_STATUSES.map((s) => (
+              {CHARACTER_TYPES.map((t) => (
                 <FilterItem
-                  key={s}
-                  label={s}
-                  count={statusCounts[s] ?? 0}
-                  active={statusFilter === s}
-                  onClick={() => setStatusFilter(statusFilter === s ? 'all' : s)}
+                  key={t}
+                  label={t}
+                  count={typeCounts[t] ?? 0}
+                  active={typeFilter === t}
+                  onClick={() => setTypeFilter(typeFilter === t ? 'all' : t)}
                 />
               ))}
+              {(typeCounts['none'] ?? 0) > 0 && (
+                <FilterItem
+                  label="未分类"
+                  count={typeCounts['none']}
+                  active={typeFilter === 'none'}
+                  onClick={() => setTypeFilter(typeFilter === 'none' ? 'all' : 'none')}
+                />
+              )}
             </div>
-            {/* 分级标签：每类别一组，点选即筛（再点取消）；类别间取交集 */}
+            {/* 分类法 v2 各组：内置打底常显 + 库内自建；点选即筛（再点取消），类别间交集 */}
             {TAG_CATEGORIES.map((cat) => {
-              const options = tagOptions[cat].filter((o) => (tagCounts[o.raw] ?? 0) > 0 || tagFilters[cat] === o.raw);
+              const options = tagOptions[cat].filter(
+                (o) => cat !== '未分类' || (tagCounts[o.raw] ?? 0) > 0 || tagFilters[cat] === o.raw,
+              );
               if (options.length === 0) return null;
               return (
                 <div key={cat} className="mt-4 pt-3.5 border-t border-[color:var(--hairline-inner)]">
-                  <div className="text-[10px] tracking-[1.5px] text-[color:var(--text-faint)] mb-2 pl-1.5 flex items-center">
-                    <span className="inline-block w-1.5 h-1.5 rounded-full mr-1.5" style={{ background: CATEGORY_DOT[cat] }} />
+                  <div className="text-[10px] tracking-[1.5px] text-[color:var(--text-faint)] mb-2 pl-1.5 flex items-center gap-1">
+                    <span className="inline-block w-1.5 h-1.5 rounded-full shrink-0" style={{ background: CATEGORY_DOT[cat] }} />
                     {cat}
+                    <span title={CATEGORY_HELP[cat]} className="cursor-help">
+                      <HelpCircle className="w-3 h-3" />
+                    </span>
                   </div>
                   {options.map((o) => (
                     <FilterItem
@@ -465,91 +657,9 @@ const Library = () => {
                 </div>
               );
             })}
-            {/* 系统 */}
-            {characters.length > 1 && (
-              <div className="mt-4 pt-3.5 border-t border-[color:var(--hairline-inner)]">
-                <div className="text-[10px] tracking-[1.5px] text-[color:var(--text-faint)] mb-2 pl-1.5">系统</div>
-                <FilterItem
-                  label={batchMode ? '退出批量' : '批量管理'}
-                  active={batchMode}
-                  onClick={() => (batchMode ? exitBatch() : setBatchMode(true))}
-                />
-              </div>
-            )}
           </aside>
 
           <div className="flex-1 min-w-0 overflow-y-auto scrollbar-thin px-6 py-3">
-            {/* 评分筛选 chips + 视图工具（网格/列表切换、卡片大小） */}
-            {characters.length > 0 && (
-              <div className="flex items-center gap-2 mb-3.5 flex-wrap">
-                {(Object.keys(RATING_LABELS) as RatingFilter[]).map((k) => (
-                  <button
-                    key={k}
-                    onClick={() => setRatingFilter(k)}
-                    className={cn(
-                      'px-3 py-1 rounded-full text-xs border transition-colors',
-                      ratingFilter === k
-                        ? 'bg-brand text-white border-transparent'
-                        : 'border-border text-[color:var(--text-muted)] hover:text-[color:var(--text-body)]',
-                    )}
-                  >
-                    {RATING_LABELS[k]}
-                  </button>
-                ))}
-                {(activeTagFilterCount > 0 || statusFilter !== 'all' || ratingFilter !== 'all') && (
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="h-7 px-2 text-xs text-muted-foreground"
-                    onClick={() => { setTagFilters({}); setStatusFilter('all'); setRatingFilter('all'); }}
-                  >
-                    清除筛选
-                  </Button>
-                )}
-                <span className="flex-1" />
-                {viewMode === 'grid' && (
-                  <div className="flex items-center gap-2" title="卡片大小">
-                    <LayoutGrid className="w-3.5 h-3.5 text-muted-foreground" />
-                    <Slider
-                      value={[cardWidth]}
-                      min={CARD_W_MIN}
-                      max={CARD_W_MAX}
-                      step={10}
-                      onValueChange={([v]) => setCardWidth(v)}
-                      className="w-28"
-                      aria-label="卡片大小"
-                    />
-                  </div>
-                )}
-                <div className="flex items-center rounded-md border border-border overflow-hidden">
-                  <button
-                    aria-label="网格视图"
-                    onClick={() => setViewMode('grid')}
-                    className={cn(
-                      'h-8 w-8 flex items-center justify-center transition-colors',
-                      viewMode === 'grid'
-                        ? 'bg-[var(--brand-active-bg)] text-brand'
-                        : 'text-muted-foreground hover:text-[color:var(--text-body)]',
-                    )}
-                  >
-                    <LayoutGrid className="w-4 h-4" />
-                  </button>
-                  <button
-                    aria-label="列表视图"
-                    onClick={() => setViewMode('list')}
-                    className={cn(
-                      'h-8 w-8 flex items-center justify-center transition-colors border-l border-border',
-                      viewMode === 'list'
-                        ? 'bg-[var(--brand-active-bg)] text-brand'
-                        : 'text-muted-foreground hover:text-[color:var(--text-body)]',
-                    )}
-                  >
-                    <ListIcon className="w-4 h-4" />
-                  </button>
-                </div>
-              </div>
-            )}
-
             {loading ? (
               <div
                 className="grid gap-3.5"
@@ -583,6 +693,7 @@ const Library = () => {
                     {pageItems.map((c) => {
                       const isSelected = selected.has(c.id);
                       const intro = introOf(c);
+                      const timeTs = lastPlayed[c.id] ?? c.updatedAt;
                       return (
                         <div
                           key={c.id}
@@ -592,22 +703,25 @@ const Library = () => {
                             'group relative aspect-[2/3] rounded-xl overflow-hidden cursor-pointer bg-elevated transition-transform duration-200 hover:-translate-y-0.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--bg-canvas)]',
                             batchMode && isSelected && 'ring-2 ring-primary',
                           )}
-                          onClick={() => (batchMode ? toggleSelect(c.id) : navigate(`/character/${c.id}`))}
+                          onClick={(e) => (batchMode ? batchClick(c, e) : navigate(`/character/${c.id}`))}
                           onKeyDown={(e) => {
                             if (e.target !== e.currentTarget) return;
                             if (e.key === 'Enter' || e.key === ' ') {
                               e.preventDefault();
-                              if (batchMode) toggleSelect(c.id);
+                              if (batchMode) batchClick(c, { shiftKey: e.shiftKey } as React.MouseEvent);
                               else navigate(`/character/${c.id}`);
                             }
                           }}
                         >
-                          {/* 立绘满铺；无图用交接包渐变占位 + 首字水印 */}
+                          {/* 立绘满铺；无图用交接包渐变占位 + 首字水印；NSFW 按设置模糊（hover 揭示） */}
                           {c.pngBase64 ? (
                             <img
                               src={`data:image/png;base64,${c.pngBase64}`}
                               alt={c.name}
-                              className="absolute inset-0 w-full h-full object-cover object-top"
+                              className={cn(
+                                'absolute inset-0 w-full h-full object-cover object-top',
+                                c.nsfw && nsfwBlur && 'blur-xl scale-110 group-hover:blur-none group-hover:scale-100 transition-all duration-300',
+                              )}
                               loading="lazy"
                             />
                           ) : (
@@ -615,59 +729,70 @@ const Library = () => {
                               <div className="char-mark">{c.name.slice(0, 1)}</div>
                             </div>
                           )}
-                          {/* 顶部角标条：左=操作菜单（hover 显）/批量勾选，右=故事数 */}
-                          <div className="absolute top-0 left-0 right-0 z-10 flex justify-between items-start px-3 py-2.5">
+                          {/* 顶部角标条（B3）：左=批量勾选 或 评分数字+时间；右=故事数（对比度修正）+菜单 */}
+                          <div className="absolute top-0 left-0 right-0 z-10 flex justify-between items-start px-2.5 py-2 gap-1.5">
                             {batchMode ? (
                               <span onClick={(e) => e.stopPropagation()}>
-                                <Checkbox checked={isSelected} onCheckedChange={() => toggleSelect(c.id)} />
+                                <Checkbox checked={isSelected} onCheckedChange={() => batchClick(c, {} as React.MouseEvent)} />
                               </span>
                             ) : (
-                              <DropdownMenu>
-                                <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
-                                  <button
-                                    aria-label="更多操作"
-                                    className="w-6 h-6 rounded-full bg-[rgba(0,0,0,0.5)] backdrop-blur-sm text-white/80 flex items-center justify-center opacity-0 group-hover:opacity-100 data-[state=open]:opacity-100 transition-opacity"
-                                  >
-                                    <MoreVertical className="w-3.5 h-3.5" />
-                                  </button>
-                                </DropdownMenuTrigger>
-                                <DropdownMenuContent align="start" onClick={(e) => e.stopPropagation()}>
-                                  <DropdownMenuItem onClick={() => navigate(`/character/${c.id}`)}>
-                                    <ExternalLink className="w-3.5 h-3.5 mr-2" />
-                                    打开角色主页
-                                  </DropdownMenuItem>
-                                  <DropdownMenuItem
-                                    className="text-destructive focus:text-destructive"
-                                    onClick={() => setPendingDelete([c])}
-                                  >
-                                    <Trash2 className="w-3.5 h-3.5 mr-2" />
-                                    删除角色
-                                  </DropdownMenuItem>
-                                </DropdownMenuContent>
-                              </DropdownMenu>
-                            )}
-                            {(storyCounts[c.id] ?? 0) > 0 && (
-                              <span className="ml-auto text-[11px] px-2 py-[3px] rounded-full bg-[rgba(0,0,0,0.5)] backdrop-blur-sm text-white border border-[rgba(255,255,255,0.08)] flex items-center gap-1">
-                                <MessageSquare className="w-3 h-3" />
-                                {storyCounts[c.id]} 段故事
+                              <span className="flex items-center gap-1.5 px-2 py-[3px] rounded-full text-[11px] bg-[rgba(0,0,0,0.65)] backdrop-blur-sm border border-[rgba(255,255,255,0.12)] min-w-0">
+                                <b className="font-semibold text-[color:var(--brand-hi)]">
+                                  {c.rating !== undefined ? c.rating : '未评分'}
+                                </b>
+                                <span className="text-white/70 truncate" title={formatFullTime(timeTs)}>
+                                  {formatListTime(timeTs)}
+                                </span>
                               </span>
                             )}
+                            <span className="flex items-center gap-1.5 shrink-0">
+                              {(storyCounts[c.id] ?? 0) > 0 && (
+                                <span className="text-[11px] px-2 py-[3px] rounded-full bg-[rgba(0,0,0,0.65)] backdrop-blur-sm text-white border border-[rgba(255,255,255,0.12)] flex items-center gap-1">
+                                  <MessageSquare className="w-3 h-3" />
+                                  {storyCounts[c.id]}
+                                </span>
+                              )}
+                              {!batchMode && (
+                                <DropdownMenu>
+                                  <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
+                                    <button
+                                      aria-label="更多操作"
+                                      className="w-6 h-6 rounded-full bg-[rgba(0,0,0,0.65)] backdrop-blur-sm text-white/80 flex items-center justify-center opacity-0 group-hover:opacity-100 data-[state=open]:opacity-100 transition-opacity"
+                                    >
+                                      <MoreVertical className="w-3.5 h-3.5" />
+                                    </button>
+                                  </DropdownMenuTrigger>
+                                  <DropdownMenuContent align="end" onClick={(e) => e.stopPropagation()}>
+                                    <DropdownMenuItem onClick={() => navigate(`/character/${c.id}`)}>
+                                      <ExternalLink className="w-3.5 h-3.5 mr-2" />
+                                      打开角色主页
+                                    </DropdownMenuItem>
+                                    <DropdownMenuItem
+                                      className="text-destructive focus:text-destructive"
+                                      onClick={() => setPendingDelete([c])}
+                                    >
+                                      <Trash2 className="w-3.5 h-3.5 mr-2" />
+                                      删除角色
+                                    </DropdownMenuItem>
+                                  </DropdownMenuContent>
+                                </DropdownMenu>
+                              )}
+                            </span>
                           </div>
-                          {/* 底部渐变信息条（设计稿 .bottom-info）：名字 → 两行简介 → 评分/时间，全部在卡内 */}
+                          {/* 底部渐变信息条（B3）：只留 名称（tooltip）+ 清洗简介 */}
                           <div className="absolute left-0 right-0 bottom-0 z-10 px-3.5 pb-3 pt-12 bg-[linear-gradient(transparent,rgba(0,0,0,0.75)_40%,rgba(0,0,0,0.92))]">
-                            <p className="font-serif text-[15px] font-semibold text-white tracking-wide truncate [text-shadow:0_1px_4px_rgba(0,0,0,0.5)]">
+                            <p
+                              className="font-serif font-semibold text-white tracking-wide truncate [text-shadow:0_1px_4px_rgba(0,0,0,0.5)]"
+                              style={{ fontSize: nameSize }}
+                              title={c.name}
+                            >
                               {c.name}
                             </p>
                             {intro && (
-                              <p className="text-xs leading-snug text-white/70 line-clamp-2 mt-1">{intro}</p>
+                              <p className="leading-snug text-white/70 line-clamp-2 mt-1" style={{ fontSize: introSize }}>
+                                {intro}
+                              </p>
                             )}
-                            <div className="flex items-center justify-between mt-2 text-[11px]">
-                              <span className="font-semibold text-[color:var(--brand-hi)]">
-                                ★ {c.rating !== undefined ? c.rating : '-'}
-                                <span className="font-normal text-white/40"> / 10</span>
-                              </span>
-                              <span className="text-white/50">{relativeTime(c.updatedAt)}</span>
-                            </div>
                           </div>
                         </div>
                       );
@@ -679,6 +804,7 @@ const Library = () => {
                     {pageItems.map((c) => {
                       const isSelected = selected.has(c.id);
                       const intro = introOf(c);
+                      const timeTs = lastPlayed[c.id] ?? c.updatedAt;
                       return (
                         <div
                           key={c.id}
@@ -688,19 +814,19 @@ const Library = () => {
                             'flex items-center gap-3.5 px-3.5 py-2.5 cursor-pointer transition-colors hover:bg-[var(--hover-overlay)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--bg-canvas)]',
                             batchMode && isSelected && 'bg-[var(--brand-active-bg)]',
                           )}
-                          onClick={() => (batchMode ? toggleSelect(c.id) : navigate(`/character/${c.id}`))}
+                          onClick={(e) => (batchMode ? batchClick(c, e) : navigate(`/character/${c.id}`))}
                           onKeyDown={(e) => {
                             if (e.target !== e.currentTarget) return;
                             if (e.key === 'Enter' || e.key === ' ') {
                               e.preventDefault();
-                              if (batchMode) toggleSelect(c.id);
+                              if (batchMode) batchClick(c, { shiftKey: e.shiftKey } as React.MouseEvent);
                               else navigate(`/character/${c.id}`);
                             }
                           }}
                         >
                           {batchMode && (
                             <span onClick={(e) => e.stopPropagation()}>
-                              <Checkbox checked={isSelected} onCheckedChange={() => toggleSelect(c.id)} />
+                              <Checkbox checked={isSelected} onCheckedChange={() => batchClick(c, {} as React.MouseEvent)} />
                             </span>
                           )}
                           <div className="w-[42px] h-[63px] shrink-0 rounded-md overflow-hidden bg-elevated relative">
@@ -708,7 +834,10 @@ const Library = () => {
                               <img
                                 src={`data:image/png;base64,${c.pngBase64}`}
                                 alt={c.name}
-                                className="absolute inset-0 w-full h-full object-cover object-top"
+                                className={cn(
+                                  'absolute inset-0 w-full h-full object-cover object-top',
+                                  c.nsfw && nsfwBlur && 'blur-md',
+                                )}
                                 loading="lazy"
                               />
                             ) : (
@@ -716,25 +845,25 @@ const Library = () => {
                             )}
                           </div>
                           <div className="flex-1 min-w-0">
-                            <p className="text-sm font-medium text-[color:var(--text-primary)] truncate">{c.name}</p>
+                            <p className="font-medium text-[color:var(--text-primary)] truncate" style={{ fontSize: Math.round(14 * fontScale) }} title={c.name}>{c.name}</p>
                             <p
                               className={cn(
-                                'text-xs leading-snug line-clamp-1 mt-0.5',
+                                'leading-snug line-clamp-1 mt-0.5',
                                 intro ? 'text-[color:var(--text-muted)]' : 'text-[color:var(--text-faint)]',
                               )}
+                              style={{ fontSize: introSize }}
                             >
                               {intro ?? '暂无简介'}
                             </p>
                           </div>
                           <span className="shrink-0 text-xs font-semibold text-[color:var(--brand-hi)]">
-                            ★ {c.rating !== undefined ? c.rating : '-'}
-                            <span className="font-normal text-[color:var(--text-faint)]"> / 10</span>
+                            {c.rating !== undefined ? c.rating : <span className="font-normal text-[color:var(--text-faint)]">未评分</span>}
                           </span>
                           <span className="shrink-0 w-16 text-right text-xs text-[color:var(--text-muted)]">
                             {(storyCounts[c.id] ?? 0) > 0 ? `${storyCounts[c.id]} 段故事` : '—'}
                           </span>
-                          <span className="shrink-0 w-20 text-right text-xs text-[color:var(--text-faint)]">
-                            {relativeTime(c.updatedAt)}
+                          <span className="shrink-0 w-20 text-right text-xs text-[color:var(--text-faint)]" title={formatFullTime(timeTs)}>
+                            {formatListTime(timeTs)}
                           </span>
                           <DropdownMenu>
                             <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
@@ -824,9 +953,9 @@ const Library = () => {
         </div>
       </div>
 
-      {/* 批量操作条（批量模式下悬浮底部） */}
+      {/* 批量操作常驻条（B4）：全选筛选结果 / 打标签 / 导出 / 删除 */}
       {batchMode && (
-        <div className="fixed bottom-10 left-1/2 -translate-x-1/2 z-40 flex items-center gap-2 rounded-full border border-border bg-card px-4 py-2 shadow-lg">
+        <div className="fixed bottom-10 left-1/2 -translate-x-1/2 z-40 flex items-center gap-2 rounded-full border border-border bg-card px-4 py-2 shadow-lg flex-wrap">
           <span className="text-sm">已选 {selected.size} 个</span>
           <Button
             variant="ghost"
@@ -836,7 +965,27 @@ const Library = () => {
               setSelected(selected.size === filtered.length ? new Set() : new Set(filtered.map((c) => c.id)))
             }
           >
-            {selected.size === filtered.length && filtered.length > 0 ? '清空' : '全选'}
+            {selected.size === filtered.length && filtered.length > 0 ? '清空' : '全选筛选结果'}
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            className="h-7 px-3 text-xs"
+            disabled={selected.size === 0}
+            onClick={() => setBatchTagOpen(true)}
+          >
+            <Tags className="w-3.5 h-3.5 mr-1" />
+            打标签
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            className="h-7 px-3 text-xs"
+            disabled={selected.size === 0}
+            onClick={handleBatchExport}
+          >
+            <Download className="w-3.5 h-3.5 mr-1" />
+            导出
           </Button>
           <Button
             variant="destructive"
@@ -846,13 +995,27 @@ const Library = () => {
             onClick={() => setPendingDelete(characters.filter((c) => selected.has(c.id)))}
           >
             <Trash2 className="w-3.5 h-3.5 mr-1" />
-            删除所选
+            删除
           </Button>
           <Button variant="ghost" size="sm" className="h-7 px-2 text-xs text-muted-foreground" onClick={exitBatch}>
             取消
           </Button>
         </div>
       )}
+
+      <TagManagerDialog
+        open={tagManagerOpen}
+        onOpenChange={setTagManagerOpen}
+        characters={characters}
+        onChanged={() => void load()}
+      />
+      <BatchTagDialog
+        open={batchTagOpen}
+        onOpenChange={setBatchTagOpen}
+        targets={characters.filter((c) => selected.has(c.id))}
+        allCharacters={characters}
+        onDone={() => void load()}
+      />
 
       <AlertDialog open={!!pendingDelete} onOpenChange={(open) => !open && setPendingDelete(null)}>
         <AlertDialogContent>
@@ -863,7 +1026,7 @@ const Library = () => {
                 : `删除所选 ${pendingDelete?.length ?? 0} 个角色？`}
             </AlertDialogTitle>
             <AlertDialogDescription>
-              只删除 STE 里的角色档案（标签、状态、评分等整理信息），不影响 ST 原目录里的文件。名下故事不会被删除，会转为「未绑定」状态。
+              只删除 STE 里的角色档案（类型、标签、评分等整理信息），不影响 ST 原目录里的文件。名下故事不会被删除，会转为「未绑定」状态。
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

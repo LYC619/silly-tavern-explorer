@@ -36,7 +36,7 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 import { useToast } from '@/hooks/use-toast';
-import type { ArchiveCharacter, ArchiveStory, CharacterStatus } from '@/types/archive';
+import type { ArchiveCharacter, ArchiveStory, CharacterType } from '@/types/archive';
 import type { ChatSession } from '@/types/chat';
 import {
   getCharacter,
@@ -46,7 +46,7 @@ import {
   deleteArchiveStory,
   buildStoryFromSession,
   sortStoriesForDisplay,
-  CHARACTER_STATUSES,
+  CHARACTER_TYPES,
 } from '@/lib/archive-db';
 import { normalizeCharacterCard, parseJsonl, parseJson } from '@/lib/adapters/st';
 import { formatPlayTime, formatWordCount } from '@/lib/story-meta';
@@ -58,7 +58,10 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { TAG_CATEGORIES, BUILTIN_TAGS, makeTag, applyRatingTierTag } from '@/lib/tag-taxonomy';
+import {
+  TAG_CATEGORIES, BUILTIN_TAGS, makeTag, applyRatingTierTag,
+  NSFW_TAG, RATING_TIER_LABELS, RATING_TIER_PREFILL, type RatingTier,
+} from '@/lib/tag-taxonomy';
 import { AssetSection } from '@/components/character/AssetSection';
 import { IllustrationSection } from '@/components/character/IllustrationSection';
 import { IntroSection } from '@/components/character/IntroSection';
@@ -79,6 +82,8 @@ const CharacterPage = () => {
   const [stories, setStories] = useState<ArchiveStory[]>([]);
   const [loading, setLoading] = useState(true);
   const [newTag, setNewTag] = useState('');
+  /** 点评价档位标签的评分确认（0801 补充：预填档位中值，仅未评分时） */
+  const [tierConfirm, setTierConfirm] = useState<{ tier: RatingTier; value: number } | null>(null);
   const [showAllStories, setShowAllStories] = useState(false);
   const [storyToDelete, setStoryToDelete] = useState<ArchiveStory | null>(null);
 
@@ -100,15 +105,30 @@ const CharacterPage = () => {
   const norm = useMemo(() => (character ? normalizeCharacterCard(character.card) : null), [character]);
 
   /** 更新角色档案（整理信息属于本地元数据，updatedAt 跟随）。
-   * 评分变化时联动评价档位标签（10.0，单向：评分→标签）。 */
+   * 评分变化时联动评价档位标签（10.0，单向：评分→标签）；
+   * 标签变化时同步 nsfw 字段（'卡面/NSFW' 在场即 true，10.3a 出独立开关前的过渡接线）。 */
   const patchCharacter = async (patch: Partial<ArchiveCharacter>) => {
     if (!character) return;
-    const withTierTag = 'rating' in patch
-      ? { ...patch, tags: applyRatingTierTag(patch.tags ?? character.tags, patch.rating) }
-      : patch;
-    const next = { ...character, ...withTierTag, updatedAt: Date.now() };
+    let effective = patch;
+    if ('rating' in patch) {
+      effective = { ...effective, tags: applyRatingTierTag(patch.tags ?? character.tags, patch.rating) };
+    }
+    if (effective.tags !== undefined) {
+      effective = { ...effective, nsfw: effective.tags.includes(NSFW_TAG) };
+    }
+    const next = { ...character, ...effective, updatedAt: Date.now() };
     setCharacter(next);
     await saveCharacter(next);
+  };
+
+  /** 点「评价」档位标签（0801 补充）：未评分时弹确认预填档位中值；已评分则档位随评分自动，不手动改 */
+  const handleTierTagClick = (tier: RatingTier) => {
+    if (!character) return;
+    if (character.rating !== undefined) {
+      toast({ title: '已有评分', description: '评价档位随评分自动更新；要改档位请直接改评分。' });
+      return;
+    }
+    setTierConfirm({ tier, value: RATING_TIER_PREFILL[tier] });
   };
 
   const handleAddTag = async () => {
@@ -282,11 +302,17 @@ const CharacterPage = () => {
                         {BUILTIN_TAGS[cat].map((label) => {
                           const raw = makeTag(cat, label);
                           const has = character.tags.includes(raw);
+                          // 评价档位不直接打标签：走评分确认（评分→标签单向自动）
+                          const isTier = cat === '评价' && (RATING_TIER_LABELS as readonly string[]).includes(label);
                           return (
                             <DropdownMenuItem
                               key={raw}
                               disabled={has}
-                              onClick={() => patchCharacter({ tags: [...character.tags, raw] })}
+                              onClick={() =>
+                                isTier
+                                  ? handleTierTagClick(label as RatingTier)
+                                  : patchCharacter({ tags: [...character.tags, raw] })
+                              }
                             >
                               {label}
                               {has && <span className="ml-auto text-[10px] text-muted-foreground">已加</span>}
@@ -310,19 +336,20 @@ const CharacterPage = () => {
               </div>
             </div>
 
-            {/* 状态 + 评分 */}
+            {/* 类型（10.0：互斥五类，替代旧五档游玩状态；状态下沉到故事级） + 评分 */}
             <div className="flex items-center gap-3 flex-wrap">
               <Select
-                value={character.status}
-                onValueChange={(v) => patchCharacter({ status: v as CharacterStatus })}
+                value={character.type ?? 'none'}
+                onValueChange={(v) => patchCharacter({ type: v === 'none' ? undefined : (v as CharacterType) })}
               >
-                <SelectTrigger className="h-8 w-28 text-sm">
+                <SelectTrigger className="h-8 w-28 text-sm" title="类型：每张卡只归一类">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  {CHARACTER_STATUSES.map((s) => (
-                    <SelectItem key={s} value={s}>
-                      {s}
+                  <SelectItem value="none">未分类</SelectItem>
+                  {CHARACTER_TYPES.map((t) => (
+                    <SelectItem key={t} value={t}>
+                      {t}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -456,6 +483,46 @@ const CharacterPage = () => {
           <AlertDialogFooter>
             <AlertDialogCancel>取消</AlertDialogCancel>
             <AlertDialogAction onClick={handleConfirmDeleteStory}>删除</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* 点评价档位标签 → 评分确认（预填档位中值；确认写评分，档位标签随评分自动） */}
+      <AlertDialog open={!!tierConfirm} onOpenChange={(open) => !open && setTierConfirm(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>标记为「{tierConfirm?.tier}」= 打个分</AlertDialogTitle>
+            <AlertDialogDescription>
+              评价档位与评分联动：确认后写入评分（0.5 步进），档位标签随评分自动更新。
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          {tierConfirm && (
+            <div className="flex items-center gap-2">
+              <Input
+                type="number"
+                min={0}
+                max={10}
+                step={0.5}
+                value={tierConfirm.value}
+                onChange={(e) => setTierConfirm({ ...tierConfirm, value: Number(e.target.value) })}
+                className="h-9 w-24"
+                aria-label="评分"
+              />
+              <span className="text-sm text-muted-foreground">/ 10</span>
+            </div>
+          )}
+          <AlertDialogFooter>
+            <AlertDialogCancel>取消</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                if (!tierConfirm) return;
+                const v = Math.min(10, Math.max(0, Math.round(tierConfirm.value * 2) / 2));
+                void patchCharacter({ rating: v });
+                setTierConfirm(null);
+              }}
+            >
+              确认评分
+            </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
