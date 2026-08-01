@@ -37,9 +37,9 @@
   --shadow-window: 0 30px 80px -20px rgba(0, 0, 0, 0.5);
   --shadow-popover: 0 12px 40px rgba(0, 0, 0, 0.5);
 
-  /* 侧栏宽度 */
+  /* 侧栏宽度（折叠态=图标+小字在下的窄栏，0801 插图1） */
   --sidenav-expanded: 180px;
-  --sidenav-collapsed: 52px;
+  --sidenav-collapsed: 64px;
   --filter-side-width: 176px;
   --editor-sublist-width: 220px;
 }
@@ -48,9 +48,9 @@
    ① 主题 · 深咖啡（默认，推荐主色）
    ============================================================ */
 [data-theme="cocoa"] {
-  /* 三层底色（浅 → 深） */
+  /* 三层底色（浅 → 深）；chrome 与 canvas 色差收窄（0801 反馈：侧栏与主区割裂） */
   --bg-canvas: #1e1610;         /* 主区背景 */
-  --bg-chrome: #14100a;         /* 标题栏 / 状态栏 / 侧栏 */
+  --bg-chrome: #1a130c;         /* 标题栏 / 状态栏 / 侧栏 */
   --bg-elevated: #241a10;       /* 卡片、面板 */
   --bg-elevated-strong: #2a1f14;/* 卡片 hover / continue card */
 
@@ -80,7 +80,7 @@
    ============================================================ */
 [data-theme="ink"] {
   --bg-canvas: #0e0e10;
-  --bg-chrome: #08080a;
+  --bg-chrome: #0b0b0d;
   --bg-elevated: #131316;
   --bg-elevated-strong: #16161a;
 
@@ -106,7 +106,7 @@
    ============================================================ */
 [data-theme="midnight"] {
   --bg-canvas: #0f131c;
-  --bg-chrome: #080b13;
+  --bg-chrome: #0c0f17;
   --bg-elevated: #131824;
   --bg-elevated-strong: #171d2b;
 
@@ -132,7 +132,7 @@
    ============================================================ */
 [data-theme="cream"] {
   --bg-canvas: #f5f0e6;
-  --bg-chrome: #ebe4d5;
+  --bg-chrome: #efe9db;
   --bg-elevated: #fbf8f1;
   --bg-elevated-strong: #ffffff;
 

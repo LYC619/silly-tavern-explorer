@@ -43,6 +43,7 @@ import {
 } from '@/components/ui/alert-dialog';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
+import { introOf } from '@/lib/character-intro';
 import type { ArchiveCharacter } from '@/types/archive';
 import {
   CHARACTER_STATUSES,
@@ -134,21 +135,8 @@ function lsSet(key: string, value: string) {
 }
 
 /**
- * 卡片简介文案：STE 简介（intro 功能）→ 卡的 creator_notes 首行（subtitle）→ 卡内 description 摘要。
- * description 是角色定义原文，可能含 {{char}}/{{user}} 宏，展示前替换为角色名/「你」。
+ * 卡片简介文案：抽至 lib/character-intro（10.1 起与首页共用；10.0 将升级为 intro-clean 清洗管道）。
  */
-function introOf(c: ArchiveCharacter): string | undefined {
-  const intro = c.intro?.current.content.trim();
-  if (intro) return intro;
-  if (c.subtitle) return c.subtitle;
-  const card = c.card as { data?: { description?: string }; description?: string };
-  const desc = (card.data?.description ?? card.description ?? '')
-    .replace(/\{\{char\}\}/gi, c.name)
-    .replace(/\{\{user\}\}/gi, '你')
-    .replace(/\s+/g, ' ')
-    .trim();
-  return desc ? desc.slice(0, 120) : undefined;
-}
 
 /** 二级筛选栏条目（demo .f-item） */
 function FilterItem({

@@ -1,6 +1,6 @@
 {
   "$schema": "../node_modules/@tauri-apps/cli/config.schema.json",
-  "productName": "STE",
+  "productName": "ST Explorer",
   "mainBinaryName": "STE",
   "version": "0.18.0",
   "identifier": "com.ste.explorer",
@@ -14,7 +14,7 @@
     "withGlobalTauri": true,
     "windows": [
       {
-        "title": "SillyTavern Explorer",
+        "title": "ST Explorer",
         "width": 1440,
         "height": 900,
         "minWidth": 1024,

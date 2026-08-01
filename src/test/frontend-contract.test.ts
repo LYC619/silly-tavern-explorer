@@ -5,26 +5,35 @@ import { resolve } from 'node:path';
 const read = (path: string) => readFileSync(resolve(process.cwd(), path), 'utf8');
 
 describe('前端状态刷新契约', () => {
-  it('AppLayout 不永久缓存状态，且客户端不展示 WebView 用量', () => {
+  it('状态栏不再展示 ST 接入与数据占用（0801 反馈挪设置页），也不永久缓存状态', () => {
     const source = read('src/components/AppLayout.tsx');
     expect(source).not.toContain('let statusCache');
-    expect(source).toContain('statusRefreshKey');
-    expect(source).toMatch(/client\s*\?\s*Promise\.resolve\(null\)/);
+    const footer = source.match(/<footer[\s\S]*?<\/footer>/)?.[0] ?? '';
+    expect(footer).not.toContain('已接入 ST 目录');
+    expect(footer).not.toContain('usage');
   });
 
-  it('STImportCard 暴露变更通知，首页和编辑区接入刷新', () => {
+  it('侧栏不再按页面自动折叠（0801 反馈：切页保持用户选择）', () => {
+    const hook = read('src/hooks/use-sidenav-state.ts');
+    const layout = read('src/components/AppLayout.tsx');
+    expect(hook).not.toContain('pageDefault');
+    expect(layout).toContain('useSidenavState()');
+  });
+
+  it('STImportCard 暴露变更通知，首页和编辑区接入刷新；首页仅未接入时显示', () => {
     const card = read('src/components/tools/STImportCard.tsx');
     const home = read('src/pages/Home.tsx');
     const tools = read('src/pages/Tools.tsx');
     expect(card).toContain('onChanged?: () => void');
     expect(home).toContain('onChanged={handleSTChanged}');
+    expect(home).toContain("stConnected === false");
     expect(tools).toContain('onChanged={handleSTChanged}');
   });
 
-  it('首页使用归档阅读位置，不把消息总数当作离开楼层', () => {
+  it('首页欢迎语只报归档数，不再堆书名+楼层+时间', () => {
     const home = read('src/pages/Home.tsx');
-    expect(home).toContain('getLastViewedLine');
-    expect(home).not.toContain('lastViewed.session.messages.length} 楼');
+    expect(home).toContain('您已经归档了');
+    expect(home).not.toContain('你上次在');
   });
 });
 

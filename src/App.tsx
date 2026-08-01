@@ -3,27 +3,59 @@ import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { ThemeProvider } from "next-themes";
-import { lazy, Suspense } from "react";
+import { lazy, Suspense, useEffect } from "react";
 import { Loader2 } from "lucide-react";
 import { VaultGate } from "@/components/vault/VaultGate";
 import { ThemeSync } from "@/components/ThemeSync";
 import { THEME_KEYS, DEFAULT_THEME } from "@/lib/theme";
 
-// 路由级代码分割：每个页面单独打包，首屏只加载首页所需 chunk，
-// 其余页面(世界书/AI工具等)按需懒加载，避免全部塞进一个大 bundle。
-const Home = lazy(() => import("./pages/Home"));
-const Index = lazy(() => import("./pages/Index"));
-const Tools = lazy(() => import("./pages/Tools"));
-const Library = lazy(() => import("./pages/Library"));
-const CharacterPage = lazy(() => import("./pages/CharacterPage"));
-const StoryWorkspace = lazy(() => import("./pages/StoryWorkspace"));
-const SettingsPage = lazy(() => import("./pages/SettingsPage"));
-const WorldBook = lazy(() => import("./pages/WorldBook"));
-const AssetLibrary = lazy(() => import("./pages/AssetLibrary"));
-const CardViewer = lazy(() => import("./pages/CardViewer"));
-const Preset = lazy(() => import("./pages/Preset"));
-const RegexTool = lazy(() => import("./pages/RegexTool"));
-const NotFound = lazy(() => import("./pages/NotFound"));
+// 路由级代码分割：每个页面单独打包，首屏只加载首页所需 chunk。
+// loader 表单独列出：首屏渲染后空闲时预热全部 chunk（10.1-A7 切换卡顿专项——
+// 消除首次切页的 Suspense 白屏，本地静态资源预热成本可忽略）。
+const PAGE_LOADERS = {
+  home: () => import("./pages/Home"),
+  index: () => import("./pages/Index"),
+  tools: () => import("./pages/Tools"),
+  library: () => import("./pages/Library"),
+  character: () => import("./pages/CharacterPage"),
+  story: () => import("./pages/StoryWorkspace"),
+  settings: () => import("./pages/SettingsPage"),
+  worldbook: () => import("./pages/WorldBook"),
+  assets: () => import("./pages/AssetLibrary"),
+  cardViewer: () => import("./pages/CardViewer"),
+  preset: () => import("./pages/Preset"),
+  regex: () => import("./pages/RegexTool"),
+  notFound: () => import("./pages/NotFound"),
+};
+
+const Home = lazy(PAGE_LOADERS.home);
+const Index = lazy(PAGE_LOADERS.index);
+const Tools = lazy(PAGE_LOADERS.tools);
+const Library = lazy(PAGE_LOADERS.library);
+const CharacterPage = lazy(PAGE_LOADERS.character);
+const StoryWorkspace = lazy(PAGE_LOADERS.story);
+const SettingsPage = lazy(PAGE_LOADERS.settings);
+const WorldBook = lazy(PAGE_LOADERS.worldbook);
+const AssetLibrary = lazy(PAGE_LOADERS.assets);
+const CardViewer = lazy(PAGE_LOADERS.cardViewer);
+const Preset = lazy(PAGE_LOADERS.preset);
+const RegexTool = lazy(PAGE_LOADERS.regex);
+const NotFound = lazy(PAGE_LOADERS.notFound);
+
+/** 空闲时预热全部页面 chunk（失败静默：预热失败不影响正常懒加载兜底） */
+function usePrefetchPages() {
+  useEffect(() => {
+    const prefetch = () => {
+      for (const load of Object.values(PAGE_LOADERS)) load().catch(() => {});
+    };
+    const idle = (window as { requestIdleCallback?: (cb: () => void) => number }).requestIdleCallback;
+    if (idle) idle(prefetch);
+    else {
+      const t = setTimeout(prefetch, 1500);
+      return () => clearTimeout(t);
+    }
+  }, []);
+}
 
 const PageFallback = () => (
   <div className="flex min-h-screen items-center justify-center">
@@ -31,7 +63,9 @@ const PageFallback = () => (
   </div>
 );
 
-const App = () => (
+const App = () => {
+  usePrefetchPages();
+  return (
   <ThemeProvider
     attribute="data-theme"
     themes={[...THEME_KEYS]}
@@ -71,6 +105,7 @@ const App = () => (
       </VaultGate>
     </TooltipProvider>
   </ThemeProvider>
-);
+  );
+};
 
 export default App;

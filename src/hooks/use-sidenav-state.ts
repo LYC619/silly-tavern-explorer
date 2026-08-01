@@ -1,7 +1,7 @@
 /**
- * 主侧栏双态状态（2.1-P1，交接包定稿）：
- * 页面默认值（首页展开、其余折叠）+ localStorage 用户手动覆盖。
- * 用户一旦手动切换过，所有页面都跟随用户选择；未切换过则按页面默认。
+ * 主侧栏双态状态（10.1-A3 改版）：
+ * 不再按页面给默认值（旧版首页展开/其余折叠，导致切页自动折叠——0801 反馈点名）。
+ * 全局一份状态：默认展开，用户手动切换记 localStorage，所有页面跟随，切页不变。
  */
 import { useState, useCallback } from 'react';
 
@@ -18,20 +18,19 @@ function readOverride(): Override | null {
   }
 }
 
-export function useSidenavState(pageDefault: 'expanded' | 'collapsed') {
+export function useSidenavState() {
   const [override, setOverride] = useState<Override | null>(readOverride);
-  const expanded = (override ?? pageDefault) === 'expanded';
+  const expanded = (override ?? 'expanded') === 'expanded';
 
   const toggle = useCallback(() => {
     setOverride((prev) => {
-      const cur = (prev ?? pageDefault) === 'expanded';
-      const next: Override = cur ? 'collapsed' : 'expanded';
+      const next: Override = (prev ?? 'expanded') === 'expanded' ? 'collapsed' : 'expanded';
       try {
         localStorage.setItem(STORAGE_KEY, next);
       } catch { /* 隐私模式等存不了就只在本页生效 */ }
       return next;
     });
-  }, [pageDefault]);
+  }, []);
 
   return { expanded, toggle };
 }

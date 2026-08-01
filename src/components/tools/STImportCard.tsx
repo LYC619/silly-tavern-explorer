@@ -145,7 +145,7 @@ export function STImportCard({ onChanged, variant = 'full' }: STImportCardProps)
           <div className="min-w-0 basis-[14rem] grow">
             <p className="font-medium text-sm">接入 SillyTavern</p>
             <p className="text-xs text-muted-foreground mt-0.5">
-              指定 ST 目录，扫描角色卡 / 聊天 / 世界书 / 预设 / 全局正则，勾选后复制进库并记住来源
+              指定 ST 目录，扫描角色卡 / 聊天 / 世界书 / 预设 / 全局正则，勾选后复制进库并记住来源。接入后此卡片收起，后续可在设置里更改 ST 目录
             </p>
           </div>
           <Button variant="outline" size="sm" onClick={handlePick} disabled={scanning}>

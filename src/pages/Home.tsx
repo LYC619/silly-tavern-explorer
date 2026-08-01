@@ -1,27 +1,31 @@
 /**
- * 首页（2.1-P4，按新前端交接包 demo ① 重排；内容沿用定稿四块语义，无「继续游玩」）：
- * - 顶部：问候 + 接入 SillyTavern 目录卡（红线：显眼置顶，不进侧栏；网页版组件自隐藏）
- * - 左主列：最近查看的故事（story-continue-card 两列）→ 你的角色库（4 张 2:3 精选卡）
- * - 右列 300px：编辑区拖放入口（drop-panel）→ 其他资产统计格（stat-panel）
+ * 首页（10.1-A5/A6 重排，0801 实测反馈）：
+ * - 问候行：问候 + 欢迎语「您已经归档了 N 个故事」（替代高密度的上次离开信息）
+ * - 接入 ST 卡：仅客户端且未接入时显示（接入后入口在设置页，10.4 收容）
+ * - 左主列：最近查看的角色（横滚最近 12 张，卡面样式对齐角色库：简介/故事数/评分）
+ *   → 最近在看的故事（整行列表，最多 6 条，不再两列留白）
+ * - 右列 300px：编辑处理区（标题+工具列表）→ 其他资产（统计格）
  * 硬约束：一屏无滚动（基准 1440×900、100% 缩放），超出内容走「查看全部」进二级页。
  */
 import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
-  Users, PenLine, ArrowRight, MessageSquare, Cpu, BookOpenText, KeyRound,
+  Users, ArrowRight, MessageSquare, Cpu, BookOpenText, KeyRound, ChevronRight,
+  MessagesSquare, BookOpen, IdCard, SlidersHorizontal, LayoutGrid,
 } from 'lucide-react';
-import { isTauri } from '@/lib/vault/tauri-fs';
+import { isTauri, getAppConfig } from '@/lib/vault/tauri-fs';
 import { STAIConfigDialog } from '@/components/tools/STAIConfigDialog';
 import { STImportCard } from '@/components/tools/STImportCard';
 import { AppLayout } from '@/components/AppLayout';
 import { Badge } from '@/components/ui/badge';
 import type { ArchiveCharacter, ArchiveStory } from '@/types/archive';
-import { getAllCharacters, getAllArchiveStories, getLastViewedLine } from '@/lib/archive-db';
+import { getAllCharacters, getAllArchiveStories } from '@/lib/archive-db';
 import { getAllWorldBooks } from '@/lib/worldbook-db';
 import { getAllPresets } from '@/lib/preset-db';
 import { getAllRegexCollections } from '@/lib/regex-db';
 import { getAllSummaries } from '@/lib/summary-db';
 import { getAllStoryTrees } from '@/lib/story-tree-db';
+import { introOf } from '@/lib/character-intro';
 
 /** 故事行的下属资源标签计数 */
 interface StoryResources {
@@ -55,18 +59,41 @@ function greeting(): string {
   return '晚上好';
 }
 
+/** 辅助入口按钮化（0801 反馈：pill 样式，视觉权重不再是灰色小字） */
+function PillLink({ label, onClick }: { label: string; onClick: () => void }) {
+  return (
+    <button
+      onClick={onClick}
+      className="flex items-center gap-1 px-3 py-1.5 rounded-full text-xs border border-[color:var(--border-normal)] text-[color:var(--text-body)] hover:border-[color:var(--brand-hairline)] hover:text-brand transition-colors shrink-0"
+    >
+      {label} <ArrowRight className="w-3 h-3" />
+    </button>
+  );
+}
+
+/** 编辑处理区工具列表（0801 反馈 #5：标题+列表化） */
+const EDIT_TOOLS = [
+  { label: '聊天记录', icon: MessagesSquare, path: '/chat' },
+  { label: '世界书', icon: BookOpen, path: '/worldbook' },
+  { label: '角色卡', icon: IdCard, path: '/card-viewer' },
+  { label: '预设', icon: SlidersHorizontal, path: '/preset' },
+  { label: '其他', icon: LayoutGrid, path: '/tools' },
+];
+
 const Home = () => {
   const navigate = useNavigate();
   const [characters, setCharacters] = useState<ArchiveCharacter[]>([]);
+  const [stories, setStories] = useState<ArchiveStory[]>([]);
   const [recentStories, setRecentStories] = useState<ArchiveStory[]>([]);
   const [resources, setResources] = useState<Record<string, StoryResources>>({});
-  const [assetCounts, setAssetCounts] = useState({ worldbooks: 0, presets: 0, regexes: 0, stories: 0 });
+  const [assetCounts, setAssetCounts] = useState({ worldbooks: 0, presets: 0, regexes: 0 });
   const [stConfigOpen, setStConfigOpen] = useState(false);
-  const [statusRefreshKey, setStatusRefreshKey] = useState(0);
+  /** A6：已接入（stRoot 已配置）则不再显示接入卡；null = 还没查完，先不显示防闪烁 */
+  const [stConnected, setStConnected] = useState<boolean | null>(null);
 
   const loadData = useCallback(async () => {
     try {
-      const [chars, stories, wbs, presets, regexes, summaries, trees] = await Promise.all([
+      const [chars, allStories, wbs, presets, regexes, summaries, trees] = await Promise.all([
         getAllCharacters(),
         getAllArchiveStories(),
         getAllWorldBooks().catch(() => []),
@@ -76,11 +103,12 @@ const Home = () => {
         getAllStoryTrees().catch(() => []),
       ]);
       setCharacters(chars);
-      // 最近查看的故事：只列看过的（无记录的还谈不上「最近查看」），绑定与未绑定都算
-      const viewed = stories
+      setStories(allStories);
+      // 最近在看的故事：只列看过的（无记录的还谈不上「最近」），绑定与未绑定都算
+      const viewed = allStories
         .filter((s) => s.lastViewedAt !== undefined)
         .sort((a, b) => b.lastViewedAt! - a.lastViewedAt!)
-        .slice(0, 4);
+        .slice(0, 6);
       setRecentStories(viewed);
       const res: Record<string, StoryResources> = {};
       for (const s of viewed) {
@@ -91,64 +119,147 @@ const Home = () => {
         };
       }
       setResources(res);
-      setAssetCounts({ worldbooks: wbs.length, presets: presets.length, regexes: regexes.length, stories: stories.length });
+      setAssetCounts({ worldbooks: wbs.length, presets: presets.length, regexes: regexes.length });
     } catch { /* 首页加载失败不弹错，各区显示空态 */ }
   }, []);
 
   useEffect(() => { void loadData(); }, [loadData]);
 
+  const refreshStConnected = useCallback(async () => {
+    if (!isTauri()) {
+      setStConnected(false);
+      return;
+    }
+    const root = await getAppConfig<string>('stRoot').catch(() => null);
+    setStConnected(!!root);
+  }, []);
+
+  useEffect(() => { void refreshStConnected(); }, [refreshStConnected]);
+
   const handleSTChanged = useCallback(() => {
-    setStatusRefreshKey((key) => key + 1);
+    void refreshStConnected();
     void loadData();
-  }, [loadData]);
+  }, [refreshStConnected, loadData]);
 
   const characterById = Object.fromEntries(characters.map((c) => [c.id, c]));
-  /** 精选 4 张：最近有动静的（updatedAt），入口性质 */
-  const featured = [...characters].sort((a, b) => b.updatedAt - a.updatedAt).slice(0, 4);
-  const lastViewed = recentStories[0];
-  const lastViewedFloor = lastViewed ? getLastViewedLine(lastViewed).line.lastFloor : undefined;
+  /** 每个角色的故事数 + 名下故事最近查看时间（「最近查看的角色」排序依据） */
+  const storyCounts: Record<string, number> = {};
+  const lastViewedByChar: Record<string, number> = {};
+  for (const s of stories) {
+    if (!s.characterId) continue;
+    storyCounts[s.characterId] = (storyCounts[s.characterId] ?? 0) + 1;
+    if (s.lastViewedAt !== undefined) {
+      lastViewedByChar[s.characterId] = Math.max(lastViewedByChar[s.characterId] ?? 0, s.lastViewedAt);
+    }
+  }
+  /** 最近查看的角色 12 张：看过的按最近查看排前，其余按 updatedAt 垫后（新库不至于空区） */
+  const recentCharacters = [...characters]
+    .sort((a, b) => {
+      const va = lastViewedByChar[a.id] ?? 0;
+      const vb = lastViewedByChar[b.id] ?? 0;
+      if (va !== vb) return vb - va;
+      return b.updatedAt - a.updatedAt;
+    })
+    .slice(0, 12);
 
   const STAT_CELLS = [
     { label: '角色卡', count: characters.length, onClick: () => navigate('/library') },
-    { label: '故事', count: assetCounts.stories, onClick: () => navigate('/library') },
+    { label: '故事', count: stories.length, onClick: () => navigate('/library') },
     { label: '世界书', count: assetCounts.worldbooks, onClick: () => navigate('/assets?tab=worldbook') },
     { label: '预设', count: assetCounts.presets, onClick: () => navigate('/assets?tab=preset') },
     { label: '正则', count: assetCounts.regexes, onClick: () => navigate('/assets?tab=regex') },
   ];
 
   return (
-    <AppLayout statusRefreshKey={statusRefreshKey}>
+    <AppLayout>
       <div className="h-full overflow-hidden flex flex-col px-6 py-4 gap-3.5">
-        {/* 问候行（demo .main-header：真实数据——上次离开的故事） */}
+        {/* 问候行：欢迎语只报归档数（0801 反馈 #8：原「书名+楼层+时间」信息密度高且与功能区重复） */}
         <div className="shrink-0 flex items-baseline gap-3.5 flex-wrap">
           <h1 className="font-serif text-[22px] font-semibold tracking-wide text-[color:var(--text-primary)]">{greeting()}</h1>
-          {lastViewed?.lastViewedAt !== undefined && (
-            <span className="text-[11px] text-[color:var(--text-muted)] truncate">
-              你上次在 {relativeTime(lastViewed.lastViewedAt)}离开《{lastViewed.title}》
-              {typeof lastViewedFloor === 'number' ? ` · 第 ${lastViewedFloor} 楼` : ''}
-            </span>
-          )}
+          <span className="text-xs text-[color:var(--text-muted)]">
+            您已经归档了 {stories.length} 个故事
+          </span>
         </div>
 
-        {/* 接入 ST 目录：首页顶部显眼卡（客户端；网页版组件自隐藏） */}
-        <div className="shrink-0 empty:hidden">
-          <STImportCard onChanged={handleSTChanged} />
-        </div>
+        {/* 接入 ST 目录：仅客户端且未接入时显示（A6）；网页版组件自隐藏 */}
+        {stConnected === false && (
+          <div className="shrink-0 empty:hidden">
+            <STImportCard onChanged={handleSTChanged} />
+          </div>
+        )}
 
         <div className="flex-1 min-h-0 flex gap-4">
           {/* ===== 左主列 ===== */}
           <div className="flex-1 min-w-0 flex flex-col gap-3.5">
-            {/* ② 最近查看的故事 */}
-            <section className="shrink-0" data-tour="home-recent">
-              <div className="flex items-baseline justify-between mb-2.5">
-                <h3 className="font-serif text-[15px] font-semibold text-[color:var(--text-primary)]">
-                  最近查看的故事
-                  {recentStories.length > 0 && (
-                    <span className="text-[11px] text-[color:var(--text-faint)] font-sans font-normal ml-1.5">
-                      回味入口 · 记住你读到哪
-                    </span>
-                  )}
+            {/* ① 最近查看的角色：区域内横滚最近 12 张（0801 反馈 #3/#11） */}
+            <section className="shrink-0" data-tour="home-library">
+              <div className="flex items-center justify-between mb-2.5 gap-2">
+                <h3 className="font-serif text-base font-semibold text-[color:var(--text-primary)]">
+                  最近查看的角色
+                  <span className="text-xs text-[color:var(--text-muted)] font-sans font-normal ml-1.5">
+                    共 {characters.length} 张
+                  </span>
                 </h3>
+                <PillLink label="进入角色库" onClick={() => navigate('/library')} />
+              </div>
+              {recentCharacters.length === 0 ? (
+                <div className="rounded-xl bg-elevated p-6 flex flex-col items-center gap-1.5 text-center">
+                  <Users className="w-8 h-8 text-muted-foreground/40" />
+                  <p className="text-sm text-muted-foreground">还没有角色卡</p>
+                  <p className="text-xs text-muted-foreground/70">去角色库导入 PNG/JSON 角色卡，开始你的收藏</p>
+                </div>
+              ) : (
+                <div className="flex gap-3 overflow-x-auto overflow-y-hidden pb-1.5 scrollbar-thin">
+                  {recentCharacters.map((c) => {
+                    const intro = introOf(c);
+                    return (
+                      <button
+                        key={c.id}
+                        onClick={() => navigate(`/character/${c.id}`)}
+                        className="relative w-[148px] shrink-0 aspect-[2/3] rounded-xl overflow-hidden bg-elevated transition-transform duration-200 hover:-translate-y-0.5 text-left"
+                      >
+                        {c.pngBase64 ? (
+                          <img
+                            src={`data:image/png;base64,${c.pngBase64}`}
+                            alt={c.name}
+                            className="absolute inset-0 w-full h-full object-cover object-top"
+                            loading="lazy"
+                          />
+                        ) : (
+                          <div className={`absolute inset-0 art art-placeholder-${(hashName(c.name) % 13) + 1}`}>
+                            <div className="char-mark" style={{ fontSize: 24 }}>{c.name.slice(0, 1)}</div>
+                          </div>
+                        )}
+                        {/* 顶部右角：故事数角标（对齐角色库卡面） */}
+                        {(storyCounts[c.id] ?? 0) > 0 && (
+                          <span className="absolute top-1.5 right-1.5 px-1.5 py-0.5 rounded-md text-[10px] bg-black/60 text-white/90 backdrop-blur-sm">
+                            {storyCounts[c.id]} 段故事
+                          </span>
+                        )}
+                        {/* 底部渐变信息条（对齐角色库：名字 → 简介 → 评分/时间） */}
+                        <div className="absolute left-0 right-0 bottom-0 px-2.5 pb-2 pt-8 bg-[linear-gradient(transparent,rgba(0,0,0,0.75)_40%,rgba(0,0,0,0.92))]">
+                          <p className="font-serif text-xs font-semibold text-white truncate [text-shadow:0_1px_4px_rgba(0,0,0,0.5)]" title={c.name}>{c.name}</p>
+                          {intro && (
+                            <p className="text-[11px] leading-snug text-white/70 line-clamp-2 mt-0.5">{intro}</p>
+                          )}
+                          <div className="flex items-center justify-between mt-1 text-[11px]">
+                            <span className="font-semibold text-[color:var(--brand-hi)]">
+                              {c.rating !== undefined ? `★ ${c.rating}` : '未评分'}
+                            </span>
+                            <span className="text-white/55">{relativeTime(lastViewedByChar[c.id] ?? c.updatedAt)}</span>
+                          </div>
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+            </section>
+
+            {/* ② 最近在看的故事：整行列表（0801 反馈 3.1：两列卡占整行留白 → 改行式布局） */}
+            <section className="flex-1 min-h-0 flex flex-col" data-tour="home-recent">
+              <div className="flex items-center justify-between mb-2.5 shrink-0">
+                <h3 className="font-serif text-base font-semibold text-[color:var(--text-primary)]">最近在看的故事</h3>
               </div>
               {recentStories.length === 0 ? (
                 <div className="rounded-xl bg-elevated p-6 flex flex-col items-center gap-1.5 text-center">
@@ -157,7 +268,7 @@ const Home = () => {
                   <p className="text-xs text-muted-foreground/70">从角色卡进入故事，这里会记下你上次读到哪，方便随时回味</p>
                 </div>
               ) : (
-                <div className="grid grid-cols-2 gap-3">
+                <div className="flex-1 min-h-0 overflow-hidden flex flex-col gap-2">
                   {recentStories.map((s) => {
                     const char = s.characterId ? characterById[s.characterId] : undefined;
                     const res = resources[s.id];
@@ -165,10 +276,9 @@ const Home = () => {
                       <button
                         key={s.id}
                         onClick={() => navigate(`/story/${s.id}`)}
-                        className="rounded-xl bg-elevated-strong hover:bg-elevated transition-colors p-3.5 text-left flex gap-3 items-center min-w-0"
+                        className="shrink-0 rounded-xl bg-elevated-strong hover:bg-elevated transition-colors px-3.5 py-2.5 text-left flex gap-3 items-center min-w-0"
                       >
-                        {/* 角色封面缩略（demo .story-thumb 44×60），未绑定给占位 */}
-                        <div className="w-11 h-[60px] shrink-0 rounded-md overflow-hidden bg-[var(--hover-overlay)]">
+                        <div className="w-9 h-12 shrink-0 rounded-md overflow-hidden bg-[var(--hover-overlay)]">
                           {char?.pngBase64 ? (
                             <img
                               src={`data:image/png;base64,${char.pngBase64}`}
@@ -186,86 +296,29 @@ const Home = () => {
                           <p className="font-serif text-[13px] font-semibold text-[color:var(--text-primary)] truncate" title={s.title}>
                             {s.title}
                           </p>
-                          <p className="text-[10.5px] text-[color:var(--text-muted)] mt-0.5 truncate flex items-center gap-1.5">
-                            {char && <span className="truncate">{char.name}</span>}
+                          <p className="text-[11px] text-[color:var(--text-muted)] mt-0.5 flex items-center gap-1.5 flex-wrap">
+                            {char && <span className="truncate max-w-32">{char.name}</span>}
                             {!s.characterId && <Badge variant="outline" className="h-4 px-1 text-[10px]">未绑定</Badge>}
-                            {s.meta.lastModel && (
-                              <span className="flex items-center gap-0.5 min-w-0">
-                                <Cpu className="w-3 h-3 shrink-0" /><span className="truncate max-w-28">{s.meta.lastModel}</span>
-                              </span>
-                            )}
-                          </p>
-                          <p className="text-[10px] text-[color:var(--text-muted)] mt-1 flex items-center gap-1.5 flex-wrap">
                             <span className="flex items-center gap-0.5">
                               <MessageSquare className="w-3 h-3" />{s.session.messages.length} 楼
                             </span>
-                            {s.lastViewedAt !== undefined && <span>{relativeTime(s.lastViewedAt)}</span>}
+                            {s.meta.lastModel && (
+                              <span className="flex items-center gap-0.5 min-w-0">
+                                <Cpu className="w-3 h-3 shrink-0" /><span className="truncate max-w-32">{s.meta.lastModel}</span>
+                              </span>
+                            )}
                             {res && res.summaries > 0 && <Badge variant="secondary" className="h-4 px-1 text-[10px]">总结 {res.summaries}</Badge>}
                             {res && res.diaries > 0 && <Badge variant="secondary" className="h-4 px-1 text-[10px]">日记 {res.diaries}</Badge>}
                             {res && res.trees > 0 && <Badge variant="secondary" className="h-4 px-1 text-[10px]">故事树 {res.trees}</Badge>}
                             {(s.branches?.length ?? 0) > 0 && <Badge variant="secondary" className="h-4 px-1 text-[10px]">分支 {s.branches!.length}</Badge>}
                           </p>
                         </div>
+                        {s.lastViewedAt !== undefined && (
+                          <span className="shrink-0 text-[11px] text-[color:var(--text-muted)]">{relativeTime(s.lastViewedAt)}</span>
+                        )}
                       </button>
                     );
                   })}
-                </div>
-              )}
-            </section>
-
-            {/* ① 你的角色库：4 张 2:3 精选卡（ST 标准比例，入口性质） */}
-            <section className="flex-1 min-h-0 flex flex-col" data-tour="home-library">
-              <div className="flex items-baseline justify-between mb-2.5 shrink-0">
-                <h3 className="font-serif text-[15px] font-semibold text-[color:var(--text-primary)]">
-                  你的角色库
-                  <span className="text-[11px] text-[color:var(--text-muted)] font-sans font-normal ml-1.5">
-                    {characters.length} 张{featured.length > 0 ? ' · 最近有动静的 4 张' : ''}
-                  </span>
-                </h3>
-                <button
-                  className="text-[11px] text-[color:var(--text-muted)] hover:text-[color:var(--text-body)] flex items-center gap-1"
-                  onClick={() => navigate('/library')}
-                >
-                  进入角色库 <ArrowRight className="w-3 h-3" />
-                </button>
-              </div>
-              {featured.length === 0 ? (
-                <div className="flex-1 rounded-xl bg-elevated flex flex-col items-center justify-center gap-1.5 text-center p-6">
-                  <Users className="w-10 h-10 text-muted-foreground/40" />
-                  <p className="text-sm text-muted-foreground">还没有角色卡</p>
-                  <p className="text-xs text-muted-foreground/70">去角色库导入 PNG/JSON 角色卡，开始你的收藏</p>
-                </div>
-              ) : (
-                <div className="flex-1 min-h-0 grid grid-cols-4 gap-3 content-start overflow-hidden">
-                  {featured.map((c) => (
-                    <button
-                      key={c.id}
-                      onClick={() => navigate(`/character/${c.id}`)}
-                      className="relative self-start w-full aspect-[2/3] rounded-xl overflow-hidden bg-elevated transition-transform duration-200 hover:-translate-y-0.5 text-left"
-                    >
-                      {c.pngBase64 ? (
-                        <img
-                          src={`data:image/png;base64,${c.pngBase64}`}
-                          alt={c.name}
-                          className="absolute inset-0 w-full h-full object-cover object-top"
-                          loading="lazy"
-                        />
-                      ) : (
-                        <div className={`absolute inset-0 art art-placeholder-${(hashName(c.name) % 13) + 1}`}>
-                          <div className="char-mark" style={{ fontSize: 24 }}>{c.name.slice(0, 1)}</div>
-                        </div>
-                      )}
-                      <div className="absolute left-0 right-0 bottom-0 px-3 pb-2.5 pt-8 bg-[linear-gradient(transparent,rgba(0,0,0,0.75)_40%,rgba(0,0,0,0.92))]">
-                        <p className="font-serif text-xs font-semibold text-white truncate [text-shadow:0_1px_4px_rgba(0,0,0,0.5)]">{c.name}</p>
-                        <div className="flex items-center justify-between mt-1 text-[10px]">
-                          <span className="font-semibold text-[color:var(--brand-hi)]">
-                            ★ {c.rating !== undefined ? c.rating : '-'}
-                          </span>
-                          <span className="text-white/50">{relativeTime(c.updatedAt)}</span>
-                        </div>
-                      </div>
-                    </button>
-                  ))}
                 </div>
               )}
             </section>
@@ -273,38 +326,39 @@ const Home = () => {
 
           {/* ===== 右列 300px ===== */}
           <div className="w-[300px] shrink-0 flex flex-col gap-3 min-h-0">
-            {/* ③ 编辑区入口 */}
-            <button
-              type="button"
-              className="w-full shrink-0 rounded-xl bg-elevated border-[1.5px] border-[color:var(--border-normal)] px-4 py-[18px] text-center hover:border-[color:var(--brand-hairline)] transition-colors"
-              onClick={() => navigate('/tools')}
-              data-tour="home-tools"
-            >
-              <div className="w-10 h-10 mx-auto mb-2.5 rounded-full bg-[var(--brand-active-bg)] text-brand flex items-center justify-center">
-                <PenLine className="w-5 h-5" />
+            {/* ③ 编辑处理区：标题 + 工具列表（0801 反馈 #5） */}
+            <section className="shrink-0 rounded-xl bg-elevated p-4" data-tour="home-tools">
+              <div className="flex items-center justify-between mb-2.5 gap-2">
+                <p className="font-serif text-[15px] font-semibold text-[color:var(--text-primary)]">编辑处理区</p>
+                <PillLink label="进入编辑区" onClick={() => navigate('/tools')} />
               </div>
-              <p className="text-sm font-medium text-[color:var(--text-primary)]">进入编辑区</p>
-              <p className="text-[11px] leading-relaxed text-[color:var(--text-muted)] mt-1 mb-3">
-                进入后选择或拖入要处理的文件
-              </p>
-              <div className="flex flex-wrap gap-1 justify-center">
-                {['聊天记录', '世界书', '预设', '角色卡', '正则'].map((t) => (
-                  <span key={t} className="px-2 py-[3px] rounded-full text-[10px] bg-[var(--hover-overlay)] text-[color:var(--text-muted)]">
-                    {t}
-                  </span>
-                ))}
+              <div className="flex flex-col gap-1">
+                {EDIT_TOOLS.map((tool) => {
+                  const Icon = tool.icon;
+                  return (
+                    <button
+                      key={tool.label}
+                      onClick={() => navigate(tool.path)}
+                      className="flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs text-[color:var(--text-body)] bg-chrome hover:bg-elevated-strong transition-colors"
+                    >
+                      <Icon className="w-4 h-4 text-[color:var(--text-muted)]" />
+                      <span className="flex-1 text-left">{tool.label}</span>
+                      <ChevronRight className="w-3.5 h-3.5 text-[color:var(--text-faint)]" />
+                    </button>
+                  );
+                })}
               </div>
-            </button>
+            </section>
 
-            {/* ④ 其他资产：统计格（demo .stat-panel） */}
+            {/* ④ 其他资产：统计格（0801 反馈 #6：「你的资产」改名） */}
             <section className="shrink-0 rounded-xl bg-elevated p-4" data-tour="home-assets">
-              <p className="text-[11px] tracking-widest text-[color:var(--text-muted)] mb-2.5">你的资产</p>
+              <p className="text-xs tracking-widest text-[color:var(--text-muted)] mb-2.5">其他资产</p>
               <div className="grid grid-cols-2 gap-2">
                 {STAT_CELLS.map((cell) => (
                   <button
                     key={cell.label}
                     onClick={cell.onClick}
-                    className="flex items-center justify-between px-3 py-2.5 rounded-lg bg-chrome text-[11px] text-[color:var(--text-body)] hover:bg-elevated-strong transition-colors"
+                    className="flex items-center justify-between px-3 py-2.5 rounded-lg bg-chrome text-xs text-[color:var(--text-body)] hover:bg-elevated-strong transition-colors"
                   >
                     <span>{cell.label}</span>
                     <span className="font-serif font-bold text-[15px] text-[color:var(--text-primary)]">{cell.count}</span>
@@ -314,7 +368,7 @@ const Home = () => {
                 {isTauri() && (
                   <button
                     onClick={() => setStConfigOpen(true)}
-                    className="flex items-center justify-between px-3 py-2.5 rounded-lg bg-chrome text-[11px] text-[color:var(--text-body)] hover:bg-elevated-strong transition-colors"
+                    className="flex items-center justify-between px-3 py-2.5 rounded-lg bg-chrome text-xs text-[color:var(--text-body)] hover:bg-elevated-strong transition-colors"
                   >
                     <span className="flex items-center gap-1.5"><KeyRound className="w-3.5 h-3.5 text-muted-foreground" />ST 配置</span>
                   </button>

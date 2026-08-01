@@ -56,7 +56,6 @@ const Tools = () => {
   /** 二级列表计数与最近打开（加载失败静默为 0/空，不挡工具入口） */
   const [counts, setCounts] = useState<Partial<Record<ToolFileType, number>>>({});
   const [recent, setRecent] = useState<ArchiveStory[]>([]);
-  const [statusRefreshKey, setStatusRefreshKey] = useState(0);
 
   const loadData = useCallback(async () => {
     const [stories, wbs, cards, presets, regexes] = await Promise.all([
@@ -84,7 +83,6 @@ const Tools = () => {
   useEffect(() => { void loadData(); }, [loadData]);
 
   const handleSTChanged = useCallback(() => {
-    setStatusRefreshKey((key) => key + 1);
     void loadData();
   }, [loadData]);
 
@@ -118,7 +116,7 @@ const Tools = () => {
   };
 
   return (
-    <AppLayout statusRefreshKey={statusRefreshKey}>
+    <AppLayout>
       <div className="h-full flex overflow-hidden">
         {/* ===== 左侧 220px 二级列表（demo .editor-sublist）===== */}
         <aside className="w-[var(--editor-sublist-width)] shrink-0 overflow-y-auto scrollbar-thin py-3 px-2 border-r border-[color:var(--border-subtle)]">
