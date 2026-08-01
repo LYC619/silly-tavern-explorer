@@ -6,6 +6,7 @@ import { ThemeProvider } from "next-themes";
 import { lazy, Suspense, useEffect } from "react";
 import { Loader2 } from "lucide-react";
 import { VaultGate } from "@/components/vault/VaultGate";
+import { MigrationNotice } from "@/components/MigrationNotice";
 import { ThemeSync } from "@/components/ThemeSync";
 import { THEME_KEYS, DEFAULT_THEME } from "@/lib/theme";
 
@@ -78,6 +79,7 @@ const App = () => {
       <Toaster />
       <Sonner />
       <VaultGate>
+      <MigrationNotice />
       <BrowserRouter>
         <Suspense fallback={<PageFallback />}>
           <Routes>

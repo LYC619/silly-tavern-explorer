@@ -2,12 +2,12 @@
  * 角色库 + 归档故事的数据层（2.0 阶段1）。
  * 实体定义见 @/types/archive；存储走统一仓库层（未来客户端换文件库后端无感）。
  */
-import type { ArchiveCharacter, ArchiveStory, CharacterStatus, StoryBranch } from '@/types/archive';
+import type { ArchiveCharacter, ArchiveStory, CharacterStatus, CharacterType, StoryStatus, StoryBranch } from '@/types/archive';
 import type { ChatSession, ChatMessage, ChapterMarker } from '@/types/chat';
 import type { STCharacterCard } from '@/lib/png-parser';
 import { normalizeCharacterCard } from '@/lib/png-parser';
 import { createRepo } from '@/lib/repo';
-import { extractModels, estimatePlayTime } from '@/lib/story-meta';
+import { extractModels, estimatePlayTime, computeStoryProps } from '@/lib/story-meta';
 
 // ---------- 仓库 ----------
 
@@ -105,6 +105,7 @@ export function buildStoryFromSession(session: ChatSession, characterId?: string
     session,
     markers: [],
     meta: computeStoryMeta(session.messages),
+    ...computeStoryProps(session.messages),
     createdAt: now,
     updatedAt: now,
   };
@@ -164,7 +165,9 @@ export function updateBranchLine(story: ArchiveStory, branchId: string | null, p
   if (branchId === null) {
     return {
       ...story,
-      ...(patch.session !== undefined ? { session: patch.session, meta: computeStoryMeta(patch.session.messages) } : {}),
+      ...(patch.session !== undefined
+        ? { session: patch.session, meta: computeStoryMeta(patch.session.messages), ...computeStoryProps(patch.session.messages) }
+        : {}),
       ...(patch.markers !== undefined ? { markers: patch.markers } : {}),
       ...(patch.favorites !== undefined ? { favorites: patch.favorites } : {}),
       ...(patch.lastFloor !== undefined ? { lastFloor: patch.lastFloor } : {}),
@@ -202,8 +205,14 @@ export function sortStoriesForDisplay(stories: ArchiveStory[]): ArchiveStory[] {
   return [...viewed, ...fresh];
 }
 
-/** 统一状态的全部取值（顺序即 UI 显示顺序） */
+/** @deprecated 五档状态 10.0 起废弃（→ 角色类型 + 故事状态），暂留供迁移弹窗文案与旧档案读取 */
 export const CHARACTER_STATUSES: CharacterStatus[] = ['未开始', '进行中', '暂停', '已完成', '已弃置'];
+
+/** 角色类型全部取值（10.0，互斥；顺序即 UI 显示顺序） */
+export const CHARACTER_TYPES: CharacterType[] = ['人物', '剧情', '玩法', '综合', '同人'];
+
+/** 故事状态全部取值（10.0，四档；顺序即 UI 显示顺序） */
+export const STORY_STATUSES: StoryStatus[] = ['未开始', '进行中', '已完结', '已搁置'];
 
 /** ArrayBuffer → 纯 base64（无 data: 前缀），导入 PNG 卡时存原图用 */
 export function abToBase64(buf: ArrayBuffer): string {

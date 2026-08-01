@@ -13,8 +13,53 @@ import type { RatingRecord } from '@/types/rating';
 
 // ---------- 角色（角色库条目 = 设计稿「角色/<名>/档案.json + 卡片.png」） ----------
 
-/** 统一状态（定稿第四章）：用户手动维护，系统只建议不自动改 */
+/**
+ * @deprecated 10.0 起废弃（0801 反馈：角色级五档游玩状态 → 互斥「类型」；状态四档下沉到故事级）。
+ * 字段暂留供旧档案读取与迁移，10.2 移除 UI 后不再写入。
+ */
 export type CharacterStatus = '未开始' | '进行中' | '暂停' | '已完成' | '已弃置';
+
+/** 角色类型（10.0，互斥，替代五档游玩状态）；undefined = 未分类（迁移允许不强制归类） */
+export type CharacterType = '人物' | '剧情' | '玩法' | '综合' | '同人';
+
+/** 故事状态四档（10.0，0801 反馈：状态下沉到故事级） */
+export type StoryStatus = '未开始' | '进行中' | '已完结' | '已搁置';
+
+/** 展示层元信息覆盖（10.0）：只改本地展示，不写回角色卡原件 */
+export interface DisplayMeta {
+  name?: string;
+  creator?: string;
+  source?: string;
+}
+
+/** 角色级速记备注（10.0，设计稿「备注」tab：玩卡心得，按时间列出） */
+export interface CharacterNote {
+  id: string;
+  body: string;
+  at: number;
+}
+
+/**
+ * 立绘行（10.0 定形，10.3c 实现 UI 与客户端落盘）：
+ * 一行 = 一个角色或一个剧情阶段；客户端落盘 `角色/<名>/立绘/<行名>/` + 立绘.json，网页版图片存条目内。
+ */
+export interface PortraitRow {
+  id: string;
+  title: string;
+  items: PortraitItem[];
+}
+
+export interface PortraitItem {
+  id: string;
+  /** 来源：manual=手动导入；replaced=被替换的旧卡面自动存档 */
+  source: 'manual' | 'replaced';
+  /** 客户端：行文件夹内的文件名；网页版为空（图片在 dataBase64） */
+  fileName?: string;
+  /** 网页版：图片数据（纯 base64 无前缀）；客户端为空（图片在文件夹） */
+  dataBase64?: string;
+  mime?: string;
+  addedAt: number;
+}
 
 /** AI/手动简介的一个历史版本 */
 export interface IntroVersion {
@@ -35,9 +80,20 @@ export interface ArchiveCharacter {
   card: STCharacterCard;
   /** 原始 PNG base64（纯数据无前缀）；JSON 导入的卡为空 */
   pngBase64?: string;
-  /** STE 本地标签（不写回 ST 卡文件） */
+  /** STE 本地标签（不写回 ST 卡文件）；「类别/子标签」分级格式，分类法见 lib/tag-taxonomy */
   tags: string[];
+  /** @deprecated 10.0 起废弃（见 CharacterStatus）；暂留兼容旧档案 */
   status: CharacterStatus;
+  /** 角色类型（10.0，互斥）；undefined = 未分类 */
+  type?: CharacterType;
+  /** 展示层元信息覆盖（10.0）：不写回卡原件 */
+  displayMeta?: DisplayMeta;
+  /** NSFW 卡面标记（10.0）；与标签 '卡面/NSFW' 由 setNsfw 同步维护，字段为真源 */
+  nsfw?: boolean;
+  /** 角色备注（10.0，10.3c 出 UI） */
+  notes?: CharacterNote[];
+  /** 立绘分行（10.0 定形，10.3c 出 UI 与落盘） */
+  portraitRows?: PortraitRow[];
   /** 10 分制总分（0.5 步进由 UI 约束）；未评分为 undefined */
   rating?: number;
   /** 评分摘要（一句话，详细分项在 ratingDetail 里） */
@@ -101,6 +157,14 @@ export interface ArchiveStory {
   /** 收藏楼层（messageId） */
   favorites?: string[];
   meta: StoryMeta;
+  /** 故事状态四档（10.0）；undefined 按「未开始」显示 */
+  status?: StoryStatus;
+  /** 故事评分（10.0 轻量，0.5 步进）；未评分为 undefined */
+  rating?: number;
+  /** 物化：主线正文字数（非空白字符数，不含分支；导入/保存时计算，存量迁移回填） */
+  wordCount?: number;
+  /** 物化：主线最后一条消息时间（gen/send 时间戳最大值；「最后游玩」显示与排序用） */
+  lastMessageAt?: number;
   /** 分支列表（主线不在其中，主线=本体字段）；无分支时为空/缺省 */
   branches?: StoryBranch[];
   /** 最近查看的脉络；缺省=主线，旧归档天然兼容 */

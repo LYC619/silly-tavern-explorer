@@ -61,12 +61,15 @@ import {
   TAG_CATEGORIES, parseTag, tagOptionsByCategory, type TagCategory,
 } from '@/lib/tag-taxonomy';
 
-/** 类别 → 交接包分类色点（--tag-*）；「其他」用背景色点 */
+/** 类别 → 交接包分类色点（--tag-*）；分类法 v2（10.0），「未分类」用背景色点 */
 const CATEGORY_DOT: Record<TagCategory, string> = {
   人物: 'var(--tag-people)',
+  剧情: 'var(--tag-review)',
   玩法: 'var(--tag-play)',
+  世界观: 'var(--tag-scene)',
+  卡面: 'var(--tag-nsfw)',
   评价: 'var(--tag-review)',
-  其他: 'var(--tag-scene)',
+  未分类: 'var(--tag-scene)',
 };
 
 function hashName(name: string): number {

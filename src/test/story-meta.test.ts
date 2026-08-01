@@ -6,6 +6,9 @@ import {
   estimatePlayTime,
   formatPlayTime,
   PLAY_SESSION_GAP_MS,
+  computeWordCount,
+  computeLastMessageAt,
+  computeStoryProps,
 } from '@/lib/story-meta';
 
 function msg(partial: Partial<ChatMessage> & { rawData?: ChatMessage['rawData'] }): ChatMessage {
@@ -132,5 +135,34 @@ describe('formatPlayTime', () => {
     expect(formatPlayTime(est(12.4 * 60 * 60_000))).toBe('12.4 小时');
     expect(formatPlayTime(est(15.63 * 60 * 60_000))).toBe('15.6 小时');
     expect(formatPlayTime(est(2 * 60 * 60_000))).toBe('2 小时');
+  });
+});
+
+describe('computeWordCount / computeLastMessageAt（10.0 物化字段）', () => {
+  it('字数=全部消息 content 非空白字符数之和', () => {
+    const messages = [
+      msg({ content: '雨夜 的旧\n书店' }),
+      msg({ content: '  she said hi  ' }),
+    ];
+    expect(computeWordCount(messages)).toBe(6 + 9);
+    expect(computeWordCount([])).toBe(0);
+  });
+
+  it('最后消息时间=全部时间戳取最大（容忍乱序），无时间戳为 undefined', () => {
+    const t1 = new Date('2026-07-01T10:00:00').getTime();
+    const t2 = new Date('2026-07-02T10:00:00').getTime();
+    const messages = [msg({ timestamp: t2 }), msg({ timestamp: t1 })];
+    expect(computeLastMessageAt(messages)).toBe(t2);
+    expect(computeLastMessageAt([msg({})])).toBeUndefined();
+  });
+
+  it('rawData 的 gen_finished 优先于导入时 timestamp', () => {
+    const messages = [msg({ timestamp: 1000, rawData: { gen_finished: '2026-07-03T08:00:00' } })];
+    expect(computeLastMessageAt(messages)).toBe(new Date('2026-07-03T08:00:00').getTime());
+  });
+
+  it('computeStoryProps 一次算齐', () => {
+    const props = computeStoryProps([msg({ content: 'abc', timestamp: 500 })]);
+    expect(props).toEqual({ wordCount: 3, lastMessageAt: 500 });
   });
 });

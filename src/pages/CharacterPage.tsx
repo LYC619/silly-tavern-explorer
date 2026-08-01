@@ -49,7 +49,7 @@ import {
   CHARACTER_STATUSES,
 } from '@/lib/archive-db';
 import { normalizeCharacterCard, parseJsonl, parseJson } from '@/lib/adapters/st';
-import { formatPlayTime } from '@/lib/story-meta';
+import { formatPlayTime, formatWordCount } from '@/lib/story-meta';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -58,7 +58,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { TAG_CATEGORIES, BUILTIN_TAGS, makeTag } from '@/lib/tag-taxonomy';
+import { TAG_CATEGORIES, BUILTIN_TAGS, makeTag, applyRatingTierTag } from '@/lib/tag-taxonomy';
 import { AssetSection } from '@/components/character/AssetSection';
 import { IllustrationSection } from '@/components/character/IllustrationSection';
 import { IntroSection } from '@/components/character/IntroSection';
@@ -99,10 +99,14 @@ const CharacterPage = () => {
 
   const norm = useMemo(() => (character ? normalizeCharacterCard(character.card) : null), [character]);
 
-  /** 更新角色档案（整理信息属于本地元数据，updatedAt 跟随） */
+  /** 更新角色档案（整理信息属于本地元数据，updatedAt 跟随）。
+   * 评分变化时联动评价档位标签（10.0，单向：评分→标签）。 */
   const patchCharacter = async (patch: Partial<ArchiveCharacter>) => {
     if (!character) return;
-    const next = { ...character, ...patch, updatedAt: Date.now() };
+    const withTierTag = 'rating' in patch
+      ? { ...patch, tags: applyRatingTierTag(patch.tags ?? character.tags, patch.rating) }
+      : patch;
+    const next = { ...character, ...withTierTag, updatedAt: Date.now() };
     setCharacter(next);
     await saveCharacter(next);
   };
@@ -368,13 +372,20 @@ const CharacterPage = () => {
                 >
                   <CardContent className="py-3 px-4 flex items-center gap-3 flex-wrap">
                     <div className="flex-1 min-w-48">
-                      <p className="font-medium text-sm truncate">{story.title}</p>
-                      {/* 元数据紧凑单行（定稿 2A）：消息数 · 时长 · 模型 · 最近查看 */}
+                      <p className="font-medium text-sm truncate flex items-center gap-2">
+                        <span className="truncate">{story.title}</span>
+                        {/* 故事状态四档（10.0 下沉到故事级）；undefined 按未开始显示 */}
+                        <Badge variant="outline" className="h-5 px-1.5 text-[10px] shrink-0 font-normal">
+                          {story.status ?? '未开始'}
+                        </Badge>
+                      </p>
+                      {/* 元数据紧凑单行（定稿 2A）：消息数 · 字数 · 时长 · 模型 · 最近查看 */}
                       <p className="text-xs text-muted-foreground flex items-center gap-3 flex-wrap mt-0.5">
                         <span className="flex items-center gap-1">
                           <MessageSquare className="w-3 h-3" />
                           {msgCount} 楼
                         </span>
+                        {story.wordCount !== undefined && <span>{formatWordCount(story.wordCount)}</span>}
                         <span className="flex items-center gap-1">
                           <Clock className="w-3 h-3" />
                           {formatPlayTime(

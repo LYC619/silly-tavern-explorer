@@ -101,3 +101,36 @@ export function formatPlayTime(estimate: PlayTimeEstimate | null): string {
   const hours = Math.round((minutes / 60) * 10) / 10; // 保留 1 位小数（整数自然不显示小数）
   return `${hours} 小时`;
 }
+
+// ---------- 物化字段（10.0：故事级 wordCount / lastMessageAt，0801 反馈） ----------
+
+/**
+ * 正文字数：所有消息 content 的非空白字符数之和（中文按字、英文按字母计，与「字数」直觉一致）。
+ * 只算主线当前生效正文（content 已是选中 swipe），不含候选池与分支。
+ */
+export function computeWordCount(messages: ChatMessage[]): number {
+  let n = 0;
+  for (const msg of messages) n += msg.content.replace(/\s+/g, '').length;
+  return n;
+}
+
+/** 最后一条消息时间：全部消息时间戳取最大（容忍乱序）；无有效时间戳返回 undefined */
+export function computeLastMessageAt(messages: ChatMessage[]): number | undefined {
+  let max: number | undefined;
+  for (const msg of messages) {
+    const t = messageTime(msg);
+    if (t !== undefined && (max === undefined || t > max)) max = t;
+  }
+  return max;
+}
+
+/** 故事物化字段一次算齐（导入/主线保存/存量回填共用一个口） */
+export function computeStoryProps(messages: ChatMessage[]): { wordCount: number; lastMessageAt?: number } {
+  return { wordCount: computeWordCount(messages), lastMessageAt: computeLastMessageAt(messages) };
+}
+
+/** 字数展示：≥1 万显示「x.x 万字」，否则「n 字」 */
+export function formatWordCount(n: number): string {
+  if (n >= 10000) return `${(Math.round(n / 1000) / 10).toFixed(1)} 万字`;
+  return `${n} 字`;
+}
