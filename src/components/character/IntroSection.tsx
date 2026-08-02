@@ -159,6 +159,8 @@ export function IntroSection({ character, norm, onPatch }: IntroSectionProps) {
   };
 
   const displayText = current?.content ?? norm.description;
+  // 未配 API 时入口置灰+tooltip（10.3a；handleGenerate 里的 toast 仍留作兜底）
+  const hasApiKey = !!loadAPIConfig().apiKey;
 
   return (
     <div className="space-y-2">
@@ -188,10 +190,12 @@ export function IntroSection({ character, norm, onPatch }: IntroSectionProps) {
             可能已过期（关联世界书有更新）
           </Badge>
         )}
-        <Button variant="outline" size="sm" className="h-7 gap-1" onClick={openGenerate}>
-          <Sparkles className="w-3.5 h-3.5" />
-          {current ? '重新生成简介' : '生成 AI 简介'}
-        </Button>
+        <span title={hasApiKey ? undefined : '未配置 AI API：前往「AI 配置」页填好后可用'}>
+          <Button variant="outline" size="sm" className="h-7 gap-1" disabled={!hasApiKey} onClick={openGenerate}>
+            <Sparkles className="w-3.5 h-3.5" />
+            {current ? '重新生成简介' : '生成 AI 简介'}
+          </Button>
+        </span>
         <Button
           variant="ghost" size="sm" className="h-7 gap-1 text-muted-foreground"
           onClick={() => { setEditDraft(current?.content ?? norm.description); setEditOpen(true); }}

@@ -1,42 +1,26 @@
+/**
+ * 角色卡主页（10.3a 骨架重构，对照 _reference/0801.实测/角色卡界面设计/character-detail.html）：
+ * - 左信息栏 272px（CharacterInfoRail）：立绘 3:4+lightbox / 信息行 / 操作抽屉
+ * - 主列：头部（CharacterHeader：大标题+meta 编辑弹窗+折叠动画+标签条 NSFW 开关）
+ *   + tab 导航（故事/备注/关联资产/立绘）；就地阅读与故事域交互在 10.3b，备注/立绘分行在 10.3c
+ * - patchCharacter：评分→评价档位标签单向联动（10.0）+ 标签变化同步 nsfw 字段
+ */
 import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import {
-  ArrowLeft,
-  Plus,
-  X,
-  MessageSquare,
-  Clock,
-  Cpu,
-  GitBranch,
-  BookOpen,
-  Trash2,
-  Download,
+  ArrowLeft, MessageSquare, Clock, Cpu, GitBranch, Trash2, BookOpen, Download, StickyNote,
 } from 'lucide-react';
 import { AppLayout } from '@/components/AppLayout';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent } from '@/components/ui/card';
-import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
-import { Separator } from '@/components/ui/separator';
+import { Card, CardContent } from '@/components/ui/card';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 import { useToast } from '@/hooks/use-toast';
-import type { ArchiveCharacter, ArchiveStory, CharacterType } from '@/types/archive';
+import type { ArchiveCharacter, ArchiveStory } from '@/types/archive';
 import type { ChatSession } from '@/types/chat';
 import {
   getCharacter,
@@ -44,34 +28,24 @@ import {
   getStoriesByCharacter,
   saveArchiveStory,
   deleteArchiveStory,
+  deleteCharacter,
   buildStoryFromSession,
   sortStoriesForDisplay,
-  CHARACTER_TYPES,
 } from '@/lib/archive-db';
 import { normalizeCharacterCard, parseJsonl, parseJson } from '@/lib/adapters/st';
 import { formatPlayTime, formatWordCount } from '@/lib/story-meta';
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
-import {
-  TAG_CATEGORIES, BUILTIN_TAGS, makeTag, applyRatingTierTag,
-  NSFW_TAG, RATING_TIER_LABELS, RATING_TIER_PREFILL, type RatingTier,
-} from '@/lib/tag-taxonomy';
+import { formatListTime, formatFullTime } from '@/lib/time-display';
+import { applyRatingTierTag, NSFW_TAG } from '@/lib/tag-taxonomy';
+import { importEmbeddedAssets } from '@/lib/card-embedded-assets';
+import { downloadCharacterFile } from '@/lib/character-file';
+import { exportCardJson } from '@/lib/card-export';
+import { setPendingToolFile } from '@/lib/tool-handoff';
+import { CharacterInfoRail } from '@/components/character/CharacterInfoRail';
+import { CharacterHeader } from '@/components/character/CharacterHeader';
 import { AssetSection } from '@/components/character/AssetSection';
 import { IllustrationSection } from '@/components/character/IllustrationSection';
-import { IntroSection } from '@/components/character/IntroSection';
-import { RatingPanel } from '@/components/character/RatingPanel';
 
 const RECENT_STORY_COUNT = 5;
-
-function formatDate(ts: number): string {
-  return new Date(ts).toLocaleDateString('zh-CN', { year: 'numeric', month: 'short', day: 'numeric' });
-}
 
 const CharacterPage = () => {
   const { id } = useParams<{ id: string }>();
@@ -81,11 +55,9 @@ const CharacterPage = () => {
   const [character, setCharacter] = useState<ArchiveCharacter | null>(null);
   const [stories, setStories] = useState<ArchiveStory[]>([]);
   const [loading, setLoading] = useState(true);
-  const [newTag, setNewTag] = useState('');
-  /** 点评价档位标签的评分确认（0801 补充：预填档位中值，仅未评分时） */
-  const [tierConfirm, setTierConfirm] = useState<{ tier: RatingTier; value: number } | null>(null);
   const [showAllStories, setShowAllStories] = useState(false);
   const [storyToDelete, setStoryToDelete] = useState<ArchiveStory | null>(null);
+  const [charDeleteOpen, setCharDeleteOpen] = useState(false);
 
   const load = useCallback(async () => {
     if (!id) return;
@@ -106,7 +78,7 @@ const CharacterPage = () => {
 
   /** 更新角色档案（整理信息属于本地元数据，updatedAt 跟随）。
    * 评分变化时联动评价档位标签（10.0，单向：评分→标签）；
-   * 标签变化时同步 nsfw 字段（'卡面/NSFW' 在场即 true，10.3a 出独立开关前的过渡接线）。 */
+   * 标签变化时同步 nsfw 字段（'卡面/NSFW' 在场即 true）。 */
   const patchCharacter = async (patch: Partial<ArchiveCharacter>) => {
     if (!character) return;
     let effective = patch;
@@ -119,26 +91,6 @@ const CharacterPage = () => {
     const next = { ...character, ...effective, updatedAt: Date.now() };
     setCharacter(next);
     await saveCharacter(next);
-  };
-
-  /** 点「评价」档位标签（0801 补充）：未评分时弹确认预填档位中值；已评分则档位随评分自动，不手动改 */
-  const handleTierTagClick = (tier: RatingTier) => {
-    if (!character) return;
-    if (character.rating !== undefined) {
-      toast({ title: '已有评分', description: '评价档位随评分自动更新；要改档位请直接改评分。' });
-      return;
-    }
-    setTierConfirm({ tier, value: RATING_TIER_PREFILL[tier] });
-  };
-
-  const handleAddTag = async () => {
-    const tag = newTag.trim();
-    if (!tag || !character || character.tags.includes(tag)) {
-      setNewTag('');
-      return;
-    }
-    await patchCharacter({ tags: [...character.tags, tag] });
-    setNewTag('');
   };
 
   const handleImportChat = async (files: FileList | null) => {
@@ -171,17 +123,66 @@ const CharacterPage = () => {
     toast({ title: `导入完成：${ok} 个故事${fail ? `，失败 ${fail} 个` : ''}` });
   };
 
-  const handleOpenStory = (story: ArchiveStory) => {
-    // 进入故事工作区（2.0 阶段2）；工作区会自己记录 lastViewedAt 并恢复上次阅读位置
-    navigate(`/story/${story.id}`);
-  };
-
   const handleConfirmDeleteStory = async () => {
     if (!storyToDelete) return;
     await deleteArchiveStory(storyToDelete.id);
     setStoryToDelete(null);
     await load();
     toast({ title: '故事已删除' });
+  };
+
+  // ===== 操作抽屉四项 =====
+
+  /** 编辑角色卡：把卡原件经内存交接送进编辑区角色卡工具（处理归编辑区的动线） */
+  const handleEditCard = () => {
+    if (!character) return;
+    let file: File;
+    if (character.pngBase64) {
+      const bytes = Uint8Array.from(atob(character.pngBase64), (ch) => ch.charCodeAt(0));
+      file = new File([bytes], `${character.name}.png`, { type: 'image/png' });
+    } else {
+      file = new File([exportCardJson(character.card)], `${character.name}.json`, { type: 'application/json' });
+    }
+    setPendingToolFile('card', file);
+    navigate('/card-viewer');
+  };
+
+  /** 读取内置资源：重扫卡内嵌世界书/正则入库并挂关联（sourcePath 去重，不重复建） */
+  const handleReadEmbedded = async () => {
+    if (!character) return;
+    try {
+      const refs = await importEmbeddedAssets(character);
+      const existing = character.assets ?? [];
+      const merged = [...existing];
+      for (const r of refs) {
+        if (!merged.some((x) => x.kind === r.kind && x.assetId === r.assetId)) merged.push(r);
+      }
+      if (merged.length !== existing.length) {
+        await patchCharacter({ assets: merged });
+        toast({ title: `已读取内置资源：新挂 ${merged.length - existing.length} 个关联` });
+      } else {
+        toast({ title: '没有新的内置资源', description: '卡内嵌的世界书/正则已在关联列表里。' });
+      }
+    } catch {
+      toast({ title: '读取内置资源失败', variant: 'destructive' });
+    }
+  };
+
+  /** 删除角色：名下故事转未绑定，不连带删除 */
+  const handleConfirmDeleteChar = async () => {
+    if (!character) return;
+    try {
+      await Promise.all(
+        stories.map((s) => saveArchiveStory({ ...s, characterId: undefined, updatedAt: Date.now() })),
+      );
+      await deleteCharacter(character.id);
+      toast({ title: `已删除「${character.name}」（名下故事已转为未绑定）` });
+      navigate('/library');
+    } catch {
+      toast({ title: '删除失败', variant: 'destructive' });
+    } finally {
+      setCharDeleteOpen(false);
+    }
   };
 
   const sortedStories = useMemo(() => sortStoriesForDisplay(stories), [stories]);
@@ -232,244 +233,146 @@ const CharacterPage = () => {
         </>
       }
     >
-      <div className="container mx-auto px-4 py-6 max-w-5xl">
-        {/* ===== 首屏身份区：封面 1/3 + 简介主导 ===== */}
-        <div className="flex gap-6 flex-wrap">
-          {/* 封面（2:3 受控比例）。显式 w-52 而非只靠 basis：翻译类插件往 flex 容器里包节点会让
-              flex-basis 失效、封面按原图尺寸撑开（实测踩过），显式宽度不受包裹影响 */}
-          <div className="w-52 basis-52 shrink-0 grow-0">
-            <div className="aspect-[2/3] rounded-lg overflow-hidden border border-border shadow-card bg-muted">
-              {character.pngBase64 ? (
-                <img
-                  src={`data:image/png;base64,${character.pngBase64}`}
-                  alt={character.name}
-                  className="w-full h-full object-cover object-top"
-                />
-              ) : (
-                <div className="w-full h-full flex items-center justify-center">
-                  <BookOpen className="w-10 h-10 text-muted-foreground/50" />
-                </div>
-              )}
-            </div>
-          </div>
-
-          {/* 右侧：名称/标签/状态/评分/简介 */}
-          <div className="flex-1 min-w-64 space-y-3">
-            <div>
-              <h1 className="font-display text-2xl font-semibold">{character.name}</h1>
-              {character.subtitle && (
-                <p className="text-sm text-muted-foreground mt-0.5">{character.subtitle}</p>
-              )}
-            </div>
-
-            {/* 卡内原始标签（只读、弱化） */}
-            {norm.tags.length > 0 && (
-              <div className="flex items-center gap-1 flex-wrap">
-                {norm.tags.map((t) => (
-                  <Badge key={t} variant="outline" className="text-muted-foreground font-normal">
-                    {t}
-                  </Badge>
-                ))}
-              </div>
-            )}
-
-            {/* STE 本地标签（可编辑，不写回卡） */}
-            <div className="flex items-center gap-1.5 flex-wrap">
-              {character.tags.map((t) => (
-                <Badge key={t} variant="secondary" className="gap-1">
-                  {t}
-                  <button
-                    onClick={() => patchCharacter({ tags: character.tags.filter((x) => x !== t) })}
-                    aria-label={`删除标签 ${t}`}
-                  >
-                    <X className="w-3 h-3" />
-                  </button>
-                </Badge>
-              ))}
-              <div className="flex items-center gap-1">
-                {/* 内置分级标签快捷添加（阶段9.4：人物/玩法/评价；自建用输入框「类别/xx」） */}
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <Button variant="outline" size="sm" className="h-6 px-1.5 text-xs text-muted-foreground">
-                      <Plus className="w-3 h-3 mr-0.5" />标签
-                    </Button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent align="start" className="max-h-80 overflow-y-auto">
-                    {TAG_CATEGORIES.filter((cat) => BUILTIN_TAGS[cat].length > 0).map((cat, i) => (
-                      <div key={cat}>
-                        {i > 0 && <DropdownMenuSeparator />}
-                        <DropdownMenuLabel className="text-[11px] text-muted-foreground py-1">{cat}</DropdownMenuLabel>
-                        {BUILTIN_TAGS[cat].map((label) => {
-                          const raw = makeTag(cat, label);
-                          const has = character.tags.includes(raw);
-                          // 评价档位不直接打标签：走评分确认（评分→标签单向自动）
-                          const isTier = cat === '评价' && (RATING_TIER_LABELS as readonly string[]).includes(label);
-                          return (
-                            <DropdownMenuItem
-                              key={raw}
-                              disabled={has}
-                              onClick={() =>
-                                isTier
-                                  ? handleTierTagClick(label as RatingTier)
-                                  : patchCharacter({ tags: [...character.tags, raw] })
-                              }
-                            >
-                              {label}
-                              {has && <span className="ml-auto text-[10px] text-muted-foreground">已加</span>}
-                            </DropdownMenuItem>
-                          );
-                        })}
-                      </div>
-                    ))}
-                  </DropdownMenuContent>
-                </DropdownMenu>
-                <Input
-                  value={newTag}
-                  onChange={(e) => setNewTag(e.target.value)}
-                  onKeyDown={(e) => e.key === 'Enter' && handleAddTag()}
-                  placeholder="自建：类别/子标签"
-                  className="h-6 w-32 text-xs"
-                />
-                <Button variant="ghost" size="icon" className="h-6 w-6" onClick={handleAddTag} aria-label="添加标签">
-                  <Plus className="w-3.5 h-3.5" />
-                </Button>
-              </div>
-            </div>
-
-            {/* 类型（10.0：互斥五类，替代旧五档游玩状态；状态下沉到故事级） + 评分 */}
-            <div className="flex items-center gap-3 flex-wrap">
-              <Select
-                value={character.type ?? 'none'}
-                onValueChange={(v) => patchCharacter({ type: v === 'none' ? undefined : (v as CharacterType) })}
-              >
-                <SelectTrigger className="h-8 w-28 text-sm" title="类型：每张卡只归一类">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="none">未分类</SelectItem>
-                  {CHARACTER_TYPES.map((t) => (
-                    <SelectItem key={t} value={t}>
-                      {t}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-
-              <RatingPanel
-                character={character}
-                norm={norm}
-                stories={sortedStories}
-                onPatch={patchCharacter}
-              />
-            </div>
-            {character.ratingNote && (
-              <p className="text-xs text-muted-foreground">「{character.ratingNote}」</p>
-            )}
-
-            {/* 简介（阶段6）：整理版/AI 简介 + 草稿比较 + 历史 + 过期提示 */}
-            <IntroSection character={character} norm={norm} onPatch={patchCharacter} />
-
-            {/* 角色卡原文折叠区已去掉（阶段9.5 用户反馈：展开基本只是开场白没价值）；完整字段走角色卡工具 */}
-          </div>
-        </div>
-
-        <Separator className="my-6" />
-
-        {/* ===== 故事历史（第二主区） ===== */}
-        <div className="flex items-center justify-between mb-3">
-          <h2 className="font-display text-lg font-semibold">故事</h2>
-          <p className="text-xs text-muted-foreground">共 {stories.length} 个</p>
-        </div>
-
-        {stories.length === 0 ? (
-          <Card>
-            <CardContent className="py-10 text-center text-sm text-muted-foreground">
-              还没有故事。点击右上角「导入聊天到此角色」，把 ST 聊天记录（JSONL）挂到这张卡下。
-            </CardContent>
-          </Card>
-        ) : (
-          <div className="space-y-2">
-            {visibleStories.map((story) => {
-              const msgCount = story.session.messages.length;
-              return (
-                <Card
-                  key={story.id}
-                  className="group cursor-pointer hover:shadow-warm transition-all"
-                  onClick={() => handleOpenStory(story)}
-                >
-                  <CardContent className="py-3 px-4 flex items-center gap-3 flex-wrap">
-                    <div className="flex-1 min-w-48">
-                      <p className="font-medium text-sm truncate flex items-center gap-2">
-                        <span className="truncate">{story.title}</span>
-                        {/* 故事状态四档（10.0 下沉到故事级）；undefined 按未开始显示 */}
-                        <Badge variant="outline" className="h-5 px-1.5 text-[10px] shrink-0 font-normal">
-                          {story.status ?? '未开始'}
-                        </Badge>
-                      </p>
-                      {/* 元数据紧凑单行（定稿 2A）：消息数 · 字数 · 时长 · 模型 · 最近查看 */}
-                      <p className="text-xs text-muted-foreground flex items-center gap-3 flex-wrap mt-0.5">
-                        <span className="flex items-center gap-1">
-                          <MessageSquare className="w-3 h-3" />
-                          {msgCount} 楼
-                        </span>
-                        {story.wordCount !== undefined && <span>{formatWordCount(story.wordCount)}</span>}
-                        <span className="flex items-center gap-1">
-                          <Clock className="w-3 h-3" />
-                          {formatPlayTime(
-                            story.meta.playTimeMs !== null && story.meta.sessionCount !== undefined
-                              ? { totalMs: story.meta.playTimeMs, sessionCount: story.meta.sessionCount, sampledMessages: msgCount }
-                              : null,
-                          )}
-                        </span>
-                        {story.meta.lastModel && (
-                          <span className="flex items-center gap-1">
-                            <Cpu className="w-3 h-3" />
-                            {story.meta.lastModel}
-                          </span>
-                        )}
-                        {(story.branches?.length ?? 0) > 0 && (
-                          <span className="flex items-center gap-1 text-primary/80">
-                            <GitBranch className="w-3 h-3" />
-                            {story.branches!.length} 条分支
-                          </span>
-                        )}
-                        <span>
-                          {story.lastViewedAt ? `${formatDate(story.lastViewedAt)} 看过` : '未读'}
-                        </span>
-                      </p>
-                    </div>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="h-8 w-8 opacity-0 group-hover:opacity-100 text-destructive"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setStoryToDelete(story);
-                      }}
-                      aria-label="删除故事"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </Button>
-                  </CardContent>
-                </Card>
-              );
-            })}
-            {sortedStories.length > RECENT_STORY_COUNT && (
-              <Button variant="ghost" size="sm" className="w-full" onClick={() => setShowAllStories(!showAllStories)}>
-                {showAllStories ? '收起' : `查看全部 ${sortedStories.length} 个故事`}
-              </Button>
-            )}
-          </div>
-        )}
-
-        {/* 关联资产区（阶段5）：引用制 + 写时复制 */}
-        <AssetSection
+      <div className="h-full flex overflow-hidden">
+        {/* ===== 左信息栏 272px ===== */}
+        <CharacterInfoRail
           character={character}
-          onAssetsChange={(assets) => patchCharacter({ assets })}
+          norm={norm}
+          stories={sortedStories}
+          onPatch={patchCharacter}
+          onEditCard={handleEditCard}
+          onReadEmbedded={() => void handleReadEmbedded()}
+          onExport={() => downloadCharacterFile(character)}
+          onDelete={() => setCharDeleteOpen(true)}
         />
 
-        {/* 立绘区（阶段7，仅客户端文件库有图时出现） */}
-        <IllustrationSection characterId={character.id} />
+        {/* ===== 主列：头部 + tabs ===== */}
+        <div className="flex-1 min-w-0 flex flex-col overflow-y-auto scrollbar-thin">
+          <CharacterHeader character={character} norm={norm} onPatch={patchCharacter} />
+
+          <Tabs defaultValue="stories" className="flex-1 flex flex-col px-6 pt-3 pb-6">
+            {/* TabsList 用 flex（布局铁律：防插件包裹破坏 grid） */}
+            <TabsList className="flex w-fit gap-1">
+              <TabsTrigger value="stories">故事 {stories.length > 0 && <span className="ml-1 text-[10px] opacity-70">{stories.length}</span>}</TabsTrigger>
+              <TabsTrigger value="notes">备注 {(character.notes?.length ?? 0) > 0 && <span className="ml-1 text-[10px] opacity-70">{character.notes!.length}</span>}</TabsTrigger>
+              <TabsTrigger value="assets">关联资产 {(character.assets?.length ?? 0) > 0 && <span className="ml-1 text-[10px] opacity-70">{character.assets!.length}</span>}</TabsTrigger>
+              <TabsTrigger value="portraits">立绘</TabsTrigger>
+            </TabsList>
+
+            {/* 故事 tab（10.3b 补 就地阅读/三按钮/分支连线） */}
+            <TabsContent value="stories" className="mt-3">
+              {stories.length === 0 ? (
+                <Card>
+                  <CardContent className="py-10 text-center text-sm text-muted-foreground">
+                    还没有故事。点击右上角「导入聊天到此角色」，把 ST 聊天记录（JSONL）挂到这张卡下。
+                  </CardContent>
+                </Card>
+              ) : (
+                <div className="space-y-2">
+                  {visibleStories.map((story) => {
+                    const msgCount = story.session.messages.length;
+                    return (
+                      <Card
+                        key={story.id}
+                        className="group cursor-pointer hover:shadow-warm transition-all"
+                        onClick={() => navigate(`/story/${story.id}`)}
+                      >
+                        <CardContent className="py-3 px-4 flex items-center gap-3 flex-wrap">
+                          <div className="flex-1 min-w-48">
+                            <p className="font-medium text-sm truncate flex items-center gap-2">
+                              <span className="truncate">{story.title}</span>
+                              {/* 故事状态四档（10.0 下沉到故事级）；undefined 按未开始显示 */}
+                              <Badge variant="outline" className="h-5 px-1.5 text-[10px] shrink-0 font-normal">
+                                {story.status ?? '未开始'}
+                              </Badge>
+                            </p>
+                            {/* 元数据紧凑单行：消息数 · 字数 · 时长 · 模型 · 最近查看 */}
+                            <p className="text-xs text-muted-foreground flex items-center gap-3 flex-wrap mt-0.5">
+                              <span className="flex items-center gap-1">
+                                <MessageSquare className="w-3 h-3" />
+                                {msgCount} 楼
+                              </span>
+                              {story.wordCount !== undefined && <span>{formatWordCount(story.wordCount)}</span>}
+                              <span className="flex items-center gap-1">
+                                <Clock className="w-3 h-3" />
+                                {formatPlayTime(
+                                  story.meta.playTimeMs !== null && story.meta.sessionCount !== undefined
+                                    ? { totalMs: story.meta.playTimeMs, sessionCount: story.meta.sessionCount, sampledMessages: msgCount }
+                                    : null,
+                                )}
+                              </span>
+                              {story.meta.lastModel && (
+                                <span className="flex items-center gap-1">
+                                  <Cpu className="w-3 h-3" />
+                                  {story.meta.lastModel}
+                                </span>
+                              )}
+                              {(story.branches?.length ?? 0) > 0 && (
+                                <span className="flex items-center gap-1 text-primary/80">
+                                  <GitBranch className="w-3 h-3" />
+                                  {story.branches!.length} 条分支
+                                </span>
+                              )}
+                              <span title={story.lastViewedAt ? formatFullTime(story.lastViewedAt) : undefined}>
+                                {story.lastViewedAt ? `${formatListTime(story.lastViewedAt)}看过` : '未读'}
+                              </span>
+                            </p>
+                          </div>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-8 w-8 opacity-0 group-hover:opacity-100 text-destructive"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setStoryToDelete(story);
+                            }}
+                            aria-label="删除故事"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </Button>
+                        </CardContent>
+                      </Card>
+                    );
+                  })}
+                  {sortedStories.length > RECENT_STORY_COUNT && (
+                    <Button variant="ghost" size="sm" className="w-full" onClick={() => setShowAllStories(!showAllStories)}>
+                      {showAllStories ? '收起' : `查看全部 ${sortedStories.length} 个故事`}
+                    </Button>
+                  )}
+                </div>
+              )}
+            </TabsContent>
+
+            {/* 备注 tab（10.3c 出 CRUD；先给空态占位） */}
+            <TabsContent value="notes" className="mt-3">
+              <Card>
+                <CardContent className="py-10 flex flex-col items-center gap-2 text-center">
+                  <StickyNote className="w-8 h-8 text-muted-foreground/40" />
+                  <p className="text-sm text-muted-foreground">
+                    {(character.notes?.length ?? 0) > 0 ? `已有 ${character.notes!.length} 条备注` : '还没有备注'}
+                  </p>
+                  <p className="text-xs text-muted-foreground/70">角色级速记（玩卡心得）；编辑功能下个批次上线</p>
+                </CardContent>
+              </Card>
+            </TabsContent>
+
+            {/* 关联资产 tab（阶段5 组件迁入；10.3c 换宽抽屉预览） */}
+            <TabsContent value="assets" className="mt-3">
+              <AssetSection
+                character={character}
+                onAssetsChange={(assets) => patchCharacter({ assets })}
+              />
+            </TabsContent>
+
+            {/* 立绘 tab（10.3c 换分行式；现为只读图墙，仅客户端有图时显示） */}
+            <TabsContent value="portraits" className="mt-3">
+              <IllustrationSection characterId={character.id} />
+              <p className="text-xs text-muted-foreground mt-3">
+                立绘分行管理（行标题/导入/设为卡面）下个批次上线；客户端可先把图片放进 角色/{character.name}/立绘/ 文件夹。
+              </p>
+            </TabsContent>
+          </Tabs>
+        </div>
       </div>
 
       <AlertDialog open={!!storyToDelete} onOpenChange={(open) => !open && setStoryToDelete(null)}>
@@ -487,42 +390,17 @@ const CharacterPage = () => {
         </AlertDialogContent>
       </AlertDialog>
 
-      {/* 点评价档位标签 → 评分确认（预填档位中值；确认写评分，档位标签随评分自动） */}
-      <AlertDialog open={!!tierConfirm} onOpenChange={(open) => !open && setTierConfirm(null)}>
+      <AlertDialog open={charDeleteOpen} onOpenChange={setCharDeleteOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>标记为「{tierConfirm?.tier}」= 打个分</AlertDialogTitle>
+            <AlertDialogTitle>删除「{character.name}」？</AlertDialogTitle>
             <AlertDialogDescription>
-              评价档位与评分联动：确认后写入评分（0.5 步进），档位标签随评分自动更新。
+              只删除 STE 里的角色档案（类型、标签、评分等整理信息），不影响 ST 原目录里的文件。名下故事不会被删除，会转为「未绑定」状态。
             </AlertDialogDescription>
           </AlertDialogHeader>
-          {tierConfirm && (
-            <div className="flex items-center gap-2">
-              <Input
-                type="number"
-                min={0}
-                max={10}
-                step={0.5}
-                value={tierConfirm.value}
-                onChange={(e) => setTierConfirm({ ...tierConfirm, value: Number(e.target.value) })}
-                className="h-9 w-24"
-                aria-label="评分"
-              />
-              <span className="text-sm text-muted-foreground">/ 10</span>
-            </div>
-          )}
           <AlertDialogFooter>
             <AlertDialogCancel>取消</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={() => {
-                if (!tierConfirm) return;
-                const v = Math.min(10, Math.max(0, Math.round(tierConfirm.value * 2) / 2));
-                void patchCharacter({ rating: v });
-                setTierConfirm(null);
-              }}
-            >
-              确认评分
-            </AlertDialogAction>
+            <AlertDialogAction onClick={handleConfirmDeleteChar}>删除</AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>

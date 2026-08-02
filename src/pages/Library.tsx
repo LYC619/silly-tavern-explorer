@@ -52,7 +52,7 @@ import { cn } from '@/lib/utils';
 import { introOf } from '@/lib/character-intro';
 import { formatListTime, formatFullTime } from '@/lib/time-display';
 import { getNsfwBlur } from '@/lib/local-settings';
-import { exportCardJson } from '@/lib/card-export';
+import { downloadCharacterFile } from '@/lib/character-file';
 import type { ArchiveCharacter, CharacterType } from '@/types/archive';
 import {
   CHARACTER_TYPES,
@@ -164,25 +164,7 @@ function FilterItem({
   );
 }
 
-/** 逐卡导出原件：有 PNG 存原字节，JSON 卡导出卡数据 */
-function downloadCharacterFile(c: ArchiveCharacter) {
-  let blob: Blob;
-  let filename: string;
-  if (c.pngBase64) {
-    const bytes = Uint8Array.from(atob(c.pngBase64), (ch) => ch.charCodeAt(0));
-    blob = new Blob([bytes], { type: 'image/png' });
-    filename = `${c.name}.png`;
-  } else {
-    blob = new Blob([exportCardJson(c.card)], { type: 'application/json' });
-    filename = `${c.name}.json`;
-  }
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = filename;
-  a.click();
-  URL.revokeObjectURL(url);
-}
+/** 逐卡导出原件：见 lib/character-file（10.3a 起与角色页操作抽屉共用） */
 
 const Library = () => {
   const navigate = useNavigate();

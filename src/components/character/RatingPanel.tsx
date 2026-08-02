@@ -289,7 +289,7 @@ export function RatingPanel({ character, norm, stories, onPatch }: RatingPanelPr
     <>
       <Button variant="outline" size="sm" className="h-8 gap-1" onClick={() => setOpen(true)}>
         <Star className={`w-4 h-4 ${character.rating !== undefined ? 'fill-amber-400 text-amber-400' : 'text-muted-foreground'}`} />
-        {character.rating !== undefined ? `${character.rating} / 10` : '未评分'}
+        {character.rating !== undefined ? String(character.rating) : '未评分'}
       </Button>
 
       <Dialog open={open} onOpenChange={setOpen}>
