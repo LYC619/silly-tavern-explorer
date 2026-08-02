@@ -52,13 +52,15 @@ interface ChatWorkbenchProps {
   onReset?: () => void;
   /** 悬浮跳转条距视口左缘的定位类（工作区多一条二级栏时传更大值） */
   navBarLeftClass?: string;
+  /** 就地阅读模式（10.3b）：无章节标记钮、正则侧栏不自动展开（其余能力保留） */
+  readerMode?: boolean;
 }
 
 export const ChatWorkbench = forwardRef<ChatWorkbenchHandle, ChatWorkbenchProps>(function ChatWorkbench(
   {
     session, markers, favorites, settings,
     onSessionChange, onMarkersChange, onFavoritesChange, onSettingsChange,
-    onFloorChange, initialFloor, titleBadge, toolbarExtras, onReset, navBarLeftClass,
+    onFloorChange, initialFloor, titleBadge, toolbarExtras, onReset, navBarLeftClass, readerMode,
   },
   ref,
 ) {
@@ -108,13 +110,14 @@ export const ChatWorkbench = forwardRef<ChatWorkbenchHandle, ChatWorkbenchProps>
   const [previewRule, setPreviewRule] = useState<RegexRule | null>(null);
 
   // 载入记录后自动展开正则框一次，让用户第一时间看到清理工具；之后可自由关闭
+  // （就地阅读模式不自动弹：阅读场景以正文为主）
   const regexAutoOpenedRef = useRef(false);
   useEffect(() => {
     if (!regexAutoOpenedRef.current) {
       regexAutoOpenedRef.current = true;
-      setRegexSidebarOpen(true);
+      if (!readerMode) setRegexSidebarOpen(true);
     }
-  }, []);
+  }, [readerMode]);
 
   // 恢复滚动位置：楼层映射首次就绪（虚拟列表已挂载）后跳一次，
   // 稍作延迟等首帧布局/scrollMargin 测量稳定，否则 scrollToIndex 会落点偏移。
@@ -393,6 +396,7 @@ export const ChatWorkbench = forwardRef<ChatWorkbenchHandle, ChatWorkbenchProps>
               onReset={onReset}
               onToggleEditMode={() => setEditMode(!editMode)}
               onToggleRegex={() => setRegexSidebarOpen(!regexSidebarOpen)}
+              hideChapterMark={readerMode}
             />
             {toolbarExtras}
           </div>

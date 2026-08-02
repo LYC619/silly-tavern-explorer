@@ -5,7 +5,7 @@
  * 布局铁律：分栏用 flex-wrap + 行内 basis，禁视口断点。
  */
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import {
   ArrowLeft, BookOpen, BookOpenCheck, BookOpenText, ArrowDownUp, MessageSquare, Cpu,
   ScrollText, NotebookPen, PenLine, Network, Link2,
@@ -55,12 +55,17 @@ const VIEW_ITEMS: { key: WorkspaceView; label: string; icon: typeof BookOpenText
 const StoryWorkspace = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const location = useLocation();
   const { toast } = useToast();
   const [story, setStory] = useState<ArchiveStory | null>(null);
   const [character, setCharacter] = useState<ArchiveCharacter | null>(null);
   const [loading, setLoading] = useState(true);
   const [branchId, setBranchId] = useState<string | null>(null);
-  const [view, setView] = useState<WorkspaceView>('read');
+  // 角色页「导出/去处理区生成」带初始视图跳入（10.3b）：state.view = io|volume|diary|tree
+  const [view, setView] = useState<WorkspaceView>(() => {
+    const v = (location.state as { view?: string } | null)?.view;
+    return v && VIEW_ITEMS.some((item) => item.key === v) ? (v as WorkspaceView) : 'read';
+  });
   const [immersive, setImmersive] = useState(false);
   const [novelOpen, setNovelOpen] = useState(false);
   const [bindOpen, setBindOpen] = useState(false);

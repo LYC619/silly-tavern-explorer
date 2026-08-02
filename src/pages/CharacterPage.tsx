@@ -6,9 +6,9 @@
  * - patchCharacter：评分→评价档位标签单向联动（10.0）+ 标签变化同步 nsfw 字段
  */
 import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import {
-  ArrowLeft, MessageSquare, Clock, Cpu, GitBranch, Trash2, BookOpen, Download, StickyNote,
+  ArrowLeft, ChevronRight, BookOpen, Download, StickyNote,
 } from 'lucide-react';
 import { AppLayout } from '@/components/AppLayout';
 import { Button } from '@/components/ui/button';
@@ -27,37 +27,51 @@ import {
   saveCharacter,
   getStoriesByCharacter,
   saveArchiveStory,
+  getArchiveStory,
   deleteArchiveStory,
   deleteCharacter,
   buildStoryFromSession,
   sortStoriesForDisplay,
 } from '@/lib/archive-db';
 import { normalizeCharacterCard, parseJsonl, parseJson } from '@/lib/adapters/st';
-import { formatPlayTime, formatWordCount } from '@/lib/story-meta';
-import { formatListTime, formatFullTime } from '@/lib/time-display';
 import { applyRatingTierTag, NSFW_TAG } from '@/lib/tag-taxonomy';
 import { importEmbeddedAssets } from '@/lib/card-embedded-assets';
 import { downloadCharacterFile } from '@/lib/character-file';
 import { exportCardJson } from '@/lib/card-export';
 import { setPendingToolFile } from '@/lib/tool-handoff';
+import { cn } from '@/lib/utils';
 import { CharacterInfoRail } from '@/components/character/CharacterInfoRail';
 import { CharacterHeader } from '@/components/character/CharacterHeader';
 import { AssetSection } from '@/components/character/AssetSection';
 import { IllustrationSection } from '@/components/character/IllustrationSection';
+import { StoryListSection } from '@/components/character/StoryListSection';
+import { InlineStoryReader } from '@/components/character/InlineStoryReader';
+import { StoryRecordsView, type RecordViewKind } from '@/components/character/StoryRecordsView';
 
-const RECENT_STORY_COUNT = 5;
+/** 故事 tab 内的子视图：列表 | 总结/日记/故事树查看视图 */
+type StorySubView = 'list' | RecordViewKind;
+
+const STORY_SUB_VIEWS: { key: RecordViewKind; label: string }[] = [
+  { key: 'volume', label: '总结' },
+  { key: 'diary', label: '日记' },
+  { key: 'tree', label: '故事树' },
+];
 
 const CharacterPage = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { toast } = useToast();
+  const [searchParams, setSearchParams] = useSearchParams();
   const chatInputRef = useRef<HTMLInputElement>(null);
   const [character, setCharacter] = useState<ArchiveCharacter | null>(null);
   const [stories, setStories] = useState<ArchiveStory[]>([]);
   const [loading, setLoading] = useState(true);
-  const [showAllStories, setShowAllStories] = useState(false);
   const [storyToDelete, setStoryToDelete] = useState<ArchiveStory | null>(null);
   const [charDeleteOpen, setCharDeleteOpen] = useState(false);
+  // 就地阅读：?story=<id> 深链（首页最近故事跳入）；readingBranchId 仅本页内点分支时带上
+  const readingStoryId = searchParams.get('story');
+  const [readingBranchId, setReadingBranchId] = useState<string | undefined>(undefined);
+  const [storySubView, setStorySubView] = useState<StorySubView>('list');
 
   const load = useCallback(async () => {
     if (!id) return;
@@ -186,7 +200,41 @@ const CharacterPage = () => {
   };
 
   const sortedStories = useMemo(() => sortStoriesForDisplay(stories), [stories]);
-  const visibleStories = showAllStories ? sortedStories : sortedStories.slice(0, RECENT_STORY_COUNT);
+
+  // ===== 就地阅读与故事子视图（10.3b） =====
+
+  const openReader = useCallback((storyId: string, branchId?: string) => {
+    setReadingBranchId(branchId);
+    setSearchParams((prev) => {
+      const next = new URLSearchParams(prev);
+      next.set('story', storyId);
+      return next;
+    });
+  }, [setSearchParams]);
+
+  const closeReader = useCallback(() => {
+    setReadingBranchId(undefined);
+    setSearchParams((prev) => {
+      const next = new URLSearchParams(prev);
+      next.delete('story');
+      return next;
+    });
+    // 阅读中可能改了标题/评分/进度，回列表重新拉一遍
+    void load();
+  }, [setSearchParams, load]);
+
+  /** 列表行内改状态/评分（就地落库，不动 lastViewedAt） */
+  const patchStory = useCallback(async (storyId: string, patch: Partial<ArchiveStory>) => {
+    const cur = await getArchiveStory(storyId);
+    if (!cur) return;
+    await saveArchiveStory({ ...cur, ...patch, updatedAt: Date.now() });
+    await load();
+  }, [load]);
+
+  /** 处理/导出/去生成：进故事工作区（编辑器），带上初始视图 */
+  const goWorkspace = useCallback((storyId: string, view?: string) => {
+    navigate(`/story/${storyId}`, view ? { state: { view } } : undefined);
+  }, [navigate]);
 
   if (loading) {
     return (
@@ -246,9 +294,14 @@ const CharacterPage = () => {
           onDelete={() => setCharDeleteOpen(true)}
         />
 
-        {/* ===== 主列：头部 + tabs ===== */}
+        {/* ===== 主列：头部 + tabs（就地阅读时头部收起，返回列表自动展开） ===== */}
         <div className="flex-1 min-w-0 flex flex-col overflow-y-auto scrollbar-thin">
-          <CharacterHeader character={character} norm={norm} onPatch={patchCharacter} />
+          <CharacterHeader
+            character={character}
+            norm={norm}
+            onPatch={patchCharacter}
+            collapsed={readingStoryId ? true : undefined}
+          />
 
           <Tabs defaultValue="stories" className="flex-1 flex flex-col px-6 pt-3 pb-6">
             {/* TabsList 用 flex（布局铁律：防插件包裹破坏 grid） */}
@@ -259,85 +312,67 @@ const CharacterPage = () => {
               <TabsTrigger value="portraits">立绘</TabsTrigger>
             </TabsList>
 
-            {/* 故事 tab（10.3b 补 就地阅读/三按钮/分支连线） */}
+            {/* 故事 tab：就地阅读 / 列表+子视图（总结/日记/故事树，10.3b） */}
             <TabsContent value="stories" className="mt-3">
-              {stories.length === 0 ? (
-                <Card>
-                  <CardContent className="py-10 text-center text-sm text-muted-foreground">
-                    还没有故事。点击右上角「导入聊天到此角色」，把 ST 聊天记录（JSONL）挂到这张卡下。
-                  </CardContent>
-                </Card>
+              {readingStoryId ? (
+                <InlineStoryReader
+                  storyId={readingStoryId}
+                  stories={sortedStories}
+                  initialBranchId={readingBranchId}
+                  onSwitchStory={(sid) => openReader(sid)}
+                  onBack={closeReader}
+                  onOpenEditor={(sid) => goWorkspace(sid)}
+                />
               ) : (
-                <div className="space-y-2">
-                  {visibleStories.map((story) => {
-                    const msgCount = story.session.messages.length;
-                    return (
-                      <Card
-                        key={story.id}
-                        className="group cursor-pointer hover:shadow-warm transition-all"
-                        onClick={() => navigate(`/story/${story.id}`)}
+                <div className="space-y-3">
+                  {/* 子视图切换：故事列表 › 总结/日记/故事树（设计稿的三个子 tab） */}
+                  <div className="flex items-center gap-1 text-xs">
+                    <button
+                      className={cn(
+                        'rounded-md px-2 py-1 transition-colors',
+                        storySubView === 'list' ? 'bg-primary/10 text-primary font-medium' : 'text-muted-foreground hover:bg-accent/60 hover:text-foreground',
+                      )}
+                      onClick={() => setStorySubView('list')}
+                    >
+                      故事列表
+                    </button>
+                    <ChevronRight className="w-3.5 h-3.5 text-muted-foreground/50" />
+                    {STORY_SUB_VIEWS.map((v) => (
+                      <button
+                        key={v.key}
+                        className={cn(
+                          'rounded-md px-2 py-1 transition-colors',
+                          storySubView === v.key ? 'bg-primary/10 text-primary font-medium' : 'text-muted-foreground hover:bg-accent/60 hover:text-foreground',
+                        )}
+                        onClick={() => setStorySubView(v.key)}
                       >
-                        <CardContent className="py-3 px-4 flex items-center gap-3 flex-wrap">
-                          <div className="flex-1 min-w-48">
-                            <p className="font-medium text-sm truncate flex items-center gap-2">
-                              <span className="truncate">{story.title}</span>
-                              {/* 故事状态四档（10.0 下沉到故事级）；undefined 按未开始显示 */}
-                              <Badge variant="outline" className="h-5 px-1.5 text-[10px] shrink-0 font-normal">
-                                {story.status ?? '未开始'}
-                              </Badge>
-                            </p>
-                            {/* 元数据紧凑单行：消息数 · 字数 · 时长 · 模型 · 最近查看 */}
-                            <p className="text-xs text-muted-foreground flex items-center gap-3 flex-wrap mt-0.5">
-                              <span className="flex items-center gap-1">
-                                <MessageSquare className="w-3 h-3" />
-                                {msgCount} 楼
-                              </span>
-                              {story.wordCount !== undefined && <span>{formatWordCount(story.wordCount)}</span>}
-                              <span className="flex items-center gap-1">
-                                <Clock className="w-3 h-3" />
-                                {formatPlayTime(
-                                  story.meta.playTimeMs !== null && story.meta.sessionCount !== undefined
-                                    ? { totalMs: story.meta.playTimeMs, sessionCount: story.meta.sessionCount, sampledMessages: msgCount }
-                                    : null,
-                                )}
-                              </span>
-                              {story.meta.lastModel && (
-                                <span className="flex items-center gap-1">
-                                  <Cpu className="w-3 h-3" />
-                                  {story.meta.lastModel}
-                                </span>
-                              )}
-                              {(story.branches?.length ?? 0) > 0 && (
-                                <span className="flex items-center gap-1 text-primary/80">
-                                  <GitBranch className="w-3 h-3" />
-                                  {story.branches!.length} 条分支
-                                </span>
-                              )}
-                              <span title={story.lastViewedAt ? formatFullTime(story.lastViewedAt) : undefined}>
-                                {story.lastViewedAt ? `${formatListTime(story.lastViewedAt)}看过` : '未读'}
-                              </span>
-                            </p>
-                          </div>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="h-8 w-8 opacity-0 group-hover:opacity-100 text-destructive"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setStoryToDelete(story);
-                            }}
-                            aria-label="删除故事"
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </Button>
-                        </CardContent>
-                      </Card>
-                    );
-                  })}
-                  {sortedStories.length > RECENT_STORY_COUNT && (
-                    <Button variant="ghost" size="sm" className="w-full" onClick={() => setShowAllStories(!showAllStories)}>
-                      {showAllStories ? '收起' : `查看全部 ${sortedStories.length} 个故事`}
-                    </Button>
+                        {v.label}
+                      </button>
+                    ))}
+                  </div>
+
+                  {storySubView !== 'list' ? (
+                    <StoryRecordsView
+                      stories={sortedStories}
+                      kind={storySubView}
+                      onGoGenerate={(sid, kind) => goWorkspace(sid, kind)}
+                    />
+                  ) : stories.length === 0 ? (
+                    <Card>
+                      <CardContent className="py-10 text-center text-sm text-muted-foreground">
+                        还没有故事。点击右上角「导入聊天到此角色」，把 ST 聊天记录（JSONL）挂到这张卡下。
+                      </CardContent>
+                    </Card>
+                  ) : (
+                    <StoryListSection
+                      stories={sortedStories}
+                      activeStoryId={readingStoryId}
+                      onRead={openReader}
+                      onProcess={(sid) => goWorkspace(sid)}
+                      onExport={(sid) => goWorkspace(sid, 'io')}
+                      onDelete={setStoryToDelete}
+                      onPatchStory={(sid, patch) => void patchStory(sid, patch)}
+                    />
                   )}
                 </div>
               )}

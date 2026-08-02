@@ -275,7 +275,10 @@ const Home = () => {
                     return (
                       <button
                         key={s.id}
-                        onClick={() => navigate(`/story/${s.id}`)}
+                        onClick={() => navigate(s.characterId
+                          // 10.3b：已绑定角色 → 角色页就地阅读；未绑定仍进工作区
+                          ? `/character/${s.characterId}?story=${s.id}`
+                          : `/story/${s.id}`)}
                         className="shrink-0 rounded-xl bg-elevated-strong hover:bg-elevated transition-colors px-3.5 py-2.5 text-left flex gap-3 items-center min-w-0"
                       >
                         <div className="w-9 h-12 shrink-0 rounded-md overflow-hidden bg-[var(--hover-overlay)]">

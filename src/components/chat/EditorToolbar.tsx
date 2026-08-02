@@ -27,6 +27,8 @@ interface EditorToolbarProps {
   onReset?: () => void;
   onToggleEditMode: () => void;
   onToggleRegex: () => void;
+  /** 就地阅读（10.3b）：不显示章节标记按钮 */
+  hideChapterMark?: boolean;
 }
 
 /**
@@ -44,6 +46,7 @@ export function EditorToolbar({
   onReset,
   onToggleEditMode,
   onToggleRegex,
+  hideChapterMark,
 }: EditorToolbarProps) {
   if (!session) {
     return (
@@ -58,16 +61,18 @@ export function EditorToolbar({
   return (
     <div className="flex items-center gap-2 flex-wrap justify-end">
       {/* 处理：章节标记 / 正则（「编辑内容」已移到预览区右上角铅笔图标） */}
-      <Button
-        variant={editMode ? "default" : "outline"}
-        size="sm"
-        onClick={onToggleEditMode}
-        className={editMode ? 'gold-gradient text-primary-foreground' : ''}
-        data-tour="chapter-mark-btn"
-      >
-        <BookmarkPlus className="w-4 h-4 mr-1.5" />
-        {editMode ? '退出标记' : '章节标记'}
-      </Button>
+      {!hideChapterMark && (
+        <Button
+          variant={editMode ? "default" : "outline"}
+          size="sm"
+          onClick={onToggleEditMode}
+          className={editMode ? 'gold-gradient text-primary-foreground' : ''}
+          data-tour="chapter-mark-btn"
+        >
+          <BookmarkPlus className="w-4 h-4 mr-1.5" />
+          {editMode ? '退出标记' : '章节标记'}
+        </Button>
+      )}
       <Button
         variant={regexSidebarOpen ? 'secondary' : 'outline'}
         size="sm"
