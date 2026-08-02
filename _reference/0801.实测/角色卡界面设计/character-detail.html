@@ -1,0 +1,920 @@
+<!DOCTYPE html>
+<html lang="zh-CN" class="dark">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>SillyTavern Explorer 2.0 · 角色卡详情（单文件参考版）</title>
+<!--
+  这是 Next.js 版本的单文件等价实现，供项目内 agent 参考布局与交互逻辑。
+  图片使用相对路径 public/images/*，从仓库根目录打开即可。
+  切换浅色：把 <html class="dark"> 改成 <html class="light">
+-->
+<style>
+  :root {
+    --background: oklch(0.973 0.007 85);
+    --foreground: oklch(0.26 0.012 60);
+    --card: oklch(0.988 0.005 85);
+    --popover: oklch(0.992 0.004 85);
+    --primary: oklch(0.63 0.135 55);
+    --primary-foreground: oklch(0.99 0.005 85);
+    --muted: oklch(0.947 0.009 85);
+    --muted-foreground: oklch(0.55 0.014 65);
+    --accent: oklch(0.93 0.022 80);
+    --accent-foreground: oklch(0.35 0.05 55);
+    --destructive: oklch(0.55 0.19 25);
+    --border: oklch(0.9 0.012 80);
+    --sidebar: oklch(0.962 0.009 85);
+    --radius: 0.5rem;
+  }
+  html.dark {
+    --background: oklch(0.185 0.008 60);
+    --foreground: oklch(0.93 0.008 85);
+    --card: oklch(0.225 0.009 60);
+    --popover: oklch(0.235 0.009 60);
+    --primary: oklch(0.68 0.13 55);
+    --primary-foreground: oklch(0.18 0.01 60);
+    --muted: oklch(0.27 0.01 60);
+    --muted-foreground: oklch(0.68 0.012 70);
+    --accent: oklch(0.32 0.03 55);
+    --accent-foreground: oklch(0.88 0.05 70);
+    --destructive: oklch(0.65 0.18 25);
+    --border: oklch(0.9 0.02 80 / 12%);
+    --sidebar: oklch(0.21 0.009 60);
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: "Noto Sans SC", ui-sans-serif, system-ui, sans-serif;
+    background: var(--background);
+    color: var(--foreground);
+    height: 100vh;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    font-size: 14px;
+  }
+  .serif { font-family: "Noto Serif SC", ui-serif, Georgia, serif; }
+  button { font: inherit; color: inherit; background: none; border: 0; cursor: pointer; }
+  input, textarea { font: inherit; color: inherit; }
+  .muted { color: var(--muted-foreground); }
+
+  /* ---------- shell ---------- */
+  .shell { display: flex; flex: 1; min-height: 0; }
+  .rail {
+    width: 80px; flex: 0 0 80px; background: var(--sidebar);
+    border-right: 1px solid var(--border);
+    display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 18px 0;
+  }
+  .rail-brand { font-family: "Noto Serif SC", serif; font-size: 13px; line-height: 1.3; text-align: center; padding: 0 8px 14px; }
+  .rail-item {
+    width: 60px; padding: 8px 0; border-radius: 10px; display: flex; flex-direction: column;
+    align-items: center; gap: 4px; font-size: 11px; color: var(--muted-foreground); position: relative;
+  }
+  .rail-item:hover { background: var(--muted); color: var(--foreground); }
+  .rail-item.on { background: var(--accent); color: var(--accent-foreground); }
+  .rail-item .badge {
+    position: absolute; top: 4px; right: 10px; background: var(--primary); color: var(--primary-foreground);
+    border-radius: 999px; font-size: 9px; padding: 0 4px;
+  }
+  .body { display: flex; flex: 1; min-width: 0; }
+
+  /* ---------- info panel (固定，不随右侧滚动) ---------- */
+  .info {
+    width: 272px; flex: 0 0 272px; display: flex; flex-direction: column; gap: 16px;
+    padding: 24px 20px; background: color-mix(in oklab, var(--card) 60%, transparent);
+    border-right: 1px solid var(--border);
+  }
+  .portrait { position: relative; border: 1px solid var(--border); border-radius: 6px; overflow: hidden; background: var(--muted); }
+  .portrait img { display: block; width: 100%; aspect-ratio: 3/4; object-fit: cover; transition: transform .5s; }
+  .portrait:hover img { transform: scale(1.03); }
+  .portrait .zoom {
+    position: absolute; inset: auto 0 0 0; padding: 6px; font-size: 11px; text-align: center;
+    background: color-mix(in oklab, var(--foreground) 55%, transparent); color: var(--background);
+    opacity: 0; transition: opacity .2s;
+  }
+  .portrait:hover .zoom { opacity: 1; }
+  .rows { display: flex; flex-direction: column; }
+  .row {
+    display: flex; align-items: baseline; justify-content: space-between; gap: 12px;
+    padding: 8px 0; border-bottom: 1px solid var(--border);
+  }
+  .row dt { font-size: 12px; color: var(--muted-foreground); flex: 0 0 auto; }
+  .row dd { font-size: 13px; text-align: right; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .act-row {
+    border-top: 1px solid var(--border); margin-top: 4px; padding-top: 8px;
+  }
+  .act-btn {
+    width: 100%; display: flex; align-items: center; justify-content: space-between;
+    padding: 8px; border-radius: 6px;
+  }
+  .act-btn:hover { background: var(--muted); }
+
+  /* ---------- main ---------- */
+  main { flex: 1; min-width: 0; overflow-y: auto; padding: 24px; display: flex; flex-direction: column; gap: 16px; }
+  .head { display: flex; flex-direction: column; gap: 12px; }
+  .head-top { display: flex; align-items: flex-start; gap: 12px; }
+  h1 { font-family: "Noto Serif SC", serif; font-weight: 500; letter-spacing: -.01em; flex: 1; min-width: 0; }
+  h1.open { font-size: 34px; line-height: 1.25; }
+  h1.closed { font-size: 22px; line-height: 1.3; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .icon-btn { padding: 6px; border-radius: 6px; color: var(--muted-foreground); display: inline-flex; }
+  .icon-btn:hover { background: var(--muted); color: var(--foreground); }
+  .ghost-btn {
+    display: inline-flex; align-items: center; gap: 4px; padding: 4px 8px; border-radius: 6px;
+    font-size: 12px; color: var(--muted-foreground);
+  }
+  .ghost-btn:hover { background: var(--muted); color: var(--foreground); }
+  .byline { display: flex; gap: 8px; font-size: 14px; color: var(--muted-foreground); }
+  .intro { max-width: 62ch; font-size: 15px; line-height: 1.65; color: color-mix(in oklab, var(--foreground) 80%, transparent); }
+
+  /* ---------- tags ---------- */
+  .tagbar { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; }
+  .nsfw { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; }
+  .switch { width: 34px; height: 18px; border-radius: 999px; background: var(--muted); border: 1px solid var(--border); position: relative; transition: background .2s; }
+  .switch i { position: absolute; top: 2px; left: 2px; width: 12px; height: 12px; border-radius: 999px; background: var(--muted-foreground); transition: all .2s; }
+  .switch.on { background: var(--primary); }
+  .switch.on i { left: 18px; background: var(--primary-foreground); }
+  .tag-group { display: inline-flex; align-items: center; gap: 4px; }
+  .tag-group > span { font-size: 11px; color: var(--muted-foreground); }
+  .tag {
+    display: inline-flex; align-items: center; gap: 4px; padding: 2px 8px; border-radius: 999px;
+    border: 1px solid var(--border); font-size: 12px; background: var(--card);
+  }
+  .tag.custom { border-style: dashed; }
+  .tag button { color: var(--muted-foreground); font-size: 12px; line-height: 1; }
+  .tag button:hover { color: var(--destructive); }
+  .tag-add { border: 1px dashed var(--border); border-radius: 999px; padding: 2px 10px; font-size: 12px; color: var(--muted-foreground); }
+  .tag-add:hover { color: var(--foreground); }
+
+  /* ---------- nav ---------- */
+  nav.tabs { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 6px; border-bottom: 1px solid var(--border); padding-bottom: 8px; }
+  .tab { display: inline-flex; align-items: center; gap: 6px; padding: 6px 12px; border-radius: 6px; font-size: 15px; color: var(--muted-foreground); }
+  .tab:hover { background: var(--muted); color: var(--foreground); }
+  .tab.on { background: var(--accent); color: var(--accent-foreground); }
+  .tab .cnt { font-family: ui-monospace, monospace; font-size: 10px; padding: 1px 4px; border-radius: 4px; background: var(--muted); }
+  .tab.on .cnt { background: color-mix(in oklab, var(--primary) 18%, transparent); }
+  .sep { width: 1px; height: 16px; background: var(--border); margin: 0 6px; }
+  .btn {
+    display: inline-flex; align-items: center; gap: 6px; padding: 6px 12px; border-radius: 6px;
+    border: 1px solid var(--border); font-size: 13px; background: var(--card);
+  }
+  .btn:hover { background: var(--muted); }
+  .btn.primary { background: var(--primary); color: var(--primary-foreground); border-color: transparent; }
+  .btn.sm { padding: 4px 10px; font-size: 12px; }
+  .push { margin-left: auto; }
+
+  /* ---------- lists / cards ---------- */
+  .panel { display: flex; flex-direction: column; gap: 12px; min-width: 0; }
+  .panel-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+  .panel-title { font-family: "Noto Serif SC", serif; font-size: 17px; }
+  .card { border: 1px solid var(--border); border-radius: 8px; background: var(--card); padding: 12px 14px; }
+  .item { display: flex; align-items: center; gap: 12px; }
+  .item + .item { margin-top: 8px; }
+  .item.on { border-color: color-mix(in oklab, var(--primary) 55%, var(--border)); box-shadow: inset 3px 0 0 var(--primary); }
+  .item-main { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 3px; }
+  .item-title { font-size: 14px; }
+  .item-sub { font-size: 12px; color: var(--muted-foreground); }
+  .chip { font-size: 11px; padding: 2px 8px; border-radius: 999px; border: 1px solid var(--border); color: var(--muted-foreground); white-space: nowrap; }
+  .chip.run { color: var(--accent-foreground); background: var(--accent); border-color: transparent; }
+  .item-acts { display: flex; align-items: center; gap: 4px; }
+  .stale { display: flex; align-items: center; gap: 8px; font-size: 12px; color: var(--muted-foreground); border: 1px dashed var(--border); border-radius: 6px; padding: 8px 10px; }
+  .empty { font-size: 13px; color: var(--muted-foreground); border: 1px dashed var(--border); border-radius: 8px; padding: 20px; text-align: center; }
+  select.switcher { background: var(--card); border: 1px solid var(--border); border-radius: 6px; padding: 5px 8px; font-size: 13px; }
+
+  /* ---------- reader ---------- */
+  .msg { border: 1px solid var(--border); border-radius: 8px; padding: 12px 14px; background: var(--card); }
+  .msg.user { background: color-mix(in oklab, var(--muted) 55%, transparent); }
+  .msg-head { display: flex; align-items: center; gap: 8px; font-size: 12px; color: var(--muted-foreground); margin-bottom: 6px; }
+  .msg p { line-height: 1.8; font-size: 15px; }
+
+  /* ---------- tree ---------- */
+  .node { display: flex; align-items: center; gap: 8px; padding: 6px 0; font-size: 13px; }
+  .node .dot { width: 7px; height: 7px; border-radius: 999px; background: var(--border); flex: 0 0 auto; }
+  .node.active .dot { background: var(--primary); }
+
+  /* ---------- portraits ---------- */
+  .prow { border: 1px solid var(--border); border-radius: 8px; background: var(--card); padding: 12px 14px; display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+  .prow-head { display: flex; align-items: center; gap: 8px; }
+  .prow-head input { flex: 1; min-width: 0; background: none; border: 0; border-bottom: 1px dashed transparent; font-size: 15px; font-family: "Noto Serif SC", serif; padding: 2px 0; }
+  .prow-head input:hover, .prow-head input:focus { border-bottom-color: var(--border); outline: none; }
+  .strip { display: flex; gap: 10px; overflow-x: auto; padding-bottom: 4px; }
+  .strip.grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); overflow: visible; }
+  .pcard { width: 124px; flex: 0 0 auto; display: flex; flex-direction: column; gap: 4px; }
+  .strip.grid .pcard { width: auto; }
+  .pcard img { width: 100%; aspect-ratio: 3/4; object-fit: cover; border-radius: 6px; border: 1px solid var(--border); }
+  .pcard.cur img { outline: 2px solid var(--primary); outline-offset: 1px; }
+  .pcard .cap { font-size: 11px; color: var(--muted-foreground); display: flex; justify-content: space-between; gap: 4px; }
+
+  /* ---------- overlays ---------- */
+  .scrim { position: fixed; inset: 0; z-index: 50; background: color-mix(in oklab, var(--foreground) 45%, transparent); }
+  .side {
+    position: fixed; top: 0; right: 0; bottom: 0; z-index: 51; width: min(320px, 86vw);
+    background: var(--popover); border-left: 1px solid var(--border); padding: 20px;
+    display: flex; flex-direction: column; gap: 16px; box-shadow: -12px 0 40px rgba(0,0,0,.28);
+  }
+  .side.wide { width: min(420px, 92vw); }
+  .side-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
+  .side-title { font-family: "Noto Serif SC", serif; font-size: 18px; }
+  .side-sub { font-size: 12px; color: var(--muted-foreground); }
+  .side-list { display: flex; flex-direction: column; gap: 2px; border-top: 1px solid var(--border); padding-top: 12px; }
+  .side-item { display: flex; align-items: center; gap: 10px; padding: 10px; border-radius: 6px; font-size: 14px; }
+  .side-item:hover { background: var(--muted); }
+  .side-item.danger { color: var(--destructive); }
+  .side-item.danger:hover { background: color-mix(in oklab, var(--destructive) 12%, transparent); }
+  .modal {
+    position: fixed; z-index: 51; top: 50%; left: 50%; transform: translate(-50%, -50%);
+    width: min(520px, calc(100vw - 32px)); max-height: calc(100vh - 64px); overflow-y: auto;
+    background: var(--popover); border: 1px solid var(--border); border-radius: 12px; padding: 20px;
+    display: flex; flex-direction: column; gap: 16px; box-shadow: 0 24px 60px rgba(0,0,0,.35);
+  }
+  .field { display: flex; flex-direction: column; gap: 6px; }
+  .field > span { font-size: 12px; color: var(--muted-foreground); }
+  .field input, .field textarea {
+    background: var(--background); border: 1px solid var(--border); border-radius: 6px; padding: 8px 12px; font-size: 14px;
+  }
+  .field textarea { resize: vertical; line-height: 1.6; }
+  .modal-foot { display: flex; justify-content: flex-end; gap: 8px; border-top: 1px solid var(--border); padding-top: 12px; }
+  .kinds { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+  .kind { border: 1px solid var(--border); border-radius: 8px; padding: 10px; text-align: left; font-size: 13px; }
+  .kind.on { border-color: var(--primary); background: var(--accent); color: var(--accent-foreground); }
+  .drop { border: 1px dashed var(--border); border-radius: 8px; padding: 22px; text-align: center; font-size: 13px; color: var(--muted-foreground); }
+  .lightbox { position: fixed; inset: 0; z-index: 60; display: flex; align-items: center; justify-content: center; padding: 32px; background: color-mix(in oklab, var(--foreground) 72%, transparent); }
+  .lightbox img { max-height: 100%; max-width: 100%; border-radius: 8px; }
+  .help { display: inline-flex; width: 16px; height: 16px; align-items: center; justify-content: center; border-radius: 999px; border: 1px solid var(--border); font-size: 10px; color: var(--muted-foreground); cursor: help; }
+
+  /* ---------- status bar ---------- */
+  .status {
+    flex: 0 0 auto; display: flex; align-items: center; justify-content: space-between; gap: 12px;
+    border-top: 1px solid var(--border); background: var(--sidebar); padding: 8px 20px; font-size: 12px; color: var(--muted-foreground);
+  }
+  .status code { font-family: ui-monospace, monospace; color: var(--primary); }
+
+  .hidden { display: none !important; }
+
+  @media (max-width: 1024px) {
+    .body { flex-direction: column; overflow-y: auto; }
+    .info { width: 100%; flex: 0 0 auto; flex-direction: row; border-right: 0; border-bottom: 1px solid var(--border); }
+    .info .portrait { width: 132px; flex: 0 0 132px; height: fit-content; }
+    .rows { flex: 1; min-width: 0; }
+    main { overflow: visible; }
+  }
+</style>
+</head>
+<body>
+
+<div class="shell">
+  <nav class="rail" aria-label="主导航">
+    <div class="rail-brand">SillyTavern<br />Explorer 2.0</div>
+    <button class="rail-item">首页</button>
+    <button class="rail-item">探索</button>
+    <button class="rail-item on">角色库</button>
+    <button class="rail-item">聊天</button>
+    <button class="rail-item">资产<span class="badge">4</span></button>
+    <button class="rail-item">插件</button>
+    <button class="rail-item">设置</button>
+    <button class="rail-item">我</button>
+  </nav>
+
+  <div class="body">
+    <!-- 左栏：固定，不随右侧滚动 -->
+    <aside class="info">
+      <button class="portrait" id="portraitBtn" aria-label="放大查看角色立绘">
+        <img id="portraitImg" src="public/images/portrait-maid.png" alt="角色立绘" />
+        <span class="zoom">点击放大欣赏</span>
+      </button>
+      <dl class="rows" id="infoRows"></dl>
+    </aside>
+
+    <main>
+      <header class="head">
+        <div class="head-top">
+          <h1 id="cardName" class="open"></h1>
+          <div style="display:flex;gap:2px;margin-top:4px;flex:0 0 auto">
+            <button class="icon-btn" id="metaBtn" title="编辑展示名称、作者与简介" aria-label="编辑展示名称、作者与简介">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <path d="M12 20h9" /><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z" />
+              </svg>
+            </button>
+            <button class="ghost-btn" id="headToggle">▾ 折叠简介</button>
+          </div>
+        </div>
+        <div id="headBody" style="display:flex;flex-direction:column;gap:12px">
+          <p class="byline"><span id="creator"></span><span>·</span><span id="source"></span></p>
+          <p class="intro" id="intro"></p>
+        </div>
+        <div class="tagbar" id="tagbar"></div>
+      </header>
+
+      <nav class="tabs" aria-label="角色卡视图" id="tabs"></nav>
+
+      <section id="view" style="padding-bottom:16px"></section>
+    </main>
+  </div>
+</div>
+
+<footer class="status">
+  <span id="stLeft"></span>
+  <span id="stRight"></span>
+</footer>
+
+<!-- overlays -->
+<div id="overlay"></div>
+
+<script>
+/* =======================  数据  ======================= */
+const character = {
+  name: "成为奴隶的我被我曾经的女仆买下了",
+  creator: "今天脑子终于nb",
+  source: "卖力和霍顿社区",
+  type: "人物",
+  rating: 8.5,
+  wordCount: 12890,
+  lastPlayedAt: "2026-08-01T13:44:00+08:00",
+  playMinutes: 386,
+  intro: "在战争失败后，你沦为奴隶，被送上拍卖台。令人意外的是，买下你的人，竟是曾经侍奉你的女仆。身份颠倒，关系重构，一段扭曲而隐秘的主仆生活就此展开。",
+  nsfw: false,
+  tags: [
+    { id: "t1", label: "西幻", group: "世界观", builtin: true },
+    { id: "t2", label: "身份反转", group: "题材", builtin: true },
+    { id: "t3", label: "调教", group: "题材", builtin: true },
+    { id: "t4", label: "第二人称", group: "视角", builtin: true },
+    { id: "t5", label: "长线", group: "节奏", builtin: true },
+    { id: "t6", label: "宅邸日常", group: "我的标签", builtin: false },
+    { id: "t7", label: "留着二周目", group: "我的标签", builtin: false },
+  ],
+  notes: [
+    { id: "n1", at: "2026-07-30T21:05:00+08:00", body: "开局别急着反抗，前 3 段先让她把规矩讲完，后面剧情分支才会打开。" },
+    { id: "n2", at: "2026-07-28T19:40:00+08:00", body: "预设温度调到 0.85 以上会 OOC，建议 0.7。正则里的动作过滤规则一定要开。" },
+  ],
+  portraitRows: [
+    { id: "r1", title: "薇拉", items: [
+      { id: "p1", src: "public/images/portrait-maid.png", label: "常态·女仆装", current: true },
+      { id: "p2", src: "public/images/portrait-alt-1.png", label: "夜间·执灯", current: false },
+      { id: "p4", src: "public/images/portrait-maid.png", label: "常态·侧脸", current: false },
+      { id: "p5", src: "public/images/portrait-alt-1.png", label: "情绪·失控", current: false },
+    ]},
+    { id: "r2", title: "剧情阶段", items: [
+      { id: "p3", src: "public/images/portrait-alt-2.png", label: "第一幕·拍卖台", current: false },
+      { id: "p6", src: "public/images/portrait-alt-1.png", label: "第二幕·旧账本", current: false },
+    ]},
+  ],
+};
+
+const stories = [
+  {
+    id: "s1", name: "第一夜", chatCount: 6, updatedAt: "2026-08-01T13:44:00+08:00",
+    rating: 9.0, status: "进行中", wordCount: 8420,
+    summary: { stale: true, generatedAt: "2026-07-31T23:10:00+08:00", paragraphs: [
+      "拍卖会落幕，你被一位蒙面女性以远超市价的金额买下。回到宅邸后，你才认出她是昔日在你家中服侍的女仆——薇拉。",
+      "她并未立刻宣示胜利，而是把你安置在从前她自己住的下人房，逐条讲清新的规矩：称呼、作息、以及不得擅自离开宅邸。",
+      "夜里她带着旧账本来到房间，指着上面属于你父亲的笔迹，第一次露出情绪。",
+    ]},
+    diary: { stale: true, generatedAt: "2026-07-31T23:12:00+08:00", entries: [
+      { date: "第一日 · 夜", title: "他终于坐在我曾经坐的位置上", body: "我以为看到他跪着会痛快一点。结果只是很静。我把门留着没锁——不是善心，我想知道他会不会跑。" },
+      { date: "第二日 · 晨", title: "他没有跑", body: "早餐他把餐具摆得很规矩，比我当年更规矩。这让我很不舒服。" },
+    ]},
+    tree: [
+      { label: "拍卖台落锤", depth: 0, active: true },
+      { label: "认出薇拉 · 沉默", depth: 1, active: true, note: "主线" },
+      { label: "接受规矩", depth: 2, active: true, note: "当前位置" },
+      { label: "试探性反问", depth: 2, active: false },
+      { label: "认出薇拉 · 出声质问", depth: 1, active: false, note: "swipe 分支" },
+    ],
+    messages: [
+      { role: "char", name: "薇拉", at: "2026-08-01T12:58:00+08:00", swipes: 3, text: "落锤声响起时，大厅里没有人为你出价第二次。她走上台阶，靴跟敲在木板上，一步一声，最后停在你面前。「抬头。」" },
+      { role: "user", name: "你", at: "2026-08-01T13:02:00+08:00", text: "我抬起头，看清了那张脸——喉咙里的话卡了一瞬，最终什么也没说出来。" },
+      { role: "char", name: "薇拉", at: "2026-08-01T13:05:00+08:00", swipes: 2, text: "「认出来了。」她把契约折起来收进袖中，「从今天起，这座宅子里你叫我夫人。第二条：天亮前不许离开房间。第三条——」她顿了顿，「暂时没有第三条。」" },
+      { role: "char", name: "薇拉", at: "2026-08-01T13:44:00+08:00", swipes: 1, text: "深夜她再度出现，手里拿着一本封皮磨损的账本，翻到中间那页推到你面前。「你认得这个数字吗。」她的声音第一次不稳。" },
+    ],
+  },
+  {
+    id: "s2", name: "旧账本", chatCount: 14, updatedAt: "2026-07-29T21:30:00+08:00",
+    rating: 8.2, status: "已搁置", wordCount: 19240,
+    summary: { stale: false, generatedAt: "2026-07-29T22:00:00+08:00", paragraphs: [
+      "以账本为线索，你与薇拉一同追查你父亲当年向教会支付的那笔款项，逐步逼近她被卖入你家的真正原因。",
+      "调查中两人的关系数次反转：她需要你的家族记忆，你需要她的自由身份。",
+    ]},
+    diary: { stale: false, generatedAt: "2026-07-29T22:02:00+08:00", entries: [
+      { date: "第九日", title: "我需要他记得，而他开始忘了", body: "他描述那个冬天的细节越来越模糊。我一边追问一边害怕。" },
+    ]},
+    tree: [
+      { label: "翻开账本", depth: 0, active: true },
+      { label: "如实回答", depth: 1, active: true, note: "主线" },
+      { label: "谎称不认识", depth: 1, active: false },
+      { label: "反问她的来历", depth: 1, active: false, note: "swipe 分支" },
+    ],
+    messages: [
+      { role: "char", name: "薇拉", at: "2026-07-29T20:10:00+08:00", swipes: 2, text: "「这笔钱付给了圣所。」她把账本合上，「而我，是那年冬天被送进你家的第七个人。」" },
+      { role: "user", name: "你", at: "2026-07-29T21:30:00+08:00", text: "我沉默了很久，才说：「带我去圣所。」" },
+    ],
+  },
+  {
+    id: "s3", name: "拍卖前夜（弃）", chatCount: 2, updatedAt: "2026-07-24T10:12:00+08:00",
+    rating: null, status: "未开始", wordCount: 640,
+    summary: { stale: false, generatedAt: null, paragraphs: [] },
+    diary: { stale: false, generatedAt: null, entries: [] },
+    tree: [{ label: "开场", depth: 0, active: true }],
+    messages: [{ role: "char", name: "旁白", at: "2026-07-24T10:12:00+08:00", text: "囚车停在城门外，你听见里面有人在数明天的价钱。" }],
+  },
+];
+
+const assets = [
+  { id: "a1", kind: "世界书", name: "战后帝国与拍卖制度", importedAt: "2026-08-01T09:10:00+08:00", enabled: true, meta: "24 条条目 · 常驻 3",
+    entries: [
+      { title: "拍卖制度", keys: "拍卖 / 落锤 / 契约", body: "战后帝国以「战俘赎买」名义合法化人口拍卖。落锤即成契约，买方须在七日内向圣所登记。" },
+      { title: "圣所", keys: "圣所 / 教会 / 登记", body: "掌管契约登记与档案的宗教机构。档案室位于地下第二层。" },
+    ]},
+  { id: "a2", kind: "预设", name: "女仆的规训", importedAt: "2026-08-01T09:10:00+08:00", enabled: true, meta: "temperature 0.7 · top_p 0.9 · 12 条提示",
+    entries: [{ title: "系统提示", body: "保持第二人称叙述。薇拉的台词冷静克制，避免使用感叹号。" }]},
+  { id: "a3", kind: "正则", name: "台词与动作过滤规则", importedAt: "2026-08-01T09:10:00+08:00", enabled: true, meta: "4 条规则 · 作用于显示",
+    entries: [{ title: "括号内心描写", keys: "/\\((.*?)\\)/g", body: "替换为斜体，避免与动作描写混排。" }]},
+  { id: "a4", kind: "引用", name: "女仆的日记摘录", importedAt: "2026-08-01T09:10:00+08:00", enabled: false, meta: "6 段引用 · 未启用",
+    entries: [{ title: "第三年 冬", body: "「今天他把手炉忘在走廊上。我捡起来的时候还是热的。我没有还给他。」" }]},
+];
+
+const stStatus = { path: "D:\\6\\YULIST\\SillyTavern-1.18.0\\data\\default-user", version: "STE v0.18.0", aiConfigured: false };
+
+/* =======================  工具  ======================= */
+const TZ = "Asia/Shanghai";
+function dtParts(iso) {
+  const f = new Intl.DateTimeFormat("zh-CN", { timeZone: TZ, year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit", hour12: false }).formatToParts(new Date(iso));
+  const g = (t) => (f.find((p) => p.type === t) || {}).value || "00";
+  return { y: g("year"), M: g("month"), d: g("day"), h: g("hour"), m: g("minute") };
+}
+const absDate = (iso) => { const p = dtParts(iso); return `${p.y}/${+p.M}/${+p.d}`; };
+const absDateTime = (iso) => { const p = dtParts(iso); return `${absDate(iso)} - ${p.h}:${p.m}`; };
+function relTime(iso) {
+  const diff = (Date.now() - new Date(iso).getTime()) / 60000;
+  if (diff < 1) return "刚刚";
+  if (diff < 60) return `${Math.round(diff)} 分钟前`;
+  if (diff < 1440) return `${Math.round(diff / 60)} 小时前`;
+  if (diff < 43200) return `${Math.round(diff / 1440)} 天前`;
+  return absDate(iso);
+}
+const num = (n) => n.toLocaleString("zh-CN");
+const dur = (min) => (min < 60 ? `${min} 分钟` : `${Math.floor(min / 60)} 小时 ${min % 60} 分`);
+const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+const el = (id) => document.getElementById(id);
+
+/* =======================  状态  ======================= */
+const state = {
+  tab: "story",
+  storyId: "s1",
+  readerOpen: false,
+  headerOpen: true,
+  subOpen: false,
+  expandedRows: {},
+  meta: { name: character.name, creator: character.creator, source: character.source, intro: character.intro },
+  nsfw: character.nsfw,
+  tags: character.tags.slice(),
+  rows: JSON.parse(JSON.stringify(character.portraitRows)),
+};
+const SUB_TABS = [ { id: "summary", label: "总结" }, { id: "diary", label: "日记" }, { id: "tree", label: "故事树" } ];
+const curStory = () => stories.find((s) => s.id === state.storyId) || stories[0];
+const allPortraits = () => state.rows.flatMap((r) => r.items);
+const curPortrait = () => allPortraits().find((p) => p.current) || allPortraits()[0];
+
+/* =======================  渲染：左栏 / 头部  ======================= */
+function renderInfo() {
+  el("portraitImg").src = curPortrait().src;
+  const fields = [
+    ["名称", character.name, ""],
+    ["类型", character.type, "互斥类型标签：人物 / 剧情 / 玩法 / 综合"],
+    ["评分", character.rating.toFixed(1), ""],
+    ["最后游玩", absDateTime(character.lastPlayedAt), ""],
+    ["字数", num(character.wordCount), ""],
+    ["游玩时长", "约 " + dur(character.playMinutes), "估算：相邻消息间隔累加，超过 30 分钟不计入"],
+  ];
+  el("infoRows").innerHTML =
+    fields.map(([k, v, hint]) => `<div class="row" title="${esc(hint || v)}"><dt>${k}</dt><dd>${esc(v)}</dd></div>`).join("") +
+    `<div class="act-row"><button class="act-btn" id="openActions"><span class="muted" style="font-size:12px">操作</span><span style="font-size:13px;display:inline-flex;align-items:center;gap:4px">展开 ›</span></button></div>`;
+  el("openActions").onclick = openActionPanel;
+}
+
+function renderHeader() {
+  el("cardName").textContent = state.meta.name;
+  el("cardName").className = state.headerOpen ? "open" : "closed";
+  el("creator").textContent = state.meta.creator;
+  el("source").textContent = state.meta.source;
+  el("intro").textContent = state.meta.intro;
+  el("headBody").classList.toggle("hidden", !state.headerOpen);
+  el("headToggle").textContent = state.headerOpen ? "▾ 折叠简介" : "▸ 展开简介";
+  renderTags();
+}
+
+function renderTags() {
+  const groups = [];
+  state.tags.forEach((t) => {
+    let g = groups.find((x) => x.name === t.group && x.builtin === t.builtin);
+    if (!g) groups.push((g = { name: t.group, builtin: t.builtin, items: [] }));
+    g.items.push(t);
+  });
+  groups.sort((a, b) => Number(a.builtin === false) - Number(b.builtin === false));
+
+  el("tagbar").innerHTML = `
+    <span class="nsfw">
+      NSFW
+      <button class="switch ${state.nsfw ? "on" : ""}" id="nsfwSw" role="switch" aria-checked="${state.nsfw}" aria-label="NSFW 卡面标记"><i></i></button>
+      <span class="help" title="标记该卡为 NSFW 卡面。开启后可在「设置 · 显示」中对 NSFW 卡面的卡图做模糊处理（默认开启模糊）。">?</span>
+    </span>
+    ${groups.map((g) => `
+      <span class="tag-group">
+        <span>${esc(g.name)}</span>
+        ${g.items.map((t) => `<span class="tag ${g.builtin ? "" : "custom"}">${esc(t.label)}<button data-tag="${t.id}" aria-label="移除标签 ${esc(t.label)}">×</button></span>`).join("")}
+      </span>`).join("")}
+    <button class="tag-add" id="addTag">+ 添加标签</button>`;
+
+  el("nsfwSw").onclick = () => { state.nsfw = !state.nsfw; renderTags(); };
+  el("addTag").onclick = () => {
+    const label = prompt("新标签名称");
+    if (label) { state.tags.push({ id: "t" + Date.now(), label, group: "我的标签", builtin: false }); renderTags(); }
+  };
+  el("tagbar").querySelectorAll("[data-tag]").forEach((b) => {
+    b.onclick = () => { state.tags = state.tags.filter((t) => t.id !== b.dataset.tag); renderTags(); };
+  });
+}
+
+/* =======================  渲染：导航  ======================= */
+function renderTabs() {
+  const t = (id, label, cnt) =>
+    `<button class="tab ${state.tab === id ? "on" : ""}" data-tab="${id}">${label}${cnt ? `<span class="cnt">${cnt}</span>` : ""}</button>`;
+  el("tabs").innerHTML =
+    t("story", "故事", stories.length) +
+    `<button class="icon-btn" id="subToggle" aria-expanded="${state.subOpen}" aria-label="${state.subOpen ? "折叠" : "展开"}故事的衍生视图">${state.subOpen ? "⌄" : "›"}</button>` +
+    (state.subOpen ? SUB_TABS.map((s) => t(s.id, s.label, 0)).join("") : "") +
+    `<span class="sep"></span>` +
+    t("notes", "备注", character.notes.length) +
+    t("assets", "关联资产", assets.length) +
+    t("portraits", "立绘", allPortraits().length) +
+    `<button class="btn push" id="topImport">导入</button>`;
+
+  el("subToggle").onclick = () => { state.subOpen = !state.subOpen; renderTabs(); };
+  el("topImport").onclick = () => openImport("story");
+  el("tabs").querySelectorAll("[data-tab]").forEach((b) => {
+    b.onclick = () => {
+      state.tab = b.dataset.tab;
+      if (state.tab === "story") closeReader();
+      if (SUB_TABS.some((s) => s.id === state.tab)) state.subOpen = true;
+      render();
+    };
+  });
+}
+
+/* =======================  渲染：视图  ======================= */
+function statusChip(s) {
+  return `<span class="chip ${s === "进行中" ? "run" : ""}">${s}</span>`;
+}
+
+function viewStoryList() {
+  return `
+    <div class="panel">
+      <div class="panel-head"><span class="muted" style="font-size:12px">共 ${stories.length} 段故事 · 点击条目或「阅读」进入正文</span></div>
+      ${stories.map((s) => `
+        <div class="card item ${s.id === state.storyId ? "on" : ""}" data-story="${s.id}" style="cursor:pointer">
+          <div class="item-main">
+            <span class="item-title">${esc(s.name)} · ${s.chatCount} 段聊天 · ${relTime(s.updatedAt)}</span>
+            <span class="item-sub">☆ ${s.rating ? s.rating.toFixed(1) + "/10" : "未评分"} &nbsp; ${num(s.wordCount)} 字</span>
+          </div>
+          ${statusChip(s.status)}
+          <div class="item-acts">
+            <button class="btn sm" data-read="${s.id}">阅读</button>
+            <button class="btn sm" data-proc="${s.id}">处理</button>
+            <button class="btn sm" data-exp="${s.id}">导出</button>
+          </div>
+        </div>`).join("")}
+    </div>`;
+}
+
+function viewReader() {
+  const s = curStory();
+  return `
+    <div class="panel">
+      <div class="panel-head">
+        <div style="display:flex;align-items:center;gap:10px">
+          <button class="btn sm" id="backList">← 返回故事列表</button>
+          <span class="panel-title">${esc(s.name)}</span>
+          ${statusChip(s.status)}
+        </div>
+        <button class="btn sm">在编辑器中打开</button>
+      </div>
+      <span class="muted" style="font-size:12px">${s.chatCount} 段聊天 · ${num(s.wordCount)} 字 · 最后更新 ${absDateTime(s.updatedAt)}</span>
+      ${s.messages.map((m) => `
+        <div class="msg ${m.role === "user" ? "user" : ""}">
+          <div class="msg-head">
+            <strong style="color:var(--foreground);font-weight:500">${esc(m.name)}</strong>
+            <span>${absDateTime(m.at)}</span>
+            ${m.swipes ? `<span style="margin-left:auto">‹ ${m.swipes} 个分支 ›</span>` : ""}
+          </div>
+          <p>${esc(m.text)}</p>
+        </div>`).join("")}
+    </div>`;
+}
+
+function switcher() {
+  return `<select class="switcher" id="storySel">${stories.map((s) => `<option value="${s.id}" ${s.id === state.storyId ? "selected" : ""}>${esc(s.name)}</option>`).join("")}</select>`;
+}
+function goProcess(label) {
+  return `<button class="btn sm" title="跳转到处理区 · ${label}">去处理区生成</button>`;
+}
+
+function viewSummary() {
+  const s = curStory();
+  return `
+    <div class="panel">
+      <div class="panel-head"><div style="display:flex;align-items:center;gap:10px"><span class="panel-title">总结</span>${switcher()}</div>${goProcess("总结")}</div>
+      ${s.summary.stale ? `<div class="stale">该总结生成于 ${absDateTime(s.summary.generatedAt)}，之后故事又有更新，内容可能已过期。</div>` : ""}
+      ${s.summary.paragraphs.length
+        ? `<div class="card" style="display:flex;flex-direction:column;gap:12px">${s.summary.paragraphs.map((p) => `<p style="line-height:1.8">${esc(p)}</p>`).join("")}</div>`
+        : `<div class="empty">这段故事还没有总结${stStatus.aiConfigured ? "" : "。未配置 AI 接口，请先在「设置 · 接口」中填写"}。</div>`}
+    </div>`;
+}
+
+function viewDiary() {
+  const s = curStory();
+  return `
+    <div class="panel">
+      <div class="panel-head"><div style="display:flex;align-items:center;gap:10px"><span class="panel-title">日记</span>${switcher()}</div>${goProcess("日记")}</div>
+      ${s.diary.stale ? `<div class="stale">该日记生成于 ${absDateTime(s.diary.generatedAt)}，之后故事又有更新，内容可能已过期。</div>` : ""}
+      ${s.diary.entries.length
+        ? s.diary.entries.map((e) => `
+            <div class="card">
+              <div class="item-sub">${esc(e.date)}</div>
+              <div class="panel-title" style="font-size:15px;margin:4px 0 6px">${esc(e.title)}</div>
+              <p style="line-height:1.8">${esc(e.body)}</p>
+            </div>`).join("")
+        : `<div class="empty">这段故事还没有角色日记。</div>`}
+    </div>`;
+}
+
+function viewTree() {
+  const s = curStory();
+  return `
+    <div class="panel">
+      <div class="panel-head"><div style="display:flex;align-items:center;gap:10px"><span class="panel-title">故事树</span>${switcher()}</div>${goProcess("故事树")}</div>
+      <div class="card">
+        ${s.tree.map((n) => `
+          <div class="node ${n.active ? "active" : ""}" style="padding-left:${n.depth * 20}px">
+            <span class="dot"></span>
+            <span style="${n.active ? "" : "color:var(--muted-foreground)"}">${esc(n.label)}</span>
+            ${n.note ? `<span class="chip">${esc(n.note)}</span>` : ""}
+          </div>`).join("")}
+      </div>
+    </div>`;
+}
+
+function viewNotes() {
+  return `
+    <div class="panel">
+      <div class="panel-head"><span class="panel-title">备注</span><button class="btn sm" id="addNote">+ 新建备注</button></div>
+      ${character.notes.map((n) => `
+        <div class="card">
+          <div class="item-sub" style="margin-bottom:6px">${absDateTime(n.at)} · ${relTime(n.at)}</div>
+          <p style="line-height:1.8">${esc(n.body)}</p>
+        </div>`).join("")}
+    </div>`;
+}
+
+function viewAssets() {
+  return `
+    <div class="panel">
+      <div class="panel-head"><span class="panel-title">关联资产</span><button class="btn sm" id="impAsset">导入资产</button></div>
+      ${assets.map((a) => `
+        <div class="card item">
+          <span class="chip">${a.kind}</span>
+          <div class="item-main">
+            <button data-asset="${a.id}" style="text-align:left"><span class="item-title" style="text-decoration:underline;text-decoration-style:dotted;text-underline-offset:3px">${esc(a.name)}</span></button>
+            <span class="item-sub">${esc(a.meta)} · 导入于 ${absDate(a.importedAt)}</span>
+          </div>
+          <span class="chip ${a.enabled ? "run" : ""}">${a.enabled ? "已启用" : "未启用"}</span>
+        </div>`).join("")}
+    </div>`;
+}
+
+function viewPortraits() {
+  return `
+    <div class="panel">
+      <div class="panel-head">
+        <span class="panel-title">立绘</span>
+        <div style="display:flex;gap:8px"><button class="btn sm" id="addRow">+ 新建分行</button><button class="btn sm" id="impPortrait">导入立绘</button></div>
+      </div>
+      <span class="muted" style="font-size:12px">按行组织：一行可以是一个角色，也可以是剧情的一个阶段。行内横向滚动，也可展开成网格。</span>
+      ${state.rows.map((r) => {
+        const open = !!state.expandedRows[r.id];
+        return `
+        <div class="prow">
+          <div class="prow-head">
+            <input value="${esc(r.title)}" data-rowtitle="${r.id}" aria-label="分行标题" />
+            <span class="muted" style="font-size:12px">${r.items.length} 张</span>
+            <button class="btn sm" data-rowtoggle="${r.id}">${open ? "收起" : "展开"}</button>
+            <button class="btn sm" data-rowimp="${r.id}">导入</button>
+          </div>
+          ${r.items.length
+            ? `<div class="strip ${open ? "grid" : ""}">
+                ${r.items.map((p) => `
+                  <div class="pcard ${p.current ? "cur" : ""}">
+                    <button data-zoom="${p.src}"><img src="${p.src}" alt="${esc(p.label)}" /></button>
+                    <span class="cap"><span>${esc(p.label)}</span>${p.current ? "<span>当前</span>" : `<button data-setcur="${p.id}" style="font-size:11px;color:var(--primary)">设为当前</button>`}</span>
+                  </div>`).join("")}
+              </div>`
+            : `<div class="empty">这一行还没有图片，点右上角「导入」添加。</div>`}
+        </div>`;
+      }).join("")}
+    </div>`;
+}
+
+function renderView() {
+  const v = el("view");
+  if (state.tab === "story") v.innerHTML = state.readerOpen ? viewReader() : viewStoryList();
+  else if (state.tab === "summary") v.innerHTML = viewSummary();
+  else if (state.tab === "diary") v.innerHTML = viewDiary();
+  else if (state.tab === "tree") v.innerHTML = viewTree();
+  else if (state.tab === "notes") v.innerHTML = viewNotes();
+  else if (state.tab === "assets") v.innerHTML = viewAssets();
+  else if (state.tab === "portraits") v.innerHTML = viewPortraits();
+  bindView();
+}
+
+function bindView() {
+  const q = (sel) => Array.from(el("view").querySelectorAll(sel));
+
+  q("[data-story]").forEach((n) => (n.onclick = (e) => { if (e.target.closest("[data-read],[data-proc],[data-exp]")) return; openStory(n.dataset.story); }));
+  q("[data-read]").forEach((b) => (b.onclick = () => openStory(b.dataset.read)));
+  q("[data-proc]").forEach((b) => (b.onclick = () => { state.storyId = b.dataset.proc; state.subOpen = true; state.tab = "summary"; render(); }));
+  q("[data-exp]").forEach((b) => (b.onclick = () => alert("导出该故事为 JSONL（示意）")));
+  const back = el("backList"); if (back) back.onclick = closeReaderAndRender;
+  const sel = el("storySel"); if (sel) sel.onchange = () => { state.storyId = sel.value; renderView(); };
+  const an = el("addNote"); if (an) an.onclick = () => alert("新建备注（示意）");
+  const ia = el("impAsset"); if (ia) ia.onclick = () => openImport("worldbook");
+  const ip = el("impPortrait"); if (ip) ip.onclick = () => openImport("portrait");
+  const ar = el("addRow"); if (ar) ar.onclick = () => { state.rows.push({ id: "r" + Date.now(), title: "新的分行", items: [] }); renderView(); };
+
+  q("[data-asset]").forEach((b) => (b.onclick = () => openAsset(b.dataset.asset)));
+  q("[data-rowtoggle]").forEach((b) => (b.onclick = () => { const id = b.dataset.rowtoggle; state.expandedRows[id] = !state.expandedRows[id]; renderView(); }));
+  q("[data-rowimp]").forEach((b) => (b.onclick = () => openImport("portrait")));
+  q("[data-rowtitle]").forEach((i) => (i.onchange = () => { const r = state.rows.find((x) => x.id === i.dataset.rowtitle); r.title = i.value; }));
+  q("[data-zoom]").forEach((b) => (b.onclick = () => openLightbox(b.dataset.zoom)));
+  q("[data-setcur]").forEach((b) => (b.onclick = () => {
+    state.rows.forEach((r) => r.items.forEach((p) => (p.current = p.id === b.dataset.setcur)));
+    renderInfo(); renderView();
+  }));
+}
+
+/* =======================  交互  ======================= */
+function openStory(id) { state.storyId = id; state.readerOpen = true; state.headerOpen = false; render(); }
+function closeReader() { state.readerOpen = false; state.headerOpen = true; }          // 返回列表时自动展开简介
+function closeReaderAndRender() { closeReader(); render(); }
+
+/* --- 弹层 --- */
+function closeOverlay() { el("overlay").innerHTML = ""; }
+document.addEventListener("keydown", (e) => { if (e.key === "Escape") closeOverlay(); });
+
+function openActionPanel() {
+  const items = [
+    { id: "edit", label: "编辑角色卡" },
+    { id: "read-builtin", label: "读取内置资源", hint: "读取角色卡文件里自带的世界书、预设、正则等内容，导入后会出现在「关联资产」中。" },
+    { id: "export", label: "导出角色卡" },
+    { id: "delete", label: "删除角色卡", danger: true },
+  ];
+  el("overlay").innerHTML = `
+    <div class="scrim" data-close></div>
+    <aside class="side" role="dialog" aria-modal="true" aria-label="角色卡操作">
+      <div class="side-head">
+        <div>
+          <div class="side-title">角色卡操作</div>
+          <div class="side-sub">${esc(state.meta.name)}</div>
+        </div>
+        <button class="icon-btn" data-close aria-label="关闭">✕</button>
+      </div>
+      <div class="side-list">
+        ${items.map((i) => `
+          <div style="display:flex;align-items:center;gap:6px">
+            <button class="side-item ${i.danger ? "danger" : ""}" data-act="${i.id}" style="flex:1">${i.label}</button>
+            ${i.hint ? `<span class="help" title="${esc(i.hint)}">?</span>` : ""}
+          </div>`).join("")}
+      </div>
+    </aside>`;
+  bindOverlay();
+  el("overlay").querySelectorAll("[data-act]").forEach((b) => (b.onclick = () => { closeOverlay(); cardAction(b.dataset.act); }));
+}
+
+function cardAction(id) {
+  if (id === "edit") return openMetaEditor();
+  if (id === "read-builtin") { state.tab = "assets"; render(); return openImport("worldbook"); }
+  alert(id === "export" ? "导出角色卡（示意）" : "删除角色卡（示意）");
+}
+
+function openMetaEditor() {
+  const m = state.meta;
+  el("overlay").innerHTML = `
+    <div class="scrim" data-close></div>
+    <div class="modal" role="dialog" aria-modal="true" aria-label="编辑展示信息">
+      <div class="side-head">
+        <div>
+          <div class="side-title">编辑展示信息</div>
+          <div class="side-sub">只改本地展示内容，不写回角色卡原件</div>
+        </div>
+        <button class="icon-btn" data-close aria-label="关闭">✕</button>
+      </div>
+      <label class="field"><span>展示名称</span><input id="mName" value="${esc(m.name)}" /></label>
+      <div style="display:flex;gap:12px">
+        <label class="field" style="flex:1"><span>作者</span><input id="mCreator" value="${esc(m.creator)}" /></label>
+        <label class="field" style="flex:1"><span>来源</span><input id="mSource" value="${esc(m.source)}" /></label>
+      </div>
+      <label class="field"><span>简介</span><textarea id="mIntro" rows="5">${esc(m.intro)}</textarea></label>
+      <div class="modal-foot">
+        <button class="btn" data-close>取消</button>
+        <button class="btn primary" id="mSave">保存</button>
+      </div>
+    </div>`;
+  bindOverlay();
+  el("mSave").onclick = () => {
+    state.meta = { name: el("mName").value, creator: el("mCreator").value, source: el("mSource").value, intro: el("mIntro").value };
+    closeOverlay(); renderHeader();
+  };
+}
+
+const IMPORT_KINDS = [
+  { id: "story", label: "故事记录", desc: "SillyTavern 的 .jsonl 聊天记录" },
+  { id: "worldbook", label: "世界书", desc: "lorebook / world info 的 .json" },
+  { id: "preset", label: "预设", desc: "采样参数与提示词预设" },
+  { id: "regex", label: "正则", desc: "显示层的替换规则" },
+  { id: "quote", label: "引用", desc: "摘录、语料片段" },
+  { id: "portrait", label: "立绘 / 卡面", desc: "png / jpg / webp，可设为当前卡面" },
+];
+function openImport(kind) {
+  let cur = kind || "story";
+  const draw = () => {
+    el("overlay").innerHTML = `
+      <div class="scrim" data-close></div>
+      <div class="modal" role="dialog" aria-modal="true" aria-label="导入">
+        <div class="side-head">
+          <div>
+            <div class="side-title">导入</div>
+            <div class="side-sub">先选类型，再选择文件；导入的内容会归到这张角色卡下</div>
+          </div>
+          <button class="icon-btn" data-close aria-label="关闭">✕</button>
+        </div>
+        <div class="kinds">
+          ${IMPORT_KINDS.map((k) => `
+            <button class="kind ${k.id === cur ? "on" : ""}" data-kind="${k.id}">
+              <div>${k.label}</div><div style="font-size:11px;opacity:.75;margin-top:2px">${k.desc}</div>
+            </button>`).join("")}
+        </div>
+        <div class="drop">把文件拖到这里，或点击选择<br /><span style="font-size:11px">当前类型：${IMPORT_KINDS.find((k) => k.id === cur).label}</span></div>
+        <div class="modal-foot">
+          <button class="btn" data-close>取消</button>
+          <button class="btn primary" data-close>开始导入</button>
+        </div>
+      </div>`;
+    bindOverlay();
+    el("overlay").querySelectorAll("[data-kind]").forEach((b) => (b.onclick = () => { cur = b.dataset.kind; draw(); }));
+  };
+  draw();
+}
+
+function openAsset(id) {
+  const a = assets.find((x) => x.id === id);
+  el("overlay").innerHTML = `
+    <div class="scrim" data-close></div>
+    <aside class="side wide" role="dialog" aria-modal="true" aria-label="资产详情">
+      <div class="side-head">
+        <div>
+          <div class="side-sub">${a.kind} · 导入于 ${absDate(a.importedAt)}</div>
+          <div class="side-title">${esc(a.name)}</div>
+          <div class="side-sub">${esc(a.meta)}</div>
+        </div>
+        <button class="icon-btn" data-close aria-label="关闭">✕</button>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:10px;overflow-y:auto">
+        ${a.entries.map((e) => `
+          <div class="card">
+            <div class="item-title" style="margin-bottom:4px">${esc(e.title)}</div>
+            ${e.keys ? `<div class="item-sub" style="font-family:ui-monospace,monospace;margin-bottom:6px">${esc(e.keys)}</div>` : ""}
+            <p style="line-height:1.75;font-size:13px">${esc(e.body)}</p>
+          </div>`).join("")}
+      </div>
+      <div class="modal-foot"><button class="btn" data-close>关闭</button><button class="btn">在编辑器中打开</button></div>
+    </aside>`;
+  bindOverlay();
+}
+
+function openLightbox(src) {
+  el("overlay").innerHTML = `<div class="lightbox" data-close><img src="${src}" alt="立绘放大" /></div>`;
+  bindOverlay();
+}
+
+function bindOverlay() {
+  el("overlay").querySelectorAll("[data-close]").forEach((n) => (n.onclick = closeOverlay));
+}
+
+/* =======================  启动  ======================= */
+function render() { renderInfo(); renderHeader(); renderTabs(); renderView(); }
+
+el("headToggle").onclick = () => { state.headerOpen = !state.headerOpen; renderHeader(); };
+el("metaBtn").onclick = openMetaEditor;
+el("portraitBtn").onclick = () => openLightbox(curPortrait().src);
+el("stLeft").innerHTML = `已接入 ST 目录 · <code>${esc(stStatus.path)}</code>`;
+el("stRight").textContent = stStatus.version;
+render();
+</script>
+</body>
+</html>
