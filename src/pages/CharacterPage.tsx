@@ -2,17 +2,14 @@
  * 角色卡主页（10.3a 骨架重构，对照 _reference/0801.实测/角色卡界面设计/character-detail.html）：
  * - 左信息栏 272px（CharacterInfoRail）：立绘 3:4+lightbox / 信息行 / 操作抽屉
  * - 主列：头部（CharacterHeader：大标题+meta 编辑弹窗+折叠动画+标签条 NSFW 开关）
- *   + tab 导航（故事/备注/关联资产/立绘）；就地阅读与故事域交互在 10.3b，备注/立绘分行在 10.3c
+ *   + tab 导航（故事/备注/关联资产/立绘）+ tab 行右侧统一导入钮（10.3c，按当前 tab 预选类型）
  * - patchCharacter：评分→评价档位标签单向联动（10.0）+ 标签变化同步 nsfw 字段
  */
-import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
-import {
-  ArrowLeft, ChevronRight, BookOpen, Download, StickyNote,
-} from 'lucide-react';
+import { ArrowLeft, ChevronRight, BookOpen, Upload } from 'lucide-react';
 import { AppLayout } from '@/components/AppLayout';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
@@ -21,7 +18,6 @@ import {
 } from '@/components/ui/alert-dialog';
 import { useToast } from '@/hooks/use-toast';
 import type { ArchiveCharacter, ArchiveStory } from '@/types/archive';
-import type { ChatSession } from '@/types/chat';
 import {
   getCharacter,
   saveCharacter,
@@ -30,20 +26,22 @@ import {
   getArchiveStory,
   deleteArchiveStory,
   deleteCharacter,
-  buildStoryFromSession,
   sortStoriesForDisplay,
 } from '@/lib/archive-db';
-import { normalizeCharacterCard, parseJsonl, parseJson } from '@/lib/adapters/st';
+import { normalizeCharacterCard } from '@/lib/adapters/st';
 import { applyRatingTierTag, NSFW_TAG } from '@/lib/tag-taxonomy';
 import { importEmbeddedAssets } from '@/lib/card-embedded-assets';
 import { downloadCharacterFile } from '@/lib/character-file';
 import { exportCardJson } from '@/lib/card-export';
 import { setPendingToolFile } from '@/lib/tool-handoff';
 import { cn } from '@/lib/utils';
+import { IMPORT_KINDS, type CharacterImportKind, type CharacterImportResult } from '@/lib/character-import';
 import { CharacterInfoRail } from '@/components/character/CharacterInfoRail';
 import { CharacterHeader } from '@/components/character/CharacterHeader';
 import { AssetSection } from '@/components/character/AssetSection';
-import { IllustrationSection } from '@/components/character/IllustrationSection';
+import { NotesSection } from '@/components/character/NotesSection';
+import { PortraitSection } from '@/components/character/PortraitSection';
+import { CharacterImportDialog } from '@/components/character/CharacterImportDialog';
 import { StoryListSection } from '@/components/character/StoryListSection';
 import { InlineStoryReader } from '@/components/character/InlineStoryReader';
 import { StoryRecordsView, type RecordViewKind } from '@/components/character/StoryRecordsView';
@@ -57,12 +55,19 @@ const STORY_SUB_VIEWS: { key: RecordViewKind; label: string }[] = [
   { key: 'tree', label: '故事树' },
 ];
 
+/** tab → 导入弹窗预选类型 */
+const TAB_IMPORT_KIND: Record<string, CharacterImportKind> = {
+  stories: 'story',
+  notes: 'quote',
+  assets: 'worldbook',
+  portraits: 'portrait',
+};
+
 const CharacterPage = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { toast } = useToast();
   const [searchParams, setSearchParams] = useSearchParams();
-  const chatInputRef = useRef<HTMLInputElement>(null);
   const [character, setCharacter] = useState<ArchiveCharacter | null>(null);
   const [stories, setStories] = useState<ArchiveStory[]>([]);
   const [loading, setLoading] = useState(true);
@@ -72,6 +77,9 @@ const CharacterPage = () => {
   const readingStoryId = searchParams.get('story');
   const [readingBranchId, setReadingBranchId] = useState<string | undefined>(undefined);
   const [storySubView, setStorySubView] = useState<StorySubView>('list');
+  // 统一导入弹窗（10.3c）：按当前 tab 预选类型
+  const [activeTab, setActiveTab] = useState('stories');
+  const [importOpen, setImportOpen] = useState(false);
 
   const load = useCallback(async () => {
     if (!id) return;
@@ -107,34 +115,15 @@ const CharacterPage = () => {
     await saveCharacter(next);
   };
 
-  const handleImportChat = async (files: FileList | null) => {
-    if (!files || files.length === 0 || !character) return;
-    let ok = 0;
-    let fail = 0;
-    for (const file of Array.from(files)) {
-      try {
-        const content = await file.text();
-        const isJsonl = file.name.endsWith('.jsonl') || content.trim().split('\n').length > 1;
-        const { messages, metadata } = isJsonl ? parseJsonl(content) : parseJson(content);
-        if (messages.length === 0) throw new Error('empty');
-        const session: ChatSession = {
-          id: crypto.randomUUID(),
-          title: file.name.replace(/\.(jsonl|json)$/i, ''),
-          messages,
-          character: { name: metadata?.character_name || character.name },
-          user: { name: metadata?.user_name || 'User' },
-          createdAt: Date.now(),
-          rawMetadata: metadata,
-        };
-        await saveArchiveStory(buildStoryFromSession(session, character.id));
-        ok++;
-      } catch {
-        fail++;
-      }
-    }
-    if (chatInputRef.current) chatInputRef.current.value = '';
-    await load();
-    toast({ title: `导入完成：${ok} 个故事${fail ? `，失败 ${fail} 个` : ''}` });
+  /** 统一导入完成（10.3c）：patch 落库；故事导入后刷列表；弹窗保持打开可继续导 */
+  const handleImportDone = async (kind: CharacterImportKind, result: CharacterImportResult) => {
+    if (result.patch) await patchCharacter(result.patch);
+    if (kind === 'story' && result.ok > 0) await load();
+    const label = IMPORT_KINDS.find((k) => k.kind === kind)?.label ?? '';
+    toast({
+      title: `${label}导入完成：成功 ${result.ok}${result.fail ? `，失败 ${result.fail}` : ''}`,
+      variant: result.ok === 0 && result.fail > 0 ? 'destructive' : undefined,
+    });
   };
 
   const handleConfirmDeleteStory = async () => {
@@ -256,6 +245,10 @@ const CharacterPage = () => {
     );
   }
 
+  // tab 计数（10.3c）：资产含引用摘录；立绘=各行图片合计
+  const assetCount = (character.assets?.length ?? 0) + (character.quotes?.length ?? 0);
+  const portraitCount = (character.portraitRows ?? []).reduce((n, r) => n + r.items.length, 0);
+
   return (
     <AppLayout
       leftActions={
@@ -263,22 +256,6 @@ const CharacterPage = () => {
           <ArrowLeft className="w-4 h-4 mr-1" />
           角色库
         </Button>
-      }
-      actions={
-        <>
-          <Button variant="outline" size="sm" onClick={() => chatInputRef.current?.click()}>
-            <Download className="w-4 h-4 mr-1" />
-            导入聊天到此角色
-          </Button>
-          <input
-            ref={chatInputRef}
-            type="file"
-            accept=".jsonl,.json"
-            multiple
-            className="hidden"
-            onChange={(e) => handleImportChat(e.target.files)}
-          />
-        </>
       }
     >
       <div className="h-full flex overflow-hidden">
@@ -303,14 +280,20 @@ const CharacterPage = () => {
             collapsed={readingStoryId ? true : undefined}
           />
 
-          <Tabs defaultValue="stories" className="flex-1 flex flex-col px-6 pt-3 pb-6">
-            {/* TabsList 用 flex（布局铁律：防插件包裹破坏 grid） */}
-            <TabsList className="flex w-fit gap-1">
-              <TabsTrigger value="stories">故事 {stories.length > 0 && <span className="ml-1 text-[10px] opacity-70">{stories.length}</span>}</TabsTrigger>
-              <TabsTrigger value="notes">备注 {(character.notes?.length ?? 0) > 0 && <span className="ml-1 text-[10px] opacity-70">{character.notes!.length}</span>}</TabsTrigger>
-              <TabsTrigger value="assets">关联资产 {(character.assets?.length ?? 0) > 0 && <span className="ml-1 text-[10px] opacity-70">{character.assets!.length}</span>}</TabsTrigger>
-              <TabsTrigger value="portraits">立绘</TabsTrigger>
-            </TabsList>
+          <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1 flex flex-col px-6 pt-3 pb-6">
+            {/* TabsList 用 flex（布局铁律：防插件包裹破坏 grid）；行右侧=统一导入钮（10.3c） */}
+            <div className="flex items-center gap-2">
+              <TabsList className="flex w-fit gap-1">
+                <TabsTrigger value="stories">故事 {stories.length > 0 && <span className="ml-1 text-[10px] opacity-70">{stories.length}</span>}</TabsTrigger>
+                <TabsTrigger value="notes">备注 {(character.notes?.length ?? 0) > 0 && <span className="ml-1 text-[10px] opacity-70">{character.notes!.length}</span>}</TabsTrigger>
+                <TabsTrigger value="assets">关联资产 {assetCount > 0 && <span className="ml-1 text-[10px] opacity-70">{assetCount}</span>}</TabsTrigger>
+                <TabsTrigger value="portraits">立绘 {portraitCount > 0 && <span className="ml-1 text-[10px] opacity-70">{portraitCount}</span>}</TabsTrigger>
+              </TabsList>
+              <Button variant="outline" size="sm" className="ml-auto h-8" onClick={() => setImportOpen(true)}>
+                <Upload className="w-3.5 h-3.5 mr-1" />
+                导入
+              </Button>
+            </div>
 
             {/* 故事 tab：就地阅读 / 列表+子视图（总结/日记/故事树，10.3b） */}
             <TabsContent value="stories" className="mt-3">
@@ -360,7 +343,7 @@ const CharacterPage = () => {
                   ) : stories.length === 0 ? (
                     <Card>
                       <CardContent className="py-10 text-center text-sm text-muted-foreground">
-                        还没有故事。点击右上角「导入聊天到此角色」，把 ST 聊天记录（JSONL）挂到这张卡下。
+                        还没有故事。点右上角「导入」，把 ST 聊天记录（JSONL）挂到这张卡下。
                       </CardContent>
                     </Card>
                   ) : (
@@ -378,37 +361,44 @@ const CharacterPage = () => {
               )}
             </TabsContent>
 
-            {/* 备注 tab（10.3c 出 CRUD；先给空态占位） */}
+            {/* 备注 tab（10.3c CRUD） */}
             <TabsContent value="notes" className="mt-3">
-              <Card>
-                <CardContent className="py-10 flex flex-col items-center gap-2 text-center">
-                  <StickyNote className="w-8 h-8 text-muted-foreground/40" />
-                  <p className="text-sm text-muted-foreground">
-                    {(character.notes?.length ?? 0) > 0 ? `已有 ${character.notes!.length} 条备注` : '还没有备注'}
-                  </p>
-                  <p className="text-xs text-muted-foreground/70">角色级速记（玩卡心得）；编辑功能下个批次上线</p>
-                </CardContent>
-              </Card>
-            </TabsContent>
-
-            {/* 关联资产 tab（阶段5 组件迁入；10.3c 换宽抽屉预览） */}
-            <TabsContent value="assets" className="mt-3">
-              <AssetSection
-                character={character}
-                onAssetsChange={(assets) => patchCharacter({ assets })}
+              <NotesSection
+                notes={character.notes ?? []}
+                onChange={(notes) => void patchCharacter({ notes })}
               />
             </TabsContent>
 
-            {/* 立绘 tab（10.3c 换分行式；现为只读图墙，仅客户端有图时显示） */}
+            {/* 关联资产 tab（10.3c：宽抽屉预览 + 引用条目 + 导入/读取内置入口） */}
+            <TabsContent value="assets" className="mt-3">
+              <AssetSection
+                character={character}
+                onAssetsChange={(assets) => void patchCharacter({ assets })}
+                onQuotesChange={(quotes) => void patchCharacter({ quotes })}
+                onReadEmbedded={() => void handleReadEmbedded()}
+                onOpenImport={() => setImportOpen(true)}
+              />
+            </TabsContent>
+
+            {/* 立绘 tab（10.3c 分行式，网页版 IDB 与客户端行文件夹同构） */}
             <TabsContent value="portraits" className="mt-3">
-              <IllustrationSection characterId={character.id} />
-              <p className="text-xs text-muted-foreground mt-3">
-                立绘分行管理（行标题/导入/设为卡面）下个批次上线；客户端可先把图片放进 角色/{character.name}/立绘/ 文件夹。
-              </p>
+              <PortraitSection
+                character={character}
+                onPatch={patchCharacter}
+                onOpenImport={() => setImportOpen(true)}
+              />
             </TabsContent>
           </Tabs>
         </div>
       </div>
+
+      <CharacterImportDialog
+        character={character}
+        open={importOpen}
+        onOpenChange={setImportOpen}
+        initialKind={TAB_IMPORT_KIND[activeTab] ?? 'story'}
+        onDone={(kind, result) => void handleImportDone(kind, result)}
+      />
 
       <AlertDialog open={!!storyToDelete} onOpenChange={(open) => !open && setStoryToDelete(null)}>
         <AlertDialogContent>

@@ -1,57 +1,84 @@
 /**
- * 角色卡主页 · 关联资产区（2.0 阶段5，定稿第四/七章）。
- * 紧凑列表：资产名 / 类型 / 共享·派生状态 / 最近修改时间；
- * 点击进只读概览，明确点「处理」才进工具区（带角色上下文 → 保存时写时复制）；
- * 「添加引用」从资产库挑选，只记引用不复制内容。
+ * 角色卡主页 · 关联资产 tab（阶段5 引用制；10.3c 宽抽屉预览 + 引用条目 + 导入/读取内置入口）。
+ * 列表：三类资产（世界书/预设/正则，引用制）+ 引用摘录（quotes，角色档案自有数据）；
+ * 点条目开右侧宽抽屉逐条预览，明确点「在编辑器中打开」才进工具区（带角色上下文 → 写时复制）。
  */
 import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Globe, SlidersHorizontal, Regex as RegexIcon, Plus, X, Wrench, Package } from 'lucide-react';
+import {
+  Globe, SlidersHorizontal, Regex as RegexIcon, Quote as QuoteIcon,
+  Plus, X, Wrench, PackageOpen, Upload,
+} from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import {
-  Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle,
-} from '@/components/ui/dialog';
+  Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle,
+} from '@/components/ui/sheet';
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { useToast } from '@/hooks/use-toast';
-import type { ArchiveCharacter, AssetKind, AssetRef, DerivedAssetMeta } from '@/types/archive';
+import type { ArchiveCharacter, AssetKind, AssetRef, DerivedAssetMeta, QuoteAsset } from '@/types/archive';
 import type { WorldBookEntry } from '@/types/worldbook';
 import { getAllWorldBooks } from '@/lib/worldbook-db';
 import { getAllPresets } from '@/lib/preset-db';
 import { getAllRegexCollections } from '@/lib/regex-db';
 import { addAssetRef, removeAssetRef } from '@/lib/asset-cow';
+import { formatListTime, formatFullTime } from '@/lib/time-display';
 
-/** 三类资产在本区需要的统一视图 */
+/** 抽屉里的一条预览（世界书条目/提示词块/正则规则/引用段落） */
+interface AssetEntry {
+  title?: string;
+  /** 触发词/正则等（mono 小字） */
+  keys?: string;
+  body?: string;
+}
+
+/** 列表统一视图：三类资产 + 引用摘录 */
 interface AssetView {
-  kind: AssetKind;
+  kind: AssetKind | 'quote';
   id: string;
   title: string;
   updatedAt: number;
   derived?: DerivedAssetMeta;
-  /** 概览用的摘要行（条目名/块名/规则名，最多几条） */
-  outline: string[];
+  entries: AssetEntry[];
   count: number;
 }
 
-const KIND_META: Record<AssetKind, { label: string; icon: typeof Globe; toolPath: string; unit: string }> = {
+const PREVIEW_LIMIT = 8;
+
+const KIND_META: Record<AssetView['kind'], { label: string; icon: typeof Globe; toolPath: string; unit: string }> = {
   worldbook: { label: '世界书', icon: Globe, toolPath: '/worldbook', unit: '条目' },
   preset: { label: '预设', icon: SlidersHorizontal, toolPath: '/preset', unit: '提示词块' },
   regex: { label: '正则', icon: RegexIcon, toolPath: '/regex', unit: '规则' },
+  quote: { label: '引用', icon: QuoteIcon, toolPath: '', unit: '段' },
 };
+
+/** 引用正文 → 段落（空行分段） */
+const quoteParagraphs = (body: string) => body.split(/\n\s*\n+/).map((s) => s.trim()).filter(Boolean);
 
 interface AssetSectionProps {
   character: ArchiveCharacter;
   /** 引用增删后回写角色档案 */
   onAssetsChange: (assets: AssetRef[]) => void;
+  /** 引用摘录变更回写 */
+  onQuotesChange: (quotes: QuoteAsset[]) => void;
+  /** 重扫卡内嵌世界书/正则入库挂关联（与操作抽屉同一动作） */
+  onReadEmbedded: () => void;
+  /** 打开统一导入弹窗（预选世界书类） */
+  onOpenImport: () => void;
 }
 
-export function AssetSection({ character, onAssetsChange }: AssetSectionProps) {
+export function AssetSection({ character, onAssetsChange, onQuotesChange, onReadEmbedded, onOpenImport }: AssetSectionProps) {
   const navigate = useNavigate();
   const { toast } = useToast();
   const [library, setLibrary] = useState<AssetView[]>([]);
   const [addOpen, setAddOpen] = useState(false);
   const [preview, setPreview] = useState<AssetView | null>(null);
+  const [quoteToDelete, setQuoteToDelete] = useState<QuoteAsset | null>(null);
 
   const loadLibrary = useCallback(async () => {
     const [wbs, presets, regexes] = await Promise.all([
@@ -64,18 +91,29 @@ export function AssetSection({ character, onAssetsChange }: AssetSectionProps) {
         const entries = Object.values<WorldBookEntry>(w.worldbook?.entries ?? {});
         return {
           kind: 'worldbook', id: w.id, title: w.title, updatedAt: w.updatedAt, derived: w.derived,
-          outline: entries.slice(0, 6).map((e) => e.comment || `条目 ${e.uid}`),
+          entries: entries.slice(0, PREVIEW_LIMIT).map((e) => ({
+            title: e.comment || `条目 ${e.uid}`,
+            keys: e.key.join(', ') || undefined,
+            body: e.content,
+          })),
           count: entries.length,
         };
       }),
       ...presets.map((p): AssetView => ({
         kind: 'preset', id: p.id, title: p.title, updatedAt: p.updatedAt, derived: p.derived,
-        outline: p.preset.prompts.slice(0, 6).map((b) => b.name || b.identifier),
+        entries: p.preset.prompts.slice(0, PREVIEW_LIMIT).map((b) => ({
+          title: b.name || b.identifier,
+          body: b.marker ? '（系统插槽，运行时动态填充）' : b.content,
+        })),
         count: p.preset.prompts.length,
       })),
       ...regexes.map((r): AssetView => ({
         kind: 'regex', id: r.id, title: r.title, updatedAt: r.updatedAt, derived: r.derived,
-        outline: r.rules.slice(0, 6).map((x) => x.name),
+        entries: r.rules.slice(0, PREVIEW_LIMIT).map((x) => ({
+          title: x.name,
+          keys: x.findRegex,
+          body: x.replaceString ? `→ ${x.replaceString}` : '→（删除匹配内容）',
+        })),
         count: r.rules.length,
       })),
     ];
@@ -87,15 +125,25 @@ export function AssetSection({ character, onAssetsChange }: AssetSectionProps) {
   }, [loadLibrary]);
 
   const refs = character.assets ?? [];
+  const quotes = character.quotes ?? [];
   const linked = refs
     .map((ref) => library.find((a) => a.kind === ref.kind && a.id === ref.assetId))
     .filter((a): a is AssetView => !!a);
+  const quoteViews = quotes.map((q): AssetView => {
+    const paras = quoteParagraphs(q.body);
+    return {
+      kind: 'quote', id: q.id, title: q.title, updatedAt: q.addedAt,
+      entries: paras.slice(0, PREVIEW_LIMIT).map((p) => ({ body: p })),
+      count: paras.length,
+    };
+  });
+  const items = [...linked, ...quoteViews];
   // 引用里有、库里已删的（提示失效引用可移除）
   const broken = refs.filter((ref) => !library.some((a) => a.kind === ref.kind && a.id === ref.assetId));
   const linkable = library.filter((a) => !refs.some((r) => r.kind === a.kind && r.assetId === a.id));
 
   const handleAdd = (a: AssetView) => {
-    onAssetsChange(addAssetRef(refs, a.kind, a.id));
+    onAssetsChange(addAssetRef(refs, a.kind as AssetKind, a.id));
     setAddOpen(false);
     toast({ title: `已关联${KIND_META[a.kind].label}「${a.title}」`, description: '只记引用，不复制内容' });
   };
@@ -105,15 +153,25 @@ export function AssetSection({ character, onAssetsChange }: AssetSectionProps) {
     toast({ title: `已移除引用${title ? `「${title}」` : ''}`, description: '资产本体仍在资产库中' });
   };
 
+  const openEditor = (a: AssetView) => {
+    navigate(`${KIND_META[a.kind].toolPath}?assetId=${encodeURIComponent(a.id)}&characterId=${encodeURIComponent(character.id)}`);
+  };
+
   return (
-    <div className="mt-6">
-      <div className="flex items-center gap-2 mb-2">
-        <Package className="w-4 h-4 text-primary" />
-        <h2 className="font-display text-base font-semibold">关联资产</h2>
-        <span className="text-xs text-muted-foreground">世界书 / 预设 / 正则 · 引用制</span>
+    <div className="space-y-3">
+      <div className="flex items-center gap-1.5 flex-wrap">
+        <span className="text-xs text-muted-foreground mr-auto">世界书 / 预设 / 正则（引用制）+ 引用摘录</span>
+        <Button variant="outline" size="sm" className="h-7" title="重新扫描卡内嵌的世界书/正则并入库挂关联" onClick={onReadEmbedded}>
+          <PackageOpen className="w-3.5 h-3.5 mr-1" />
+          读取内置资源
+        </Button>
+        <Button variant="outline" size="sm" className="h-7" onClick={onOpenImport}>
+          <Upload className="w-3.5 h-3.5 mr-1" />
+          导入资产
+        </Button>
         <Popover open={addOpen} onOpenChange={setAddOpen}>
           <PopoverTrigger asChild>
-            <Button variant="outline" size="sm" className="ml-auto h-7">
+            <Button variant="outline" size="sm" className="h-7">
               <Plus className="w-3.5 h-3.5 mr-1" />
               添加引用
             </Button>
@@ -149,14 +207,14 @@ export function AssetSection({ character, onAssetsChange }: AssetSectionProps) {
         </Popover>
       </div>
 
-      {linked.length === 0 && broken.length === 0 ? (
+      {items.length === 0 && broken.length === 0 ? (
         <p className="text-xs text-muted-foreground">
           还没有关联资产。角色用到的世界书/预设/正则可以在这里挂引用；在角色上下文里修改共享资产时，
-          会自动生成「资产名_{character.name}」的派生副本，不影响其他角色。
+          会自动生成「资产名_{character.name}」的派生副本，不影响其他角色。摘录、语料片段可从「导入资产」进来。
         </p>
       ) : (
         <div className="space-y-1.5">
-          {linked.map((a) => {
+          {items.map((a) => {
             const meta = KIND_META[a.kind];
             const Icon = meta.icon;
             const isOwnDerived = a.derived?.characterId === character.id;
@@ -165,39 +223,45 @@ export function AssetSection({ character, onAssetsChange }: AssetSectionProps) {
                 key={`${a.kind}-${a.id}`}
                 className="flex items-center gap-2.5 rounded-lg border border-border bg-card px-3 py-2 text-sm hover:border-primary/40 transition-colors cursor-pointer"
                 onClick={() => setPreview(a)}
-                title="点击查看只读概览"
+                title="点击查看条目预览"
               >
                 <Icon className="w-4 h-4 text-muted-foreground shrink-0" />
                 <span className="min-w-0 truncate font-medium">{a.title}</span>
                 <Badge variant="outline" className="h-4 px-1 text-[10px] text-muted-foreground shrink-0">{meta.label}</Badge>
-                {a.derived ? (
-                  <Badge variant="secondary" className="h-4 px-1 text-[10px] shrink-0" title={isOwnDerived ? '本角色的派生副本' : '其他角色的派生副本'}>
-                    派生{isOwnDerived ? '' : '(他人)'}
-                  </Badge>
-                ) : (
-                  <Badge variant="outline" className="h-4 px-1 text-[10px] text-muted-foreground shrink-0">共享</Badge>
+                {a.kind !== 'quote' && (
+                  a.derived ? (
+                    <Badge variant="secondary" className="h-4 px-1 text-[10px] shrink-0" title={isOwnDerived ? '本角色的派生副本' : '其他角色的派生副本'}>
+                      派生{isOwnDerived ? '' : '(他人)'}
+                    </Badge>
+                  ) : (
+                    <Badge variant="outline" className="h-4 px-1 text-[10px] text-muted-foreground shrink-0">共享</Badge>
+                  )
                 )}
-                <span className="ml-auto text-xs text-muted-foreground shrink-0 hidden sm:inline">
-                  {new Date(a.updatedAt).toLocaleDateString()}
+                <span className="text-xs text-muted-foreground shrink-0 hidden sm:inline">{a.count} {meta.unit}</span>
+                <span className="ml-auto text-xs text-muted-foreground shrink-0 hidden sm:inline" title={formatFullTime(a.updatedAt)}>
+                  {formatListTime(a.updatedAt)}
                 </span>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="h-7 shrink-0"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    navigate(`${meta.toolPath}?assetId=${encodeURIComponent(a.id)}&characterId=${encodeURIComponent(character.id)}`);
-                  }}
-                >
-                  <Wrench className="w-3.5 h-3.5 mr-1" />
-                  处理
-                </Button>
+                {a.kind !== 'quote' && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="h-7 shrink-0"
+                    onClick={(e) => { e.stopPropagation(); openEditor(a); }}
+                  >
+                    <Wrench className="w-3.5 h-3.5 mr-1" />
+                    处理
+                  </Button>
+                )}
                 <Button
                   variant="ghost"
                   size="icon"
                   className="h-7 w-7 shrink-0 text-muted-foreground hover:text-destructive"
-                  onClick={(e) => { e.stopPropagation(); handleRemove(a.kind, a.id, a.title); }}
-                  aria-label="移除引用"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    if (a.kind === 'quote') setQuoteToDelete(quotes.find((q) => q.id === a.id) ?? null);
+                    else handleRemove(a.kind as AssetKind, a.id, a.title);
+                  }}
+                  aria-label={a.kind === 'quote' ? '删除引用' : '移除引用'}
                 >
                   <X className="w-3.5 h-3.5" />
                 </Button>
@@ -220,47 +284,72 @@ export function AssetSection({ character, onAssetsChange }: AssetSectionProps) {
         </div>
       )}
 
-      {/* 只读概览：明确点「处理」才进工具区 */}
-      <Dialog open={!!preview} onOpenChange={(v) => { if (!v) setPreview(null); }}>
-        <DialogContent>
+      {/* 宽抽屉：条目预览（设计稿 side wide）；明确点「在编辑器中打开」才进工具区 */}
+      <Sheet open={!!preview} onOpenChange={(v) => { if (!v) setPreview(null); }}>
+        <SheetContent side="right" className="w-full sm:max-w-xl flex flex-col">
           {preview && (
             <>
-              <DialogHeader>
-                <DialogTitle className="flex items-center gap-2">
-                  {preview.title}
-                  <Badge variant="outline" className="text-[10px]">{KIND_META[preview.kind].label}</Badge>
-                  {preview.derived && <Badge variant="secondary" className="text-[10px]">派生副本</Badge>}
-                </DialogTitle>
-                <DialogDescription>
-                  共 {preview.count} 个{KIND_META[preview.kind].unit} · 最近修改 {new Date(preview.updatedAt).toLocaleString()}
-                </DialogDescription>
-              </DialogHeader>
-              {preview.outline.length > 0 && (
-                <div className="text-sm space-y-1 max-h-56 overflow-auto">
-                  {preview.outline.map((line, i) => (
-                    <p key={i} className="truncate text-muted-foreground">· {line}</p>
-                  ))}
-                  {preview.count > preview.outline.length && (
-                    <p className="text-xs text-muted-foreground/70">…还有 {preview.count - preview.outline.length} 个</p>
-                  )}
-                </div>
-              )}
-              <DialogFooter>
+              <SheetHeader>
+                <SheetDescription>
+                  {KIND_META[preview.kind].label}
+                  {preview.derived && ' · 派生副本'}
+                  {' · '}
+                  {formatFullTime(preview.updatedAt)}
+                </SheetDescription>
+                <SheetTitle>{preview.title}</SheetTitle>
+                <SheetDescription>共 {preview.count} 个{KIND_META[preview.kind].unit}</SheetDescription>
+              </SheetHeader>
+              <div className="flex-1 min-h-0 overflow-y-auto scrollbar-thin space-y-2.5 mt-2">
+                {preview.entries.map((e, i) => (
+                  <div key={i} className="rounded-lg border border-border bg-card px-3 py-2.5">
+                    {e.title && <p className="text-sm font-medium mb-1">{e.title}</p>}
+                    {e.keys && <p className="text-xs text-muted-foreground font-mono mb-1.5 break-all">{e.keys}</p>}
+                    {e.body && <p className="text-[13px] leading-relaxed whitespace-pre-wrap text-muted-foreground">{e.body}</p>}
+                  </div>
+                ))}
+                {preview.count > preview.entries.length && (
+                  <p className="text-xs text-muted-foreground/70 text-center pb-2">
+                    …还有 {preview.count - preview.entries.length} 个{KIND_META[preview.kind].unit}，在编辑器中查看全部
+                  </p>
+                )}
+              </div>
+              <div className="flex justify-end gap-2 pt-3 border-t border-border">
                 <Button variant="outline" onClick={() => setPreview(null)}>关闭</Button>
-                <Button
-                  onClick={() => {
-                    const meta = KIND_META[preview.kind];
-                    navigate(`${meta.toolPath}?assetId=${encodeURIComponent(preview.id)}&characterId=${encodeURIComponent(character.id)}`);
-                  }}
-                >
-                  <Wrench className="w-4 h-4 mr-1.5" />
-                  处理此资产
-                </Button>
-              </DialogFooter>
+                {preview.kind !== 'quote' && (
+                  <Button onClick={() => openEditor(preview)}>
+                    <Wrench className="w-4 h-4 mr-1.5" />
+                    在编辑器中打开
+                  </Button>
+                )}
+              </div>
             </>
           )}
-        </DialogContent>
-      </Dialog>
+        </SheetContent>
+      </Sheet>
+
+      {/* 引用删除确认（真删数据，与移除资产引用不同） */}
+      <AlertDialog open={!!quoteToDelete} onOpenChange={(v) => !v && setQuoteToDelete(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>删除引用「{quoteToDelete?.title}」？</AlertDialogTitle>
+            <AlertDialogDescription>引用是这张卡自己的摘录数据，删除后无法恢复。</AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>取消</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                if (quoteToDelete) {
+                  onQuotesChange(quotes.filter((q) => q.id !== quoteToDelete.id));
+                  toast({ title: `已删除引用「${quoteToDelete.title}」` });
+                }
+                setQuoteToDelete(null);
+              }}
+            >
+              删除
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

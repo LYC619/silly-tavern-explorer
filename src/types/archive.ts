@@ -53,11 +53,22 @@ export interface PortraitItem {
   id: string;
   /** 来源：manual=手动导入；replaced=被替换的旧卡面自动存档 */
   source: 'manual' | 'replaced';
+  /** 显示名（原文件名/归档名）；缺省时客户端用 fileName */
+  name?: string;
   /** 客户端：行文件夹内的文件名；网页版为空（图片在 dataBase64） */
   fileName?: string;
   /** 网页版：图片数据（纯 base64 无前缀）；客户端为空（图片在文件夹） */
   dataBase64?: string;
   mime?: string;
+  addedAt: number;
+}
+
+/** 引用资产（10.3c 最小实现，反馈 2.4 导入六类）：文本摘录条目，列在关联资产 tab */
+export interface QuoteAsset {
+  id: string;
+  title: string;
+  /** 摘录正文（空行分段，资产抽屉逐段展示） */
+  body: string;
   addedAt: number;
 }
 
@@ -94,6 +105,10 @@ export interface ArchiveCharacter {
   notes?: CharacterNote[];
   /** 立绘分行（10.0 定形，10.3c 出 UI 与落盘） */
   portraitRows?: PortraitRow[];
+  /** 当前卡面对应的立绘条目 id（10.3c 设为卡面时记录；换卡面时据此判断旧图是否已在立绘库里） */
+  portraitCurrentId?: string;
+  /** 引用摘录（10.3c 最小实现）：与 assets 引用一起列在关联资产 tab */
+  quotes?: QuoteAsset[];
   /** 10 分制总分（0.5 步进由 UI 约束）；未评分为 undefined */
   rating?: number;
   /** 评分摘要（一句话，详细分项在 ratingDetail 里） */
