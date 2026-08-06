@@ -33,7 +33,7 @@ import type { CharacterPatch } from '@/lib/character-write';
 import type { NormalizedCharacterCard } from '@/lib/png-parser';
 import { introOf } from '@/lib/character-intro';
 import {
-  TAG_CATEGORIES, BUILTIN_TAGS, makeTag, syncNsfwTag,
+  TAG_CATEGORIES, BUILTIN_TAGS, makeTag,
   RATING_TIER_LABELS, RATING_TIER_PREFILL, type RatingTier,
 } from '@/lib/tag-taxonomy';
 import { IntroSection } from '@/components/character/IntroSection';
@@ -88,9 +88,14 @@ export function CharacterHeader({ character, norm, onPatch, collapsed, onCollaps
     }
   };
 
-  const addTag = (raw: string) => {
+  const addTag = async (raw: string) => {
     if (!raw || character.tags.includes(raw)) return;
-    void onPatch({ tags: [...character.tags, raw] }).catch(() => {});
+    try {
+      await onPatch({ tags: [...character.tags, raw] });
+      setNewTag((current) => (current.trim() === raw ? '' : current));
+    } catch {
+      // 父层已提示失败；保留输入供修正或重试。
+    }
   };
 
   /** 点评价档位（0801 补充）：未评分时弹确认预填中值；已评分则档位随评分自动 */
@@ -166,7 +171,7 @@ export function CharacterHeader({ character, norm, onPatch, collapsed, onCollaps
                 <Switch
                   id="nsfw-switch"
                   checked={!!character.nsfw}
-                  onCheckedChange={(on) => { void onPatch({ nsfw: on, tags: syncNsfwTag(character.tags, on) }).catch(() => {}); }}
+                  onCheckedChange={(on) => { void onPatch({ nsfw: on }).catch(() => {}); }}
                   aria-label="NSFW 标记"
                 />
                 <Label htmlFor="nsfw-switch" className="text-xs text-[color:var(--text-muted)] cursor-pointer">NSFW</Label>
@@ -224,8 +229,7 @@ export function CharacterHeader({ character, norm, onPatch, collapsed, onCollaps
                 onChange={(e) => setNewTag(e.target.value)}
                 onKeyDown={(e) => {
                   if (e.key === 'Enter') {
-                    addTag(newTag.trim());
-                    setNewTag('');
+                    void addTag(newTag.trim());
                   }
                 }}
                 placeholder="自建：类别/子标签"

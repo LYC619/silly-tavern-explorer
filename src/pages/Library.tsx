@@ -69,6 +69,14 @@ import { importEmbeddedAssets } from '@/lib/card-embedded-assets';
 import {
   TAG_CATEGORIES, CATEGORY_HELP, tagOptionsByCategory, type TagCategory,
 } from '@/lib/tag-taxonomy';
+import {
+  displayCharacterName,
+  filterCharacters,
+  reconcileSelection,
+  sortCharacters,
+  toggleTagFilter as toggleLibraryTagFilter,
+  type LibrarySortKey,
+} from '@/lib/library-query';
 
 /** 类别 → 交接包分类色点（--tag-*）；分类法 v2（10.0），「未分类」用背景色点 */
 const CATEGORY_DOT: Record<TagCategory, string> = {
@@ -87,7 +95,7 @@ function hashName(name: string): number {
   return Math.abs(hash);
 }
 
-type SortKey = 'recent' | 'added' | 'name' | 'rating' | 'lastPlayed';
+type SortKey = LibrarySortKey;
 const SORT_LABELS: Record<SortKey, string> = {
   recent: '按最近修改',
   added: '按最近加入',
@@ -176,8 +184,8 @@ const Library = () => {
   const [lastPlayed, setLastPlayed] = useState<Record<string, number>>({});
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
-  /** 分级标签筛选：每个类别至多选一个子标签（raw），类别间取交集 */
-  const [tagFilters, setTagFilters] = useState<Partial<Record<TagCategory, string>>>({});
+  /** 分级标签筛选：类型单选，其余类别组内多选 OR，类别间取交集 */
+  const [tagFilters, setTagFilters] = useState<Partial<Record<TagCategory, string[]>>>({});
   const [typeFilter, setTypeFilter] = useState<TypeFilter>('all');
   const [sortKey, setSortKey] = useState<SortKey>('recent');
   const [sortAsc, setSortAsc] = useState(false);
@@ -317,47 +325,23 @@ const Library = () => {
   }, [characters]);
 
   const filtered = useMemo(() => {
-    let list = characters;
-    if (searchQuery.trim()) {
-      const q = searchQuery.toLowerCase();
-      list = list.filter(
-        (c) => c.name.toLowerCase().includes(q) || c.subtitle?.toLowerCase().includes(q),
-      );
-    }
-    if (typeFilter !== 'all') {
-      list = list.filter((c) => (typeFilter === 'none' ? c.type === undefined : c.type === typeFilter));
-    }
-    for (const raw of Object.values(tagFilters)) {
-      list = list.filter((c) => c.tags.includes(raw));
-    }
-    const sorted = [...list];
-    switch (sortKey) {
-      case 'recent':
-        sorted.sort((a, b) => b.updatedAt - a.updatedAt);
-        break;
-      case 'added':
-        sorted.sort((a, b) => b.createdAt - a.createdAt);
-        break;
-      case 'name':
-        sorted.sort((a, b) => a.name.localeCompare(b.name, 'zh-CN'));
-        break;
-      case 'rating':
-        // 未评分垫底
-        sorted.sort((a, b) => (b.rating ?? -1) - (a.rating ?? -1));
-        break;
-      case 'lastPlayed':
-        // 没玩过（无故事对话时间）垫底
-        sorted.sort((a, b) => (lastPlayed[b.id] ?? -1) - (lastPlayed[a.id] ?? -1));
-        break;
-    }
-    if (sortAsc) sorted.reverse();
-    return sorted;
+    const list = filterCharacters(characters, { search: searchQuery, type: typeFilter, tags: tagFilters });
+    return sortCharacters(list, sortKey, sortAsc, lastPlayed);
   }, [characters, searchQuery, tagFilters, typeFilter, sortKey, sortAsc, lastPlayed]);
 
   // 筛选/搜索/排序/每页数变化时回到第 1 页
   useEffect(() => {
     setPage(1);
   }, [searchQuery, tagFilters, typeFilter, sortKey, sortAsc, pageSize]);
+
+  // 筛选上下文改变时收缩选择集；排序或重新计算也必须清掉旧的 Shift 锚点。
+  useEffect(() => {
+    setSelected((prev) => reconcileSelection(prev, filtered.map((c) => c.id)));
+    anchorRef.current = null;
+  }, [filtered]);
+  useEffect(() => {
+    anchorRef.current = null;
+  }, [page]);
 
   const pageCount = pageSize === 'all' ? 1 : Math.max(1, Math.ceil(filtered.length / Number(pageSize)));
   // 删除等操作使总页数缩小时收敛到最后一页
@@ -373,8 +357,9 @@ const Library = () => {
   /** 批量点选：普通/Ctrl 点=切换并记锚点；Shift 点=从锚点到当前的范围全选（filtered 顺序） */
   const batchClick = (c: ArchiveCharacter, e: React.MouseEvent) => {
     const idx = filtered.findIndex((x) => x.id === c.id);
-    if (e.shiftKey && anchorRef.current !== null && idx >= 0) {
-      const [lo, hi] = [Math.min(anchorRef.current, idx), Math.max(anchorRef.current, idx)];
+    const anchor = anchorRef.current;
+    if (e.shiftKey && anchor !== null && anchor >= 0 && anchor < filtered.length && idx >= 0) {
+      const [lo, hi] = [Math.min(anchor, idx), Math.max(anchor, idx)];
       setSelected((prev) => {
         const next = new Set(prev);
         for (let i = lo; i <= hi; i++) next.add(filtered[i].id);
@@ -398,22 +383,17 @@ const Library = () => {
   };
 
   const toggleTagFilter = (cat: TagCategory, raw: string) => {
-    setTagFilters((f) => {
-      const next = { ...f };
-      if (next[cat] === raw) delete next[cat];
-      else next[cat] = raw;
-      return next;
-    });
+    setTagFilters((f) => toggleLibraryTagFilter(f, cat, raw) as Partial<Record<TagCategory, string[]>>);
   };
 
   /** 激活筛选 chips（0801 补充：搜索+筛选叠加要可感知 + 一键清除） */
   const activeFilterChips = [
     ...(typeFilter !== 'all' ? [{ key: 'type', label: `类型:${typeFilter === 'none' ? '未分类' : typeFilter}`, clear: () => setTypeFilter('all') }] : []),
-    ...Object.entries(tagFilters).map(([cat, raw]) => ({
+    ...Object.entries(tagFilters).flatMap(([cat, raws]) => (raws ?? []).map((raw) => ({
       key: raw,
       label: raw,
       clear: () => toggleTagFilter(cat as TagCategory, raw),
-    })),
+    }))),
   ];
 
   const nameSize = Math.round(15 * fontScale);
@@ -615,7 +595,7 @@ const Library = () => {
             {/* 分类法 v2 各组：内置打底常显 + 库内自建；点选即筛（再点取消），类别间交集 */}
             {TAG_CATEGORIES.map((cat) => {
               const options = tagOptions[cat].filter(
-                (o) => cat !== '未分类' || (tagCounts[o.raw] ?? 0) > 0 || tagFilters[cat] === o.raw,
+                (o) => cat !== '未分类' || (tagCounts[o.raw] ?? 0) > 0 || tagFilters[cat]?.includes(o.raw),
               );
               if (options.length === 0) return null;
               return (
@@ -632,7 +612,7 @@ const Library = () => {
                       key={o.raw}
                       label={o.label}
                       count={tagCounts[o.raw] ?? 0}
-                      active={tagFilters[cat] === o.raw}
+                      active={tagFilters[cat]?.includes(o.raw)}
                       onClick={() => toggleTagFilter(cat, o.raw)}
                     />
                   ))}
@@ -699,7 +679,7 @@ const Library = () => {
                           {c.pngBase64 ? (
                             <img
                               src={`data:image/png;base64,${c.pngBase64}`}
-                              alt={c.name}
+                              alt={displayCharacterName(c)}
                               className={cn(
                                 'absolute inset-0 w-full h-full object-cover object-top',
                                 c.nsfw && nsfwBlur && 'blur-xl scale-110 group-hover:blur-none group-hover:scale-100 transition-all duration-300',
@@ -708,7 +688,7 @@ const Library = () => {
                             />
                           ) : (
                             <div className={`absolute inset-0 art art-placeholder-${(hashName(c.name) % 13) + 1}`}>
-                              <div className="char-mark">{c.name.slice(0, 1)}</div>
+                              <div className="char-mark">{displayCharacterName(c).slice(0, 1)}</div>
                             </div>
                           )}
                           {/* 顶部角标条（B3）：左=批量勾选 或 评分数字+时间；右=故事数（对比度修正）+菜单 */}
@@ -766,9 +746,9 @@ const Library = () => {
                             <p
                               className="font-serif font-semibold text-white tracking-wide truncate [text-shadow:0_1px_4px_rgba(0,0,0,0.5)]"
                               style={{ fontSize: nameSize }}
-                              title={c.name}
+                              title={displayCharacterName(c)}
                             >
-                              {c.name}
+                              {displayCharacterName(c)}
                             </p>
                             {intro && (
                               <p className="leading-snug text-white/70 line-clamp-2 mt-1" style={{ fontSize: introSize }}>
@@ -815,7 +795,7 @@ const Library = () => {
                             {c.pngBase64 ? (
                               <img
                                 src={`data:image/png;base64,${c.pngBase64}`}
-                                alt={c.name}
+                                alt={displayCharacterName(c)}
                                 className={cn(
                                   'absolute inset-0 w-full h-full object-cover object-top',
                                   c.nsfw && nsfwBlur && 'blur-md',
@@ -827,7 +807,7 @@ const Library = () => {
                             )}
                           </div>
                           <div className="flex-1 min-w-0">
-                            <p className="font-medium text-[color:var(--text-primary)] truncate" style={{ fontSize: Math.round(14 * fontScale) }} title={c.name}>{c.name}</p>
+                            <p className="font-medium text-[color:var(--text-primary)] truncate" style={{ fontSize: Math.round(14 * fontScale) }} title={displayCharacterName(c)}>{displayCharacterName(c)}</p>
                             <p
                               className={cn(
                                 'leading-snug line-clamp-1 mt-0.5',
@@ -996,7 +976,7 @@ const Library = () => {
         onOpenChange={setBatchTagOpen}
         targets={characters.filter((c) => selected.has(c.id))}
         allCharacters={characters}
-        onDone={() => void load()}
+        onDone={load}
       />
 
       <AlertDialog open={!!pendingDelete} onOpenChange={(open) => !open && setPendingDelete(null)}>
@@ -1004,11 +984,14 @@ const Library = () => {
           <AlertDialogHeader>
             <AlertDialogTitle>
               {pendingDelete?.length === 1
-                ? `删除「${pendingDelete[0].name}」？`
+                ? `删除「${displayCharacterName(pendingDelete[0])}」？`
                 : `删除所选 ${pendingDelete?.length ?? 0} 个角色？`}
             </AlertDialogTitle>
             <AlertDialogDescription>
               只删除 STE 里的角色档案（类型、标签、评分等整理信息），不影响 ST 原目录里的文件。名下故事不会被删除，会转为「未绑定」状态。
+              {pendingDelete && pendingDelete.length > 1 && (
+                <span className="block mt-2">目标：{pendingDelete.map(displayCharacterName).join('、')}</span>
+              )}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

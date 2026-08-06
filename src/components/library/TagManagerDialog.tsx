@@ -9,7 +9,8 @@ import {
 } from '@/components/ui/dialog';
 import { useToast } from '@/hooks/use-toast';
 import type { ArchiveCharacter } from '@/types/archive';
-import { saveCharacter } from '@/lib/archive-db';
+import { updateCharacter } from '@/lib/archive-db';
+import { applyCharacterTagPatch } from '@/lib/character-tag-domain';
 import {
   TAG_CATEGORIES, BUILTIN_TAGS, CATEGORY_HELP, makeTag, parseTag, type TagCategory,
 } from '@/lib/tag-taxonomy';
@@ -47,7 +48,10 @@ export function TagManagerDialog({ open, onOpenChange, characters, onChanged }: 
     try {
       const owners = characters.filter((c) => c.tags.includes(raw));
       for (const c of owners) {
-        await saveCharacter({ ...c, tags: c.tags.filter((t) => t !== raw), updatedAt: Date.now() });
+        await updateCharacter(c.id, (current) => ({
+          ...applyCharacterTagPatch(current, { tags: current.tags.filter((t) => t !== raw) }),
+          updatedAt: Date.now(),
+        }));
       }
       toast({ title: `已从 ${owners.length} 张卡上移除「${raw}」` });
       onChanged();

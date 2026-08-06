@@ -12,7 +12,8 @@ import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
 import type { ArchiveCharacter } from '@/types/archive';
-import { saveCharacter } from '@/lib/archive-db';
+import { updateCharacter } from '@/lib/archive-db';
+import { applyCharacterTagPatch } from '@/lib/character-tag-domain';
 import {
   TAG_CATEGORIES, tagOptionsByCategory, parseTag, type TagCategory,
 } from '@/lib/tag-taxonomy';
@@ -22,7 +23,7 @@ interface BatchTagDialogProps {
   onOpenChange: (open: boolean) => void;
   targets: ArchiveCharacter[];
   allCharacters: ArchiveCharacter[];
-  onDone: () => void;
+  onDone: () => void | Promise<void>;
 }
 
 export function BatchTagDialog({ open, onOpenChange, targets, allCharacters, onDone }: BatchTagDialogProps) {
@@ -54,18 +55,23 @@ export function BatchTagDialog({ open, onOpenChange, targets, allCharacters, onD
     if (tags.size === 0 || targets.length === 0) return;
     setBusy(true);
     try {
+      // Validate every target before writing any one of them.
       for (const ch of targets) {
-        const merged = [...ch.tags];
-        for (const t of tags) if (!merged.includes(t)) merged.push(t);
-        if (merged.length !== ch.tags.length) {
-          await saveCharacter({ ...ch, tags: merged, updatedAt: Date.now() });
-        }
+        applyCharacterTagPatch(ch, { tags: [...ch.tags, ...tags] });
+      }
+      for (const ch of targets) {
+        await updateCharacter(ch.id, (current) => {
+          const merged = [...current.tags];
+          for (const t of tags) if (!merged.includes(t)) merged.push(t);
+          if (merged.length === current.tags.length) return undefined;
+          return { ...applyCharacterTagPatch(current, { tags: merged }), updatedAt: Date.now() };
+        });
       }
       toast({ title: `已为 ${targets.length} 张卡添加 ${tags.size} 个标签` });
       setPicked(new Set());
       setCustom('');
+      await onDone();
       onOpenChange(false);
-      onDone();
     } catch {
       toast({ title: '批量打标签失败', variant: 'destructive' });
     } finally {

@@ -29,7 +29,7 @@ import {
   sortStoriesForDisplay,
 } from '@/lib/archive-db';
 import { normalizeCharacterCard } from '@/lib/adapters/st';
-import { applyRatingTierTag, NSFW_TAG } from '@/lib/tag-taxonomy';
+import { applyCharacterTagPatch } from '@/lib/character-tag-domain';
 import { importEmbeddedAssets } from '@/lib/card-embedded-assets';
 import { downloadCharacterFile } from '@/lib/character-file';
 import { exportCardJson } from '@/lib/card-export';
@@ -111,13 +111,9 @@ const CharacterPage = () => {
         async (current) => {
           const requested = typeof patch === 'function' ? await patch(current) : patch;
           if (!requested) return undefined;
-          let effective = requested;
-          if ('rating' in requested) {
-            effective = { ...effective, tags: applyRatingTierTag(requested.tags ?? current.tags, requested.rating) };
-          }
-          if (effective.tags !== undefined) {
-            effective = { ...effective, nsfw: effective.tags.includes(NSFW_TAG) };
-          }
+          const effective = ('rating' in requested || 'tags' in requested || 'nsfw' in requested)
+            ? { ...requested, ...applyCharacterTagPatch(current, requested) }
+            : requested;
           return { ...effective, updatedAt: Date.now() };
         },
         updateCharacter,
