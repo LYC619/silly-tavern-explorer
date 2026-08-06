@@ -37,8 +37,10 @@ interface StoryRecordsViewProps {
   stories: ArchiveStory[];
   kind: RecordViewKind;
   /** 去处理区生成：进入 /story/:id 对应整理子页面 */
-  onGoGenerate: (storyId: string, kind: RecordViewKind) => void;
+  onGoGenerate: (storyId: string, kind: RecordViewKind, branchId: string | null) => void;
 }
+
+type RecordBranchFilter = 'all' | 'main' | string;
 
 /** 树节点大纲（只读递归渲染） */
 function TreeOutline({ nodes, depth = 0 }: { nodes: StoryNodeTree[]; depth?: number }) {
@@ -64,6 +66,7 @@ export function StoryRecordsView({ stories, kind, onGoGenerate }: StoryRecordsVi
   const [storyId, setStoryId] = useState<string | null>(stories[0]?.id ?? null);
   const [summaries, setSummaries] = useState<SummaryItem[]>([]);
   const [trees, setTrees] = useState<StoryTree[]>([]);
+  const [branchFilter, setBranchFilter] = useState<RecordBranchFilter>('main');
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [manualOpen, setManualOpen] = useState(false);
   const [manualTitle, setManualTitle] = useState('');
@@ -71,6 +74,11 @@ export function StoryRecordsView({ stories, kind, onGoGenerate }: StoryRecordsVi
   const hasAI = !!loadAPIConfig().apiKey;
 
   const story = stories.find((s) => s.id === storyId) ?? null;
+
+  useEffect(() => {
+    setBranchFilter('main');
+    setExpandedId(null);
+  }, [storyId]);
 
   useEffect(() => {
     let cancelled = false;
@@ -91,10 +99,31 @@ export function StoryRecordsView({ stories, kind, onGoGenerate }: StoryRecordsVi
     return () => { cancelled = true; };
   }, [storyId, kind, manualOpen]);
 
-  const items = useMemo(() => (kind === 'tree' ? trees : summaries), [kind, trees, summaries]);
+  const branchNameOf = (branchId?: string) => (
+    branchId
+      ? story?.branches?.find((b) => b.id === branchId)?.name ?? '分支已删除'
+      : '主线'
+  );
+  const visibleSummaries = useMemo(
+    () => summaries.filter((item) => (
+      branchFilter === 'all'
+        || (branchFilter === 'main' ? !item.branchId : item.branchId === branchFilter)
+    )),
+    [branchFilter, summaries],
+  );
+  const visibleTrees = useMemo(
+    () => trees.filter((tree) => (
+      branchFilter === 'all'
+        || (branchFilter === 'main' ? !tree.branchId : tree.branchId === branchFilter)
+    )),
+    [branchFilter, trees],
+  );
+  const items = kind === 'tree' ? visibleTrees : visibleSummaries;
+  const selectedBranchId = branchFilter !== 'all' && branchFilter !== 'main' ? branchFilter : null;
+  const branchSelectionReady = branchFilter !== 'all';
 
   const handleManualSave = async () => {
-    if (!story || !manualContent.trim()) return;
+    if (!story || !branchSelectionReady || !manualContent.trim()) return;
     const now = Date.now();
     const item: SummaryItem = {
       id: generateSummaryId(),
@@ -102,6 +131,7 @@ export function StoryRecordsView({ stories, kind, onGoGenerate }: StoryRecordsVi
       bookTitle: story.title,
       kind: kind as SummaryKind,
       title: manualTitle.trim() || `手动录入 · ${formatFullTime(now)}`,
+      branchId: selectedBranchId ?? undefined,
       floorStart: 0,
       floorEnd: Math.max(story.session.messages.length - 1, 0),
       content: manualContent.trim(),
@@ -139,15 +169,43 @@ export function StoryRecordsView({ stories, kind, onGoGenerate }: StoryRecordsVi
             ))}
           </SelectContent>
         </Select>
+        {(story?.branches?.length ?? 0) > 0 && (
+          <Select value={branchFilter} onValueChange={setBranchFilter}>
+            <SelectTrigger className="h-8 w-40 text-xs">
+              <SelectValue placeholder="选择脉络" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">全部脉络</SelectItem>
+              <SelectItem value="main">主线</SelectItem>
+              {(story?.branches ?? []).map((branch) => (
+                <SelectItem key={branch.id} value={branch.id}>{branch.name}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        )}
         <div className="flex-1" />
         {kind !== 'tree' && (
-          <Button variant="outline" size="sm" className="h-8 text-xs" onClick={() => setManualOpen(true)}>
+          <Button
+            variant="outline"
+            size="sm"
+            className="h-8 text-xs"
+            onClick={() => setManualOpen(true)}
+            disabled={!branchSelectionReady}
+            title={branchSelectionReady ? undefined : '请先选择主线或具体分支'}
+          >
             <Plus className="w-3.5 h-3.5 mr-1" />
             手动录入
           </Button>
         )}
         {story && (
-          <Button variant="outline" size="sm" className="h-8 text-xs" onClick={() => onGoGenerate(story.id, kind)}>
+          <Button
+            variant="outline"
+            size="sm"
+            className="h-8 text-xs"
+            onClick={() => onGoGenerate(story.id, kind, selectedBranchId)}
+            disabled={!branchSelectionReady}
+            title={branchSelectionReady ? undefined : '请先选择主线或具体分支'}
+          >
             <ExternalLink className="w-3.5 h-3.5 mr-1" />
             去处理区生成
           </Button>
@@ -168,11 +226,12 @@ export function StoryRecordsView({ stories, kind, onGoGenerate }: StoryRecordsVi
         </Card>
       ) : kind === 'tree' ? (
         <div className="space-y-2">
-          {trees.map((t) => (
+          {visibleTrees.map((t) => (
             <Card key={t.id}>
               <CardContent className="py-3 px-4">
                 <p className="text-sm font-medium flex items-center gap-2">
                   <span className="truncate">{t.title}</span>
+                  <Badge variant="outline" className="h-5 px-1.5 text-[10px] font-normal shrink-0">{branchNameOf(t.branchId)}</Badge>
                   <span className="text-xs text-muted-foreground font-normal shrink-0">
                     {t.nodes.length} 个节点 · 更新于{formatListTime(t.updatedAt)}
                   </span>
@@ -186,7 +245,7 @@ export function StoryRecordsView({ stories, kind, onGoGenerate }: StoryRecordsVi
         </div>
       ) : (
         <div className="space-y-2">
-          {summaries.map((item) => {
+          {visibleSummaries.map((item) => {
             const manual = !item.genParams;
             const expanded = expandedId === item.id;
             return (
@@ -197,6 +256,7 @@ export function StoryRecordsView({ stories, kind, onGoGenerate }: StoryRecordsVi
                     {item.volumeNumber !== undefined && (
                       <Badge variant="secondary" className="h-5 px-1.5 text-[10px] font-normal shrink-0">第 {item.volumeNumber} 卷</Badge>
                     )}
+                    <Badge variant="outline" className="h-5 px-1.5 text-[10px] font-normal shrink-0">{branchNameOf(item.branchId)}</Badge>
                   </p>
                   {/* 生成于 X · 覆盖 A-B 楼（不判断过期）；手动录入单独标 */}
                   <p className="text-xs text-muted-foreground mt-0.5" title={formatFullTime(item.updatedAt)}>

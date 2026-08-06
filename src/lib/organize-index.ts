@@ -73,6 +73,7 @@ function treeToEntry(t: StoryTree): OrganizeEntry {
     id: t.id,
     title: t.title || '未命名故事树',
     kindLabel: '故事树',
+    branchId: t.branchId,
     draft: t.nodes.length === 0,
     updatedAt: t.updatedAt,
   };
@@ -80,8 +81,7 @@ function treeToEntry(t: StoryTree): OrganizeEntry {
 
 /**
  * 合成统一索引：按 updatedAt 由新到旧。
- * 分支筛选只对 record 有意义；故事树是故事级资源，在 all/main 下均显示，
- * 选中具体分支时隐藏（它不属于任何分支）。
+ * 旧故事树没有 branchId，按主线兼容；新树与记录一样可以归属具体分支。
  */
 export function buildOrganizeIndex(
   summaries: SummaryItem[],
@@ -100,8 +100,10 @@ export function buildOrganizeIndex(
     }
   }
   if (filter.kind === 'all' || filter.kind === 'tree') {
-    if (filter.branch === 'all' || filter.branch === 'main') {
-      for (const t of trees) entries.push(treeToEntry(t));
+    for (const t of trees) {
+      if (filter.branch === 'main' && t.branchId) continue;
+      if (filter.branch !== 'all' && filter.branch !== 'main' && t.branchId !== filter.branch) continue;
+      entries.push(treeToEntry(t));
     }
   }
 

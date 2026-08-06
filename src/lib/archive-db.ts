@@ -193,6 +193,16 @@ export function getLastViewedLine(story: ArchiveStory): { branchId: string | nul
   return { branchId: null, line: getBranchLine(story, null)! };
 }
 
+/** null means an explicit mainline request; undefined restores the last valid line. */
+export function resolveInitialBranchId(
+  story: ArchiveStory,
+  requestedBranchId: string | null | undefined,
+): string | null {
+  if (requestedBranchId === null) return null;
+  if (requestedBranchId && getBranchLine(story, requestedBranchId)) return requestedBranchId;
+  return getLastViewedLine(story).branchId;
+}
+
 /**
  * 把某条脉络的修改写回故事（返回新对象，不改入参）。
  * 内容变化（session/markers/favorites）才 bump updatedAt——lastFloor 只是阅读位置，不算内容修改；

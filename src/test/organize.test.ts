@@ -58,14 +58,16 @@ describe('buildOrganizeIndex', () => {
     expect(buildOrganizeIndex(summaries, trees, { ...ALL, kind: 'diary' }).map((e) => e.id)).toEqual(['a']);
   });
 
-  it('分支筛选：main 含无标注旧条目并显示故事树；具体分支只显该分支记录', () => {
+  it('分支筛选：main 含无标注旧条目和旧故事树；具体分支只显该分支记录', () => {
     const summaries = [
       sum({ id: 'old' }), // 旧条目无 branchId = 主线
       sum({ id: 'br', branchId: 'branch1' }),
     ];
-    const trees = [tree({ id: 't' })];
-    expect(buildOrganizeIndex(summaries, trees, { ...ALL, branch: 'main' }).map((e) => e.id)).toEqual(['old', 't']);
-    expect(buildOrganizeIndex(summaries, trees, { ...ALL, branch: 'branch1' }).map((e) => e.id)).toEqual(['br']);
+    const trees = [tree({ id: 'main-tree' }), tree({ id: 'branch-tree', branchId: 'branch1' })];
+    expect(buildOrganizeIndex(summaries, trees, { ...ALL, branch: 'main' }).map((e) => e.id)).toEqual(['old', 'main-tree']);
+    expect(buildOrganizeIndex(summaries, trees, { ...ALL, branch: 'branch1' }).map((e) => e.id)).toEqual(['br', 'branch-tree']);
+    expect(buildOrganizeIndex(summaries, trees, { ...ALL, branch: 'all' }).map((e) => e.id)).toEqual(['old', 'br', 'main-tree', 'branch-tree']);
+    expect(buildOrganizeIndex(summaries, trees, { ...ALL, branch: 'branch1' }).find((e) => e.id === 'branch-tree')?.branchId).toBe('branch1');
   });
 
   it('搜索命中标题或类型标签（不区分大小写）', () => {

@@ -32,6 +32,7 @@ import {
   saveArchiveStory,
   getCharacter,
   getBranchLine,
+  resolveInitialBranchId,
   updateBranchLine,
   buildBranchFromSession,
 } from '@/lib/archive-db';
@@ -61,7 +62,7 @@ const StoryWorkspace = () => {
   const [character, setCharacter] = useState<ArchiveCharacter | null>(null);
   const [loading, setLoading] = useState(true);
   const [branchId, setBranchId] = useState<string | null>(null);
-  // 角色页「导出/去处理区生成」带初始视图跳入（10.3b）：state.view = io|volume|diary|tree
+  // 角色页「导出/去处理区生成」带初始视图和来源脉络跳入（10.3b）
   const [view, setView] = useState<WorkspaceView>(() => {
     const v = (location.state as { view?: string } | null)?.view;
     return v && VIEW_ITEMS.some((item) => item.key === v) ? (v as WorkspaceView) : 'read';
@@ -111,10 +112,8 @@ const StoryWorkspace = () => {
           setStory(null);
           return;
         }
-        const restoredBranchId = s.lastViewedBranchId
-          && s.branches?.some((branch) => branch.id === s.lastViewedBranchId)
-          ? s.lastViewedBranchId
-          : null;
+        const requestedBranchId = (location.state as { branchId?: string | null } | null)?.branchId;
+        const restoredBranchId = resolveInitialBranchId(s, requestedBranchId);
         setBranchId(restoredBranchId);
         const withView: ArchiveStory = {
           ...s,
@@ -133,7 +132,7 @@ const StoryWorkspace = () => {
       }
     })();
     return () => { cancelled = true; };
-  }, [id]);
+  }, [id, location.state]);
 
   // 当前脉络（主线或分支）的数据切片
   const line = story ? getBranchLine(story, branchId) : undefined;

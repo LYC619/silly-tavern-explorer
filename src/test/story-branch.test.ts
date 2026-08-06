@@ -5,6 +5,7 @@ import {
   buildBranchFromSession,
   getBranchLine,
   getLastViewedLine,
+  resolveInitialBranchId,
   updateBranchLine,
 } from '@/lib/archive-db';
 
@@ -95,5 +96,17 @@ describe('分支：buildBranchFromSession / getBranchLine / updateBranchLine', (
 
     story.lastViewedBranchId = 'missing';
     expect(getLastViewedLine(story)).toMatchObject({ branchId: null, line: { lastFloor: 12 } });
+  });
+
+  it('distinguishes an explicit mainline request from an omitted branch request', () => {
+    const story = buildStoryFromSession(makeSession('main'), 'char_1');
+    const branch = buildBranchFromSession(makeSession('branch'), 'branch');
+    story.branches = [branch];
+    story.lastViewedBranchId = branch.id;
+
+    expect(resolveInitialBranchId(story, undefined)).toBe(branch.id);
+    expect(resolveInitialBranchId(story, null)).toBeNull();
+    expect(resolveInitialBranchId(story, branch.id)).toBe(branch.id);
+    expect(resolveInitialBranchId(story, 'missing')).toBe(branch.id);
   });
 });

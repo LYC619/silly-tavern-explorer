@@ -275,8 +275,12 @@ const CharacterPage = () => {
   }, [load]);
 
   /** 处理/导出/去生成：进故事工作区（编辑器），带上初始视图 */
-  const goWorkspace = useCallback((storyId: string, view?: string) => {
-    navigate(`/story/${storyId}`, view ? { state: { view } } : undefined);
+  const goWorkspace = useCallback((storyId: string, view?: string, branchId?: string | null) => {
+    const hasBranchRequest = branchId !== undefined;
+    const state = view || hasBranchRequest
+      ? { state: { ...(view ? { view } : {}), ...(hasBranchRequest ? { branchId } : {}) } }
+      : undefined;
+    navigate(`/story/${storyId}`, state);
   }, [navigate]);
 
   if (loading) {
@@ -392,7 +396,7 @@ const CharacterPage = () => {
                     <StoryRecordsView
                       stories={sortedStories}
                       kind={storySubView}
-                      onGoGenerate={(sid, kind) => goWorkspace(sid, kind)}
+                      onGoGenerate={(sid, kind, branchId) => goWorkspace(sid, kind, branchId)}
                     />
                   ) : stories.length === 0 ? (
                     <Card>

@@ -74,6 +74,9 @@ export function ContextRail({
   const branchName = item?.branchId
     ? story.branches?.find((b) => b.id === item.branchId)?.name ?? '（分支已删除）'
     : '主线';
+  const treeBranchName = tree?.branchId
+    ? story.branches?.find((b) => b.id === tree.branchId)?.name ?? '（分支已删除）'
+    : '主线';
   const branchExists = !item?.branchId || story.branches?.some((b) => b.id === item?.branchId);
 
   const worldbookDetail = gp?.worldbookId
@@ -114,6 +117,7 @@ export function ContextRail({
           )}
           {tree && (
             <>
+              <InfoRow label="分支" value={treeBranchName} />
               <InfoRow label="节点" value={`${tree.nodes.length} 个（归档 ${tree.nodes.filter((n) => n.archived).length}）`} />
               <InfoRow label="创建" value={fmtTime(tree.createdAt)} />
               <InfoRow label="修改" value={fmtTime(tree.updatedAt)} />

@@ -71,6 +71,8 @@ export interface StoryTree {
   /** 关联的书；书删后置 null，树仍保留 */
   bookId: string | null;
   bookTitle: string;
+  /** 来源脉络；旧数据缺省按主线处理 */
+  branchId?: string;
   title: string;
   nodes: StoryNode[];
   createdAt: number;
