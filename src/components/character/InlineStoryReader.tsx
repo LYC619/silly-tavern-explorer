@@ -16,7 +16,6 @@ import {
 import { ChatWorkbench, type ChatWorkbenchHandle } from '@/components/chat/ChatWorkbench';
 import NovelView from '@/components/reader/NovelView';
 import type { ArchiveStory } from '@/types/archive';
-import type { ChatSession } from '@/types/chat';
 import {
   getArchiveStory, saveArchiveStory, getBranchLine, updateBranchLine,
 } from '@/lib/archive-db';
@@ -131,20 +130,6 @@ export function InlineStoryReader({ storyId, stories, onSwitchStory, onBack, onO
 
   const line = story ? getBranchLine(story, branchId) : undefined;
 
-  const handleSessionChange = useCallback((next: ChatSession) => {
-    mutateStory((cur) => {
-      let updated = updateBranchLine(cur, branchId, { session: next });
-      if (branchId === null && next.title && next.title !== cur.title) {
-        updated = { ...updated, title: next.title };
-      }
-      return updated;
-    });
-  }, [mutateStory, branchId]);
-
-  const handleMarkersChange = useCallback((next: ArchiveStory['markers']) => {
-    mutateStory((cur) => updateBranchLine(cur, branchId, { markers: next }));
-  }, [mutateStory, branchId]);
-
   const handleFavoritesChange = useCallback((next: string[]) => {
     mutateStory((cur) => updateBranchLine(cur, branchId, { favorites: next }));
   }, [mutateStory, branchId]);
@@ -249,8 +234,6 @@ export function InlineStoryReader({ storyId, stories, onSwitchStory, onBack, onO
         markers={line.markers}
         favorites={line.favorites}
         settings={settings}
-        onSessionChange={handleSessionChange}
-        onMarkersChange={handleMarkersChange}
         onFavoritesChange={handleFavoritesChange}
         onSettingsChange={handleSettingsChange}
         onFloorChange={handleFloorChange}
@@ -271,13 +254,12 @@ export function InlineStoryReader({ storyId, stories, onSwitchStory, onBack, onO
           markers={line.markers}
           regexRules={settings.regexRules}
           onClose={() => setNovelOpen(false)}
-          onMarkersChange={handleMarkersChange}
           favorites={line.favorites}
           onFavoritesChange={handleFavoritesChange}
           initialFloor={line.lastFloor}
           onFloorChange={handleFloorChange}
           progressKey={`${story.id}:${branchId ?? 'main'}`}
-          polish={{ story, branchId }}
+          readOnly
         />
       )}
     </div>

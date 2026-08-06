@@ -61,6 +61,8 @@ interface NovelViewProps {
   onFavoritesChange?: (next: string[]) => void;
   /** 按章 AI 润色的保存上下文（不传则隐藏润色按钮；未绑定聊天也可传自身归档故事） */
   polish?: { story: ArchiveStory; branchId: string | null };
+  /** 只读查看：隐藏会写入章节标记或自定义记录的 AI 操作。 */
+  readOnly?: boolean;
 }
 
 interface StoredOptions {
@@ -90,6 +92,7 @@ const NovelView = ({
   favorites = [],
   onFavoritesChange,
   polish,
+  readOnly = false,
 }: NovelViewProps) => {
   const { toast } = useToast();
   const [stored] = useState(loadStoredOptions);
@@ -192,6 +195,7 @@ const NovelView = ({
   }, [chapterDialogOpen, polish]);
 
   const handleSuggestChapters = async () => {
+    if (readOnly) return;
     const config = loadAPIConfig();
     if (!config.apiKey) {
       toast({ title: '请先配置 API Key', description: '前往「AI 配置」页配置后回来生成', variant: 'destructive' });
@@ -220,7 +224,7 @@ const NovelView = ({
   };
 
   const handleApplySuggestions = () => {
-    if (!suggestions || !onMarkersChange) return;
+    if (readOnly || !suggestions || !onMarkersChange) return;
     const existingFloors = new Set(markers.map((m) => m.messageIndex));
     const additions: ChapterMarker[] = suggestions
       .filter((s) => s.picked && !existingFloors.has(s.floor) && session.messages[s.floor])
@@ -280,7 +284,7 @@ const NovelView = ({
   });
 
   const handlePolish = async () => {
-    if (!polish || !polishChapter || !polishTemplate) return;
+    if (readOnly || !polish || !polishChapter || !polishTemplate) return;
     const config = loadAPIConfig();
     if (!config.apiKey) {
       toast({ title: '请先配置 API Key', description: '前往「AI 配置」页配置后回来生成', variant: 'destructive' });
@@ -322,7 +326,7 @@ const NovelView = ({
   };
 
   const handlePolishPermanent = async () => {
-    if (!polishResult || !polish || !polishChapter) return;
+    if (readOnly || !polishResult || !polish || !polishChapter) return;
     const id = polishSavedId ?? generateSummaryId();
     await saveSummary(buildPolishItem(polishResult, false, id));
     setPolishSavedId(id);
@@ -467,7 +471,7 @@ const NovelView = ({
             </Popover>
 
             {/* AI 章节建议 */}
-            {onMarkersChange && (
+            {onMarkersChange && !readOnly && (
               <Button variant="outline" size="sm" className="h-8 gap-1" onClick={() => setChapterDialogOpen(true)}>
                 <Sparkles className="w-3.5 h-3.5" />AI 章节
               </Button>
@@ -533,7 +537,7 @@ const NovelView = ({
                   )}
                   <div className="flex items-center justify-center gap-2 mt-2">
                     <span className="text-[11px] text-muted-foreground">#{current?.startFloor}–{current?.endFloor} 楼</span>
-                    {polish && polishTarget && (
+                    {!readOnly && polish && polishTarget && (
                       <Button
                         variant="ghost"
                         size="sm"
@@ -626,7 +630,7 @@ const NovelView = ({
       </div>
 
       {/* ===== AI 章节建议对话框 ===== */}
-      <Dialog open={chapterDialogOpen} onOpenChange={(v) => { if (!suggesting) { setChapterDialogOpen(v); if (!v) setSuggestions(null); } }}>
+      <Dialog open={!readOnly && chapterDialogOpen} onOpenChange={(v) => { if (!suggesting) { setChapterDialogOpen(v); if (!v) setSuggestions(null); } }}>
         <DialogContent className="max-w-lg max-h-[85vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>AI 建议章节边界</DialogTitle>
@@ -678,7 +682,7 @@ const NovelView = ({
       </Dialog>
 
       {/* ===== 按章 AI 润色对话框 ===== */}
-      <Dialog open={!!polishChapter} onOpenChange={(v) => { if (!polishStreaming && !v) setPolishChapter(null); }}>
+      <Dialog open={!readOnly && !!polishChapter} onOpenChange={(v) => { if (!polishStreaming && !v) setPolishChapter(null); }}>
         <DialogContent className="max-w-2xl max-h-[85vh] flex flex-col">
           <DialogHeader>
             <DialogTitle>AI 润色本章（{polishChapter?.title ?? `#${polishChapter?.startFloor}–${polishChapter?.endFloor} 楼`}）</DialogTitle>

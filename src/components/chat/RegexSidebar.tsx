@@ -49,9 +49,11 @@ interface RegexSidebarProps {
   previewId?: string | null;
   /** 把当前启用规则的处理结果写回消息原文（持久化到书架）。由父级实现，未传则不显示按钮。 */
   onApplyToOriginal?: () => void;
+  /** 可预览和导出已有规则，但不能修改规则或原文。 */
+  readOnly?: boolean;
 }
 
-export function RegexSidebar({ rules, onRulesChange, isOpen, onClose, sampleMessages = [], onPreviewChange, previewId = null, onApplyToOriginal }: RegexSidebarProps) {
+export function RegexSidebar({ rules, onRulesChange, isOpen, onClose, sampleMessages = [], onPreviewChange, previewId = null, onApplyToOriginal, readOnly = false }: RegexSidebarProps) {
   const { toast } = useToast();
   const [editingId, setEditingId] = useState<string | null>(null);
   const [dragIndex, setDragIndex] = useState<number | null>(null);
@@ -79,15 +81,19 @@ export function RegexSidebar({ rules, onRulesChange, isOpen, onClose, sampleMess
 
   // 保存规则变更到 localStorage
   useEffect(() => {
-    saveCustomRegexRules(rules);
-    saveBuiltinRuleStates(rules);
-  }, [rules]);
+    if (!readOnly) {
+      saveCustomRegexRules(rules);
+      saveBuiltinRuleStates(rules);
+    }
+  }, [readOnly, rules]);
 
   const handleResetToDefault = () => {
+    if (readOnly) return;
     onRulesChange([...DEFAULT_REGEX_RULES]);
   };
 
   const handleSavePreset = () => {
+    if (readOnly) return;
     const name = presetName.trim();
     if (!name) {
       toast({ title: '请输入预设名称', variant: 'destructive' });
@@ -100,17 +106,20 @@ export function RegexSidebar({ rules, onRulesChange, isOpen, onClose, sampleMess
   };
 
   const handleLoadPreset = (preset: RegexPreset) => {
+    if (readOnly) return;
     onRulesChange(JSON.parse(JSON.stringify(preset.rules)));
     setPresetOpen(false);
     toast({ title: '已加载预设', description: `「${preset.name}」（${preset.rules.length} 条规则）` });
   };
 
   const handleDeletePreset = (id: string) => {
+    if (readOnly) return;
     setPresets(deleteRegexPreset(id));
   };
 
   // 导入 SillyTavern 正则脚本 .json（单脚本 / 数组 / {scripts:[]}），支持一次选多个文件
   const handleImportST = async (files: File[]) => {
+    if (readOnly) return;
     const imported: RegexRule[] = [];
     const failed: string[] = [];
     for (const file of files) {
@@ -157,6 +166,7 @@ export function RegexSidebar({ rules, onRulesChange, isOpen, onClose, sampleMess
   };
 
   const handleAddRule = (rule?: RegexRule) => {
+    if (readOnly) return;
     if (rule) {
       onRulesChange([...rules, rule]);
       setEditingId(rule.id);
@@ -177,16 +187,19 @@ export function RegexSidebar({ rules, onRulesChange, isOpen, onClose, sampleMess
   };
 
   const handleUpdateRule = (id: string, updates: Partial<RegexRule>) => {
+    if (readOnly) return;
     onRulesChange(
       rules.map((rule) => (rule.id === id ? { ...rule, ...updates } : rule))
     );
   };
 
   const handleDeleteRule = (id: string) => {
+    if (readOnly) return;
     onRulesChange(rules.filter((rule) => rule.id !== id));
   };
 
   const handleToggleRule = (id: string) => {
+    if (readOnly) return;
     const rule = rules.find((r) => r.id === id);
     if (rule) {
       handleUpdateRule(id, { disabled: !rule.disabled });
@@ -194,15 +207,18 @@ export function RegexSidebar({ rules, onRulesChange, isOpen, onClose, sampleMess
   };
 
   const handleDragStart = (index: number) => {
+    if (readOnly) return;
     setDragIndex(index);
   };
 
   const handleDragOver = (e: React.DragEvent, index: number) => {
+    if (readOnly) return;
     e.preventDefault();
     setDragOverIndex(index);
   };
 
   const handleDrop = (index: number) => {
+    if (readOnly) return;
     if (dragIndex === null || dragIndex === index) {
       setDragIndex(null);
       setDragOverIndex(null);
@@ -226,6 +242,7 @@ export function RegexSidebar({ rules, onRulesChange, isOpen, onClose, sampleMess
     placement: 'all' | 'user' | 'assistant',
     checked: boolean
   ) => {
+    if (readOnly) return;
     const rule = rules.find((r) => r.id === id);
     if (!rule) return;
 
@@ -287,7 +304,7 @@ export function RegexSidebar({ rules, onRulesChange, isOpen, onClose, sampleMess
             <div
               key={rule.id}
               ref={rule.id === scrollToId ? newRuleRef : undefined}
-              draggable
+              draggable={!readOnly}
               onDragStart={() => handleDragStart(index)}
               onDragOver={(e) => handleDragOver(e, index)}
               onDrop={() => handleDrop(index)}
@@ -303,6 +320,7 @@ export function RegexSidebar({ rules, onRulesChange, isOpen, onClose, sampleMess
                   <GripVertical className="w-4 h-4 text-muted-foreground cursor-grab shrink-0" />
                   <Switch
                     checked={!rule.disabled}
+                    disabled={readOnly}
                     onCheckedChange={() => handleToggleRule(rule.id)}
                   />
                   <span
@@ -330,7 +348,7 @@ export function RegexSidebar({ rules, onRulesChange, isOpen, onClose, sampleMess
                       <ChevronDown className="w-3 h-3" />
                     )}
                   </Button>
-                  {!rule.id.startsWith('builtin-') && (
+                  {!readOnly && !rule.id.startsWith('builtin-') && (
                     <Button
                       variant="ghost"
                       size="sm"
@@ -351,6 +369,7 @@ export function RegexSidebar({ rules, onRulesChange, isOpen, onClose, sampleMess
                     <Label className="text-xs">规则名称</Label>
                     <Input
                       value={rule.name}
+                      readOnly={readOnly}
                       onChange={(e) =>
                         handleUpdateRule(rule.id, { name: e.target.value })
                       }
@@ -362,6 +381,7 @@ export function RegexSidebar({ rules, onRulesChange, isOpen, onClose, sampleMess
                     <Label className="text-xs">匹配正则</Label>
                     <Textarea
                       value={rule.findRegex}
+                      readOnly={readOnly}
                       onChange={(e) =>
                         handleUpdateRule(rule.id, { findRegex: e.target.value })
                       }
@@ -374,6 +394,7 @@ export function RegexSidebar({ rules, onRulesChange, isOpen, onClose, sampleMess
                     <Label className="text-xs">替换为</Label>
                     <Input
                       value={rule.replaceString}
+                      readOnly={readOnly}
                       onChange={(e) =>
                         handleUpdateRule(rule.id, {
                           replaceString: e.target.value,
@@ -390,6 +411,7 @@ export function RegexSidebar({ rules, onRulesChange, isOpen, onClose, sampleMess
                       <label className="flex items-center gap-1.5 text-xs">
                         <Checkbox
                           checked={rule.placement.includes('all')}
+                          disabled={readOnly}
                           onCheckedChange={(checked) =>
                             handlePlacementChange(rule.id, 'all', !!checked)
                           }
@@ -399,6 +421,7 @@ export function RegexSidebar({ rules, onRulesChange, isOpen, onClose, sampleMess
                       <label className="flex items-center gap-1.5 text-xs">
                         <Checkbox
                           checked={rule.placement.includes('user')}
+                          disabled={readOnly}
                           onCheckedChange={(checked) =>
                             handlePlacementChange(rule.id, 'user', !!checked)
                           }
@@ -408,6 +431,7 @@ export function RegexSidebar({ rules, onRulesChange, isOpen, onClose, sampleMess
                       <label className="flex items-center gap-1.5 text-xs">
                         <Checkbox
                           checked={rule.placement.includes('assistant')}
+                          disabled={readOnly}
                           onCheckedChange={(checked) =>
                             handlePlacementChange(rule.id, 'assistant', !!checked)
                           }
@@ -438,19 +462,21 @@ export function RegexSidebar({ rules, onRulesChange, isOpen, onClose, sampleMess
 
       {/* Footer Actions */}
       <div className="p-4 border-t border-border space-y-2" data-tour="regex-quickadd">
-        <div className="flex items-center gap-2">
-          <RegexQuickAdd onAddRule={handleAddRule} />
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => handleAddRule()}
-            className="flex-1 gap-1"
-          >
-            <Plus className="w-3 h-3" />
-            手动添加
-          </Button>
-        </div>
-        <Popover open={presetOpen} onOpenChange={setPresetOpen}>
+        {!readOnly && (
+          <div className="flex items-center gap-2">
+            <RegexQuickAdd onAddRule={handleAddRule} />
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => handleAddRule()}
+              className="flex-1 gap-1"
+            >
+              <Plus className="w-3 h-3" />
+              手动添加
+            </Button>
+          </div>
+        )}
+        {!readOnly && <Popover open={presetOpen} onOpenChange={setPresetOpen}>
           <PopoverTrigger asChild>
             <Button variant="outline" size="sm" className="w-full gap-1">
               <Bookmark className="w-3 h-3" />
@@ -512,30 +538,34 @@ export function RegexSidebar({ rules, onRulesChange, isOpen, onClose, sampleMess
               </div>
             </div>
           </PopoverContent>
-        </Popover>
+        </Popover>}
         <div className="flex items-center gap-2">
-          <input
-            ref={importInputRef}
-            type="file"
-            accept=".json,application/json"
-            multiple
-            className="hidden"
-            onChange={(e) => {
-              const files = Array.from(e.target.files ?? []);
-              if (files.length > 0) handleImportST(files);
-              e.target.value = ''; // 允许重复选择同一文件
-            }}
-          />
-          <Button
-            variant="outline"
-            size="sm"
-            className="flex-1 gap-1"
-            onClick={() => importInputRef.current?.click()}
-            title="导入 SillyTavern 正则脚本 .json（可一次选多个文件）"
-          >
-            <Download className="w-3 h-3" />
-            导入正则
-          </Button>
+          {!readOnly && (
+            <>
+              <input
+                ref={importInputRef}
+                type="file"
+                accept=".json,application/json"
+                multiple
+                className="hidden"
+                onChange={(e) => {
+                  const files = Array.from(e.target.files ?? []);
+                  if (files.length > 0) handleImportST(files);
+                  e.target.value = ''; // 允许重复选择同一文件
+                }}
+              />
+              <Button
+                variant="outline"
+                size="sm"
+                className="flex-1 gap-1"
+                onClick={() => importInputRef.current?.click()}
+                title="导入 SillyTavern 正则脚本 .json（可一次选多个文件）"
+              >
+                <Download className="w-3 h-3" />
+                导入正则
+              </Button>
+            </>
+          )}
           <Button
             variant="outline"
             size="sm"
@@ -547,7 +577,7 @@ export function RegexSidebar({ rules, onRulesChange, isOpen, onClose, sampleMess
             导出正则
           </Button>
         </div>
-        {onApplyToOriginal && (
+        {onApplyToOriginal && !readOnly && (
           <AlertDialog>
             <AlertDialogTrigger asChild>
               <Button
@@ -576,15 +606,17 @@ export function RegexSidebar({ rules, onRulesChange, isOpen, onClose, sampleMess
             </AlertDialogContent>
           </AlertDialog>
         )}
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={handleResetToDefault}
-          className="w-full gap-1"
-        >
-          <RotateCcw className="w-3 h-3" />
-        重置为默认
-        </Button>
+        {!readOnly && (
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={handleResetToDefault}
+            className="w-full gap-1"
+          >
+            <RotateCcw className="w-3 h-3" />
+            重置为默认
+          </Button>
+        )}
       </div>
     </aside>
   );

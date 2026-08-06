@@ -36,8 +36,8 @@ interface ChatWorkbenchProps {
   markers: ChapterMarker[];
   favorites: string[];
   settings: ExportSettings;
-  onSessionChange: (next: ChatSession) => void;
-  onMarkersChange: (next: ChapterMarker[]) => void;
+  onSessionChange?: (next: ChatSession) => void;
+  onMarkersChange?: (next: ChapterMarker[]) => void;
   onFavoritesChange: (next: string[]) => void;
   onSettingsChange: (next: ExportSettings) => void;
   /** 顶部可见楼层变化（父页存阅读位置） */
@@ -52,7 +52,7 @@ interface ChatWorkbenchProps {
   onReset?: () => void;
   /** 悬浮跳转条距视口左缘的定位类（工作区多一条二级栏时传更大值） */
   navBarLeftClass?: string;
-  /** 就地阅读模式（10.3b）：无章节标记钮、正则侧栏不自动展开（其余能力保留） */
+  /** 就地阅读模式（10.3b）：只保留阅读增强和非破坏性操作 */
   readerMode?: boolean;
 }
 
@@ -73,11 +73,13 @@ export const ChatWorkbench = forwardRef<ChatWorkbenchHandle, ChatWorkbenchProps>
   useEffect(() => { markersRef.current = markers; }, [markers]);
   useEffect(() => { favoritesRef.current = favorites; }, [favorites]);
   const mutateSession = useCallback((fn: (cur: ChatSession) => ChatSession) => {
-    onSessionChange(fn(sessionRef.current));
-  }, [onSessionChange]);
+    if (readerMode) return;
+    onSessionChange?.(fn(sessionRef.current));
+  }, [onSessionChange, readerMode]);
   const mutateMarkers = useCallback((fn: (cur: ChapterMarker[]) => ChapterMarker[]) => {
-    onMarkersChange(fn(markersRef.current));
-  }, [onMarkersChange]);
+    if (readerMode) return;
+    onMarkersChange?.(fn(markersRef.current));
+  }, [onMarkersChange, readerMode]);
   const mutateFavorites = useCallback((fn: (cur: string[]) => string[]) => {
     onFavoritesChange(fn(favoritesRef.current));
   }, [onFavoritesChange]);
@@ -138,19 +140,21 @@ export const ChatWorkbench = forwardRef<ChatWorkbenchHandle, ChatWorkbenchProps>
 
   // 章节标记模式：点任意楼弹出章节标记对话框
   const handleMessageClick = useCallback((messageId: string, messageIndex: number) => {
-    if (editMode) {
+    if (!readerMode && editMode) {
       setSelectedMessage({ id: messageId, index: messageIndex });
       setMarkerDialogOpen(true);
     }
-  }, [editMode]);
+  }, [editMode, readerMode]);
 
   // 点某楼右上角铅笔：直接打开该楼编辑窗口（不经「编辑模式」，所见即点）
   const handleEditMessage = useCallback((messageId: string, messageIndex: number) => {
+    if (readerMode) return;
     setSelectedMessage({ id: messageId, index: messageIndex });
     setMessageEditDialogOpen(true);
-  }, []);
+  }, [readerMode]);
 
   const handleSaveMessage = (updatedMessage: ChatMessage) => {
+    if (readerMode) return;
     // 同步 rawData.mes + swipes[swipe_id]：STE 里改完导回 ST 不被旧 swipe 文本顶掉
     const synced = syncEditedMessage(updatedMessage);
     // 快照编辑前的整条消息，用于撤销（删段/改内容/改说话人都走这里）
@@ -181,6 +185,7 @@ export const ChatWorkbench = forwardRef<ChatWorkbenchHandle, ChatWorkbenchProps>
   };
 
   const handleDeleteMessage = () => {
+    if (readerMode) return;
     if (!selectedMessage) return;
     const delId = selectedMessage.id;
     const cur = sessionRef.current;
@@ -222,11 +227,12 @@ export const ChatWorkbench = forwardRef<ChatWorkbenchHandle, ChatWorkbenchProps>
 
   // 切换某楼 swipe 候选：content/mes/swipe_id/时间戳 同步（lib/chat-edit 纯函数）
   const handleSwipeSelect = useCallback((messageId: string, targetId: number) => {
+    if (readerMode) return;
     mutateSession(cur => ({
       ...cur,
       messages: cur.messages.map(m => (m.id === messageId ? selectSwipe(m, targetId) : m)),
     }));
-  }, [mutateSession]);
+  }, [mutateSession, readerMode]);
 
   // 收藏/取消收藏某楼（messageId）。轻量书签，仅用于跳转，不进导出。
   const handleToggleFavorite = useCallback((messageId: string) => {
@@ -279,10 +285,12 @@ export const ChatWorkbench = forwardRef<ChatWorkbenchHandle, ChatWorkbenchProps>
   const [titleEditing, setTitleEditing] = useState(false);
   const [titleDraft, setTitleDraft] = useState('');
   const startTitleEdit = () => {
+    if (readerMode) return;
     setTitleDraft(session.title);
     setTitleEditing(true);
   };
   const commitTitleEdit = () => {
+    if (readerMode) return;
     setTitleEditing(false);
     const next = titleDraft.trim();
     if (!next || next === session.title) return;
@@ -291,6 +299,7 @@ export const ChatWorkbench = forwardRef<ChatWorkbenchHandle, ChatWorkbenchProps>
   };
 
   const handleSaveMarker = (marker: ChapterMarker) => {
+    if (readerMode) return;
     mutateMarkers(prev => {
       const existing = prev.findIndex(m => m.messageId === marker.messageId);
       if (existing >= 0) {
@@ -303,6 +312,7 @@ export const ChatWorkbench = forwardRef<ChatWorkbenchHandle, ChatWorkbenchProps>
   };
 
   const handleDeleteMarker = () => {
+    if (readerMode) return;
     if (!selectedMessage) return;
     const delId = selectedMessage.id;
     const delMarkers = markersRef.current.filter(m => m.messageId === delId);
@@ -327,6 +337,7 @@ export const ChatWorkbench = forwardRef<ChatWorkbenchHandle, ChatWorkbenchProps>
   // 正则「应用到原文」：把当前启用规则的处理结果写回消息原文（含 rawData.mes 与当前 swipe，
   // 保证导回 ST 也生效），父页持久化随 onSessionChange 落库；应用后自动停用这些规则。
   const handleApplyRegexToOriginal = () => {
+    if (readerMode) return;
     const cur = sessionRef.current;
     const activeRules = settings.regexRules.filter(r => !r.disabled);
     if (activeRules.length === 0) {
@@ -393,8 +404,8 @@ export const ChatWorkbench = forwardRef<ChatWorkbenchHandle, ChatWorkbenchProps>
               markers={markers}
               editMode={editMode}
               regexSidebarOpen={regexSidebarOpen}
-              onReset={onReset}
-              onToggleEditMode={() => setEditMode(!editMode)}
+              onReset={readerMode ? undefined : onReset}
+              onToggleEditMode={() => { if (!readerMode) setEditMode(!editMode); }}
               onToggleRegex={() => setRegexSidebarOpen(!regexSidebarOpen)}
               hideChapterMark={readerMode}
             />
@@ -411,7 +422,7 @@ export const ChatWorkbench = forwardRef<ChatWorkbenchHandle, ChatWorkbenchProps>
             <div className="mb-3 flex items-center justify-between gap-3">
               <div className="flex items-center gap-2 text-sm text-muted-foreground min-w-0 flex-wrap">
                 {titleBadge}
-                {titleEditing ? (
+                {!readerMode && titleEditing ? (
                   <Input
                     autoFocus
                     value={titleDraft}
@@ -424,6 +435,10 @@ export const ChatWorkbench = forwardRef<ChatWorkbenchHandle, ChatWorkbenchProps>
                     className="h-7 w-64 max-w-full"
                     placeholder="作品标题"
                   />
+                ) : readerMode ? (
+                  <span className="truncate max-w-[16rem] font-medium text-foreground">
+                    {session.title || '未命名作品'}
+                  </span>
                 ) : (
                   <button
                     onClick={startTitleEdit}
@@ -459,7 +474,7 @@ export const ChatWorkbench = forwardRef<ChatWorkbenchHandle, ChatWorkbenchProps>
                   </button>
                 )}
               </div>
-              {editMode && (
+              {!readerMode && editMode && (
                 <div className="text-sm text-primary animate-pulse">
                   点击消息添加章节标记
                 </div>
@@ -494,10 +509,10 @@ export const ChatWorkbench = forwardRef<ChatWorkbenchHandle, ChatWorkbenchProps>
                     fontSize={settings.fontSize}
                     regexRules={settings.regexRules}
                     markers={markers}
-                    onMessageClick={handleMessageClick}
-                    onEditMessage={handleEditMessage}
-                    onSwipeSelect={handleSwipeSelect}
-                    editMode={editMode}
+                    onMessageClick={readerMode ? undefined : handleMessageClick}
+                    onEditMessage={readerMode ? undefined : handleEditMessage}
+                    onSwipeSelect={readerMode ? undefined : handleSwipeSelect}
+                    editMode={readerMode ? false : editMode}
                     fontFamily={settings.fontFamily}
                     previewRule={previewRule}
                     onVisibleFloorChange={handleVisibleFloorChange}
@@ -515,19 +530,20 @@ export const ChatWorkbench = forwardRef<ChatWorkbenchHandle, ChatWorkbenchProps>
           {/* Regex Sidebar */}
           <RegexSidebar
             rules={settings.regexRules}
-            onRulesChange={(rules) => onSettingsChange({ ...settings, regexRules: rules })}
+            onRulesChange={(rules) => { if (!readerMode) onSettingsChange({ ...settings, regexRules: rules }); }}
+            readOnly={readerMode}
             isOpen={regexSidebarOpen}
             onClose={() => { setRegexSidebarOpen(false); setPreviewRule(null); }}
             sampleMessages={session.messages}
             onPreviewChange={setPreviewRule}
             previewId={previewRule?.id ?? null}
-            onApplyToOriginal={handleApplyRegexToOriginal}
+            onApplyToOriginal={readerMode ? undefined : handleApplyRegexToOriginal}
           />
         </div>
       </div>
 
       {/* Chapter Marker Dialog */}
-      {selectedMessage && (
+      {!readerMode && selectedMessage && (
         <ChapterMarkerDialog
           open={markerDialogOpen}
           onOpenChange={setMarkerDialogOpen}
@@ -540,7 +556,7 @@ export const ChatWorkbench = forwardRef<ChatWorkbenchHandle, ChatWorkbenchProps>
       )}
 
       {/* Message Edit Dialog */}
-      {selectedMessage && (
+      {!readerMode && selectedMessage && (
         <MessageEditDialog
           open={messageEditDialogOpen}
           onOpenChange={setMessageEditDialogOpen}
