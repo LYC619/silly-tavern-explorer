@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { buildSearchEntries, searchEntries, groupByKind } from '@/lib/global-search';
+import { buildSearchEntries, searchEntries, groupByKind, flattenSearchGroups } from '@/lib/global-search';
 
 const entries = buildSearchEntries({
   characters: [
@@ -51,5 +51,30 @@ describe('global-search', () => {
     const groups = groupByKind(searchEntries(entries, '奏枝'));
     expect(groups.map((g) => g.kind)).toEqual(['character', 'story', 'regex']);
     expect(groups.every((g) => g.items.length > 0)).toBe(true);
+  });
+
+  it('展示名用于显示且原名与展示名都可搜索', () => {
+    const displayEntries = buildSearchEntries({
+      characters: [{ id: 'c-display', name: '原始名', displayName: '展示名' }],
+      stories: [{ id: 's-display', title: '故事', characterId: 'c-display' }],
+      worldbooks: [], presets: [], regexes: [],
+    });
+
+    expect(displayEntries.find((e) => e.id === 'c-display')).toMatchObject({
+      title: '展示名',
+      sub: '原始名',
+    });
+    expect(searchEntries(displayEntries, '原始名').map((e) => e.id)).toEqual(['c-display']);
+    expect(searchEntries(displayEntries, '展示名').map((e) => e.id)).toEqual(['c-display']);
+    expect(displayEntries.find((e) => e.id === 's-display')?.sub).toBe('展示名');
+  });
+
+  it('键盘导航使用分组后的视觉顺序，而不是拍平前的库顺序', () => {
+    const groups = groupByKind([
+      { kind: 'story', id: 's1', title: '故事', path: '/story/s1' },
+      { kind: 'character', id: 'c1', title: '角色', path: '/character/c1' },
+      { kind: 'regex', id: 'r1', title: '正则', path: '/regex?assetId=r1' },
+    ]);
+    expect(flattenSearchGroups(groups).map((e) => e.id)).toEqual(['c1', 's1', 'r1']);
   });
 });

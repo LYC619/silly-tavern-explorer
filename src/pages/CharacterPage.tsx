@@ -27,6 +27,7 @@ import {
   deleteArchiveStory,
   deleteCharacter,
   sortStoriesForDisplay,
+  markCharacterViewed,
 } from '@/lib/archive-db';
 import { normalizeCharacterCard } from '@/lib/adapters/st';
 import { applyCharacterTagPatch } from '@/lib/character-tag-domain';
@@ -87,7 +88,8 @@ const CharacterPage = () => {
     if (!id) return;
     try {
       const [c, s] = await Promise.all([getCharacter(id), getStoriesByCharacter(id)]);
-      setCharacter(c ?? null);
+      const viewed = c ? await markCharacterViewed(id).catch(() => undefined) : undefined;
+      setCharacter(viewed ?? c ?? null);
       setStories(s);
     } finally {
       setLoading(false);

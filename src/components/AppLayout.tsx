@@ -26,6 +26,7 @@ import { getAllWorldBooks } from '@/lib/worldbook-db';
 import { getAllPresets } from '@/lib/preset-db';
 import { getAllRegexCollections } from '@/lib/regex-db';
 import { cn } from '@/lib/utils';
+import { getEditorOpen, setEditorOpenState } from '@/lib/editor-open-state';
 
 interface AppLayoutProps {
   children: React.ReactNode;
@@ -35,7 +36,7 @@ interface AppLayoutProps {
   leftActions?: React.ReactNode;
 }
 
-/** 导航 7 项（10.1-A4）：资产三类走 /assets?tab= 深链；「其他」= 资产库总览（后续类别扩展的家） */
+/** 导航 7 项（10.1-A4）：资产三类走 /assets?tab= 深链；「其他」= 资产类别入口空态 */
 interface NavItem {
   label: string;
   icon: typeof Home;
@@ -146,7 +147,7 @@ export function AppLayout({ children, actions, leftActions }: AppLayoutProps) {
   const navigate = useNavigate();
   const location = useLocation();
   const { expanded, toggle } = useSidenavState();
-  const [editorOpen, setEditorOpen] = useState(false);
+  const [editorOpen, setEditorOpen] = useState(() => getEditorOpen());
 
   const isActive = useCallback((item: NavItem) => {
     if (item.assetTab !== undefined) {
@@ -213,7 +214,11 @@ export function AppLayout({ children, actions, leftActions }: AppLayoutProps) {
               />
               {expanded && (
                 <button
-                  onClick={() => setEditorOpen((v) => !v)}
+                  onClick={() => setEditorOpen((v) => {
+                    const next = !v;
+                    setEditorOpenState(next);
+                    return next;
+                  })}
                   title={editorOpen ? '收起最近处理' : '展开最近处理'}
                   aria-label={editorOpen ? '收起最近处理' : '展开最近处理'}
                   className="absolute right-1 top-1/2 -translate-y-1/2 p-1 rounded text-[color:var(--text-faint)] hover:text-[color:var(--text-body)] hover:bg-[var(--hover-overlay)]"

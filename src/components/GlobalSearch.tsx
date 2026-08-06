@@ -8,7 +8,7 @@ import { useNavigate } from 'react-router-dom';
 import { Search } from 'lucide-react';
 import {
   buildSearchEntries, searchEntries, groupByKind,
-  SEARCH_KIND_LABEL, type SearchEntry,
+  flattenSearchGroups, SEARCH_KIND_LABEL, type SearchEntry,
 } from '@/lib/global-search';
 import { getAllCharacters, getAllArchiveStories } from '@/lib/archive-db';
 import { getAllWorldBooks } from '@/lib/worldbook-db';
@@ -37,7 +37,11 @@ export function GlobalSearch() {
         getAllRegexCollections().catch(() => []),
       ]);
       setEntries(buildSearchEntries({
-        characters,
+        characters: characters.map((c) => ({
+          id: c.id,
+          name: c.name,
+          displayName: c.displayMeta?.name,
+        })),
         stories: stories.map((s) => ({ id: s.id, title: s.title, characterId: s.characterId })),
         worldbooks, presets, regexes,
       }));
@@ -63,6 +67,7 @@ export function GlobalSearch() {
     [entries, query],
   );
   const groups = useMemo(() => groupByKind(results), [results]);
+  const visualResults = useMemo(() => flattenSearchGroups(groups), [groups]);
 
   const go = useCallback((entry: SearchEntry) => {
     setOpen(false);
@@ -77,16 +82,16 @@ export function GlobalSearch() {
       inputRef.current?.blur();
       return;
     }
-    if (!results.length) return;
+    if (!visualResults.length) return;
     if (e.key === 'ArrowDown') {
       e.preventDefault();
-      setActive((a) => (a + 1) % results.length);
+      setActive((a) => (a + 1) % visualResults.length);
     } else if (e.key === 'ArrowUp') {
       e.preventDefault();
-      setActive((a) => (a - 1 + results.length) % results.length);
+      setActive((a) => (a - 1 + visualResults.length) % visualResults.length);
     } else if (e.key === 'Enter') {
       e.preventDefault();
-      go(results[Math.min(active, results.length - 1)]);
+      go(visualResults[Math.min(active, visualResults.length - 1)]);
     }
   };
 
@@ -123,7 +128,7 @@ export function GlobalSearch() {
                   {SEARCH_KIND_LABEL[g.kind]}
                 </p>
                 {g.items.map((item) => {
-                  const idx = results.indexOf(item);
+                  const idx = visualResults.findIndex((entry) => entry.kind === item.kind && entry.id === item.id);
                   return (
                     <button
                       key={`${item.kind}-${item.id}`}

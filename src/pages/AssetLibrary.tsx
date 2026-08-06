@@ -87,13 +87,43 @@ function FilterItem({
   );
 }
 
+function OtherAssetsEmptyState({ onOpen }: { onOpen: (path: string) => void }) {
+  const entries = [
+    { path: '/assets?tab=worldbook', icon: Globe, label: '世界书', description: '角色设定与世界信息' },
+    { path: '/assets?tab=preset', icon: SlidersHorizontal, label: '预设', description: '提示词与生成配置' },
+    { path: '/assets?tab=regex', icon: RegexIcon, label: '正则', description: '文本处理规则集' },
+  ];
+  return (
+    <div className="h-full flex flex-col items-center justify-center px-6 py-12 text-center gap-5">
+      <div>
+        <h1 className="font-serif text-[22px] font-semibold text-[color:var(--text-primary)]">其他资产</h1>
+        <p className="mt-2 text-sm text-[color:var(--text-muted)]">选择一个资产库开始处理</p>
+      </div>
+      <div className="grid w-full max-w-xl grid-cols-1 sm:grid-cols-3 gap-3">
+        {entries.map(({ path, icon: Icon, label, description }) => (
+          <button
+            key={path}
+            type="button"
+            onClick={() => onOpen(path)}
+            className="flex flex-col items-center gap-2 rounded-lg border border-[color:var(--border-subtle)] bg-elevated px-4 py-5 text-center hover:bg-elevated-strong transition-colors"
+          >
+            <Icon className="w-6 h-6 text-brand" />
+            <span className="text-sm font-medium text-[color:var(--text-primary)]">{label}</span>
+            <span className="text-xs text-[color:var(--text-muted)]">{description}</span>
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 const AssetLibrary = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
   const [searchParams, setSearchParams] = useSearchParams();
   const tab = (['worldbook', 'preset', 'regex'].includes(searchParams.get('tab') ?? '')
     ? searchParams.get('tab')
-    : 'worldbook') as AssetTab;
+    : null) as AssetTab | null;
 
   const [worldbooks, setWorldbooks] = useState<WorldBookItem[]>([]);
   const [presets, setPresets] = useState<PresetItem[]>([]);
@@ -172,9 +202,9 @@ const AssetLibrary = () => {
     }
   };
 
-  const meta = TAB_META[tab];
+  const meta = TAB_META[tab ?? 'worldbook'];
   const openAsset = (id: string) => navigate(`${meta.toolPath}?assetId=${encodeURIComponent(id)}`);
-  const tabList = rows[tab];
+  const tabList = useMemo(() => (tab ? rows[tab] : []), [rows, tab]);
   const counts = { worldbook: worldbooks.length, preset: presets.length, regex: regexes.length };
 
   const matchSource = useCallback((asset: AssetRow, filter: SourceFilter) => (
@@ -198,6 +228,9 @@ const AssetLibrary = () => {
 
   return (
     <AppLayout>
+      {tab === null ? (
+        <OtherAssetsEmptyState onOpen={(path) => navigate(path)} />
+      ) : (
       <div className="h-full flex flex-col overflow-hidden">
         {/* ===== 页头（demo .main-header）===== */}
         <div className="shrink-0 flex items-baseline gap-3.5 px-6 pt-4 pb-1 flex-wrap">
@@ -389,6 +422,7 @@ const AssetLibrary = () => {
           </div>
         </div>
       </div>
+      )}
 
       <AlertDialog open={!!toDelete} onOpenChange={(open) => !open && setToDelete(null)}>
         <AlertDialogContent>

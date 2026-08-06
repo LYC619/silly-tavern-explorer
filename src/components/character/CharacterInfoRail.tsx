@@ -3,7 +3,7 @@
  * 立绘 3:4（点击 lightbox 放大）→ 信息行（名称/类型下拉/评分/最后游玩/字数/游玩时长 tooltip）
  * → 「操作」入口 → 右侧抽屉（编辑角色卡/读取内置资源/导出角色卡/删除角色卡）。
  */
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { BookOpen, Wrench, PenLine, PackageOpen, Download, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog';
@@ -20,6 +20,9 @@ import { CHARACTER_TYPES } from '@/lib/archive-db';
 import { formatPlayTime, formatWordCount } from '@/lib/story-meta';
 import { formatListTime, formatFullTime } from '@/lib/time-display';
 import { RatingPanel } from '@/components/character/RatingPanel';
+import { NsfwImage } from '@/components/NsfwImage';
+import { getNsfwBlur } from '@/lib/local-settings';
+import { shouldBlurNsfw } from '@/lib/nsfw-display';
 
 interface CharacterInfoRailProps {
   character: ArchiveCharacter;
@@ -48,6 +51,11 @@ export function CharacterInfoRail({
 }: CharacterInfoRailProps) {
   const [lightbox, setLightbox] = useState(false);
   const [drawerOpen, setDrawerOpen] = useState(false);
+  const [nsfwRevealed, setNsfwRevealed] = useState(false);
+
+  useEffect(() => {
+    setNsfwRevealed(false);
+  }, [character.id]);
 
   /** 聚合（10.0 物化字段）：字数=Σ故事、最后游玩=max、时长=Σ playTimeMs */
   const agg = useMemo(() => {
@@ -73,13 +81,22 @@ export function CharacterInfoRail({
       {/* 立绘 3:4（设计稿），点击放大 */}
       <button
         className="block w-full aspect-[3/4] rounded-xl overflow-hidden bg-elevated border border-[color:var(--border-subtle)]"
-        onClick={() => character.pngBase64 && setLightbox(true)}
+        onClick={() => {
+          if (!character.pngBase64) return;
+          if (shouldBlurNsfw(character.nsfw, getNsfwBlur(), nsfwRevealed)) {
+            setNsfwRevealed(true);
+            return;
+          }
+          setLightbox(true);
+        }}
         aria-label="放大立绘"
       >
         {character.pngBase64 ? (
-          <img
+          <NsfwImage
             src={`data:image/png;base64,${character.pngBase64}`}
             alt={character.name}
+            nsfw={character.nsfw}
+            revealed={nsfwRevealed}
             className="w-full h-full object-cover object-top"
           />
         ) : (
@@ -174,9 +191,11 @@ export function CharacterInfoRail({
         <DialogContent className="max-w-3xl p-2 bg-transparent border-0 shadow-none">
           <DialogTitle className="sr-only">{character.name} 立绘</DialogTitle>
           {character.pngBase64 && (
-            <img
+            <NsfwImage
               src={`data:image/png;base64,${character.pngBase64}`}
               alt={character.name}
+              nsfw={character.nsfw}
+              revealed
               className="w-full max-h-[85vh] object-contain rounded-lg"
             />
           )}

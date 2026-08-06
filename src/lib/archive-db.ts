@@ -50,6 +50,11 @@ export async function updateCharacter(
   });
 }
 
+/** 记录角色页访问；复用角色写入队列，且不把访问行为计为内容修改。 */
+export async function markCharacterViewed(id: string, viewedAt = Date.now()): Promise<ArchiveCharacter | undefined> {
+  return updateCharacter(id, () => ({ lastViewedAt: viewedAt }));
+}
+
 export async function deleteCharacter(id: string): Promise<void> {
   return characterWrites.enqueue(id, () => characterRepo.remove(id));
 }

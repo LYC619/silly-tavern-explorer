@@ -18,6 +18,7 @@ import { STAIConfigDialog } from '@/components/tools/STAIConfigDialog';
 import { STImportCard } from '@/components/tools/STImportCard';
 import { AppLayout } from '@/components/AppLayout';
 import { Badge } from '@/components/ui/badge';
+import { NsfwImage } from '@/components/NsfwImage';
 import type { ArchiveCharacter, ArchiveStory } from '@/types/archive';
 import { getAllCharacters, getAllArchiveStories } from '@/lib/archive-db';
 import { getAllWorldBooks } from '@/lib/worldbook-db';
@@ -26,23 +27,14 @@ import { getAllRegexCollections } from '@/lib/regex-db';
 import { getAllSummaries } from '@/lib/summary-db';
 import { getAllStoryTrees } from '@/lib/story-tree-db';
 import { introOf } from '@/lib/character-intro';
+import { displayCharacterName } from '@/lib/library-query';
+import { formatListTime, formatFullTime } from '@/lib/time-display';
 
 /** 故事行的下属资源标签计数 */
 interface StoryResources {
   summaries: number;
   diaries: number;
   trees: number;
-}
-
-function relativeTime(ts: number): string {
-  const min = Math.floor((Date.now() - ts) / 60000);
-  if (min < 1) return '刚刚';
-  if (min < 60) return `${min} 分钟前`;
-  const h = Math.floor(min / 60);
-  if (h < 24) return `${h} 小时前`;
-  const d = Math.floor(h / 24);
-  if (d < 30) return `${d} 天前`;
-  return new Date(ts).toLocaleDateString('zh-CN');
 }
 
 function hashName(name: string): number {
@@ -142,21 +134,17 @@ const Home = () => {
   }, [refreshStConnected, loadData]);
 
   const characterById = Object.fromEntries(characters.map((c) => [c.id, c]));
-  /** 每个角色的故事数 + 名下故事最近查看时间（「最近查看的角色」排序依据） */
+  /** 每个角色的故事数；角色级最近查看时间单独存于角色档案。 */
   const storyCounts: Record<string, number> = {};
-  const lastViewedByChar: Record<string, number> = {};
   for (const s of stories) {
     if (!s.characterId) continue;
     storyCounts[s.characterId] = (storyCounts[s.characterId] ?? 0) + 1;
-    if (s.lastViewedAt !== undefined) {
-      lastViewedByChar[s.characterId] = Math.max(lastViewedByChar[s.characterId] ?? 0, s.lastViewedAt);
-    }
   }
-  /** 最近查看的角色 12 张：看过的按最近查看排前，其余按 updatedAt 垫后（新库不至于空区） */
+  /** 最近查看的角色 12 张：角色页访问按角色级字段排序，其余按 updatedAt 垫后。 */
   const recentCharacters = [...characters]
     .sort((a, b) => {
-      const va = lastViewedByChar[a.id] ?? 0;
-      const vb = lastViewedByChar[b.id] ?? 0;
+      const va = a.lastViewedAt ?? 0;
+      const vb = b.lastViewedAt ?? 0;
       if (va !== vb) return vb - va;
       return b.updatedAt - a.updatedAt;
     })
@@ -212,6 +200,8 @@ const Home = () => {
                 <div className="flex gap-3 overflow-x-auto overflow-y-hidden pb-1.5 scrollbar-thin">
                   {recentCharacters.map((c) => {
                     const intro = introOf(c);
+                    const displayName = displayCharacterName(c);
+                    const timeTs = c.lastViewedAt ?? c.updatedAt;
                     return (
                       <button
                         key={c.id}
@@ -219,15 +209,16 @@ const Home = () => {
                         className="relative w-[148px] shrink-0 aspect-[2/3] rounded-xl overflow-hidden bg-elevated transition-transform duration-200 hover:-translate-y-0.5 text-left"
                       >
                         {c.pngBase64 ? (
-                          <img
+                          <NsfwImage
                             src={`data:image/png;base64,${c.pngBase64}`}
-                            alt={c.name}
+                            alt={displayName}
+                            nsfw={c.nsfw}
                             className="absolute inset-0 w-full h-full object-cover object-top"
                             loading="lazy"
                           />
                         ) : (
                           <div className={`absolute inset-0 art art-placeholder-${(hashName(c.name) % 13) + 1}`}>
-                            <div className="char-mark" style={{ fontSize: 24 }}>{c.name.slice(0, 1)}</div>
+                            <div className="char-mark" style={{ fontSize: 24 }}>{displayName.slice(0, 1)}</div>
                           </div>
                         )}
                         {/* 顶部右角：故事数角标（对齐角色库卡面） */}
@@ -238,7 +229,7 @@ const Home = () => {
                         )}
                         {/* 底部渐变信息条（对齐角色库：名字 → 简介 → 评分/时间） */}
                         <div className="absolute left-0 right-0 bottom-0 px-2.5 pb-2 pt-8 bg-[linear-gradient(transparent,rgba(0,0,0,0.75)_40%,rgba(0,0,0,0.92))]">
-                          <p className="font-serif text-xs font-semibold text-white truncate [text-shadow:0_1px_4px_rgba(0,0,0,0.5)]" title={c.name}>{c.name}</p>
+                          <p className="font-serif text-xs font-semibold text-white truncate [text-shadow:0_1px_4px_rgba(0,0,0,0.5)]" title={displayName}>{displayName}</p>
                           {intro && (
                             <p className="text-[11px] leading-snug text-white/70 line-clamp-2 mt-0.5">{intro}</p>
                           )}
@@ -246,7 +237,7 @@ const Home = () => {
                             <span className="font-semibold text-[color:var(--brand-hi)]">
                               {c.rating !== undefined ? `★ ${c.rating}` : '未评分'}
                             </span>
-                            <span className="text-white/55">{relativeTime(lastViewedByChar[c.id] ?? c.updatedAt)}</span>
+                            <span className="text-white/55" title={formatFullTime(timeTs)}>{formatListTime(timeTs)}</span>
                           </div>
                         </div>
                       </button>
@@ -283,9 +274,10 @@ const Home = () => {
                       >
                         <div className="w-9 h-12 shrink-0 rounded-md overflow-hidden bg-[var(--hover-overlay)]">
                           {char?.pngBase64 ? (
-                            <img
+                            <NsfwImage
                               src={`data:image/png;base64,${char.pngBase64}`}
-                              alt={char.name}
+                              alt={displayCharacterName(char)}
+                              nsfw={char.nsfw}
                               className="w-full h-full object-cover object-top"
                               loading="lazy"
                             />
@@ -300,7 +292,7 @@ const Home = () => {
                             {s.title}
                           </p>
                           <p className="text-[11px] text-[color:var(--text-muted)] mt-0.5 flex items-center gap-1.5 flex-wrap">
-                            {char && <span className="truncate max-w-32">{char.name}</span>}
+                            {char && <span className="truncate max-w-32">{displayCharacterName(char)}</span>}
                             {!s.characterId && <Badge variant="outline" className="h-4 px-1 text-[10px]">未绑定</Badge>}
                             <span className="flex items-center gap-0.5">
                               <MessageSquare className="w-3 h-3" />{s.session.messages.length} 楼
@@ -317,7 +309,7 @@ const Home = () => {
                           </p>
                         </div>
                         {s.lastViewedAt !== undefined && (
-                          <span className="shrink-0 text-[11px] text-[color:var(--text-muted)]">{relativeTime(s.lastViewedAt)}</span>
+                          <span className="shrink-0 text-[11px] text-[color:var(--text-muted)]" title={formatFullTime(s.lastViewedAt)}>{formatListTime(s.lastViewedAt)}</span>
                         )}
                       </button>
                     );

@@ -7,6 +7,7 @@ import {
   getCharacter,
   saveCharacter,
   updateCharacter,
+  markCharacterViewed,
 } from '@/lib/archive-db';
 import {
   StoryDraftSaver,
@@ -113,5 +114,15 @@ describe('角色补丁提交', () => {
     )).rejects.toThrow('write failed');
 
     expect(rendered).toBe(original);
+  });
+});
+
+describe('角色级最近查看时间', () => {
+  it('通过角色串行写入队列记录访问，且不修改 updatedAt', async () => {
+    await saveCharacter(character({ updatedAt: 77 }));
+
+    await markCharacterViewed('c1', 1234);
+
+    expect(await getCharacter('c1')).toMatchObject({ lastViewedAt: 1234, updatedAt: 77 });
   });
 });

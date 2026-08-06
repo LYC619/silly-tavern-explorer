@@ -81,3 +81,51 @@ describe('卡片键盘操作契约', () => {
     expect(tools).toContain('variant="compact"');
   });
 });
+
+describe('阶段 D 外壳与 NSFW 契约', () => {
+  it('首页两处缩略图与角色详情左栏共用 NSFW 图片包装并接入默认设置', () => {
+    const home = read('src/pages/Home.tsx');
+    const rail = read('src/components/character/CharacterInfoRail.tsx');
+    const image = read('src/components/NsfwImage.tsx');
+    expect(home).toContain("import { NsfwImage } from '@/components/NsfwImage'");
+    expect(home.match(/<NsfwImage/g)?.length).toBeGreaterThanOrEqual(2);
+    expect(rail).toContain("import { NsfwImage } from '@/components/NsfwImage'");
+    expect(rail).toContain('nsfwRevealed');
+    expect(image).toContain('getNsfwBlur()');
+    expect(image).toContain('shouldBlurNsfw');
+  });
+
+  it('首页使用角色级查看时间、展示名与共享时间显示工具', () => {
+    const home = read('src/pages/Home.tsx');
+    const characterPage = read('src/pages/CharacterPage.tsx');
+    expect(home).toContain('displayCharacterName');
+    expect(home).toContain('c.lastViewedAt');
+    expect(home).not.toContain('lastViewedByChar');
+    expect(characterPage).toContain('markCharacterViewed');
+    expect(home).toContain('formatListTime');
+    expect(home).toContain('formatFullTime');
+    expect(home).not.toContain('function relativeTime');
+  });
+
+  it('无 tab 的其他资产入口显示专门空态并提供三类入口', () => {
+    const assets = read('src/pages/AssetLibrary.tsx');
+    expect(assets).toContain('其他资产');
+    expect(assets).toContain("/assets?tab=worldbook");
+    expect(assets).toContain("/assets?tab=preset");
+    expect(assets).toContain("/assets?tab=regex");
+    expect(assets).toContain('tab === null');
+  });
+
+  it('编辑区展开态在 AppLayout 路由重挂后从模块状态恢复', () => {
+    const layout = read('src/components/AppLayout.tsx');
+    expect(layout).toContain('getEditorOpen()');
+    expect(layout).toContain('setEditorOpenState');
+    expect(layout).not.toContain('useState(false)');
+  });
+
+  it('全局搜索键盘导航基于分组后的视觉顺序', () => {
+    const search = read('src/components/GlobalSearch.tsx');
+    expect(search).toContain('flattenSearchGroups(groups)');
+    expect(search).not.toContain('results.indexOf(item)');
+  });
+});

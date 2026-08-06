@@ -12,6 +12,8 @@ export interface SearchEntry {
   title: string;
   /** 次要说明（角色名/未绑定等），展示用 */
   sub?: string;
+  /** 搜索用的原始标题；title 可以是展示名。 */
+  searchText?: string;
   /** 点击跳转路径 */
   path: string;
 }
@@ -25,7 +27,7 @@ export const SEARCH_KIND_LABEL: Record<SearchKind, string> = {
 };
 
 interface BuildInput {
-  characters: { id: string; name: string }[];
+  characters: { id: string; name: string; displayName?: string }[];
   stories: { id: string; title: string; characterId?: string }[];
   worldbooks: { id: string; title: string }[];
   presets: { id: string; title: string }[];
@@ -34,10 +36,16 @@ interface BuildInput {
 
 /** 把各库的列表拍平成统一搜索条目（跳转路径在此定死一处） */
 export function buildSearchEntries(input: BuildInput): SearchEntry[] {
-  const charName = new Map(input.characters.map((c) => [c.id, c.name]));
+  const characterDisplay = (character: { name: string; displayName?: string }) => character.displayName?.trim() || character.name;
+  const charName = new Map(input.characters.map((c) => [c.id, characterDisplay(c)]));
   return [
     ...input.characters.map<SearchEntry>((c) => ({
-      kind: 'character', id: c.id, title: c.name, path: `/character/${c.id}`,
+      kind: 'character',
+      id: c.id,
+      title: characterDisplay(c),
+      sub: characterDisplay(c) === c.name ? undefined : c.name,
+      searchText: characterDisplay(c) === c.name ? undefined : `${characterDisplay(c)}\n${c.name}`,
+      path: `/character/${c.id}`,
     })),
     ...input.stories.map<SearchEntry>((s) => ({
       kind: 'story',
@@ -72,7 +80,7 @@ export function searchEntries(
   const prefix: SearchEntry[] = [];
   const contains: SearchEntry[] = [];
   for (const e of entries) {
-    const t = e.title.toLowerCase();
+    const t = (e.searchText ?? e.title).toLowerCase();
     if (t.startsWith(q)) prefix.push(e);
     else if (t.includes(q)) contains.push(e);
   }
@@ -89,9 +97,19 @@ export function searchEntries(
 }
 
 /** 下拉展示用：按 kind 分组，保持组内排序 */
-export function groupByKind(results: SearchEntry[]): { kind: SearchKind; items: SearchEntry[] }[] {
+export interface SearchGroup {
+  kind: SearchKind;
+  items: SearchEntry[];
+}
+
+export function groupByKind(results: SearchEntry[]): SearchGroup[] {
   const order: SearchKind[] = ['character', 'story', 'worldbook', 'preset', 'regex'];
   return order
     .map((kind) => ({ kind, items: results.filter((r) => r.kind === kind) }))
     .filter((g) => g.items.length > 0);
+}
+
+/** 视觉分组后的线性顺序，供键盘导航和 Enter 共用。 */
+export function flattenSearchGroups(groups: SearchGroup[]): SearchEntry[] {
+  return groups.flatMap((group) => group.items);
 }
