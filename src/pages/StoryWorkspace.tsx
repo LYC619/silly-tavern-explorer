@@ -19,7 +19,11 @@ import { IOPanel } from '@/components/workspace/IOPanel';
 import { STUpdateHint } from '@/components/workspace/STUpdateHint';
 import { BranchPanel } from '@/components/workspace/BranchPanel';
 import { OutlinePanel } from '@/components/workspace/OutlinePanel';
-import { OrganizePanel, type OrganizeFixedKind } from '@/components/organize/OrganizePanel';
+import {
+  OrganizePanel,
+  type OrganizeFixedKind,
+  type OrganizeTarget,
+} from '@/components/organize/OrganizePanel';
 import { BindStoryDialog } from '@/components/chat/BindStoryDialog';
 import ReaderView from '@/components/reader/ReaderView';
 import NovelView from '@/components/reader/NovelView';
@@ -42,6 +46,12 @@ import { getDefaultExportSettings } from '@/lib/session-storage';
 /** 阶段9.6：整理与记录拆成四个子页面（参照 2.0 前 /summary /story-tree 独立页的架构） */
 type WorkspaceView = 'read' | OrganizeFixedKind | 'io';
 
+interface StoryWorkspaceLocationState {
+  view?: string;
+  branchId?: string | null;
+  initialTarget?: OrganizeTarget;
+}
+
 const ORGANIZE_VIEWS: OrganizeFixedKind[] = ['volume', 'diary', 'diy', 'tree'];
 
 const VIEW_ITEMS: { key: WorkspaceView; label: string; icon: typeof BookOpenText; group?: string }[] = [
@@ -62,17 +72,26 @@ const StoryWorkspace = () => {
   const [character, setCharacter] = useState<ArchiveCharacter | null>(null);
   const [loading, setLoading] = useState(true);
   const [branchId, setBranchId] = useState<string | null>(null);
+  const locationState = location.state as StoryWorkspaceLocationState | null;
   // 角色页「导出/去处理区生成」带初始视图和来源脉络跳入（10.3b）
   const [view, setView] = useState<WorkspaceView>(() => {
-    const v = (location.state as { view?: string } | null)?.view;
+    const v = locationState?.view;
     return v && VIEW_ITEMS.some((item) => item.key === v) ? (v as WorkspaceView) : 'read';
   });
+  const initialTarget = locationState?.view === view ? locationState.initialTarget : undefined;
   const [immersive, setImmersive] = useState(false);
   const [novelOpen, setNovelOpen] = useState(false);
   const [bindOpen, setBindOpen] = useState(false);
   const workbenchRef = useRef<ChatWorkbenchHandle>(null);
   // 从整理子页面跳回聊天时待滚动的楼层
   const pendingJumpRef = useRef<number | null>(null);
+
+  useEffect(() => {
+    const requestedView = (location.state as StoryWorkspaceLocationState | null)?.view;
+    if (requestedView && VIEW_ITEMS.some((item) => item.key === requestedView)) {
+      setView(requestedView as WorkspaceView);
+    }
+  }, [location.state]);
 
   // 持久化：只有真实修改（dirty）才落库，防抖 600ms；离开页面前有脏数据立即补存
   const dirtyRef = useRef(false);
@@ -415,12 +434,13 @@ const StoryWorkspace = () => {
           {/* 整理与记录四个子页面（阶段9.6）：按类型独立，key 按视图重挂 */}
           {ORGANIZE_VIEWS.includes(view as OrganizeFixedKind) && (
             <OrganizePanel
-              key={view}
+              key={`${view}:${initialTarget?.type ?? ''}:${initialTarget?.id ?? ''}`}
               story={story}
               characterName={character?.name}
               coverDataUrl={character?.pngBase64 ? `data:image/png;base64,${character.pngBase64}` : undefined}
               currentBranchId={branchId}
               fixedKind={view as OrganizeFixedKind}
+              initialTarget={initialTarget}
               onJumpToChat={handleJumpToChat}
             />
           )}

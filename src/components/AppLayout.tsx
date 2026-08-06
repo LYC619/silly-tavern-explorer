@@ -25,6 +25,9 @@ import { getAllArchiveStories } from '@/lib/archive-db';
 import { getAllWorldBooks } from '@/lib/worldbook-db';
 import { getAllPresets } from '@/lib/preset-db';
 import { getAllRegexCollections } from '@/lib/regex-db';
+import { getAllSummaries } from '@/lib/summary-db';
+import { getAllStoryTrees } from '@/lib/story-tree-db';
+import { getAllCards } from '@/lib/card-db';
 import { cn } from '@/lib/utils';
 import { getEditorOpen, setEditorOpenState } from '@/lib/editor-open-state';
 
@@ -103,19 +106,24 @@ const SideItem = forwardRef<HTMLButtonElement, SideItemProps>(function SideItem(
   );
 });
 
-/** 编辑区最近处理条目（展开侧栏时可见）：未绑定聊天/世界书/预设/正则，updatedAt 最近 6 条 */
-function EditorRecentList({ onGo }: { onGo: (path: string) => void }) {
+/** 编辑区最近处理条目（展开侧栏时可见）：故事、整理记录、故事树和资产，updatedAt 最近 6 条 */
+function EditorRecentList({ onGo }: { onGo: (item: RecentEditItem) => void }) {
   const [items, setItems] = useState<RecentEditItem[] | null>(null);
   useEffect(() => {
     let cancelled = false;
     (async () => {
-      const [stories, worldbooks, presets, regexes] = await Promise.all([
+      const [stories, summaries, trees, cards, worldbooks, presets, regexes] = await Promise.all([
         getAllArchiveStories().catch(() => []),
+        getAllSummaries().catch(() => []),
+        getAllStoryTrees().catch(() => []),
+        getAllCards().catch(() => []),
         getAllWorldBooks().catch(() => []),
         getAllPresets().catch(() => []),
         getAllRegexCollections().catch(() => []),
       ]);
-      if (!cancelled) setItems(pickRecentEdits({ stories, worldbooks, presets, regexes }));
+      if (!cancelled) {
+        setItems(pickRecentEdits({ stories, summaries, trees, cards, worldbooks, presets, regexes }));
+      }
     })();
     return () => { cancelled = true; };
   }, []);
@@ -131,7 +139,7 @@ function EditorRecentList({ onGo }: { onGo: (path: string) => void }) {
       {items.map((item) => (
         <button
           key={`${item.kind}-${item.id}`}
-          onClick={() => onGo(item.path)}
+          onClick={() => onGo(item)}
           title={item.title}
           className="flex items-center gap-1.5 pl-9 pr-2 py-1 text-left text-[11px] text-[color:var(--text-muted)] hover:text-[color:var(--text-body)] hover:bg-[var(--hover-overlay)] rounded-md"
         >
@@ -236,7 +244,7 @@ export function AppLayout({ children, actions, leftActions }: AppLayoutProps) {
                   transition={{ duration: 0.18, ease: 'easeOut' }}
                   className="overflow-hidden"
                 >
-                  <EditorRecentList onGo={(path) => navigate(path)} />
+                  <EditorRecentList onGo={(item) => navigate(item.path, { state: item.state })} />
                 </motion.div>
               )}
             </AnimatePresence>

@@ -123,6 +123,27 @@ describe('阶段 D 外壳与 NSFW 契约', () => {
     expect(layout).not.toContain('useState(false)');
   });
 
+  it('编辑区最近列表覆盖故事、记录、故事树和角色卡，并传递精确导航状态', () => {
+    const layout = read('src/components/AppLayout.tsx');
+    expect(layout).toContain('getAllSummaries()');
+    expect(layout).toContain('getAllStoryTrees()');
+    expect(layout).toContain('getAllCards()');
+    expect(layout).toContain('navigate(item.path, { state: item.state })');
+  });
+
+  it('故事工作区把最近条目的 initialTarget 交给整理面板', () => {
+    const workspace = read('src/pages/StoryWorkspace.tsx');
+    expect(workspace).toContain('initialTarget?: OrganizeTarget');
+    expect(workspace).toContain('initialTarget={initialTarget}');
+  });
+
+  it('角色卡深链优先于 session 指针恢复', () => {
+    const viewer = read('src/pages/CardViewer.tsx');
+    expect(viewer).toContain('useSearchParams()');
+    expect(viewer).toContain("searchParams.get('assetId')");
+    expect(viewer).toContain('if (assetId)');
+  });
+
   it('全局搜索键盘导航基于分组后的视觉顺序', () => {
     const search = read('src/components/GlobalSearch.tsx');
     expect(search).toContain('flattenSearchGroups(groups)');

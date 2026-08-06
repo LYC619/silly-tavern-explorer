@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { IdCard, Upload, Save, History, Download, FileJson, Image } from 'lucide-react';
 import { AppLayout } from '@/components/AppLayout';
 import { HelpCard } from '@/components/HelpCard';
@@ -62,6 +62,8 @@ function base64ToAb(b64: string): ArrayBuffer {
 export default function CardViewer() {
   const { toast } = useToast();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const assetId = searchParams.get('assetId');
   const [card, setCard] = useState<NormalizedCharacterCard | null>(null);
   const [edits, setEdits] = useState<CardEdits | null>(null);
   const [fileName, setFileName] = useState('character');
@@ -85,31 +87,7 @@ export default function CardViewer() {
     }
   }, []);
 
-  // 跨页恢复
-  useEffect(() => {
-    refreshSaved();
-    let ptrId: string | null = null;
-    try {
-      const raw = sessionStorage.getItem(CARD_SESSION_KEY);
-      ptrId = raw ? (JSON.parse(raw).itemId as string) : null;
-    } catch { /* ignore */ }
-    // 处理区交接了文件时跳过指针恢复——两个异步 setCard 会竞态互相覆盖
-    if (ptrId && !peekPendingToolFile('card')) {
-      getCard(ptrId).then((item) => {
-        if (item) loadCardItem(item);
-      }).catch(() => { /* ignore */ });
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  useEffect(() => {
-    try {
-      if (currentItemId) sessionStorage.setItem(CARD_SESSION_KEY, JSON.stringify({ itemId: currentItemId }));
-      else sessionStorage.removeItem(CARD_SESSION_KEY);
-    } catch { /* ignore */ }
-  }, [currentItemId]);
-
-  const setCardState = (raw: STCharacterCard, name: string, png: ArrayBuffer | null) => {
+  const setCardState = useCallback((raw: STCharacterCard, name: string, png: ArrayBuffer | null) => {
     const normalized = normalizeCharacterCard(raw);
     setCard(normalized);
     setEdits(editsFromNormalized(normalized));
@@ -122,12 +100,44 @@ export default function CardViewer() {
       const av = normalized.avatar;
       setPortraitUrl(/^(https?:|data:image\/)/i.test(av) ? av : null);
     }
-  };
+  }, []);
 
   const loadCardItem = useCallback((item: CardItem) => {
     setCardState(item.card, item.title, item.pngBase64 ? base64ToAb(item.pngBase64) : null);
     setCurrentItemId(item.id);
-  }, []);
+  }, [setCardState]);
+
+  // URL 深链优先；无深链且没有待处理文件时，才恢复上次打开的角色卡。
+  useEffect(() => {
+    void refreshSaved();
+    let cancelled = false;
+    let restoreId: string | null = null;
+
+    if (assetId) {
+      restoreId = assetId;
+    } else {
+      try {
+        const raw = sessionStorage.getItem(CARD_SESSION_KEY);
+        restoreId = raw ? (JSON.parse(raw).itemId as string) : null;
+      } catch { /* ignore */ }
+      if (peekPendingToolFile('card')) restoreId = null;
+    }
+
+    if (restoreId) {
+      getCard(restoreId).then((item) => {
+        if (!cancelled && item) loadCardItem(item);
+      }).catch(() => { /* ignore */ });
+    }
+
+    return () => { cancelled = true; };
+  }, [assetId, loadCardItem, refreshSaved]);
+
+  useEffect(() => {
+    try {
+      if (currentItemId) sessionStorage.setItem(CARD_SESSION_KEY, JSON.stringify({ itemId: currentItemId }));
+      else sessionStorage.removeItem(CARD_SESSION_KEY);
+    } catch { /* ignore */ }
+  }, [currentItemId]);
 
   const loadFile = useCallback(async (file: File) => {
     const lower = file.name.toLowerCase();
@@ -158,16 +168,17 @@ export default function CardViewer() {
     } catch (e) {
       toast({ title: '解析失败', description: e instanceof Error ? e.message : '文件不是有效的角色卡', variant: 'destructive' });
     }
-  }, [toast, refreshSaved]);
+  }, [refreshSaved, setCardState, toast]);
 
   // 处理区入口交接来的文件：走与导入按钮相同的解析入库流程（只消费一次）
   const handoffConsumedRef = useRef(false);
   useEffect(() => {
+    if (assetId) return;
     if (handoffConsumedRef.current) return;
     handoffConsumedRef.current = true;
     const file = takePendingToolFile('card');
     if (file) loadFile(file);
-  }, [loadFile]);
+  }, [assetId, loadFile]);
 
   const onEditChange = useCallback(<K extends keyof CardEdits>(key: K, value: CardEdits[K]) => {
     setEdits((prev) => (prev ? { ...prev, [key]: value } : prev));
