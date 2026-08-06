@@ -50,6 +50,8 @@ export interface WorldBookItem {
   derived?: import('@/types/archive').DerivedAssetMeta;
   /** 客户端：来源文件绝对路径（阶段7.3 从 ST 目录导入时记录，重复导入判定用）；手动导入为空 */
   sourcePath?: string;
+  /** 从角色卡内置世界书提取时记录，用于按角色+内容哈希幂等导入。 */
+  embedded?: import('@/types/archive').EmbeddedAssetMeta;
 }
 
 export const POSITION_LABELS: Record<number, string> = {

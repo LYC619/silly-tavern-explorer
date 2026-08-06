@@ -8,7 +8,7 @@ import type { ArchiveCharacter, QuoteAsset } from '@/types/archive';
 import type { ChatSession } from '@/types/chat';
 import { parseJsonl, parseJson } from '@/lib/adapters/st';
 import { buildStoryFromSession, saveArchiveStory } from '@/lib/archive-db';
-import { generateWorldBookId, parseWorldBook } from '@/types/worldbook';
+import { generateWorldBookId, parseWorldBook, type WorldBook } from '@/types/worldbook';
 import { saveWorldBook } from '@/lib/worldbook-db';
 import { parsePreset } from '@/lib/preset-parser';
 import { generatePresetId } from '@/types/preset';
@@ -38,6 +38,13 @@ export interface CharacterImportResult {
 }
 
 const stem = (name: string) => name.replace(/\.[^.]+$/, '');
+
+export function requireNonEmptyWorldBook(worldbook: WorldBook): WorldBook {
+  if (Object.keys(worldbook.entries).length === 0) {
+    throw new Error('文件里没有任何世界书条目');
+  }
+  return worldbook;
+}
 
 /** 聊天文件 → 归档故事（从 CharacterPage 顶栏导入挪来，10.3c 并入六类） */
 async function importStoryFile(c: ArchiveCharacter, file: File): Promise<void> {
@@ -82,8 +89,9 @@ export async function importFilesForCharacter(
           break;
         case 'worldbook': {
           const id = generateWorldBookId();
+          const worldbook = requireNonEmptyWorldBook(parseWorldBook(JSON.parse(await file.text())));
           await saveWorldBook({
-            id, title: stem(file.name), worldbook: parseWorldBook(JSON.parse(await file.text())),
+            id, title: stem(file.name), worldbook,
             createdAt: now, updatedAt: now,
           });
           assets = addAssetRef(assets, 'worldbook', id);

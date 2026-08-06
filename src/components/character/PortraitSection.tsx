@@ -31,6 +31,7 @@ export function PortraitSection({ character, onPatch, onOpenImport }: PortraitSe
   const [views, setViews] = useState<PortraitViewRow[] | null>(null);
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
   const [lightbox, setLightbox] = useState<PortraitViewItem | null>(null);
+  const [renameDrafts, setRenameDrafts] = useState<Record<string, string>>({});
   const fileRef = useRef<HTMLInputElement>(null);
   const importRowId = useRef<string | null>(null);
 
@@ -60,16 +61,30 @@ export function PortraitSection({ character, onPatch, onOpenImport }: PortraitSe
   const handleRename = async (rowId: string, title: string) => {
     const row = rows.find((r) => r.id === rowId);
     const next = title.trim();
-    if (!row || !next || next === row.title) return;
+    if (!row) return;
+    if (!next) {
+      setRenameDrafts((drafts) => ({ ...drafts, [rowId]: row.title }));
+      toast({ title: '分行名称不能为空', variant: 'destructive' });
+      return;
+    }
+    if (next === row.title) {
+      setRenameDrafts((drafts) => ({ ...drafts, [rowId]: row.title }));
+      return;
+    }
     if (rowTitleConflict(rows, next, rowId)) {
       toast({ title: '行名与其他行重复', description: `「${rowDirOf(next)}」已被占用`, variant: 'destructive' });
-      setViews((v) => (v ? [...v] : v)); // 触发重渲染让 input 还原
+      setRenameDrafts((drafts) => ({ ...drafts, [rowId]: row.title }));
       return;
     }
     try {
       await onPatch((current) => renamePortraitRow(current, rowId, next));
+      setRenameDrafts((drafts) => {
+        const updated = { ...drafts };
+        delete updated[rowId];
+        return updated;
+      });
     } catch {
-      setViews((v) => (v ? [...v] : v));
+      setRenameDrafts((drafts) => ({ ...drafts, [rowId]: row.title }));
     }
   };
 
@@ -147,8 +162,11 @@ export function PortraitSection({ character, onPatch, onOpenImport }: PortraitSe
                   </span>
                 ) : (
                   <input
-                    key={row.title}
-                    defaultValue={row.title}
+                    value={renameDrafts[row.rowId] ?? row.title}
+                    onChange={(event) => setRenameDrafts((drafts) => ({
+                      ...drafts,
+                      [row.rowId]: event.target.value,
+                    }))}
                     aria-label="分行标题"
                     className="h-7 w-40 rounded-md border border-transparent bg-transparent px-2 text-sm font-medium hover:border-border focus:border-ring focus:outline-none transition-colors"
                     onBlur={(e) => void handleRename(row.rowId, e.target.value)}

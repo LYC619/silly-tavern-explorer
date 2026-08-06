@@ -85,6 +85,42 @@ export function currentStillInRows(c: Pick<ArchiveCharacter, 'portraitRows' | 'p
   return !!id && (c.portraitRows ?? []).some((r) => r.items.some((i) => i.id === id));
 }
 
+/** 散图设卡前提升为受管条目，使 portraitCurrentId 始终能指向真实 item。 */
+export function promotePortraitItem(
+  rows: PortraitRow[],
+  item: PortraitViewItem,
+  dataBase64?: string,
+  fileName?: string,
+): { rows: PortraitRow[]; itemId: string } {
+  if (item.itemId) return { rows, itemId: item.itemId };
+  const itemId = crypto.randomUUID();
+  const managed: PortraitItem = {
+    id: itemId,
+    source: 'manual',
+    name: item.name,
+    mime: item.mime,
+    dataBase64,
+    fileName,
+    addedAt: Date.now(),
+  };
+  const targetIndex = rows.findIndex((row) => row.id === item.rowId);
+  if (targetIndex >= 0) {
+    const next = rows.slice();
+    next[targetIndex] = { ...next[targetIndex], items: [...next[targetIndex].items, managed] };
+    return { rows: next, itemId };
+  }
+  const defaultIndex = rows.findIndex((row) => row.title === DEFAULT_ROW_TITLE);
+  if (defaultIndex >= 0) {
+    const next = rows.slice();
+    next[defaultIndex] = { ...next[defaultIndex], items: [...next[defaultIndex].items, managed] };
+    return { rows: next, itemId };
+  }
+  return {
+    rows: [...rows, { id: crypto.randomUUID(), title: DEFAULT_ROW_TITLE, items: [managed] }],
+    itemId,
+  };
+}
+
 /** 扫描到的文件里筛出未被记录的（散图） */
 export function strayOf(recorded: (string | undefined)[], found: string[]): string[] {
   const known = new Set(recorded.filter((f): f is string => !!f));
@@ -163,6 +199,8 @@ export interface PortraitViewItem {
   fsPath?: string;
   /** 网页版图片数据 */
   dataBase64?: string;
+  /** 所在受管行；根目录散图用 STRAY_ROW_ID。 */
+  rowId?: string;
 }
 
 export interface PortraitViewRow {
@@ -188,7 +226,7 @@ export async function loadPortraitViews(c: ArchiveCharacter): Promise<PortraitVi
         items.push({
           itemId: it.id, name: it.name ?? '图片', source: it.source, mime,
           url: `data:${mime};base64,${it.dataBase64}`, isCurrent: c.portraitCurrentId === it.id,
-          dataBase64: it.dataBase64,
+          dataBase64: it.dataBase64, rowId: r.id,
         });
       } else if (it.fileName && ctx) {
         const path = `${dir}/${it.fileName}`;
@@ -196,7 +234,7 @@ export async function loadPortraitViews(c: ArchiveCharacter): Promise<PortraitVi
           const b64 = await ctx.vault.fs.readBinary(path);
           items.push({
             itemId: it.id, name: it.name ?? it.fileName, source: it.source, mime,
-            url: `data:${mime};base64,${b64}`, isCurrent: c.portraitCurrentId === it.id, fsPath: path,
+            url: `data:${mime};base64,${b64}`, isCurrent: c.portraitCurrentId === it.id, fsPath: path, rowId: r.id,
           });
         } catch {
           // 文件被挪走/删除：跳过展示，条目保留（用户放回即恢复）
@@ -211,7 +249,7 @@ export async function loadPortraitViews(c: ArchiveCharacter): Promise<PortraitVi
         try {
           const b64 = await ctx.vault.fs.readBinary(path);
           const mime = mimeOfName(name)!;
-          items.push({ name, source: 'stray', mime, url: `data:${mime};base64,${b64}`, isCurrent: false, fsPath: path });
+          items.push({ name, source: 'stray', mime, url: `data:${mime};base64,${b64}`, isCurrent: false, fsPath: path, rowId: r.id });
         } catch { /* 读失败不打扰 */ }
       }
     }
@@ -228,7 +266,7 @@ export async function loadPortraitViews(c: ArchiveCharacter): Promise<PortraitVi
       try {
         const b64 = await ctx.vault.fs.readBinary(path);
         const mime = mimeOfName(e.name)!;
-        items.push({ name: e.name, source: 'stray', mime, url: `data:${mime};base64,${b64}`, isCurrent: false, fsPath: path });
+        items.push({ name: e.name, source: 'stray', mime, url: `data:${mime};base64,${b64}`, isCurrent: false, fsPath: path, rowId: STRAY_ROW_ID });
       } catch { /* 读失败不打扰 */ }
     }
     if (items.length > 0) views.push({ rowId: STRAY_ROW_ID, title: '散图（立绘文件夹根目录）', items, isStray: true });
@@ -343,7 +381,7 @@ async function rasterToPngBase64(b64: string, mime: string): Promise<string> {
 /**
  * 设为当前卡面：立绘 PNG 化 + 卡数据嵌回（chara chunk）→ 替换 pngBase64；
  * 旧卡面不在立绘库里时自动归档进「卡面」行（客户端写成文件，网页版存 dataBase64）。
- * 散图（itemId 为空）也可设为卡面；此后 portraitCurrentId 置空，下次替换会再归档一份副本。
+ * 散图（itemId 为空）会先提升为受管条目，再记录 portraitCurrentId。
  */
 export async function setPortraitAsCard(c: ArchiveCharacter, item: PortraitViewItem): Promise<Partial<ArchiveCharacter>> {
   const ctx = await vaultCtx(c.id);
@@ -354,6 +392,26 @@ export async function setPortraitAsCard(c: ArchiveCharacter, item: PortraitViewI
   const newPng = abToBase64(embedded.buffer as ArrayBuffer);
 
   let rows = c.portraitRows ?? [];
+  let currentId = item.itemId;
+  if (!currentId) {
+    const targetRow = rows.find((row) => row.id === item.rowId)
+      ?? rows.find((row) => row.title === DEFAULT_ROW_TITLE);
+    let fileName: string | undefined;
+    if (ctx) {
+      const dir = rowDirPath(ctx, targetRow?.title ?? DEFAULT_ROW_TITLE);
+      const taken = new Set((await ctx.vault.fs.list(dir)).map((entry) => entry.name));
+      fileName = uniqueFileName(taken, item.name);
+      await ctx.vault.fs.writeBinary(`${dir}/${fileName}`, srcB64);
+    }
+    const promoted = promotePortraitItem(
+      rows,
+      { ...item, rowId: targetRow?.id },
+      ctx ? undefined : srcB64,
+      fileName,
+    );
+    rows = promoted.rows;
+    currentId = promoted.itemId;
+  }
   if (c.pngBase64 && !currentStillInRows(c)) {
     const d = new Date();
     const pad = (n: number) => String(n).padStart(2, '0');
@@ -368,6 +426,6 @@ export async function setPortraitAsCard(c: ArchiveCharacter, item: PortraitViewI
       rows = archiveOldCard(rows, { name, dataBase64: c.pngBase64 });
     }
   }
-  await writeSnapshot(c.id, rows, item.itemId);
-  return { pngBase64: newPng, portraitRows: rows, portraitCurrentId: item.itemId };
+  await writeSnapshot(c.id, rows, currentId);
+  return { pngBase64: newPng, portraitRows: rows, portraitCurrentId: currentId };
 }

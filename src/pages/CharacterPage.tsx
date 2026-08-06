@@ -195,8 +195,11 @@ const CharacterPage = () => {
     if (!character) return;
     try {
       let added = 0;
+      let duplicates = 0;
       await patchCharacter(async (current) => {
-        const refs = await importEmbeddedAssets(current);
+        const refs = await importEmbeddedAssets(current, {
+          onDuplicate: () => { duplicates++; },
+        });
         const existing = current.assets ?? [];
         const merged = [...existing];
         for (const r of refs) {
@@ -206,7 +209,12 @@ const CharacterPage = () => {
         return added > 0 ? { assets: merged } : undefined;
       });
       if (added > 0) {
-        toast({ title: `已读取内置资源：新挂 ${added} 个关联` });
+        toast({
+          title: `已读取内置资源：新挂 ${added} 个关联`,
+          description: duplicates > 0 ? `${duplicates} 个相同内容已导入过，已跳过重复创建。` : undefined,
+        });
+      } else if (duplicates > 0) {
+        toast({ title: '内置资源已导入过', description: `${duplicates} 个相同内容已跳过。` });
       } else {
         toast({ title: '没有新的内置资源', description: '卡内嵌的世界书/正则已在关联列表里。' });
       }

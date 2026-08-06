@@ -5,7 +5,7 @@
  * （session-storage），资产库负责持久化收藏与跨角色共享。
  */
 import type { RegexRule } from '@/types/chat';
-import type { DerivedAssetMeta } from '@/types/archive';
+import type { DerivedAssetMeta, EmbeddedAssetMeta } from '@/types/archive';
 import { createRepo } from '@/lib/repo';
 
 export interface RegexCollectionItem {
@@ -16,6 +16,8 @@ export interface RegexCollectionItem {
   derived?: DerivedAssetMeta;
   /** 从 ST 目录导入时的来源绝对路径（阶段9.11，重复导入判定） */
   sourcePath?: string;
+  /** 从角色卡内置正则提取时记录，用于按角色+内容哈希幂等导入。 */
+  embedded?: EmbeddedAssetMeta;
   createdAt: number;
   updatedAt: number;
 }

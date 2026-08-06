@@ -235,6 +235,13 @@ export interface AssetRef {
   assetId: string;
 }
 
+/** 角色卡内置资源的幂等导入标记。 */
+export interface EmbeddedAssetMeta {
+  characterId: string;
+  contentHash: string;
+  importedAt: number;
+}
+
 // ---------- 整理成果（总结/日记/自定义记录/故事树 = 故事的下属资源） ----------
 
 export type RecordKind = 'summary' | 'diary' | 'custom' | 'storytree';

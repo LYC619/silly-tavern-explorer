@@ -7,6 +7,7 @@ import type { ArchiveCharacter, PortraitItem, PortraitRow } from '@/types/archiv
 import {
   rowDirOf, rowTitleConflict, ensureRowTitle, uniqueFileName, strayOf,
   archiveOldCard, currentStillInRows, buildPortraitSnapshot,
+  promotePortraitItem,
   addPortraitFiles, setPortraitAsCard, createPortraitRow, renamePortraitRow, loadPortraitViews,
   CARD_ROW_TITLE, DEFAULT_ROW_TITLE, STRAY_ROW_ID,
 } from '@/lib/portrait-store';
@@ -112,6 +113,23 @@ describe('archiveOldCard / currentStillInRows', () => {
     expect(currentStillInRows({ portraitRows: rows, portraitCurrentId: 'p1' })).toBe(true);
     expect(currentStillInRows({ portraitRows: rows, portraitCurrentId: 'px' })).toBe(false);
     expect(currentStillInRows({ portraitRows: rows, portraitCurrentId: undefined })).toBe(false);
+  });
+});
+
+describe('promotePortraitItem', () => {
+  it('把散图提升为有 itemId 的受管条目', () => {
+    const promoted = promotePortraitItem([], {
+      name: '散图.png', source: 'stray', mime: 'image/png', url: 'data:image/png;base64,AAAA', isCurrent: false,
+    }, 'AAAA');
+    expect(promoted.itemId).toBeTruthy();
+    expect(promoted.rows).toHaveLength(1);
+    expect(promoted.rows[0].title).toBe(DEFAULT_ROW_TITLE);
+    expect(promoted.rows[0].items[0]).toMatchObject({
+      id: promoted.itemId,
+      name: '散图.png',
+      source: 'manual',
+      dataBase64: 'AAAA',
+    });
   });
 });
 

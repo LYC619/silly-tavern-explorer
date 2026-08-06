@@ -62,6 +62,19 @@ describe('importEmbeddedAssets', () => {
     expect((await getAllWorldBooks())[0].title).toBe('哈利·内置世界书');
   });
 
+  it('同一角色重复读取相同内置资源时复用已有资产，不创建副本', async () => {
+    setActiveVault(createVault(createMemFs()));
+    const character = buildCharacterFromCard(fullCard);
+    const first = await importEmbeddedAssets(character);
+    const storedRegex = (await getAllRegexCollections())[0];
+    expect(storedRegex.embedded).toMatchObject({ characterId: character.id });
+    expect(storedRegex.embedded?.contentHash).toBeTruthy();
+    const second = await importEmbeddedAssets({ ...character, assets: first });
+    expect(second).toEqual(first);
+    expect(await getAllWorldBooks()).toHaveLength(1);
+    expect(await getAllRegexCollections()).toHaveLength(1);
+  });
+
   it('无内嵌资产/空 entries：不建资产返回空数组', async () => {
     setActiveVault(createVault(createMemFs()));
     const plain = { spec: 'chara_card_v2', data: { name: '素卡' } } as unknown as STCharacterCard;

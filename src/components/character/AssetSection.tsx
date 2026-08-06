@@ -28,6 +28,7 @@ import { getAllPresets } from '@/lib/preset-db';
 import { getAllRegexCollections } from '@/lib/regex-db';
 import { addAssetRef, removeAssetRef } from '@/lib/asset-cow';
 import { formatListTime, formatFullTime } from '@/lib/time-display';
+import { buildQuotePreview } from '@/lib/asset-preview';
 
 /** 抽屉里的一条预览（世界书条目/提示词块/正则规则/引用段落） */
 interface AssetEntry {
@@ -56,9 +57,6 @@ const KIND_META: Record<AssetView['kind'], { label: string; icon: typeof Globe; 
   regex: { label: '正则', icon: RegexIcon, toolPath: '/regex', unit: '规则' },
   quote: { label: '引用', icon: QuoteIcon, toolPath: '', unit: '段' },
 };
-
-/** 引用正文 → 段落（空行分段） */
-const quoteParagraphs = (body: string) => body.split(/\n\s*\n+/).map((s) => s.trim()).filter(Boolean);
 
 interface AssetSectionProps {
   character: ArchiveCharacter;
@@ -121,8 +119,8 @@ export function AssetSection({ character, onAssetsChange, onQuotesChange, onRead
   }, []);
 
   useEffect(() => {
-    loadLibrary();
-  }, [loadLibrary]);
+    void loadLibrary();
+  }, [loadLibrary, character.assets]);
 
   const refs = character.assets ?? [];
   const quotes = character.quotes ?? [];
@@ -130,11 +128,11 @@ export function AssetSection({ character, onAssetsChange, onQuotesChange, onRead
     .map((ref) => library.find((a) => a.kind === ref.kind && a.id === ref.assetId))
     .filter((a): a is AssetView => !!a);
   const quoteViews = quotes.map((q): AssetView => {
-    const paras = quoteParagraphs(q.body);
+    const quotePreview = buildQuotePreview(q.body);
     return {
       kind: 'quote', id: q.id, title: q.title, updatedAt: q.addedAt,
-      entries: paras.slice(0, PREVIEW_LIMIT).map((p) => ({ body: p })),
-      count: paras.length,
+      entries: quotePreview.entries,
+      count: quotePreview.count,
     };
   });
   const items = [...linked, ...quoteViews];
@@ -161,6 +159,15 @@ export function AssetSection({ character, onAssetsChange, onQuotesChange, onRead
     }
   };
 
+  const handleReadEmbedded = async () => {
+    try {
+      await onReadEmbedded();
+      await loadLibrary();
+    } catch {
+      // 父层已提示失败。
+    }
+  };
+
   const openEditor = (a: AssetView) => {
     navigate(`${KIND_META[a.kind].toolPath}?assetId=${encodeURIComponent(a.id)}&characterId=${encodeURIComponent(character.id)}`);
   };
@@ -169,7 +176,7 @@ export function AssetSection({ character, onAssetsChange, onQuotesChange, onRead
     <div className="space-y-3">
       <div className="flex items-center gap-1.5 flex-wrap">
         <span className="text-xs text-muted-foreground mr-auto">世界书 / 预设 / 正则（引用制）+ 引用摘录</span>
-        <Button variant="outline" size="sm" className="h-7" title="重新扫描卡内嵌的世界书/正则并入库挂关联" onClick={() => void onReadEmbedded()}>
+        <Button variant="outline" size="sm" className="h-7" title="重新扫描卡内嵌的世界书/正则并入库挂关联" onClick={() => void handleReadEmbedded()}>
           <PackageOpen className="w-3.5 h-3.5 mr-1" />
           读取内置资源
         </Button>
