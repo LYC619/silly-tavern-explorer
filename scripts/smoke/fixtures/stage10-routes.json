@@ -1,0 +1,15 @@
+{
+  "name": "stage10-route-smoke",
+  "rootMarker": "id=\"root\"",
+  "routes": [
+    "/",
+    "/library",
+    "/tools",
+    "/chat",
+    "/assets",
+    "/assets?tab=worldbook",
+    "/assets?tab=preset",
+    "/assets?tab=regex",
+    "/settings"
+  ]
+}
