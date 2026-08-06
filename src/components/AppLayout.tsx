@@ -8,11 +8,21 @@
  * - 主区内容 framer-motion 入场 fade+slide（A7 切换平滑专项；侧栏不参与动画）
  * - actions/leftActions 契约保留：页面专属操作条仍在主区顶部一行
  */
-import { forwardRef, useCallback, useEffect, useState } from 'react';
-import { useNavigate, useLocation } from 'react-router-dom';
+import {
+  createContext,
+  forwardRef,
+  Suspense,
+  useCallback,
+  useContext,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useState,
+} from 'react';
+import { useNavigate, useLocation, useOutlet } from 'react-router-dom';
 import {
   Home, Users, BookOpen, SlidersHorizontal, Regex, Layers, PenLine,
-  Palette, Wrench, PanelLeftClose, PanelLeftOpen, ChevronDown,
+  Palette, Wrench, PanelLeftClose, PanelLeftOpen, ChevronDown, Loader2,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ThemeSwitcher } from '@/components/ThemeSwitcher';
@@ -32,12 +42,28 @@ import { cn } from '@/lib/utils';
 import { getEditorOpen, setEditorOpenState } from '@/lib/editor-open-state';
 
 interface AppLayoutProps {
-  children: React.ReactNode;
+  children?: React.ReactNode;
   /** 页面右上角的专属操作区（导入/导出/编辑等），由各页面传入 */
   actions?: React.ReactNode;
   /** 操作条左侧的常驻区（页面标题、外观设置等），与 actions 分列两端，互不遮挡 */
   leftActions?: React.ReactNode;
 }
+
+interface LayoutChrome {
+  actions?: React.ReactNode;
+  leftActions?: React.ReactNode;
+}
+
+interface LayoutRegistration extends LayoutChrome {
+  routeKey: string;
+}
+
+interface LayoutContextValue {
+  register: (routeKey: string, chrome: LayoutChrome) => void;
+  clear: (routeKey: string) => void;
+}
+
+const LayoutContext = createContext<LayoutContextValue | null>(null);
 
 /** 导航 7 项（10.1-A4）：资产三类走 /assets?tab= 深链；「其他」= 资产类别入口空态 */
 interface NavItem {
@@ -151,11 +177,37 @@ function EditorRecentList({ onGo }: { onGo: (item: RecentEditItem) => void }) {
   );
 }
 
-export function AppLayout({ children, actions, leftActions }: AppLayoutProps) {
+function PageChromeBridge({ children, actions, leftActions, layout }: AppLayoutProps & { layout: LayoutContextValue }) {
+  const location = useLocation();
+  useLayoutEffect(() => {
+    layout.register(location.key, { actions, leftActions });
+    return () => layout.clear(location.key);
+  }, [actions, leftActions, layout, location.key]);
+  return <>{children}</>;
+}
+
+function PersistentAppLayout({ children, actions, leftActions }: AppLayoutProps) {
   const navigate = useNavigate();
   const location = useLocation();
+  const outlet = useOutlet();
   const { expanded, toggle } = useSidenavState();
   const [editorOpen, setEditorOpen] = useState(() => getEditorOpen());
+  const [registration, setRegistration] = useState<LayoutRegistration | null>(null);
+
+  const register = useCallback((routeKey: string, chrome: LayoutChrome) => {
+    setRegistration({ routeKey, ...chrome });
+  }, []);
+  const clear = useCallback((routeKey: string) => {
+    setRegistration((current) => current?.routeKey === routeKey ? null : current);
+  }, []);
+  const layout = useMemo<LayoutContextValue>(() => ({ register, clear }), [clear, register]);
+
+  useLayoutEffect(() => {
+    setRegistration(null);
+  }, [location.key]);
+
+  const activeChrome = registration?.routeKey === location.key ? registration : { actions, leftActions };
+  const content = children ?? outlet;
 
   const isActive = useCallback((item: NavItem) => {
     if (item.assetTab !== undefined) {
@@ -168,7 +220,8 @@ export function AppLayout({ children, actions, leftActions }: AppLayoutProps) {
   }, [location.pathname, location.search]);
 
   return (
-    <div className="h-screen flex flex-col overflow-hidden bg-canvas text-[color:var(--text-body)]">
+    <LayoutContext.Provider value={layout}>
+      <div className="h-screen flex flex-col overflow-hidden bg-canvas text-[color:var(--text-body)]">
       {/* ===== 工具栏（原第二层标题栏，0801 反馈去掉品牌文字，只留搜索与功能钮） ===== */}
       <header className="h-9 shrink-0 bg-chrome border-b border-[color:var(--border-subtle)] flex items-center gap-3 px-3.5">
         <div className="flex-1" />
@@ -271,24 +324,33 @@ export function AppLayout({ children, actions, leftActions }: AppLayoutProps) {
 
         {/* 主区：页面操作条（契约保留）+ 内容滚动区（入场 fade+slide，A7） */}
         <div className="flex-1 min-w-0 flex flex-col">
-          {(actions || leftActions) && (
+          {(activeChrome.actions || activeChrome.leftActions) && (
             <div className="shrink-0 border-b border-[color:var(--border-subtle)] bg-chrome/60 backdrop-blur-sm z-40">
               <div className="px-4 py-2.5 flex items-center justify-between gap-2 flex-wrap">
-                <div className="flex items-center gap-2 flex-wrap min-w-0">{leftActions}</div>
-                <div className="flex items-center gap-2 flex-wrap justify-end">{actions}</div>
+                <div className="flex items-center gap-2 flex-wrap min-w-0">{activeChrome.leftActions}</div>
+                <div className="flex items-center gap-2 flex-wrap justify-end">{activeChrome.actions}</div>
               </div>
             </div>
           )}
           <main className="flex-1 min-w-0 min-h-0 overflow-y-auto">
-            <motion.div
-              key={location.pathname}
-              initial={{ opacity: 0, y: 8 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.18, ease: 'easeOut' }}
-              className="h-full"
-            >
-              {children}
-            </motion.div>
+            <Suspense fallback={
+              <div className="h-full flex items-center justify-center">
+                <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
+              </div>
+            }>
+              <AnimatePresence initial={false} mode="wait">
+                <motion.div
+                  key={`${location.key}:${location.pathname}${location.search}`}
+                  initial={{ opacity: 0, y: 8 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -4 }}
+                  transition={{ duration: 0.18, ease: 'easeOut' }}
+                  className="h-full"
+                >
+                  {content}
+                </motion.div>
+              </AnimatePresence>
+            </Suspense>
           </main>
         </div>
       </div>
@@ -298,6 +360,13 @@ export function AppLayout({ children, actions, leftActions }: AppLayoutProps) {
         <span className="truncate">{isTauri() ? '客户端' : '网页版 · 数据保存在浏览器本地'}</span>
         <span className="shrink-0">STE {APP_VERSION}</span>
       </footer>
-    </div>
+      </div>
+    </LayoutContext.Provider>
   );
+}
+
+export function AppLayout(props: AppLayoutProps) {
+  const layout = useContext(LayoutContext);
+  if (layout) return <PageChromeBridge {...props} layout={layout} />;
+  return <PersistentAppLayout {...props} />;
 }

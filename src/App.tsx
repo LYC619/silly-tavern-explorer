@@ -3,11 +3,11 @@ import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { ThemeProvider } from "next-themes";
-import { lazy, Suspense, useEffect } from "react";
-import { Loader2 } from "lucide-react";
+import { lazy, useEffect } from "react";
 import { VaultGate } from "@/components/vault/VaultGate";
 import { MigrationNotice } from "@/components/MigrationNotice";
 import { ThemeSync } from "@/components/ThemeSync";
+import { AppLayout } from "@/components/AppLayout";
 import { THEME_KEYS, DEFAULT_THEME } from "@/lib/theme";
 
 // 路由级代码分割：每个页面单独打包，首屏只加载首页所需 chunk。
@@ -58,12 +58,6 @@ function usePrefetchPages() {
   }, []);
 }
 
-const PageFallback = () => (
-  <div className="flex min-h-screen items-center justify-center">
-    <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
-  </div>
-);
-
 const App = () => {
   usePrefetchPages();
   return (
@@ -79,30 +73,30 @@ const App = () => {
       <Toaster />
       <Sonner />
       <VaultGate>
-      <MigrationNotice>
+        <MigrationNotice>
         <BrowserRouter>
-          <Suspense fallback={<PageFallback />}>
-            <Routes>
-            <Route path="/" element={<Home />} />
-            <Route path="/library" element={<Library />} />
-            <Route path="/character/:id" element={<CharacterPage />} />
-            <Route path="/story/:id" element={<StoryWorkspace />} />
-            {/* 处理区（2.0 阶段5）：入口页 + 各工具；聊天处理从 "/" 移到 /chat */}
-            <Route path="/tools" element={<Tools />} />
-            <Route path="/chat" element={<Index />} />
-            <Route path="/assets" element={<AssetLibrary />} />
-            <Route path="/worldbook" element={<WorldBook />} />
-            <Route path="/card-viewer" element={<CardViewer />} />
-            <Route path="/preset" element={<Preset />} />
-            <Route path="/regex" element={<RegexTool />} />
-            {/* /summary /story-tree 已并入故事工作区（阶段3）；/bookshelf /reader 已随书架退役删除（阶段5） */}
-            <Route path="/settings" element={<SettingsPage />} />
-            {/* 阶段9.9：AI 配置迁入设置页，旧路径重定向兜底 */}
-            <Route path="/ai-tools" element={<Navigate to="/settings" replace />} />
-            {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
-            <Route path="*" element={<NotFound />} />
-            </Routes>
-          </Suspense>
+          <Routes>
+          <Route element={<AppLayout />}>
+          <Route path="/" element={<Home />} />
+          <Route path="/library" element={<Library />} />
+          <Route path="/character/:id" element={<CharacterPage />} />
+          <Route path="/story/:id" element={<StoryWorkspace />} />
+          {/* 处理区（2.0 阶段5）：入口页 + 各工具；聊天处理从 "/" 移到 /chat */}
+          <Route path="/tools" element={<Tools />} />
+          <Route path="/chat" element={<Index />} />
+          <Route path="/assets" element={<AssetLibrary />} />
+          <Route path="/worldbook" element={<WorldBook />} />
+          <Route path="/card-viewer" element={<CardViewer />} />
+          <Route path="/preset" element={<Preset />} />
+          <Route path="/regex" element={<RegexTool />} />
+          {/* /summary /story-tree 已并入故事工作区（阶段3）；/bookshelf /reader 已随书架退役删除（阶段5） */}
+          <Route path="/settings" element={<SettingsPage />} />
+          {/* 阶段9.9：AI 配置迁入设置页，旧路径重定向兜底 */}
+          <Route path="/ai-tools" element={<Navigate to="/settings" replace />} />
+          {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
+          <Route path="*" element={<NotFound />} />
+          </Route>
+          </Routes>
         </BrowserRouter>
       </MigrationNotice>
       </VaultGate>

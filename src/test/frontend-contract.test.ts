@@ -158,6 +158,16 @@ describe('阶段 D 外壳与 NSFW 契约', () => {
     expect(panel).toContain('window.location.reload()');
   });
 
+  it('AppLayout 提升为路由布局并保留真实出入场动画', () => {
+    const app = read('src/App.tsx');
+    const layout = read('src/components/AppLayout.tsx');
+    expect(app).toContain('<Route element={<AppLayout />}>');
+    expect(layout).toContain('useOutlet()');
+    expect(layout).toContain('mode="wait"');
+    expect(layout).toContain('exit={{ opacity: 0');
+    expect(layout).toContain('LayoutContext');
+  });
+
   it('全局搜索键盘导航基于分组后的视觉顺序', () => {
     const search = read('src/components/GlobalSearch.tsx');
     expect(search).toContain('flattenSearchGroups(groups)');
