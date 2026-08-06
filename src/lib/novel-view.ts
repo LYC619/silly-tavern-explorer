@@ -28,6 +28,8 @@ export type UserFloorMode = 'weaken' | 'hide' | 'keep';
 
 export interface NovelViewOptions {
   userMode: UserFloorMode;
+  /** 是否显示 ST 标记为隐藏的真实楼层；默认显示，避免阅读视图静默丢内容 */
+  showHidden: boolean;
   /** 楼间隔超过该分钟数插场景分隔符；0 = 关闭 */
   sceneGapMinutes: number;
   /** 显示前应用的正则规则（沿用聊天设置） */
@@ -36,6 +38,7 @@ export interface NovelViewOptions {
 
 export const DEFAULT_NOVEL_OPTIONS: Omit<NovelViewOptions, 'regexRules'> = {
   userMode: 'weaken',
+  showHidden: true,
   sceneGapMinutes: 30,
 };
 
@@ -46,6 +49,8 @@ export interface NovelBlock {
   text: string;
   /** 来源楼层号（scene-break 取其后一楼） */
   floor: number;
+  /** 来源楼层在 ST 中被标记为 Hide；仍显示时只做视觉标识 */
+  hidden?: boolean;
 }
 
 export interface NovelChapter {
@@ -54,6 +59,24 @@ export interface NovelChapter {
   startFloor: number;
   endFloor: number;
   blocks: NovelBlock[];
+}
+
+export interface NovelPage {
+  /** 所属章节在文档中的索引 */
+  chapterIndex: number;
+  /** 仅章节第一页带标题，其余页沿用 chapterTitle 供 UI 显示上下文 */
+  title?: string;
+  chapterTitle?: string;
+  startFloor: number;
+  endFloor: number;
+  blocks: NovelBlock[];
+}
+
+export interface NovelBookmark {
+  messageId: string;
+  floor: number;
+  snippet: string;
+  pageIndex: number;
 }
 
 // ---------- 楼内拆句重排 ----------
@@ -146,7 +169,7 @@ export function buildNovelDocument(
   markers: ChapterMarker[],
   options: NovelViewOptions,
 ): NovelChapter[] {
-  const { userMode, sceneGapMinutes, regexRules } = options;
+  const { userMode, showHidden, sceneGapMinutes, regexRules } = options;
   const markerByMsgId = new Map(markers.filter((m) => m.messageId).map((m) => [m.messageId, m]));
   const markerByIndex = new Map(markers.filter((m) => !m.messageId).map((m) => [m.messageIndex, m]));
 
@@ -159,7 +182,7 @@ export function buildNovelDocument(
   };
 
   messages.forEach((msg, idx) => {
-    if (msg.role === 'system' || msg.hidden || isOOCMessage(msg)) return;
+    if (msg.role === 'system' || isOOCMessage(msg) || (msg.hidden && !showHidden)) return;
     const isUser = msg.role === 'user';
     if (isUser && userMode === 'hide') return;
 
@@ -194,12 +217,98 @@ export function buildNovelDocument(
         type: isUser && userMode === 'weaken' ? 'user' : seg.type,
         text: seg.text,
         floor: idx,
+        ...(msg.hidden ? { hidden: true } : {}),
       });
     }
     current!.endFloor = idx;
   });
 
   return chapters.filter((c) => c.blocks.length > 0);
+}
+
+const DEFAULT_PAGE_WEIGHT = 1800;
+
+function blockWeight(block: NovelBlock): number {
+  return block.type === 'scene-break' ? 12 : Math.max(block.text.length, 1);
+}
+
+/**
+ * 把章节按楼层边界切成稳定的翻页单元。单个超长楼层不会被静默丢弃，
+ * 只会形成一个可滚动的长页；这样书签和楼层定位始终指向真实消息。
+ */
+export function paginateNovelDocument(
+  chapters: NovelChapter[],
+  maxWeight = DEFAULT_PAGE_WEIGHT,
+): NovelPage[] {
+  const limit = Math.max(1, maxWeight);
+  const pages: NovelPage[] = [];
+
+  chapters.forEach((chapter, chapterIndex) => {
+    let pageBlocks: NovelBlock[] = [];
+    let pageWeight = 0;
+    let pageNumber = 0;
+    const flush = () => {
+      if (pageBlocks.length === 0) return;
+      pages.push({
+        chapterIndex,
+        title: pageNumber === 0 ? chapter.title : undefined,
+        chapterTitle: chapter.title,
+        startFloor: pageBlocks[0].floor,
+        endFloor: pageBlocks[pageBlocks.length - 1].floor,
+        blocks: pageBlocks,
+      });
+      pageBlocks = [];
+      pageWeight = 0;
+      pageNumber += 1;
+    };
+
+    const floorGroups: NovelBlock[][] = [];
+    for (const block of chapter.blocks) {
+      const last = floorGroups[floorGroups.length - 1];
+      if (!last || last[0].floor !== block.floor) floorGroups.push([block]);
+      else last.push(block);
+    }
+
+    for (const group of floorGroups) {
+      const groupWeight = group.reduce((sum, block) => sum + blockWeight(block), 0);
+      if (pageBlocks.length > 0 && pageWeight + groupWeight > limit) flush();
+      pageBlocks.push(...group);
+      pageWeight += groupWeight;
+    }
+    flush();
+  });
+
+  return pages;
+}
+
+/** 根据持久化的真实楼层把阅读位置夹到可见页范围。 */
+export function findNovelPageIndex(pages: NovelPage[], floor?: number): number {
+  if (pages.length === 0 || floor === undefined || !Number.isFinite(floor)) return 0;
+  if (floor <= pages[0].startFloor) return 0;
+  const found = pages.findIndex((page) => floor <= page.endFloor);
+  return found === -1 ? pages.length - 1 : found;
+}
+
+/** 把现有故事书签（messageId）映射到小说翻页，不创建第二套书签数据。 */
+export function buildNovelBookmarks(
+  messages: ChatMessage[],
+  favoriteIds: string[],
+  pages: NovelPage[],
+): NovelBookmark[] {
+  const byId = new Map(messages.map((message, floor) => [message.id, { message, floor }]));
+  return favoriteIds
+    .map((messageId) => {
+      const hit = byId.get(messageId);
+      if (!hit) return null;
+      return {
+        messageId,
+        floor: hit.floor,
+        snippet: hit.message.content.replace(/\s+/g, ' ').trim().slice(0, 80) || '（空消息）',
+        pageIndex: findNovelPageIndex(pages, hit.floor),
+      };
+    })
+    .filter((item): item is NovelBookmark => item !== null)
+    .sort((a, b) => a.floor - b.floor);
 }
 
 // ---------- 章节层：AI 定边界（只看总结/抽样，不读全文） ----------

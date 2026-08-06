@@ -386,6 +386,10 @@ const Index = () => {
           regexRules={settings.regexRules}
           onClose={() => setNovelOpen(false)}
           onMarkersChange={setMarkers}
+          favorites={favorites}
+          onFavoritesChange={setFavorites}
+          initialFloor={restoreFloor ?? currentFloor}
+          onFloorChange={handleFloorChange}
           progressKey={currentStoryId ? `${currentStoryId}:main` : undefined}
           polish={novelStory ? { story: novelStory, branchId: null } : undefined}
         />

@@ -452,6 +452,10 @@ const StoryWorkspace = () => {
           regexRules={settings.regexRules}
           onClose={() => setNovelOpen(false)}
           onMarkersChange={handleMarkersChange}
+          favorites={line.favorites}
+          onFavoritesChange={handleFavoritesChange}
+          initialFloor={line.lastFloor}
+          onFloorChange={handleFloorChange}
           progressKey={`${story.id}:${branchId ?? 'main'}`}
           polish={{ story, branchId }}
         />

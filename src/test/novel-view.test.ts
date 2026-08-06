@@ -7,7 +7,10 @@ import {
   reflowContent,
   messageTimeMs,
   buildNovelDocument,
+  buildNovelBookmarks,
   buildChapterSuggestMessages,
+  findNovelPageIndex,
+  paginateNovelDocument,
   parseChapterSuggestions,
   type NovelViewOptions,
 } from '@/lib/novel-view';
@@ -26,6 +29,7 @@ const opts = (over: Partial<NovelViewOptions> = {}): NovelViewOptions => ({
   userMode: 'weaken',
   sceneGapMinutes: 30,
   regexRules: [],
+  showHidden: true,
   ...over,
 });
 
@@ -73,7 +77,7 @@ describe('messageTimeMs', () => {
 });
 
 describe('buildNovelDocument', () => {
-  it('系统/隐藏/OOC 楼被清洗掉', () => {
+  it('隐藏楼默认保留并标记来源，真系统/OOC 楼仍被清洗', () => {
     const messages = [
       msg(0),
       msg(1, { role: 'system', content: '系统' }),
@@ -82,8 +86,12 @@ describe('buildNovelDocument', () => {
       msg(4),
     ];
     const doc = buildNovelDocument(messages, [], opts());
-    const floors = doc.flatMap((c) => c.blocks).map((b) => b.floor);
-    expect(floors).toEqual([0, 4]);
+    const blocks = doc.flatMap((c) => c.blocks);
+    expect(blocks.map((b) => b.floor)).toEqual([0, 2, 4]);
+    expect(blocks.find((b) => b.floor === 2)?.hidden).toBe(true);
+
+    const withoutHidden = buildNovelDocument(messages, [], opts({ showHidden: false }));
+    expect(withoutHidden.flatMap((c) => c.blocks).map((b) => b.floor)).toEqual([0, 4]);
   });
 
   it('用户楼层三档位：weaken 降为 user 块 / hide 跳过 / keep 正常拆', () => {
@@ -123,6 +131,64 @@ describe('buildNovelDocument', () => {
     expect(doc[1].title).toBe('卷一 · 重逢');
     expect(doc[1].startFloor).toBe(2);
     expect(doc[1].endFloor).toBe(3);
+  });
+});
+
+describe('小说翻页与书签联动', () => {
+  it('章节边界强制换页，且同一楼层的段落不会被拆到两页', () => {
+    const doc = buildNovelDocument(
+      [
+        msg(0, { content: '甲'.repeat(30) }),
+        msg(1, { content: '「对白。」'.repeat(8) }),
+        msg(2, { content: '乙'.repeat(30) }),
+      ],
+      [{ messageId: 'm2', messageIndex: 2, title: '第二章', createdAt: 0 }],
+      opts(),
+    );
+
+    const pages = paginateNovelDocument(doc, 40);
+    const floorOnePages = pages.filter((page) => page.blocks.some((block) => block.floor === 1));
+
+    expect(floorOnePages).toHaveLength(1);
+    expect(pages.at(-1)?.title).toBe('第二章');
+    expect(pages.at(-1)?.startFloor).toBe(2);
+  });
+
+  it('当前页仍有容量时不会因为重复计算上一楼而提前换页', () => {
+    const pages = paginateNovelDocument(
+      buildNovelDocument([
+        msg(0, { content: '甲'.repeat(45) }),
+        msg(1, { content: '乙'.repeat(5) }),
+      ], [], opts()),
+      50,
+    );
+
+    expect(pages).toHaveLength(1);
+    expect(pages[0].endFloor).toBe(1);
+  });
+
+  it('按故事/分支保存的旧楼层恢复到对应页，越界时夹到首尾', () => {
+    const pages = paginateNovelDocument(
+      buildNovelDocument([msg(0), msg(1), msg(2), msg(3)], [], opts()),
+      8,
+    );
+
+    expect(findNovelPageIndex(pages, 2)).toBe(
+      pages.findIndex((page) => page.startFloor <= 2 && page.endFloor >= 2),
+    );
+    expect(findNovelPageIndex(pages, -10)).toBe(0);
+    expect(findNovelPageIndex(pages, 999)).toBe(pages.length - 1);
+  });
+
+  it('现有 favorites 按消息 ID 映射到小说页并保留原楼层顺序', () => {
+    const messages = [msg(0), msg(1), msg(2, { hidden: true }), msg(3)];
+    const pages = paginateNovelDocument(buildNovelDocument(messages, [], opts()), 8);
+
+    expect(buildNovelBookmarks(messages, ['m3', 'missing', 'm0', 'm2'], pages)).toEqual([
+      expect.objectContaining({ messageId: 'm0', floor: 0 }),
+      expect.objectContaining({ messageId: 'm2', floor: 2 }),
+      expect.objectContaining({ messageId: 'm3', floor: 3 }),
+    ]);
   });
 });
 
