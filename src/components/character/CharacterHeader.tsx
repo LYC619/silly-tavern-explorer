@@ -29,6 +29,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { useToast } from '@/hooks/use-toast';
 import type { ArchiveCharacter } from '@/types/archive';
+import type { CharacterPatch } from '@/lib/character-write';
 import type { NormalizedCharacterCard } from '@/lib/png-parser';
 import { introOf } from '@/lib/character-intro';
 import {
@@ -40,7 +41,7 @@ import { IntroSection } from '@/components/character/IntroSection';
 interface CharacterHeaderProps {
   character: ArchiveCharacter;
   norm: NormalizedCharacterCard;
-  onPatch: (patch: Partial<ArchiveCharacter>) => void;
+  onPatch: (patch: CharacterPatch) => Promise<ArchiveCharacter>;
   /** 受控折叠（10.3b 就地阅读时外部收起）；不传则内部自理 */
   collapsed?: boolean;
   onCollapsedChange?: (v: boolean) => void;
@@ -72,20 +73,24 @@ export function CharacterHeader({ character, norm, onPatch, collapsed, onCollaps
     setMetaOpen(true);
   };
 
-  const saveMeta = () => {
-    onPatch({
-      displayMeta: {
-        name: metaDraft.name.trim() || undefined,
-        creator: metaDraft.creator.trim() || undefined,
-        source: metaDraft.source.trim() || undefined,
-      },
-    });
-    setMetaOpen(false);
+  const saveMeta = async () => {
+    try {
+      await onPatch({
+        displayMeta: {
+          name: metaDraft.name.trim() || undefined,
+          creator: metaDraft.creator.trim() || undefined,
+          source: metaDraft.source.trim() || undefined,
+        },
+      });
+      setMetaOpen(false);
+    } catch {
+      // 父层已提示失败；保留弹窗和输入。
+    }
   };
 
   const addTag = (raw: string) => {
     if (!raw || character.tags.includes(raw)) return;
-    onPatch({ tags: [...character.tags, raw] });
+    void onPatch({ tags: [...character.tags, raw] }).catch(() => {});
   };
 
   /** 点评价档位（0801 补充）：未评分时弹确认预填中值；已评分则档位随评分自动 */
@@ -161,7 +166,7 @@ export function CharacterHeader({ character, norm, onPatch, collapsed, onCollaps
                 <Switch
                   id="nsfw-switch"
                   checked={!!character.nsfw}
-                  onCheckedChange={(on) => onPatch({ nsfw: on, tags: syncNsfwTag(character.tags, on) })}
+                  onCheckedChange={(on) => { void onPatch({ nsfw: on, tags: syncNsfwTag(character.tags, on) }).catch(() => {}); }}
                   aria-label="NSFW 标记"
                 />
                 <Label htmlFor="nsfw-switch" className="text-xs text-[color:var(--text-muted)] cursor-pointer">NSFW</Label>
@@ -176,7 +181,7 @@ export function CharacterHeader({ character, norm, onPatch, collapsed, onCollaps
                 <Badge key={t} variant="secondary" className="gap-1 font-normal">
                   {t}
                   <button
-                    onClick={() => onPatch({ tags: character.tags.filter((x) => x !== t) })}
+                    onClick={() => { void onPatch({ tags: character.tags.filter((x) => x !== t) }).catch(() => {}); }}
                     aria-label={`删除标签 ${t}`}
                   >
                     <X className="w-3 h-3" />
@@ -256,7 +261,7 @@ export function CharacterHeader({ character, norm, onPatch, collapsed, onCollaps
           <IntroSection character={character} norm={norm} onPatch={onPatch} />
           <DialogFooter>
             <Button variant="outline" onClick={() => setMetaOpen(false)}>关闭</Button>
-            <Button onClick={saveMeta}>保存展示信息</Button>
+            <Button onClick={() => void saveMeta()}>保存展示信息</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -291,8 +296,9 @@ export function CharacterHeader({ character, norm, onPatch, collapsed, onCollaps
               onClick={() => {
                 if (!tierConfirm) return;
                 const v = Math.min(10, Math.max(0, Math.round(tierConfirm.value * 2) / 2));
-                onPatch({ rating: v });
-                setTierConfirm(null);
+                void onPatch({ rating: v })
+                  .then(() => setTierConfirm(null))
+                  .catch(() => {});
               }}
             >
               确认评分

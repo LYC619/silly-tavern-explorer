@@ -12,6 +12,7 @@ import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
 import type { ArchiveCharacter } from '@/types/archive';
+import type { CharacterPatch } from '@/lib/character-write';
 import {
   loadPortraitViews, createPortraitRow, renamePortraitRow, addPortraitFiles, setPortraitAsCard,
   rowTitleConflict, rowDirOf, ensureRowTitle,
@@ -20,7 +21,7 @@ import {
 
 interface PortraitSectionProps {
   character: ArchiveCharacter;
-  onPatch: (patch: Partial<ArchiveCharacter>) => Promise<void> | void;
+  onPatch: (patch: CharacterPatch) => Promise<ArchiveCharacter>;
   /** 打开统一导入弹窗（预选立绘类） */
   onOpenImport: () => void;
 }
@@ -46,7 +47,14 @@ export function PortraitSection({ character, onPatch, onOpenImport }: PortraitSe
   const rows = character.portraitRows ?? [];
 
   const handleAddRow = async () => {
-    await onPatch(await createPortraitRow(character, ensureRowTitle(rows, '新分行')));
+    try {
+      await onPatch(async (current) => createPortraitRow(
+        current,
+        ensureRowTitle(current.portraitRows ?? [], '新分行'),
+      ));
+    } catch {
+      // 父层已提示失败。
+    }
   };
 
   const handleRename = async (rowId: string, title: string) => {
@@ -59,26 +67,34 @@ export function PortraitSection({ character, onPatch, onOpenImport }: PortraitSe
       return;
     }
     try {
-      await onPatch(await renamePortraitRow(character, rowId, next));
+      await onPatch((current) => renamePortraitRow(current, rowId, next));
     } catch {
-      toast({ title: '改名失败', description: '目标文件夹可能已被占用', variant: 'destructive' });
+      setViews((v) => (v ? [...v] : v));
     }
   };
 
   const handleImportFiles = async (files: File[]) => {
     if (files.length === 0) return;
-    const { patch, ok, fail } = await addPortraitFiles(character, importRowId.current, files);
-    if (ok > 0) await onPatch(patch);
-    toast({ title: `导入 ${ok} 张${fail ? `，失败 ${fail} 张` : ''}` });
-    if (fileRef.current) fileRef.current.value = '';
+    let imported = { ok: 0, fail: 0 };
+    try {
+      await onPatch(async (current) => {
+        const result = await addPortraitFiles(current, importRowId.current, files);
+        imported = { ok: result.ok, fail: result.fail };
+        return result.ok > 0 ? result.patch : undefined;
+      });
+      toast({ title: `导入 ${imported.ok} 张${imported.fail ? `，失败 ${imported.fail} 张` : ''}` });
+      if (fileRef.current) fileRef.current.value = '';
+    } catch {
+      // 父层已提示失败；保留文件输入供重试。
+    }
   };
 
   const handleSetCard = async (item: PortraitViewItem) => {
     try {
-      await onPatch(await setPortraitAsCard(character, item));
+      await onPatch((current) => setPortraitAsCard(current, item));
       toast({ title: '已设为当前卡面', description: '原卡面不在立绘库时会自动存入「卡面」行。' });
     } catch {
-      toast({ title: '设为卡面失败', variant: 'destructive' });
+      // 父层已提示失败。
     }
   };
 

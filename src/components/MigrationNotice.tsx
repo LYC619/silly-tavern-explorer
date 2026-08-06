@@ -3,7 +3,8 @@
  * - 每次启动后台跑 runArchiveMigration（增量幂等，正常情况秒级空转）
  * - 老库首次进新版（本地无 flag 且库里有角色）弹一次性说明：旧状态废弃去向 + 旧标签自动转 v2
  */
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState, type ReactNode } from 'react';
+import { Loader2 } from 'lucide-react';
 import {
   Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle,
 } from '@/components/ui/dialog';
@@ -13,46 +14,98 @@ import { runArchiveMigration } from '@/lib/archive-migrate';
 const NOTICE_FLAG = 'ste-tag-migration-v2-notice';
 
 /** 每个页面加载都会挂 App，但迁移一次就够：模块级单例承诺 */
-let migrationOnce: Promise<{ characterCount: number }> | null = null;
+let migrationOnce: ReturnType<typeof runArchiveMigration> | null = null;
 
-export function MigrationNotice() {
-  const [open, setOpen] = useState(false);
+interface MigrationNoticeProps {
+  children: ReactNode;
+}
 
-  useEffect(() => {
+type MigrationState =
+  | { status: 'running' }
+  | { status: 'failed'; message: string }
+  | { status: 'ready'; showNotice: boolean };
+
+export function MigrationNotice({ children }: MigrationNoticeProps) {
+  const [state, setState] = useState<MigrationState>({ status: 'running' });
+
+  const migrate = useCallback((retry = false) => {
+    if (retry) migrationOnce = null;
+    setState({ status: 'running' });
     let flagged = true;
     try { flagged = localStorage.getItem(NOTICE_FLAG) === '1'; } catch { /* 读不了就当已看过 */ }
-    migrationOnce ??= runArchiveMigration().catch(() => ({ characterCount: 0 }));
-    void migrationOnce.then((r) => {
-      if (flagged) return;
-      // 有角色的老库才值得弹；空库（新用户）静默立 flag，以后也不弹
-      if (r.characterCount > 0) setOpen(true);
+    migrationOnce ??= runArchiveMigration();
+    void migrationOnce.then((result) => {
+      const showNotice = !flagged && result.characterCount > 0;
       try { localStorage.setItem(NOTICE_FLAG, '1'); } catch { /* 存不了就每次启动都可能弹，可接受 */ }
+      setState({ status: 'ready', showNotice });
+    }).catch((error: unknown) => {
+      setState({ status: 'failed', message: error instanceof Error ? error.message : '未知错误' });
     });
   }, []);
 
-  return (
-    <Dialog open={open} onOpenChange={setOpen}>
-      <DialogContent className="max-w-md">
-        <DialogHeader>
-          <DialogTitle>整理体系升级说明</DialogTitle>
-          <DialogDescription asChild>
-            <div className="space-y-2 text-left">
-              <p>这个版本把角色的整理方式换了一套，你的数据都在，只说明两处变化：</p>
-              <p>
-                1. 角色的「游玩状态」（未开始/进行中等五档）已废弃——状态改到每个故事上单独维护；
-                角色本身改用互斥的「类型」（人物/剧情/玩法/综合/同人）归类，现在都是「未分类」，可在角色页随手补上。
-              </p>
-              <p>
-                2. 标签分类法升级：旧内置标签已自动转入新体系（如「评价/优秀」→「评价/精品」），
-                自定义标签全部保留，没归到类别的会显示在「未分类」里，不强制归类。
-              </p>
+  useEffect(() => {
+    migrate();
+  }, [migrate]);
+
+  if (state.status !== 'ready') {
+    return (
+      <Dialog open>
+        <DialogContent
+          className="max-w-md [&>button]:hidden"
+          onEscapeKeyDown={(event) => event.preventDefault()}
+          onPointerDownOutside={(event) => event.preventDefault()}
+        >
+          <DialogHeader>
+            <DialogTitle>{state.status === 'running' ? '正在升级档案库' : '档案库升级失败'}</DialogTitle>
+            <DialogDescription>
+              {state.status === 'running'
+                ? '完成前暂时不能进入编辑页面，避免新旧数据互相覆盖。'
+                : `迁移没有完成，任何数据都不会被标记为已升级。失败原因：${state.message}`}
+            </DialogDescription>
+          </DialogHeader>
+          {state.status === 'running' ? (
+            <div className="flex justify-center py-4">
+              <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
             </div>
-          </DialogDescription>
-        </DialogHeader>
-        <DialogFooter>
-          <Button onClick={() => setOpen(false)}>知道了</Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+          ) : (
+            <DialogFooter>
+              <Button onClick={() => migrate(true)}>重试</Button>
+            </DialogFooter>
+          )}
+        </DialogContent>
+      </Dialog>
+    );
+  }
+
+  return (
+    <>
+      {children}
+      <Dialog
+        open={state.showNotice}
+        onOpenChange={(open) => setState({ status: 'ready', showNotice: open })}
+      >
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>整理体系升级说明</DialogTitle>
+            <DialogDescription asChild>
+              <div className="space-y-2 text-left">
+                <p>这个版本把角色的整理方式换了一套，你的数据都在，只说明两处变化：</p>
+                <p>
+                  1. 角色的「游玩状态」（未开始/进行中等五档）已废弃——状态改到每个故事上单独维护；
+                  角色本身改用互斥的「类型」（人物/剧情/玩法/综合/同人）归类，现在都是「未分类」，可在角色页随手补上。
+                </p>
+                <p>
+                  2. 标签分类法升级：旧内置标签已自动转入新体系（如「评价/优秀」→「评价/精品」），
+                  自定义标签全部保留，没归到类别的会显示在「未分类」里，不强制归类。
+                </p>
+              </div>
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button onClick={() => setState({ status: 'ready', showNotice: false })}>知道了</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </>
   );
 }

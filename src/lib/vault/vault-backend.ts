@@ -54,6 +54,7 @@ const VAULT_STORES = [
   'cards',
   'summaryTemplates',
   'ratingTemplates',
+  'archiveMeta',
 ] as const;
 type VaultStore = (typeof VAULT_STORES)[number];
 
@@ -70,6 +71,7 @@ const FILE_PROFILE = '档案.json';
 const FILE_CARD_PNG = '卡片.png';
 const FILE_STORY = '故事.json';
 const FILE_CHAT = '聊天.jsonl';
+const FILE_ARCHIVE_META = '库信息.json';
 const BRANCH_PREFIX = '分支·';
 const TREE_PREFIX = '故事树·';
 const TPL_SUMMARY_PREFIX = '总结模板·';
@@ -260,6 +262,11 @@ export function createVault(fs: VaultFs): VaultBackend {
         if (rec && typeof rec.id === 'string') of('ratingTemplates').set(rec.id, path);
       }
     }
+    // 7. 归档库内部元数据（schema 版本）
+    if ((await fs.stat(FILE_ARCHIVE_META)).exists) {
+      const rec = await readJson(FILE_ARCHIVE_META);
+      if (rec && typeof rec.id === 'string') of('archiveMeta').set(rec.id, FILE_ARCHIVE_META);
+    }
   }
 
   // ---- 读取（路径 → 记录）：JSON 整对象往返，未知键原样保留 ----
@@ -336,7 +343,8 @@ export function createVault(fs: VaultFs): VaultBackend {
       case 'summaries':
       case 'summaryTemplates': return readMdRecord(path);
       case 'stories':
-      case 'ratingTemplates': return readJsonRecord(path);
+      case 'ratingTemplates':
+      case 'archiveMeta': return readJsonRecord(path);
       case 'worldbooks': return readWorldbook(path);
       case 'presets': return readPreset(path);
       case 'regexes': return readRegexes(path);
@@ -516,6 +524,10 @@ export function createVault(fs: VaultFs): VaultBackend {
         const r = rec as RatingTemplateItem;
         return putSingleFile(store, r.id, DIR_ASSET_TPL, TPL_RATING_PREFIX + safeName(r.title), '.json', toJson(r));
       }
+      case 'archiveMeta':
+        return fs.writeText(FILE_ARCHIVE_META, toJson(rec)).then(() => {
+          of('archiveMeta').set(rec.id, FILE_ARCHIVE_META);
+        });
     }
   }
 
@@ -546,6 +558,9 @@ export function createVault(fs: VaultFs): VaultBackend {
         await removeIfExists(path);
         await removeIfExists(path.replace(/\.json$/, '.png'));
         await fs.removeEmptyDir(parentDir(path));
+        break;
+      case 'archiveMeta':
+        await removeIfExists(path);
         break;
       default:
         await removeIfExists(path);

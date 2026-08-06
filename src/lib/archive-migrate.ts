@@ -1,11 +1,20 @@
 /**
- * 存量数据迁移（10.0，0801 整改）：增量幂等，App 启动后台跑一次。
+ * 存量数据迁移（10.0，0801 整改）：按持久化 schema 版本执行，失败可重试。
  * - 角色：v1 标签 → v2 分类法（migrateLegacyTags）；'卡面/NSFW' 标签在场时回填 nsfw 字段
  * - 故事：wordCount / lastMessageAt 物化回填（缺字段才算，此后由 archive-db 保存路径增量维护）
  * 幂等依据：迁移函数对 v2 形态输入零变化 → 不写库；不 bump updatedAt（迁移不是用户编辑）。
  * 旧五档 status 不删不转（类型语义对不上）：字段留档，UI 于 10.2/10.3 移除，弹窗说明去向。
  */
-import { getAllCharacters, saveCharacter, getAllArchiveStories, saveArchiveStory } from '@/lib/archive-db';
+import {
+  getAllCharacters,
+  getCharacter,
+  saveCharacter,
+  getAllArchiveStories,
+  getArchiveStory,
+  saveArchiveStory,
+  getArchiveSchemaVersion,
+  setArchiveSchemaVersion,
+} from '@/lib/archive-db';
 import { migrateLegacyTags, NSFW_TAG } from '@/lib/tag-taxonomy';
 import { computeStoryProps } from '@/lib/story-meta';
 import type { ArchiveCharacter, ArchiveStory } from '@/types/archive';
@@ -17,6 +26,20 @@ export interface MigrationResult {
   charactersMigrated: number;
   /** 回填了物化字段的故事数 */
   storiesBackfilled: number;
+  alreadyCurrent: boolean;
+}
+
+export const ARCHIVE_SCHEMA_VERSION = 2;
+
+export interface ArchiveMigrationDependencies {
+  getSchemaVersion: () => Promise<number>;
+  setSchemaVersion: (version: number) => Promise<void>;
+  listCharacterIds: () => Promise<string[]>;
+  getCharacter: (id: string) => Promise<ArchiveCharacter | undefined>;
+  saveCharacter: (value: ArchiveCharacter) => Promise<void>;
+  listStoryIds: () => Promise<string[]>;
+  getStory: (id: string) => Promise<ArchiveStory | undefined>;
+  saveStory: (value: ArchiveStory) => Promise<void>;
 }
 
 export function migrateCharacterRecord(c: ArchiveCharacter): { record: ArchiveCharacter; changed: boolean } {
@@ -35,23 +58,55 @@ export function ensureStoryProps(s: ArchiveStory): { record: ArchiveStory; chang
   return { record: { ...s, ...computeStoryProps(s.session.messages) }, changed: true };
 }
 
-export async function runArchiveMigration(): Promise<MigrationResult> {
-  const [characters, stories] = await Promise.all([getAllCharacters(), getAllArchiveStories()]);
+export async function runArchiveMigrationWith(deps: ArchiveMigrationDependencies): Promise<MigrationResult> {
+  if (await deps.getSchemaVersion() >= ARCHIVE_SCHEMA_VERSION) {
+    return {
+      characterCount: 0,
+      charactersMigrated: 0,
+      storiesBackfilled: 0,
+      alreadyCurrent: true,
+    };
+  }
+
+  const [characterIds, storyIds] = await Promise.all([deps.listCharacterIds(), deps.listStoryIds()]);
   let charactersMigrated = 0;
-  for (const c of characters) {
+  for (const id of characterIds) {
+    const c = await deps.getCharacter(id);
+    if (!c) continue;
     const { record, changed } = migrateCharacterRecord(c);
     if (changed) {
-      await saveCharacter(record);
+      await deps.saveCharacter(record);
       charactersMigrated++;
     }
   }
   let storiesBackfilled = 0;
-  for (const s of stories) {
+  for (const id of storyIds) {
+    const s = await deps.getStory(id);
+    if (!s) continue;
     const { record, changed } = ensureStoryProps(s);
     if (changed) {
-      await saveArchiveStory(record);
+      await deps.saveStory(record);
       storiesBackfilled++;
     }
   }
-  return { characterCount: characters.length, charactersMigrated, storiesBackfilled };
+  await deps.setSchemaVersion(ARCHIVE_SCHEMA_VERSION);
+  return {
+    characterCount: characterIds.length,
+    charactersMigrated,
+    storiesBackfilled,
+    alreadyCurrent: false,
+  };
+}
+
+export async function runArchiveMigration(): Promise<MigrationResult> {
+  return runArchiveMigrationWith({
+    getSchemaVersion: getArchiveSchemaVersion,
+    setSchemaVersion: setArchiveSchemaVersion,
+    listCharacterIds: async () => (await getAllCharacters()).map((c) => c.id),
+    getCharacter,
+    saveCharacter,
+    listStoryIds: async () => (await getAllArchiveStories()).map((s) => s.id),
+    getStory: getArchiveStory,
+    saveStory: saveArchiveStory,
+  });
 }

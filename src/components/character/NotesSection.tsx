@@ -19,7 +19,7 @@ import { formatListTime, formatFullTime } from '@/lib/time-display';
 
 interface NotesSectionProps {
   notes: CharacterNote[];
-  onChange: (notes: CharacterNote[]) => void;
+  onChange: (notes: CharacterNote[]) => Promise<void>;
 }
 
 export function NotesSection({ notes, onChange }: NotesSectionProps) {
@@ -29,15 +29,19 @@ export function NotesSection({ notes, onChange }: NotesSectionProps) {
 
   const sorted = [...notes].sort((a, b) => b.at - a.at);
 
-  const handleSave = () => {
+  const handleSave = async () => {
     if (!editor || !editor.body.trim()) return;
     const body = editor.body.trim();
-    onChange(
-      editor.id
-        ? notes.map((n) => (n.id === editor.id ? { ...n, body } : n))
-        : [...notes, { id: crypto.randomUUID(), body, at: Date.now() }],
-    );
-    setEditor(null);
+    try {
+      await onChange(
+        editor.id
+          ? notes.map((n) => (n.id === editor.id ? { ...n, body } : n))
+          : [...notes, { id: crypto.randomUUID(), body, at: Date.now() }],
+      );
+      setEditor(null);
+    } catch {
+      // 父层已提示失败；保留编辑器和输入内容。
+    }
   };
 
   return (
@@ -100,7 +104,7 @@ export function NotesSection({ notes, onChange }: NotesSectionProps) {
           />
           <DialogFooter>
             <Button variant="outline" onClick={() => setEditor(null)}>取消</Button>
-            <Button onClick={handleSave} disabled={!editor?.body.trim()}>保存</Button>
+            <Button onClick={() => void handleSave()} disabled={!editor?.body.trim()}>保存</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -117,8 +121,10 @@ export function NotesSection({ notes, onChange }: NotesSectionProps) {
             <AlertDialogCancel>取消</AlertDialogCancel>
             <AlertDialogAction
               onClick={() => {
-                if (toDelete) onChange(notes.filter((n) => n.id !== toDelete.id));
-                setToDelete(null);
+                if (!toDelete) return;
+                void onChange(notes.filter((n) => n.id !== toDelete.id))
+                  .then(() => setToDelete(null))
+                  .catch(() => {});
               }}
             >
               删除

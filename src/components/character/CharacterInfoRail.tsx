@@ -14,6 +14,7 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@/components/ui/select';
 import type { ArchiveCharacter, ArchiveStory, CharacterType } from '@/types/archive';
+import type { CharacterPatch } from '@/lib/character-write';
 import type { NormalizedCharacterCard } from '@/lib/png-parser';
 import { CHARACTER_TYPES } from '@/lib/archive-db';
 import { formatPlayTime, formatWordCount } from '@/lib/story-meta';
@@ -24,7 +25,7 @@ interface CharacterInfoRailProps {
   character: ArchiveCharacter;
   norm: NormalizedCharacterCard;
   stories: ArchiveStory[];
-  onPatch: (patch: Partial<ArchiveCharacter>) => void;
+  onPatch: (patch: CharacterPatch) => Promise<ArchiveCharacter>;
   onEditCard: () => void;
   onReadEmbedded: () => void;
   onExport: () => void;
@@ -95,7 +96,7 @@ export function CharacterInfoRail({
           <span className="text-xs text-[color:var(--text-faint)] shrink-0">类型</span>
           <Select
             value={character.type ?? 'none'}
-            onValueChange={(v) => onPatch({ type: v === 'none' ? undefined : (v as CharacterType) })}
+            onValueChange={(v) => { void onPatch({ type: v === 'none' ? undefined : (v as CharacterType) }).catch(() => {}); }}
           >
             <SelectTrigger className="h-7 w-24 text-xs" title="类型：每张卡只归一类（替代旧版游玩状态）">
               <SelectValue />

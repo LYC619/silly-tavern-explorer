@@ -2,7 +2,13 @@
 import { describe, expect, it } from 'vitest';
 import type { ArchiveCharacter, ArchiveStory } from '@/types/archive';
 import type { STCharacterCard } from '@/lib/png-parser';
-import { migrateCharacterRecord, ensureStoryProps } from '@/lib/archive-migrate';
+import {
+  ARCHIVE_SCHEMA_VERSION,
+  migrateCharacterRecord,
+  ensureStoryProps,
+  runArchiveMigrationWith,
+  type ArchiveMigrationDependencies,
+} from '@/lib/archive-migrate';
 
 const card = { name: '测试' } as unknown as STCharacterCard;
 
@@ -52,5 +58,61 @@ describe('ensureStoryProps', () => {
   it('已有 wordCount 直接跳过（幂等）', () => {
     const { changed } = ensureStoryProps(story({ wordCount: 4, lastMessageAt: 1234 }));
     expect(changed).toBe(false);
+  });
+});
+
+describe('runArchiveMigrationWith', () => {
+  it('任一记录失败时不写版本号；重跑不重复转换或产生重复数据', async () => {
+    const characters = new Map([['c1', char(['评价/优秀'])]]);
+    const stories = new Map([['s1', story()]]);
+    let version = 1;
+    let failStoryOnce = true;
+    let characterWrites = 0;
+    const deps: ArchiveMigrationDependencies = {
+      getSchemaVersion: async () => version,
+      setSchemaVersion: async (next) => { version = next; },
+      listCharacterIds: async () => [...characters.keys()],
+      getCharacter: async (id) => characters.get(id),
+      saveCharacter: async (value) => { characterWrites++; characters.set(value.id, value); },
+      listStoryIds: async () => [...stories.keys()],
+      getStory: async (id) => stories.get(id),
+      saveStory: async (value) => {
+        if (failStoryOnce) { failStoryOnce = false; throw new Error('story write failed'); }
+        stories.set(value.id, value);
+      },
+    };
+
+    await expect(runArchiveMigrationWith(deps)).rejects.toThrow('story write failed');
+    expect(version).toBe(1);
+    expect(characters.get('c1')?.tags).toEqual(['评价/精品']);
+
+    const result = await runArchiveMigrationWith(deps);
+    expect(version).toBe(ARCHIVE_SCHEMA_VERSION);
+    expect(result.charactersMigrated).toBe(0);
+    expect(characterWrites).toBe(1);
+    expect(characters.get('c1')?.tags).toEqual(['评价/精品']);
+    expect(stories.get('s1')?.wordCount).toBe(4);
+  });
+
+  it('版本已是当前值时不再扫描或写库', async () => {
+    let scanned = false;
+    const deps: ArchiveMigrationDependencies = {
+      getSchemaVersion: async () => ARCHIVE_SCHEMA_VERSION,
+      setSchemaVersion: async () => { throw new Error('不应写版本'); },
+      listCharacterIds: async () => { scanned = true; return []; },
+      getCharacter: async () => undefined,
+      saveCharacter: async () => {},
+      listStoryIds: async () => { scanned = true; return []; },
+      getStory: async () => undefined,
+      saveStory: async () => {},
+    };
+
+    expect(await runArchiveMigrationWith(deps)).toEqual({
+      characterCount: 0,
+      charactersMigrated: 0,
+      storiesBackfilled: 0,
+      alreadyCurrent: true,
+    });
+    expect(scanned).toBe(false);
   });
 });

@@ -63,11 +63,11 @@ const quoteParagraphs = (body: string) => body.split(/\n\s*\n+/).map((s) => s.tr
 interface AssetSectionProps {
   character: ArchiveCharacter;
   /** 引用增删后回写角色档案 */
-  onAssetsChange: (assets: AssetRef[]) => void;
+  onAssetsChange: (assets: AssetRef[]) => Promise<void>;
   /** 引用摘录变更回写 */
-  onQuotesChange: (quotes: QuoteAsset[]) => void;
+  onQuotesChange: (quotes: QuoteAsset[]) => Promise<void>;
   /** 重扫卡内嵌世界书/正则入库挂关联（与操作抽屉同一动作） */
-  onReadEmbedded: () => void;
+  onReadEmbedded: () => Promise<void>;
   /** 打开统一导入弹窗（预选世界书类） */
   onOpenImport: () => void;
 }
@@ -142,15 +142,23 @@ export function AssetSection({ character, onAssetsChange, onQuotesChange, onRead
   const broken = refs.filter((ref) => !library.some((a) => a.kind === ref.kind && a.id === ref.assetId));
   const linkable = library.filter((a) => !refs.some((r) => r.kind === a.kind && r.assetId === a.id));
 
-  const handleAdd = (a: AssetView) => {
-    onAssetsChange(addAssetRef(refs, a.kind as AssetKind, a.id));
-    setAddOpen(false);
-    toast({ title: `已关联${KIND_META[a.kind].label}「${a.title}」`, description: '只记引用，不复制内容' });
+  const handleAdd = async (a: AssetView) => {
+    try {
+      await onAssetsChange(addAssetRef(refs, a.kind as AssetKind, a.id));
+      setAddOpen(false);
+      toast({ title: `已关联${KIND_META[a.kind].label}「${a.title}」`, description: '只记引用，不复制内容' });
+    } catch {
+      // 父层已提示失败；保留选择面板。
+    }
   };
 
-  const handleRemove = (kind: AssetKind, assetId: string, title?: string) => {
-    onAssetsChange(removeAssetRef(refs, kind, assetId));
-    toast({ title: `已移除引用${title ? `「${title}」` : ''}`, description: '资产本体仍在资产库中' });
+  const handleRemove = async (kind: AssetKind, assetId: string, title?: string) => {
+    try {
+      await onAssetsChange(removeAssetRef(refs, kind, assetId));
+      toast({ title: `已移除引用${title ? `「${title}」` : ''}`, description: '资产本体仍在资产库中' });
+    } catch {
+      // 父层已提示失败。
+    }
   };
 
   const openEditor = (a: AssetView) => {
@@ -161,7 +169,7 @@ export function AssetSection({ character, onAssetsChange, onQuotesChange, onRead
     <div className="space-y-3">
       <div className="flex items-center gap-1.5 flex-wrap">
         <span className="text-xs text-muted-foreground mr-auto">世界书 / 预设 / 正则（引用制）+ 引用摘录</span>
-        <Button variant="outline" size="sm" className="h-7" title="重新扫描卡内嵌的世界书/正则并入库挂关联" onClick={onReadEmbedded}>
+        <Button variant="outline" size="sm" className="h-7" title="重新扫描卡内嵌的世界书/正则并入库挂关联" onClick={() => void onReadEmbedded()}>
           <PackageOpen className="w-3.5 h-3.5 mr-1" />
           读取内置资源
         </Button>
@@ -191,7 +199,7 @@ export function AssetSection({ character, onAssetsChange, onQuotesChange, onRead
                       <button
                         key={`${a.kind}-${a.id}`}
                         className="w-full flex items-center gap-2 p-2 rounded-md hover:bg-accent/40 text-sm text-left"
-                        onClick={() => handleAdd(a)}
+                        onClick={() => void handleAdd(a)}
                       >
                         <Icon className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
                         <span className="flex-1 min-w-0 truncate">{a.title}</span>
@@ -259,7 +267,7 @@ export function AssetSection({ character, onAssetsChange, onQuotesChange, onRead
                   onClick={(e) => {
                     e.stopPropagation();
                     if (a.kind === 'quote') setQuoteToDelete(quotes.find((q) => q.id === a.id) ?? null);
-                    else handleRemove(a.kind as AssetKind, a.id, a.title);
+                    else void handleRemove(a.kind as AssetKind, a.id, a.title);
                   }}
                   aria-label={a.kind === 'quote' ? '删除引用' : '移除引用'}
                 >
@@ -275,7 +283,7 @@ export function AssetSection({ character, onAssetsChange, onQuotesChange, onRead
                 variant="ghost"
                 size="sm"
                 className="ml-auto h-7"
-                onClick={() => handleRemove(ref.kind, ref.assetId)}
+                onClick={() => void handleRemove(ref.kind, ref.assetId)}
               >
                 移除失效引用
               </Button>
@@ -339,10 +347,14 @@ export function AssetSection({ character, onAssetsChange, onQuotesChange, onRead
             <AlertDialogAction
               onClick={() => {
                 if (quoteToDelete) {
-                  onQuotesChange(quotes.filter((q) => q.id !== quoteToDelete.id));
-                  toast({ title: `已删除引用「${quoteToDelete.title}」` });
+                  const target = quoteToDelete;
+                  void onQuotesChange(quotes.filter((q) => q.id !== target.id))
+                    .then(() => {
+                      setQuoteToDelete(null);
+                      toast({ title: `已删除引用「${target.title}」` });
+                    })
+                    .catch(() => {});
                 }
-                setQuoteToDelete(null);
               }}
             >
               删除

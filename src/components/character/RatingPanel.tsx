@@ -28,6 +28,7 @@ import { saveRatingTemplate, deleteRatingTemplate } from '@/lib/rating-db';
 import { getAllWorldBooks } from '@/lib/worldbook-db';
 import type { WorldBookItem } from '@/types/worldbook';
 import type { ArchiveCharacter, ArchiveStory } from '@/types/archive';
+import type { CharacterPatch } from '@/lib/character-write';
 import type { NormalizedCharacterCard } from '@/lib/png-parser';
 import type { RatingTemplateItem, RatingDimensionScore, RatingRecord } from '@/types/rating';
 
@@ -35,7 +36,7 @@ interface RatingPanelProps {
   character: ArchiveCharacter;
   norm: NormalizedCharacterCard;
   stories: ArchiveStory[];
-  onPatch: (patch: Partial<ArchiveCharacter>) => void;
+  onPatch: (patch: CharacterPatch) => Promise<ArchiveCharacter>;
 }
 
 const clampHalf = (n: number) => Math.min(10, Math.max(0, Math.round(n * 2) / 2));
@@ -103,10 +104,14 @@ export function RatingPanel({ character, norm, stories, onPatch }: RatingPanelPr
     setNote(character.ratingNote ?? '');
   }, [open, character.rating, character.ratingNote]);
 
-  const saveRating = (record: RatingRecord) => {
-    onPatch({ rating: record.total, ratingNote: record.note, ratingDetail: record });
-    setOpen(false);
-    toast({ title: `评分已保存：${record.total} / 10` });
+  const saveRating = async (record: RatingRecord) => {
+    try {
+      await onPatch({ rating: record.total, ratingNote: record.note, ratingDetail: record });
+      setOpen(false);
+      toast({ title: `评分已保存：${record.total} / 10` });
+    } catch {
+      // 父层已提示失败；保留评分弹窗。
+    }
   };
 
   const handleSaveDirect = () => {
@@ -115,7 +120,7 @@ export function RatingPanel({ character, norm, stories, onPatch }: RatingPanelPr
       toast({ title: '评分需在 0~10 之间', variant: 'destructive' });
       return;
     }
-    saveRating({ total: clampHalf(v), note: note.trim() || undefined, method: 'manual', createdAt: Date.now() });
+    void saveRating({ total: clampHalf(v), note: note.trim() || undefined, method: 'manual', createdAt: Date.now() });
   };
 
   // ---- 模板打分 ----
@@ -132,7 +137,7 @@ export function RatingPanel({ character, norm, stories, onPatch }: RatingPanelPr
   const tplTotal = useMemo(() => computeWeightedTotal(tplDims), [tplDims]);
 
   const handleSaveTemplate = () => {
-    saveRating({
+    void saveRating({
       total: tplTotal,
       note: note.trim() || undefined,
       method: 'template',
@@ -210,7 +215,7 @@ export function RatingPanel({ character, norm, stories, onPatch }: RatingPanelPr
 
   const handleSaveAi = () => {
     if (!aiDims) return;
-    saveRating({
+    void saveRating({
       total: aiTotal,
       note: aiNote.trim() || undefined,
       method: 'ai',
@@ -334,7 +339,14 @@ export function RatingPanel({ character, norm, stories, onPatch }: RatingPanelPr
               </div>
               <div className="flex justify-end gap-2">
                 {character.rating !== undefined && (
-                  <Button variant="ghost" size="sm" onClick={() => { onPatch({ rating: undefined, ratingNote: undefined, ratingDetail: undefined }); setOpen(false); toast({ title: '评分已清除' }); }}>
+                  <Button variant="ghost" size="sm" onClick={() => {
+                    void onPatch({ rating: undefined, ratingNote: undefined, ratingDetail: undefined })
+                      .then(() => {
+                        setOpen(false);
+                        toast({ title: '评分已清除' });
+                      })
+                      .catch(() => {});
+                  }}>
                     清除评分
                   </Button>
                 )}

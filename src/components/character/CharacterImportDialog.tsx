@@ -12,24 +12,22 @@ import {
   Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle,
 } from '@/components/ui/dialog';
 import { cn } from '@/lib/utils';
-import type { ArchiveCharacter } from '@/types/archive';
 import {
-  IMPORT_KINDS, importFilesForCharacter,
-  type CharacterImportKind, type CharacterImportResult,
+  IMPORT_KINDS, type CharacterImportKind,
 } from '@/lib/character-import';
 
 interface CharacterImportDialogProps {
-  character: ArchiveCharacter;
   open: boolean;
   onOpenChange: (open: boolean) => void;
   /** 打开时预选的类型（按当前 tab） */
   initialKind: CharacterImportKind;
-  /** 导入完成（弹窗保持打开，可继续导别的类）；页面负责 patch 落库 + 刷新 + toast */
-  onDone: (kind: CharacterImportKind, result: CharacterImportResult) => void;
+  /** 页面在角色写入队列内读取最新档案、执行导入并落库。 */
+  onImport: (kind: CharacterImportKind, files: File[]) => Promise<void>;
+  onPasteQuote: (title: string, body: string) => Promise<void>;
 }
 
 export function CharacterImportDialog({
-  character, open, onOpenChange, initialKind, onDone,
+  open, onOpenChange, initialKind, onImport, onPasteQuote,
 }: CharacterImportDialogProps) {
   const [kind, setKind] = useState<CharacterImportKind>(initialKind);
   const [busy, setBusy] = useState(false);
@@ -48,32 +46,32 @@ export function CharacterImportDialog({
     if (files.length === 0 || busy) return;
     setBusy(true);
     try {
-      onDone(kind, await importFilesForCharacter(character, kind, files));
+      await onImport(kind, files);
+      if (fileRef.current) fileRef.current.value = '';
+    } catch {
+      // 父层已提示失败；保留所选内容供重试。
     } finally {
       setBusy(false);
-      if (fileRef.current) fileRef.current.value = '';
     }
   };
 
-  const handlePasteQuote = () => {
+  const handlePasteQuote = async () => {
     const body = quoteBody.trim();
-    if (!body) return;
-    onDone('quote', {
-      ok: 1,
-      fail: 0,
-      patch: {
-        quotes: [
-          ...(character.quotes ?? []),
-          { id: crypto.randomUUID(), title: quoteTitle.trim() || '引用', body, addedAt: Date.now() },
-        ],
-      },
-    });
-    setQuoteTitle('');
-    setQuoteBody('');
+    if (!body || busy) return;
+    setBusy(true);
+    try {
+      await onPasteQuote(quoteTitle.trim() || '引用', body);
+      setQuoteTitle('');
+      setQuoteBody('');
+    } catch {
+      // 父层已提示失败；保留标题和正文。
+    } finally {
+      setBusy(false);
+    }
   };
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={(next) => { if (!busy) onOpenChange(next); }}>
       <DialogContent className="sm:max-w-lg">
         <DialogHeader>
           <DialogTitle>导入</DialogTitle>
@@ -91,6 +89,7 @@ export function CharacterImportDialog({
                   ? 'border-primary/60 bg-primary/10'
                   : 'border-border hover:bg-accent/40',
               )}
+              disabled={busy}
               onClick={() => setKind(k.kind)}
             >
               <p className="text-sm font-medium">{k.label}</p>
@@ -136,14 +135,16 @@ export function CharacterImportDialog({
               onChange={(e) => setQuoteTitle(e.target.value)}
               placeholder="引用标题（可空）"
               className="h-8"
+              disabled={busy}
             />
             <Textarea
               value={quoteBody}
               onChange={(e) => setQuoteBody(e.target.value)}
               placeholder="粘贴摘录、语料片段…（空行分段）"
               rows={4}
+              disabled={busy}
             />
-            <Button size="sm" onClick={handlePasteQuote} disabled={!quoteBody.trim()}>
+            <Button size="sm" onClick={() => void handlePasteQuote()} disabled={busy || !quoteBody.trim()}>
               添加引用
             </Button>
           </div>

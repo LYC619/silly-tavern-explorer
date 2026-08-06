@@ -20,7 +20,7 @@ import { useToast } from '@/hooks/use-toast';
 import type { ArchiveCharacter, ArchiveStory } from '@/types/archive';
 import {
   getCharacter,
-  saveCharacter,
+  updateCharacter,
   getStoriesByCharacter,
   saveArchiveStory,
   getArchiveStory,
@@ -36,6 +36,8 @@ import { exportCardJson } from '@/lib/card-export';
 import { setPendingToolFile } from '@/lib/tool-handoff';
 import { cn } from '@/lib/utils';
 import { IMPORT_KINDS, type CharacterImportKind, type CharacterImportResult } from '@/lib/character-import';
+import { importFilesForCharacter } from '@/lib/character-import';
+import { commitCharacterPatch, type CharacterPatch } from '@/lib/character-write';
 import { CharacterInfoRail } from '@/components/character/CharacterInfoRail';
 import { CharacterHeader } from '@/components/character/CharacterHeader';
 import { AssetSection } from '@/components/character/AssetSection';
@@ -101,29 +103,71 @@ const CharacterPage = () => {
   /** 更新角色档案（整理信息属于本地元数据，updatedAt 跟随）。
    * 评分变化时联动评价档位标签（10.0，单向：评分→标签）；
    * 标签变化时同步 nsfw 字段（'卡面/NSFW' 在场即 true）。 */
-  const patchCharacter = async (patch: Partial<ArchiveCharacter>) => {
-    if (!character) return;
-    let effective = patch;
-    if ('rating' in patch) {
-      effective = { ...effective, tags: applyRatingTierTag(patch.tags ?? character.tags, patch.rating) };
+  const patchCharacter = useCallback(async (patch: CharacterPatch): Promise<ArchiveCharacter> => {
+    if (!id) throw new Error('角色档案不存在');
+    try {
+      return await commitCharacterPatch(
+        id,
+        async (current) => {
+          const requested = typeof patch === 'function' ? await patch(current) : patch;
+          if (!requested) return undefined;
+          let effective = requested;
+          if ('rating' in requested) {
+            effective = { ...effective, tags: applyRatingTierTag(requested.tags ?? current.tags, requested.rating) };
+          }
+          if (effective.tags !== undefined) {
+            effective = { ...effective, nsfw: effective.tags.includes(NSFW_TAG) };
+          }
+          return { ...effective, updatedAt: Date.now() };
+        },
+        updateCharacter,
+        setCharacter,
+      );
+    } catch (error) {
+      toast({
+        title: '保存角色档案失败',
+        description: error instanceof Error ? error.message : '请检查库目录是否可写',
+        variant: 'destructive',
+      });
+      throw error;
     }
-    if (effective.tags !== undefined) {
-      effective = { ...effective, nsfw: effective.tags.includes(NSFW_TAG) };
-    }
-    const next = { ...character, ...effective, updatedAt: Date.now() };
-    setCharacter(next);
-    await saveCharacter(next);
-  };
+  }, [id, toast]);
 
   /** 统一导入完成（10.3c）：patch 落库；故事导入后刷列表；弹窗保持打开可继续导 */
-  const handleImportDone = async (kind: CharacterImportKind, result: CharacterImportResult) => {
-    if (result.patch) await patchCharacter(result.patch);
-    if (kind === 'story' && result.ok > 0) await load();
-    const label = IMPORT_KINDS.find((k) => k.kind === kind)?.label ?? '';
-    toast({
-      title: `${label}导入完成：成功 ${result.ok}${result.fail ? `，失败 ${result.fail}` : ''}`,
-      variant: result.ok === 0 && result.fail > 0 ? 'destructive' : undefined,
-    });
+  const handleImport = async (kind: CharacterImportKind, files: File[]) => {
+    if (!id) throw new Error('角色档案不存在');
+    let result: CharacterImportResult | undefined;
+    try {
+      const saved = await updateCharacter(id, async (current) => {
+        result = await importFilesForCharacter(current, kind, files);
+        return result.patch ? { ...result.patch, updatedAt: Date.now() } : undefined;
+      });
+      if (!saved || !result) throw new Error('角色档案不存在');
+      setCharacter(saved);
+      if (kind === 'story' && result.ok > 0) await load();
+      const label = IMPORT_KINDS.find((k) => k.kind === kind)?.label ?? '';
+      toast({
+        title: `${label}导入完成：成功 ${result.ok}${result.fail ? `，失败 ${result.fail}` : ''}`,
+        variant: result.ok === 0 && result.fail > 0 ? 'destructive' : undefined,
+      });
+    } catch (error) {
+      toast({
+        title: '导入失败',
+        description: error instanceof Error ? error.message : '请检查库目录是否可写',
+        variant: 'destructive',
+      });
+      throw error;
+    }
+  };
+
+  const handlePasteQuote = async (title: string, body: string) => {
+    await patchCharacter((current) => ({
+      quotes: [
+        ...(current.quotes ?? []),
+        { id: crypto.randomUUID(), title, body, addedAt: Date.now() },
+      ],
+    }));
+    toast({ title: `已添加引用「${title}」` });
   };
 
   const handleConfirmDeleteStory = async () => {
@@ -154,15 +198,19 @@ const CharacterPage = () => {
   const handleReadEmbedded = async () => {
     if (!character) return;
     try {
-      const refs = await importEmbeddedAssets(character);
-      const existing = character.assets ?? [];
-      const merged = [...existing];
-      for (const r of refs) {
-        if (!merged.some((x) => x.kind === r.kind && x.assetId === r.assetId)) merged.push(r);
-      }
-      if (merged.length !== existing.length) {
-        await patchCharacter({ assets: merged });
-        toast({ title: `已读取内置资源：新挂 ${merged.length - existing.length} 个关联` });
+      let added = 0;
+      await patchCharacter(async (current) => {
+        const refs = await importEmbeddedAssets(current);
+        const existing = current.assets ?? [];
+        const merged = [...existing];
+        for (const r of refs) {
+          if (!merged.some((x) => x.kind === r.kind && x.assetId === r.assetId)) merged.push(r);
+        }
+        added = merged.length - existing.length;
+        return added > 0 ? { assets: merged } : undefined;
+      });
+      if (added > 0) {
+        toast({ title: `已读取内置资源：新挂 ${added} 个关联` });
       } else {
         toast({ title: '没有新的内置资源', description: '卡内嵌的世界书/正则已在关联列表里。' });
       }
@@ -266,7 +314,7 @@ const CharacterPage = () => {
           stories={sortedStories}
           onPatch={patchCharacter}
           onEditCard={handleEditCard}
-          onReadEmbedded={() => void handleReadEmbedded()}
+          onReadEmbedded={handleReadEmbedded}
           onExport={() => downloadCharacterFile(character)}
           onDelete={() => setCharDeleteOpen(true)}
         />
@@ -365,7 +413,9 @@ const CharacterPage = () => {
             <TabsContent value="notes" className="mt-3">
               <NotesSection
                 notes={character.notes ?? []}
-                onChange={(notes) => void patchCharacter({ notes })}
+                onChange={async (notes) => {
+                  await patchCharacter({ notes });
+                }}
               />
             </TabsContent>
 
@@ -373,9 +423,13 @@ const CharacterPage = () => {
             <TabsContent value="assets" className="mt-3">
               <AssetSection
                 character={character}
-                onAssetsChange={(assets) => void patchCharacter({ assets })}
-                onQuotesChange={(quotes) => void patchCharacter({ quotes })}
-                onReadEmbedded={() => void handleReadEmbedded()}
+                onAssetsChange={async (assets) => {
+                  await patchCharacter({ assets });
+                }}
+                onQuotesChange={async (quotes) => {
+                  await patchCharacter({ quotes });
+                }}
+                onReadEmbedded={handleReadEmbedded}
                 onOpenImport={() => setImportOpen(true)}
               />
             </TabsContent>
@@ -393,11 +447,11 @@ const CharacterPage = () => {
       </div>
 
       <CharacterImportDialog
-        character={character}
         open={importOpen}
         onOpenChange={setImportOpen}
         initialKind={TAB_IMPORT_KIND[activeTab] ?? 'story'}
-        onDone={(kind, result) => void handleImportDone(kind, result)}
+        onImport={handleImport}
+        onPasteQuote={handlePasteQuote}
       />
 
       <AlertDialog open={!!storyToDelete} onOpenChange={(open) => !open && setStoryToDelete(null)}>

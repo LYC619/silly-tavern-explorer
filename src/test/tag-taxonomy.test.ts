@@ -84,19 +84,33 @@ describe('v1→v2 迁移', () => {
     expect(migrateLegacyTag('评价/神作')).toBe('评价/神作');
   });
 
-  it('类别还在就保留；「其他/xx」与未知前缀去前缀转未分类；平铺不动', () => {
+  it('只转换精确命中的旧内置标签，未知前缀和自由标签原样保留', () => {
     expect(migrateLegacyTag('人物/男性')).toBe('人物/男性');
     expect(migrateLegacyTag('玩法/日常')).toBe('玩法/日常');
-    expect(migrateLegacyTag('其他/自留')).toBe('自留');
+    expect(migrateLegacyTag('其他/自留')).toBe('其他/自留');
+    expect(migrateLegacyTag('作者/A')).toBe('作者/A');
+    expect(migrateLegacyTag('人物/自定义')).toBe('人物/自定义');
+    expect(migrateLegacyTag('https://example.com/a')).toBe('https://example.com/a');
     expect(migrateLegacyTag('自留')).toBe('自留');
   });
 
-  it('整组迁移：保序去重 + changed 标记；v2 形态输入零变化（幂等）', () => {
-    const r = migrateLegacyTags(['评价/优秀', '评价/不错', '评价/一般', '人物/男性']);
-    expect(r.tags).toEqual(['评价/精品', '评价/及格', '人物/男性']);
+  it('整组迁移：无冲突时转换；v2 形态输入零变化（幂等）', () => {
+    const r = migrateLegacyTags(['评价/优秀', '玩法/恋爱', '人物/男性']);
+    expect(r.tags).toEqual(['评价/精品', '剧情/恋爱', '人物/男性']);
     expect(r.changed).toBe(true);
     const r2 = migrateLegacyTags(r.tags);
     expect(r2.changed).toBe(false);
     expect(r2.tags).toEqual(r.tags);
+  });
+
+  it('转换结果与现有标签或另一转换结果撞车时保留原文，不静默合并', () => {
+    expect(migrateLegacyTags(['评价/优秀', '评价/精品'])).toEqual({
+      tags: ['评价/优秀', '评价/精品'],
+      changed: false,
+    });
+    expect(migrateLegacyTags(['评价/不错', '评价/一般'])).toEqual({
+      tags: ['评价/不错', '评价/一般'],
+      changed: false,
+    });
   });
 });

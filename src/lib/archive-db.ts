@@ -8,11 +8,20 @@ import type { STCharacterCard } from '@/lib/png-parser';
 import { normalizeCharacterCard } from '@/lib/png-parser';
 import { createRepo } from '@/lib/repo';
 import { extractModels, estimatePlayTime, computeStoryProps } from '@/lib/story-meta';
+import { KeyedSerialQueue } from '@/lib/keyed-serial-queue';
 
 // ---------- 仓库 ----------
 
 const characterRepo = createRepo<ArchiveCharacter>('characters');
 const storyRepo = createRepo<ArchiveStory>('archiveStories');
+interface ArchiveMetaRecord {
+  id: string;
+  schemaVersion: number;
+  updatedAt: number;
+}
+const archiveMetaRepo = createRepo<ArchiveMetaRecord>('archiveMeta');
+const characterWrites = new KeyedSerialQueue();
+const storyWrites = new KeyedSerialQueue();
 
 export async function getAllCharacters(): Promise<ArchiveCharacter[]> {
   return characterRepo.list();
@@ -23,11 +32,26 @@ export async function getCharacter(id: string): Promise<ArchiveCharacter | undef
 }
 
 export async function saveCharacter(item: ArchiveCharacter): Promise<void> {
-  return characterRepo.put(item);
+  return characterWrites.enqueue(item.id, () => characterRepo.put(item));
+}
+
+export async function updateCharacter(
+  id: string,
+  updater: (current: ArchiveCharacter) => Partial<ArchiveCharacter> | undefined | Promise<Partial<ArchiveCharacter> | undefined>,
+): Promise<ArchiveCharacter | undefined> {
+  return characterWrites.enqueue(id, async () => {
+    const current = await characterRepo.get(id);
+    if (!current) return undefined;
+    const patch = await updater(current);
+    if (!patch) return current;
+    const next: ArchiveCharacter = { ...current, ...patch, id: current.id };
+    await characterRepo.put(next);
+    return next;
+  });
 }
 
 export async function deleteCharacter(id: string): Promise<void> {
-  return characterRepo.remove(id);
+  return characterWrites.enqueue(id, () => characterRepo.remove(id));
 }
 
 export async function getAllArchiveStories(): Promise<ArchiveStory[]> {
@@ -39,11 +63,21 @@ export async function getArchiveStory(id: string): Promise<ArchiveStory | undefi
 }
 
 export async function saveArchiveStory(item: ArchiveStory): Promise<void> {
-  return storyRepo.put(item);
+  return storyWrites.enqueue(item.id, () => storyRepo.put(item));
 }
 
 export async function deleteArchiveStory(id: string): Promise<void> {
-  return storyRepo.remove(id);
+  return storyWrites.enqueue(id, () => storyRepo.remove(id));
+}
+
+const ARCHIVE_SCHEMA_META_ID = 'archive-schema';
+
+export async function getArchiveSchemaVersion(): Promise<number> {
+  return (await archiveMetaRepo.get(ARCHIVE_SCHEMA_META_ID))?.schemaVersion ?? 1;
+}
+
+export async function setArchiveSchemaVersion(schemaVersion: number): Promise<void> {
+  await archiveMetaRepo.put({ id: ARCHIVE_SCHEMA_META_ID, schemaVersion, updatedAt: Date.now() });
 }
 
 /** 某角色名下的全部故事（未排序，展示排序用 sortStoriesForDisplay） */

@@ -21,6 +21,8 @@ import {
   getArchiveStory, saveArchiveStory, getBranchLine, updateBranchLine,
 } from '@/lib/archive-db';
 import { getDefaultExportSettings } from '@/lib/session-storage';
+import { StoryDraftSaver, flushBeforeStoryTransition } from '@/lib/story-draft-save';
+import { useToast } from '@/hooks/use-toast';
 
 interface InlineStoryReaderProps {
   storyId: string;
@@ -35,35 +37,40 @@ interface InlineStoryReaderProps {
 }
 
 export function InlineStoryReader({ storyId, stories, onSwitchStory, onBack, onOpenEditor, initialBranchId }: InlineStoryReaderProps) {
+  const { toast } = useToast();
   const [story, setStory] = useState<ArchiveStory | null>(null);
   const [loading, setLoading] = useState(true);
   const [branchId, setBranchId] = useState<string | null>(null);
   const [novelOpen, setNovelOpen] = useState(false);
   const workbenchRef = useRef<ChatWorkbenchHandle>(null);
 
-  // 持久化：与工作区同款 dirty+防抖（600ms），卸载兜底补存
-  const dirtyRef = useRef(false);
   const storyRef = useRef<ArchiveStory | null>(null);
-  useEffect(() => { storyRef.current = story; }, [story]);
+  const saverRef = useRef(new StoryDraftSaver(saveArchiveStory));
   const mutateStory = useCallback((fn: (cur: ArchiveStory) => ArchiveStory) => {
-    setStory((cur) => {
-      if (!cur) return cur;
-      const next = fn(cur);
-      if (next !== cur) dirtyRef.current = true;
-      return next;
-    });
+    const current = storyRef.current;
+    if (!current) return;
+    const next = fn(current);
+    if (next === current) return;
+    storyRef.current = next;
+    saverRef.current.setDraft(next);
+    setStory(next);
   }, []);
 
   useEffect(() => {
-    if (!story || !dirtyRef.current) return;
+    if (!story || !saverRef.current.isDirty()) return;
     const t = setTimeout(() => {
-      dirtyRef.current = false;
-      saveArchiveStory(story).catch(() => { dirtyRef.current = true; });
+      void saverRef.current.flush().catch((error: unknown) => {
+        toast({
+          title: '保存故事失败',
+          description: error instanceof Error ? error.message : '请检查库目录是否可写',
+          variant: 'destructive',
+        });
+      });
     }, 600);
     return () => clearTimeout(t);
-  }, [story]);
+  }, [story, toast]);
   useEffect(() => () => {
-    if (dirtyRef.current && storyRef.current) saveArchiveStory(storyRef.current).catch(() => {});
+    void saverRef.current.flush().catch(() => {});
   }, []);
 
   // 加载 + 记 lastViewedAt（切换故事 id 时重挂）
@@ -74,7 +81,11 @@ export function InlineStoryReader({ storyId, stories, onSwitchStory, onBack, onO
       try {
         const s = await getArchiveStory(storyId);
         if (cancelled) return;
-        if (!s) { setStory(null); return; }
+        if (!s) {
+          storyRef.current = null;
+          setStory(null);
+          return;
+        }
         const restoredBranchId =
           (initialBranchId && s.branches?.some((b) => b.id === initialBranchId) ? initialBranchId : null)
           ?? (s.lastViewedBranchId && s.branches?.some((b) => b.id === s.lastViewedBranchId)
@@ -87,14 +98,36 @@ export function InlineStoryReader({ storyId, stories, onSwitchStory, onBack, onO
           lastViewedAt: Date.now(),
           lastViewedBranchId: restoredBranchId ?? undefined,
         };
+        saverRef.current = new StoryDraftSaver(saveArchiveStory);
+        storyRef.current = withView;
         setStory(withView);
-        saveArchiveStory(withView).catch(() => {});
+        await saveArchiveStory(withView);
+      } catch (error) {
+        if (!cancelled) {
+          toast({
+            title: '读取故事失败',
+            description: error instanceof Error ? error.message : '请稍后重试',
+            variant: 'destructive',
+          });
+        }
       } finally {
         if (!cancelled) setLoading(false);
       }
     })();
     return () => { cancelled = true; };
-  }, [storyId, initialBranchId]);
+  }, [storyId, initialBranchId, toast]);
+
+  const transitionAfterFlush = useCallback(async (transition: () => void) => {
+    try {
+      await flushBeforeStoryTransition(saverRef.current, transition);
+    } catch (error) {
+      toast({
+        title: '故事尚未保存，已取消离开',
+        description: error instanceof Error ? error.message : '请检查库目录是否可写后重试',
+        variant: 'destructive',
+      });
+    }
+  }, [toast]);
 
   const line = story ? getBranchLine(story, branchId) : undefined;
 
@@ -153,7 +186,7 @@ export function InlineStoryReader({ storyId, stories, onSwitchStory, onBack, onO
     <div className="flex flex-col">
       {/* ===== 阅读顶栏：返回 + 故事名下拉（含分支）+ 状态 + 在编辑器中打开 ===== */}
       <div className="flex items-center gap-2 flex-wrap py-1.5">
-        <Button variant="ghost" size="sm" className="px-1.5 text-muted-foreground" onClick={onBack}>
+        <Button variant="ghost" size="sm" className="px-1.5 text-muted-foreground" onClick={() => void transitionAfterFlush(onBack)}>
           <ArrowLeft className="w-4 h-4 mr-1" />
           故事列表
         </Button>
@@ -173,7 +206,11 @@ export function InlineStoryReader({ storyId, stories, onSwitchStory, onBack, onO
               <div key={s.id}>
                 <DropdownMenuItem
                   className={s.id === story.id && branchId === null ? 'bg-primary/10 text-primary' : ''}
-                  onClick={() => (s.id === story.id ? handleSwitchBranch(null) : onSwitchStory(s.id))}
+                  onClick={() => (
+                    s.id === story.id
+                      ? handleSwitchBranch(null)
+                      : void transitionAfterFlush(() => onSwitchStory(s.id))
+                  )}
                 >
                   <span className="truncate">{s.title}</span>
                 </DropdownMenuItem>
@@ -196,7 +233,7 @@ export function InlineStoryReader({ storyId, stories, onSwitchStory, onBack, onO
           {story.status ?? '未开始'}
         </Badge>
         <div className="flex-1" />
-        <Button variant="outline" size="sm" onClick={() => onOpenEditor(story.id)} title="进入故事工作区（编辑器）：分支/整理与记录/导入导出">
+        <Button variant="outline" size="sm" onClick={() => void transitionAfterFlush(() => onOpenEditor(story.id))} title="进入故事工作区（编辑器）：分支/整理与记录/导入导出">
           <ExternalLink className="w-4 h-4 mr-1.5" />
           在编辑器中打开
         </Button>

@@ -79,10 +79,10 @@ const App = () => {
       <Toaster />
       <Sonner />
       <VaultGate>
-      <MigrationNotice />
-      <BrowserRouter>
-        <Suspense fallback={<PageFallback />}>
-          <Routes>
+      <MigrationNotice>
+        <BrowserRouter>
+          <Suspense fallback={<PageFallback />}>
+            <Routes>
             <Route path="/" element={<Home />} />
             <Route path="/library" element={<Library />} />
             <Route path="/character/:id" element={<CharacterPage />} />
@@ -101,9 +101,10 @@ const App = () => {
             <Route path="/ai-tools" element={<Navigate to="/settings" replace />} />
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
             <Route path="*" element={<NotFound />} />
-          </Routes>
-        </Suspense>
-      </BrowserRouter>
+            </Routes>
+          </Suspense>
+        </BrowserRouter>
+      </MigrationNotice>
       </VaultGate>
     </TooltipProvider>
   </ThemeProvider>

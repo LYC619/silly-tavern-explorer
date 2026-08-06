@@ -23,12 +23,13 @@ import { buildIntroMessages, describeReadScope } from '@/lib/character-ai';
 import { getAllWorldBooks } from '@/lib/worldbook-db';
 import type { WorldBookItem } from '@/types/worldbook';
 import type { ArchiveCharacter, IntroVersion } from '@/types/archive';
+import type { CharacterPatch } from '@/lib/character-write';
 import type { NormalizedCharacterCard } from '@/lib/png-parser';
 
 interface IntroSectionProps {
   character: ArchiveCharacter;
   norm: NormalizedCharacterCard;
-  onPatch: (patch: Partial<ArchiveCharacter>) => void;
+  onPatch: (patch: CharacterPatch) => Promise<ArchiveCharacter>;
 }
 
 function fmtTime(ts: number): string {
@@ -116,40 +117,46 @@ export function IntroSection({ character, norm, onPatch }: IntroSectionProps) {
   };
 
   /** 把一个新版本设为当前简介：旧 current 入历史栈（最新在前） */
-  const adoptVersion = (version: IntroVersion) => {
-    onPatch({
+  const adoptVersion = (version: IntroVersion) => onPatch({
       intro: {
         current: version,
         history: current ? [current, ...history] : history,
       },
       introStale: false,
     });
-  };
 
-  const handleAdoptDraft = () => {
+  const handleAdoptDraft = async () => {
     if (!draft.trim()) return;
-    adoptVersion({ content: draft.trim(), source: 'ai', readScope: draftScope, createdAt: Date.now() });
-    setGenOpen(false);
-    toast({ title: 'AI 简介已启用', description: current ? '旧版已存入历史' : undefined });
+    try {
+      await adoptVersion({ content: draft.trim(), source: 'ai', readScope: draftScope, createdAt: Date.now() });
+      setGenOpen(false);
+      toast({ title: 'AI 简介已启用', description: current ? '旧版已存入历史' : undefined });
+    } catch {
+      // 父层已提示失败；保留草稿。
+    }
   };
 
   // ---- 手动编辑 ----
   const [editOpen, setEditOpen] = useState(false);
   const [editDraft, setEditDraft] = useState('');
-  const handleSaveEdit = () => {
+  const handleSaveEdit = async () => {
     const text = editDraft.trim();
     if (!text) return;
-    adoptVersion({ content: text, source: 'manual', createdAt: Date.now() });
-    setEditOpen(false);
-    toast({ title: '简介已保存' });
+    try {
+      await adoptVersion({ content: text, source: 'manual', createdAt: Date.now() });
+      setEditOpen(false);
+      toast({ title: '简介已保存' });
+    } catch {
+      // 父层已提示失败；保留编辑器。
+    }
   };
 
   // ---- 历史 ----
   const [historyOpen, setHistoryOpen] = useState(false);
-  const handleRestore = (idx: number) => {
+  const handleRestore = async (idx: number) => {
     const target = history[idx];
     if (!target || !current) return;
-    onPatch({
+    await onPatch({
       intro: {
         current: target,
         history: [current, ...history.filter((_, i) => i !== idx)],
@@ -324,7 +331,7 @@ export function IntroSection({ character, norm, onPatch }: IntroSectionProps) {
                         读取：{describeReadScope(v.readScope, wbNames)}
                       </span>
                     )}
-                    <Button variant="outline" size="sm" className="h-6 ml-auto" onClick={() => handleRestore(i)}>
+                    <Button variant="outline" size="sm" className="h-6 ml-auto" onClick={() => { void handleRestore(i).catch(() => {}); }}>
                       恢复此版
                     </Button>
                   </div>

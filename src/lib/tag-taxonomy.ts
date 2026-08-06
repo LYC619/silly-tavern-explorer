@@ -119,7 +119,7 @@ export function applyRatingTierTag(tags: string[], rating: number | undefined): 
 
 // ---------- v1 → v2 迁移（archive-migrate 调用；幂等） ----------
 
-/** v1 内置标签的精确映射；不在表内的按「类别还在就保留，不在就转未分类」处理 */
+/** v1 内置标签的精确映射；未精确命中的自由标签一律原样保留。 */
 const LEGACY_TAG_MAP: Record<string, string> = {
   // v1 评价五档 → v2 四档
   '评价/优秀': '评价/精品',
@@ -133,26 +133,18 @@ const LEGACY_TAG_MAP: Record<string, string> = {
 
 /** 单个标签的 v1→v2 映射 */
 export function migrateLegacyTag(raw: string): string {
-  const mapped = LEGACY_TAG_MAP[raw];
-  if (mapped) return mapped;
-  const i = raw.indexOf('/');
-  if (i > 0) {
-    const cat = raw.slice(0, i);
-    // v1 的「其他/xx」以及任何未知类别前缀 → 去前缀转未分类（用户自定义全保留）
-    if (!(TAG_CATEGORIES as readonly string[]).includes(cat)) return raw.slice(i + 1) || raw;
-  }
-  return raw;
+  return LEGACY_TAG_MAP[raw] ?? raw;
 }
 
-/** 整组标签迁移：逐个映射 + 保序去重；changed=false 表示本来就是 v2 形态（幂等依据） */
+/** 整组标签迁移：转换结果撞车时保留原文，避免不可逆合并。 */
 export function migrateLegacyTags(tags: string[]): { tags: string[]; changed: boolean } {
-  const out: string[] = [];
-  let changed = false;
-  for (const raw of tags) {
-    const next = migrateLegacyTag(raw);
-    if (next !== raw) changed = true;
-    if (!out.includes(next)) out.push(next);
-    else changed = true; // 映射后撞车（如 优秀+不错 都在）也算变化
-  }
+  const candidates = tags.map(migrateLegacyTag);
+  const out = tags.map((raw, index) => {
+    const next = candidates[index];
+    if (next === raw) return raw;
+    const conflicts = candidates.some((candidate, other) => other !== index && candidate === next);
+    return conflicts ? raw : next;
+  });
+  const changed = out.some((raw, index) => raw !== tags[index]);
   return { tags: out, changed };
 }
