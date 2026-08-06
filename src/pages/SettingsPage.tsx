@@ -11,6 +11,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
 import { APIConfigCard } from '@/components/ai-tools';
 import { GlobalSettingsPanel } from '@/components/GlobalSettings';
+import { RuntimeSettingsPanel } from '@/components/settings/RuntimeSettingsPanel';
 
 const SettingsPage = () => (
   <AppLayout
@@ -38,7 +39,15 @@ const SettingsPage = () => (
 
       <Separator />
 
-      {/* ② 数据与存储 */}
+      {/* ② 本地与客户端 */}
+      <section className="space-y-3">
+        <h2 className="font-display text-base font-semibold">本地与客户端</h2>
+        <RuntimeSettingsPanel />
+      </section>
+
+      <Separator />
+
+      {/* ③ 数据与存储 */}
       <section className="space-y-3">
         <h2 className="font-display text-base font-semibold">数据与存储</h2>
         <Card>

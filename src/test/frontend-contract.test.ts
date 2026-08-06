@@ -144,6 +144,20 @@ describe('阶段 D 外壳与 NSFW 契约', () => {
     expect(viewer).toContain('if (assetId)');
   });
 
+  it('10.4 设置页提供 NSFW、ST 目录和库目录入口', () => {
+    const page = read('src/pages/SettingsPage.tsx');
+    const panel = read('src/components/settings/RuntimeSettingsPanel.tsx');
+    expect(page).toContain('RuntimeSettingsPanel');
+    expect(panel).toContain('getNsfwBlur');
+    expect(panel).toContain('setNsfwBlur');
+    expect(panel).toContain("getAppConfig<string>('stRoot')");
+    expect(panel).toContain("setAppConfig('stRoot', root)");
+    expect(panel).toContain('pickDirectory');
+    expect(panel).toContain('chooseVaultRoot');
+    expect(panel).toContain('getVaultRoot');
+    expect(panel).toContain('window.location.reload()');
+  });
+
   it('全局搜索键盘导航基于分组后的视觉顺序', () => {
     const search = read('src/components/GlobalSearch.tsx');
     expect(search).toContain('flattenSearchGroups(groups)');
