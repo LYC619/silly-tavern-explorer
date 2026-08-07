@@ -1,6 +1,6 @@
 /**
  * 标题栏全局搜索（10.1-A2 最小可用）：角色名/故事名/资产标题子串匹配 → 下拉分组结果跳转。
- * - Ctrl/⌘+K 全局聚焦；↑↓ 选择、Enter 跳转、Esc 关闭
+ * - Ctrl+F 覆盖 WebView2 页内查找并聚焦；↑↓ 选择、Enter 跳转、Esc 关闭
  * - 首次聚焦才拉数据（各库 getAll，量小；焦点期内不重复拉）
  */
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
@@ -50,10 +50,10 @@ export function GlobalSearch() {
     }
   }, []);
 
-  // Ctrl/⌘+K 全局聚焦
+  // 覆盖 WebView2 自带的 Ctrl+F 页内查找，统一进入应用全局搜索。
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') {
+      if (e.ctrlKey && e.key.toLowerCase() === 'f') {
         e.preventDefault();
         inputRef.current?.focus();
       }
@@ -112,7 +112,7 @@ export function GlobalSearch() {
           className="flex-1 min-w-0 bg-transparent outline-none text-[color:var(--text-body)] placeholder:text-[color:var(--text-faint)]"
           aria-label="全局搜索"
         />
-        <span className="text-[10px] px-1.5 py-px rounded bg-[var(--hover-overlay-strong)] text-[color:var(--text-faint)] shrink-0">⌘K</span>
+        <span className="text-[10px] px-1.5 py-px rounded bg-[var(--hover-overlay-strong)] text-[color:var(--text-faint)] shrink-0">Ctrl+F</span>
       </div>
 
       {showDrop && (

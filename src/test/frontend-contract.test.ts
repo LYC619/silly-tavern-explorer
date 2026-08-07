@@ -174,6 +174,15 @@ describe('阶段 D 外壳与 NSFW 契约', () => {
     expect(search).not.toContain('results.indexOf(item)');
   });
 
+  it('全局搜索用 Ctrl+F 覆盖 WebView2 自带的页内查找', () => {
+    const search = read('src/components/GlobalSearch.tsx');
+    expect(search).toContain("e.ctrlKey && e.key.toLowerCase() === 'f'");
+    expect(search).toContain('e.preventDefault()');
+    expect(search).toContain('>Ctrl+F</span>');
+    expect(search).not.toContain("e.key.toLowerCase() === 'k'");
+    expect(search).not.toContain('⌘K');
+  });
+
   it('Tauri 客户端将全局搜索并入可拖动的自定义窗口栏', () => {
     const config = JSON.parse(read('src-tauri/tauri.conf.json'));
     const capability = JSON.parse(read('src-tauri/capabilities/default.json'));
