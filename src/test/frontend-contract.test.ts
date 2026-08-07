@@ -189,15 +189,16 @@ describe('阶段 D 外壳与 NSFW 契约', () => {
     expect(importer).toContain('scan.warnings.slice(0, 3)');
   });
 
-  it('AppLayout 提升为路由布局并保留真实出入场动画', () => {
+  it('AppLayout 路由切换只保留一个页面节点并提供短入场动画', () => {
     const app = read('src/App.tsx');
     const layout = read('src/components/AppLayout.tsx');
     expect(app).toContain('<Route element={<AppLayout />}>');
     expect(layout).toContain('useOutlet()');
-    expect(layout).toContain('mode="popLayout"');
+    expect(layout).not.toContain('mode="popLayout"');
     expect(layout).not.toContain('mode="wait"');
+    expect(layout).toContain('key={`${location.key}:${location.pathname}${location.search}`}');
     expect(layout).toContain('transition={{ duration: 0.12');
-    expect(layout).toContain('exit={{ opacity: 0');
+    expect(layout).not.toContain('exit={{ opacity: 0');
     expect(layout).toContain('LayoutContext');
   });
 
