@@ -340,13 +340,13 @@ function PersistentAppLayout({ children, actions, leftActions }: AppLayoutProps)
                 <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
               </div>
             }>
-              <AnimatePresence initial={false} mode="wait">
+              <AnimatePresence initial={false} mode="popLayout">
                 <motion.div
                   key={`${location.key}:${location.pathname}${location.search}`}
-                  initial={{ opacity: 0, y: 8 }}
+                  initial={{ opacity: 0, y: 4 }}
                   animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: -4 }}
-                  transition={{ duration: 0.18, ease: 'easeOut' }}
+                  exit={{ opacity: 0, y: -2 }}
+                  transition={{ duration: 0.12, ease: 'easeOut' }}
                   className="h-full"
                 >
                   {content}

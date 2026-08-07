@@ -2,7 +2,6 @@ import { useState, useEffect } from 'react';
 import { HardDrive, Download, Upload, Trash2, AlertCircle, RotateCcw, Info, ExternalLink, Eraser } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
-import { Separator } from '@/components/ui/separator';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -39,15 +38,14 @@ interface StorageDetail {
   detail?: string;
 }
 
-interface GlobalSettingsPanelProps {
+interface DataSettingsPanelProps {
   onDataChanged?: () => void;
 }
 
 /**
  * 数据与存储面板（阶段9.9 从顶栏 Sheet 弹窗改造为设置页的一个区块）。
- * 存储概览/备份恢复/清理/引导重置/关于，挂在 /settings 页。
  */
-export function GlobalSettingsPanel({ onDataChanged }: GlobalSettingsPanelProps) {
+export function DataSettingsPanel({ onDataChanged }: DataSettingsPanelProps) {
   const { toast } = useToast();
   const [clearDialogOpen, setClearDialogOpen] = useState(false);
   const [pendingImport, setPendingImport] = useState<{ parsed: ParsedBackup; preview: BackupPreview } | null>(null);
@@ -224,12 +222,6 @@ export function GlobalSettingsPanel({ onDataChanged }: GlobalSettingsPanelProps)
     refreshStorage();
   };
 
-  const handleResetOnboarding = () => {
-    resetAllTours();
-    localStorage.removeItem('st-explorer-onboarding-dismissed');
-    toast({ title: '已重置', description: '下次访问各页面时将重新显示引导' });
-  };
-
   return (
     <>
       <div className="space-y-6">
@@ -338,51 +330,6 @@ export function GlobalSettingsPanel({ onDataChanged }: GlobalSettingsPanelProps)
               </p>
             </div>
 
-            <Separator />
-
-            {/* Help & Guidance */}
-            <div className="space-y-3">
-              <h3 className="text-sm font-semibold flex items-center gap-2">
-                <RotateCcw className="w-4 h-4" />
-                引导与帮助
-              </h3>
-              <Button
-                variant="outline"
-                size="sm"
-                className="w-full justify-start gap-2"
-                onClick={handleResetOnboarding}
-              >
-                <RotateCcw className="w-4 h-4" />
-                重新体验新手引导
-              </Button>
-              <p className="text-xs text-muted-foreground">
-                版本：{APP_VERSION}
-              </p>
-            </div>
-
-            <Separator />
-
-            {/* About */}
-            <div className="space-y-3">
-              <h3 className="text-sm font-semibold flex items-center gap-2">
-                <Info className="w-4 h-4" />
-                关于
-              </h3>
-              <div className="text-sm space-y-1">
-                <p className="font-medium">ST 聊天记录处理器</p>
-                <p className="text-muted-foreground text-xs">{APP_VERSION}</p>
-                <a
-                  href="https://github.com/LYC619/silly-tavern-explorer"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="inline-flex items-center gap-1 text-xs text-primary hover:underline"
-                >
-                  <ExternalLink className="w-3 h-3" />
-                  GitHub
-                </a>
-                <p className="text-xs text-muted-foreground">MIT License</p>
-              </div>
-            </div>
       </div>
 
       {/* 恢复备份前的预览确认：先看清将新增/覆盖什么，再决定写不写 */}
@@ -455,5 +402,56 @@ export function GlobalSettingsPanel({ onDataChanged }: GlobalSettingsPanelProps)
         </AlertDialogContent>
       </AlertDialog>
     </>
+  );
+}
+
+export function AboutSettingsPanel() {
+  const { toast } = useToast();
+
+  const handleResetOnboarding = () => {
+    resetAllTours();
+    localStorage.removeItem('st-explorer-onboarding-dismissed');
+    toast({ title: '已重置', description: '下次访问各页面时将重新显示引导' });
+  };
+
+  return (
+    <div className="space-y-6">
+      <section className="space-y-3">
+        <h3 className="text-sm font-semibold flex items-center gap-2">
+          <RotateCcw className="w-4 h-4" />
+          引导与帮助
+        </h3>
+        <Button
+          variant="outline"
+          size="sm"
+          className="justify-start gap-2"
+          onClick={handleResetOnboarding}
+        >
+          <RotateCcw className="w-4 h-4" />
+          重新体验新手引导
+        </Button>
+      </section>
+
+      <section className="space-y-3 border-t border-border pt-5">
+        <h3 className="text-sm font-semibold flex items-center gap-2">
+          <Info className="w-4 h-4" />
+          关于
+        </h3>
+        <div className="text-sm space-y-1">
+          <p className="font-medium">ST 聊天记录处理器</p>
+          <p className="text-muted-foreground text-xs">{APP_VERSION}</p>
+          <a
+            href="https://github.com/LYC619/silly-tavern-explorer"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex items-center gap-1 text-xs text-primary hover:underline"
+          >
+            <ExternalLink className="w-3 h-3" />
+            GitHub
+          </a>
+          <p className="text-xs text-muted-foreground">MIT License</p>
+        </div>
+      </section>
+    </div>
   );
 }

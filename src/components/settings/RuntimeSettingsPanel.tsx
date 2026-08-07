@@ -38,10 +38,37 @@ function hasSTContent(counts: STCounts): boolean {
   return Object.values(counts).some((count) => count > 0);
 }
 
-export function RuntimeSettingsPanel() {
+export function DisplaySettingsPanel() {
+  const [blurNsfw, setBlurNsfw] = useState(() => getNsfwBlur());
+
+  const handleBlurChange = (checked: boolean) => {
+    setBlurNsfw(checked);
+    setNsfwBlur(checked);
+  };
+
+  return (
+    <section className="rounded-md border border-border p-4 space-y-3">
+      <div className="flex items-start justify-between gap-4">
+        <div className="flex items-start gap-3 min-w-0">
+          <Eye className="w-4 h-4 mt-0.5 text-primary shrink-0" />
+          <div className="min-w-0">
+            <h3 className="text-sm font-semibold">显示偏好</h3>
+            <p className="text-xs text-muted-foreground mt-1">角色卡面标记为 NSFW 时，列表和详情默认模糊。</p>
+          </div>
+        </div>
+        <Switch
+          checked={blurNsfw}
+          onCheckedChange={handleBlurChange}
+          aria-label="默认模糊 NSFW 卡面"
+        />
+      </div>
+    </section>
+  );
+}
+
+export function DirectorySettingsPanel() {
   const { toast } = useToast();
   const client = isTauri();
-  const [blurNsfw, setBlurNsfw] = useState(() => getNsfwBlur());
   const [stRoot, setStRoot] = useState<string | null>(null);
   const [vaultRoot, setVaultRootState] = useState<string | null>(null);
   const [stCounts, setStCounts] = useState<STCounts | null>(null);
@@ -59,11 +86,6 @@ export function RuntimeSettingsPanel() {
   }, [client]);
 
   useEffect(() => { void refreshPaths(); }, [refreshPaths]);
-
-  const handleBlurChange = (checked: boolean) => {
-    setBlurNsfw(checked);
-    setNsfwBlur(checked);
-  };
 
   const handleChangeStRoot = async () => {
     if (!client) return;
@@ -121,23 +143,6 @@ export function RuntimeSettingsPanel() {
 
   return (
     <div className="space-y-4">
-      <section className="rounded-md border border-border p-4 space-y-3">
-        <div className="flex items-start justify-between gap-4">
-          <div className="flex items-start gap-3 min-w-0">
-            <Eye className="w-4 h-4 mt-0.5 text-primary shrink-0" />
-            <div className="min-w-0">
-              <h3 className="text-sm font-semibold">显示偏好</h3>
-              <p className="text-xs text-muted-foreground mt-1">角色卡面标记为 NSFW 时，列表和详情默认模糊。</p>
-            </div>
-          </div>
-          <Switch
-            checked={blurNsfw}
-            onCheckedChange={handleBlurChange}
-            aria-label="默认模糊 NSFW 卡面"
-          />
-        </div>
-      </section>
-
       <section className="rounded-md border border-border p-4 space-y-3">
         <div className="flex items-start justify-between gap-4">
           <div className="flex items-start gap-3 min-w-0">

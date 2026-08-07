@@ -37,6 +37,22 @@ interface StoryResources {
   trees: number;
 }
 
+interface HomeSnapshot {
+  readonly characters: ArchiveCharacter[];
+  readonly stories: ArchiveStory[];
+  readonly recentStories: ArchiveStory[];
+  readonly resources: Record<string, StoryResources>;
+  readonly assetCounts: { worldbooks: number; presets: number; regexes: number };
+}
+
+let homeSnapshot: HomeSnapshot = {
+  characters: [],
+  stories: [],
+  recentStories: [],
+  resources: {},
+  assetCounts: { worldbooks: 0, presets: 0, regexes: 0 },
+};
+
 function hashName(name: string): number {
   let hash = 0;
   for (let i = 0; i < name.length; i++) hash = ((hash << 5) - hash + name.charCodeAt(i)) | 0;
@@ -74,11 +90,11 @@ const EDIT_TOOLS = [
 
 const Home = () => {
   const navigate = useNavigate();
-  const [characters, setCharacters] = useState<ArchiveCharacter[]>([]);
-  const [stories, setStories] = useState<ArchiveStory[]>([]);
-  const [recentStories, setRecentStories] = useState<ArchiveStory[]>([]);
-  const [resources, setResources] = useState<Record<string, StoryResources>>({});
-  const [assetCounts, setAssetCounts] = useState({ worldbooks: 0, presets: 0, regexes: 0 });
+  const [characters, setCharacters] = useState(() => homeSnapshot.characters);
+  const [stories, setStories] = useState(() => homeSnapshot.stories);
+  const [recentStories, setRecentStories] = useState(() => homeSnapshot.recentStories);
+  const [resources, setResources] = useState(() => homeSnapshot.resources);
+  const [assetCounts, setAssetCounts] = useState(() => homeSnapshot.assetCounts);
   const [stConfigOpen, setStConfigOpen] = useState(false);
   /** A6：已接入（stRoot 已配置）则不再显示接入卡；null = 还没查完，先不显示防闪烁 */
   const [stConnected, setStConnected] = useState<boolean | null>(null);
@@ -94,14 +110,11 @@ const Home = () => {
         getAllSummaries().catch(() => []),
         getAllStoryTrees().catch(() => []),
       ]);
-      setCharacters(chars);
-      setStories(allStories);
       // 最近在看的故事：只列看过的（无记录的还谈不上「最近」），绑定与未绑定都算
       const viewed = allStories
         .filter((s) => s.lastViewedAt !== undefined)
         .sort((a, b) => b.lastViewedAt! - a.lastViewedAt!)
         .slice(0, 6);
-      setRecentStories(viewed);
       const res: Record<string, StoryResources> = {};
       for (const s of viewed) {
         res[s.id] = {
@@ -110,8 +123,19 @@ const Home = () => {
           trees: trees.filter((x) => x.bookId === s.id).length,
         };
       }
-      setResources(res);
-      setAssetCounts({ worldbooks: wbs.length, presets: presets.length, regexes: regexes.length });
+      const nextSnapshot: HomeSnapshot = {
+        characters: chars,
+        stories: allStories,
+        recentStories: viewed,
+        resources: res,
+        assetCounts: { worldbooks: wbs.length, presets: presets.length, regexes: regexes.length },
+      };
+      homeSnapshot = nextSnapshot;
+      setCharacters(nextSnapshot.characters);
+      setStories(nextSnapshot.stories);
+      setRecentStories(nextSnapshot.recentStories);
+      setResources(nextSnapshot.resources);
+      setAssetCounts(nextSnapshot.assetCounts);
     } catch { /* 首页加载失败不弹错，各区显示空态 */ }
   }, []);
 

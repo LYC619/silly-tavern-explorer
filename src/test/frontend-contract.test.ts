@@ -144,18 +144,34 @@ describe('阶段 D 外壳与 NSFW 契约', () => {
     expect(viewer).toContain('if (assetId)');
   });
 
-  it('10.4 设置页提供 NSFW、ST 目录和库目录入口', () => {
+  it('10.4 设置页提供五个可持久化分区且一次只选择一个面板', () => {
     const page = read('src/pages/SettingsPage.tsx');
-    const panel = read('src/components/settings/RuntimeSettingsPanel.tsx');
-    expect(page).toContain('RuntimeSettingsPanel');
-    expect(panel).toContain('getNsfwBlur');
-    expect(panel).toContain('setNsfwBlur');
-    expect(panel).toContain("getAppConfig<string>('stRoot')");
-    expect(panel).toContain("setAppConfig('stRoot', root)");
-    expect(panel).toContain('pickDirectory');
-    expect(panel).toContain('chooseVaultRoot');
-    expect(panel).toContain('getVaultRoot');
-    expect(panel).toContain('window.location.reload()');
+    const runtime = read('src/components/settings/RuntimeSettingsPanel.tsx');
+    const global = read('src/components/GlobalSettings.tsx');
+
+    for (const label of ['显示', 'AI 配置', '目录与连接', '数据与备份', '关于与引导']) {
+      expect(page).toContain(`label: '${label}'`);
+    }
+    expect(page).toContain('loadSettingsSection');
+    expect(page).toContain('saveSettingsSection');
+    expect(page).toContain('switch (activeSection)');
+    expect(page).toContain('md:grid-cols-[190px_minmax(0,1fr)]');
+    expect(page).toContain('overflow-x-auto');
+    expect(page).not.toContain('<RuntimeSettingsPanel');
+    expect(page).not.toContain('<GlobalSettingsPanel');
+
+    expect(runtime).toContain('export function DisplaySettingsPanel');
+    expect(runtime).toContain('export function DirectorySettingsPanel');
+    expect(runtime).toContain('getNsfwBlur');
+    expect(runtime).toContain('setNsfwBlur');
+    expect(runtime).toContain("getAppConfig<string>('stRoot')");
+    expect(runtime).toContain("setAppConfig('stRoot', root)");
+    expect(runtime).toContain('pickDirectory');
+    expect(runtime).toContain('chooseVaultRoot');
+    expect(runtime).toContain('getVaultRoot');
+    expect(runtime).toContain('window.location.reload()');
+    expect(global).toContain('export function DataSettingsPanel');
+    expect(global).toContain('export function AboutSettingsPanel');
   });
 
   it('AppLayout 提升为路由布局并保留真实出入场动画', () => {
@@ -163,9 +179,23 @@ describe('阶段 D 外壳与 NSFW 契约', () => {
     const layout = read('src/components/AppLayout.tsx');
     expect(app).toContain('<Route element={<AppLayout />}>');
     expect(layout).toContain('useOutlet()');
-    expect(layout).toContain('mode="wait"');
+    expect(layout).toContain('mode="popLayout"');
+    expect(layout).not.toContain('mode="wait"');
+    expect(layout).toContain('transition={{ duration: 0.12');
     expect(layout).toContain('exit={{ opacity: 0');
     expect(layout).toContain('LayoutContext');
+  });
+
+  it('首页先复用模块快照并在挂载后后台刷新', () => {
+    const home = read('src/pages/Home.tsx');
+    expect(home).toContain('let homeSnapshot');
+    expect(home).toContain('homeSnapshot.characters');
+    expect(home).toContain('homeSnapshot.stories');
+    expect(home).toContain('homeSnapshot.recentStories');
+    expect(home).toContain('homeSnapshot.resources');
+    expect(home).toContain('homeSnapshot.assetCounts');
+    expect(home).toContain('homeSnapshot = nextSnapshot');
+    expect(home).toContain('useEffect(() => { void loadData(); }, [loadData])');
   });
 
   it('全局搜索键盘导航基于分组后的视觉顺序', () => {
