@@ -49,14 +49,25 @@ export function isTrueSystemMessage(raw: {
   return type === 'narrator' || type === 'system';
 }
 
-/** 解析 ST 聊天 JSONL（首行元数据 + 每行一条消息）。坏行跳过不中断。 */
-export function parseJsonl(content: string): { messages: ChatMessage[]; metadata?: STMetadata } {
+export interface JsonlDiagnostics {
+  nonEmptyLines: number;
+  invalidLines: number;
+}
+
+/** 解析 ST 聊天 JSONL（首行元数据 + 每行一条消息）。坏行跳过不中断，并返回完整性诊断。 */
+export function parseJsonl(content: string): {
+  messages: ChatMessage[];
+  metadata?: STMetadata;
+  diagnostics: JsonlDiagnostics;
+} {
   const lines = content.trim().split('\n');
   const messages: ChatMessage[] = [];
   let metadata: STMetadata | undefined;
+  const diagnostics: JsonlDiagnostics = { nonEmptyLines: 0, invalidLines: 0 };
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i];
     if (!line.trim()) continue;
+    diagnostics.nonEmptyLines++;
     try {
       const parsed = JSON.parse(line) as STRawMessage;
       if (i === 0 && ('user_name' in parsed || 'character_name' in parsed || 'chat_metadata' in parsed)) {
@@ -76,10 +87,11 @@ export function parseJsonl(content: string): { messages: ChatMessage[]; metadata
         rawData: parsed,
       });
     } catch {
+      diagnostics.invalidLines++;
       console.warn('Failed to parse line:', line);
     }
   }
-  return { messages, metadata };
+  return { messages, metadata, diagnostics };
 }
 
 /**

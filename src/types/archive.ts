@@ -123,6 +123,8 @@ export interface ArchiveCharacter {
   lastViewedAt?: number;
   /** 关联的独立资产引用（世界书/预设/正则；只记引用，写时复制见定稿第七章） */
   assets?: AssetRef[];
+  /** ST 中存在但本次未能解析到库内资产的引用。 */
+  unresolvedAssets?: UnresolvedAssetRef[];
   /** 客户端：来源文件路径（网页版为空） */
   sourcePath?: string;
   createdAt: number;
@@ -196,6 +198,10 @@ export interface ArchiveStory {
   lastImportedAt?: number;
   /** 最近一次导出副本的时间（阶段4，io 页显示） */
   lastExportedAt?: number;
+  /** ST 对话元数据恢复出的资产引用。 */
+  assets?: AssetRef[];
+  /** 对话元数据指向但库内未找到的资产。 */
+  unresolvedAssets?: UnresolvedAssetRef[];
   /** 写回 ST 历史（阶段7.5，客户端；新在前，最多留 10 条） */
   writebacks?: WritebackRecord[];
   createdAt: number;
@@ -214,6 +220,9 @@ export interface WritebackRecord {
 // ---------- 独立资产：引用 + 写时复制（定稿第七章） ----------
 
 export type AssetKind = 'worldbook' | 'preset' | 'regex';
+
+/** 从 ST 恢复的资产关系语义；手动挂载的引用没有 relations。 */
+export type STAssetRelation = 'embedded' | 'primary' | 'extra' | 'chat';
 
 /**
  * 派生资产元数据（写时复制产物，命名 `原资产名_角色卡名`）。
@@ -235,6 +244,16 @@ export interface DerivedAssetMeta {
 export interface AssetRef {
   kind: AssetKind;
   assetId: string;
+  /** 同一资产可同时承担多种 ST 关系，因此合并存放，避免重复引用。 */
+  relations?: STAssetRelation[];
+}
+
+/** ST 指向了未导入或不存在的资产时保留名称，避免关系静默消失。 */
+export interface UnresolvedAssetRef {
+  kind: AssetKind;
+  name: string;
+  relation: STAssetRelation;
+  reason?: 'missing' | 'ambiguous';
 }
 
 /** 角色卡内置资源的幂等导入标记。 */

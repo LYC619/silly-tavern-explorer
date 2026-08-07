@@ -52,6 +52,10 @@ export interface WorldBookItem {
   sourcePath?: string;
   /** 从角色卡内置世界书提取时记录，用于按角色+内容哈希幂等导入。 */
   embedded?: import('@/types/archive').EmbeddedAssetMeta;
+  /** 导入时在 settings.json -> globalSelect 中启用。 */
+  stGlobal?: boolean;
+  /** 启用该全局关系的 settings.json 绝对来源路径；多 ST 根互不清理。 */
+  stGlobalSources?: string[];
 }
 
 export const POSITION_LABELS: Record<number, string> = {

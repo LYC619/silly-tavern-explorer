@@ -8,8 +8,8 @@ import { createMemFs } from '@/lib/vault/fs';
 import { createVault } from '@/lib/vault/vault-backend';
 import { setActiveVault } from '@/lib/vault/active';
 import { scanSTUserDir, importSelected, type STScanResult } from '@/lib/vault/st-import';
-import { getAllArchiveStories, getAllCharacters } from '@/lib/archive-db';
-import { getAllWorldBooks } from '@/lib/worldbook-db';
+import { getAllArchiveStories, getAllCharacters, saveCharacter } from '@/lib/archive-db';
+import { getAllWorldBooks, saveWorldBook } from '@/lib/worldbook-db';
 import { getAllPresets } from '@/lib/preset-db';
 import { getAllRegexCollections } from '@/lib/regex-db';
 
@@ -40,6 +40,16 @@ function makeJsonl(charName: string, n = 2): string {
   for (let i = 0; i < n; i++) {
     lines.push(JSON.stringify({ name: i % 2 ? charName : '我', is_user: i % 2 === 0, send_date: i + 1, mes: `第${i}楼` }));
   }
+  return lines.join('\n');
+}
+
+function makeJsonlWithWorldbook(charName: string, worldbook: string): string {
+  const lines = [JSON.stringify({
+    user_name: '我',
+    character_name: charName,
+    chat_metadata: { world_info: worldbook },
+  })];
+  lines.push(JSON.stringify({ name: '我', is_user: true, send_date: 1, mes: '开始' }));
   return lines.join('\n');
 }
 
@@ -78,6 +88,9 @@ function selectAll(scan: STScanResult, stRoot = 'C:/ST') {
     worldbooks: scan.worldbooks,
     presets: scan.presets,
     regex: scan.regex,
+    archives: scan.archives,
+    relationships: scan.relationships,
+    scanWarnings: scan.warnings,
   };
 }
 
@@ -117,7 +130,17 @@ describe('scanSTUserDir', () => {
 
   it('目录缺失 = 空组不抛错（空目录/只有部分子目录）', async () => {
     const empty = await scanSTUserDir(createMemFs());
-    expect(empty).toEqual({ userDir: '', characters: [], strayChats: [], worldbooks: [], presets: [], regex: null });
+    expect(empty).toEqual({
+      userDir: '',
+      characters: [],
+      strayChats: [],
+      worldbooks: [],
+      presets: [],
+      regex: null,
+      archives: [],
+      relationships: { status: 'missing', globalWorldbooks: [], characterWorldbooks: [] },
+      warnings: [],
+    });
 
     const partial = createMemFs();
     await partial.writeText('worlds/仅世界书.json', wbJson); // 没有 characters/ chats/
@@ -125,6 +148,36 @@ describe('scanSTUserDir', () => {
     expect(r.characters).toEqual([]);
     expect(r.strayChats).toEqual([]);
     expect(r.worldbooks).toHaveLength(1);
+  });
+
+  it('递归盘点 extensions / assets，并读取 settings.json 的世界书关系', async () => {
+    const st = createMemFs();
+    await st.writeBinary('extensions/third-party/表情扩展/index.js', btoa('console.log("plugin")'));
+    await st.writeBinary('extensions/third-party/表情扩展/data/config.json', btoa('{"enabled":true}'));
+    await st.writeBinary('assets/emotes/开心.png', 'aW1hZ2U=');
+    await st.writeText('settings.json', JSON.stringify({
+      world_info_settings: {
+        world_info: {
+          globalSelect: ['全局设定'],
+          charLore: [{ name: '赫敏.png', extraBooks: ['魔法补充', '未找到的书'] }],
+        },
+      },
+    }));
+
+    const scan = await scanSTUserDir(st);
+    expect(scan.archives.map((group) => ({
+      kind: group.kind,
+      files: group.files.map((file) => file.relativePath),
+    }))).toEqual([
+      { kind: 'extensions', files: ['third-party/表情扩展/data/config.json', 'third-party/表情扩展/index.js'] },
+      { kind: 'assets', files: ['emotes/开心.png'] },
+    ]);
+    expect(scan.relationships).toEqual({
+      status: 'parsed',
+      settingsPath: 'settings.json',
+      globalWorldbooks: ['全局设定'],
+      characterWorldbooks: [{ characterFile: '赫敏.png', worldbooks: ['魔法补充', '未找到的书'] }],
+    });
   });
 });
 
@@ -145,7 +198,17 @@ describe('importSelected', () => {
     const summary = await importSelected(st, selectAll(scan));
 
     // 坏卡.png 解析失败计 failed=1，其聊天降级为未绑定照常导入
-    expect(summary).toEqual({ characters: 1, stories: 4, worldbooks: 1, presets: 1, regexes: 1, skipped: 0, failed: 1 });
+    expect(summary).toMatchObject({
+      characters: 1,
+      stories: 4,
+      worldbooks: 1,
+      presets: 1,
+      regexes: 1,
+      skipped: 0,
+      failed: 1,
+      relationships: 0,
+      archivedFiles: 0,
+    });
 
     const chars = await getAllCharacters();
     expect(chars).toHaveLength(1);
@@ -206,7 +269,17 @@ describe('importSelected', () => {
 
     const again = await importSelected(st, selectAll(scan));
     // 卡1 + 聊天4 + 世界书1 + 预设1 + 正则1 = 跳过8；坏卡每轮都解析失败计 failed
-    expect(again).toEqual({ characters: 0, stories: 0, worldbooks: 0, presets: 0, regexes: 0, skipped: 8, failed: 1 });
+    expect(again).toMatchObject({
+      characters: 0,
+      stories: 0,
+      worldbooks: 0,
+      presets: 0,
+      regexes: 0,
+      skipped: 8,
+      failed: 1,
+      relationships: 0,
+      archivedFiles: 0,
+    });
     expect(await getAllCharacters()).toHaveLength(1);
     expect(await getAllArchiveStories()).toHaveLength(4);
     expect(await getAllWorldBooks()).toHaveLength(1);
@@ -260,7 +333,471 @@ describe('importSelected', () => {
     const st = createMemFs();
     setupVault();
     const summary = await importSelected(st, { stRoot: 'C:/ST', characters: [], strayChats: [], worldbooks: [], presets: [] });
-    expect(summary).toEqual({ characters: 0, stories: 0, worldbooks: 0, presets: 0, regexes: 0, skipped: 0, failed: 0 });
+    expect(summary).toMatchObject({
+      characters: 0,
+      stories: 0,
+      worldbooks: 0,
+      presets: 0,
+      regexes: 0,
+      skipped: 0,
+      failed: 0,
+      relationships: 0,
+      archivedFiles: 0,
+      details: [],
+    });
     expect(await getAllCharacters()).toEqual([]);
+  });
+
+  it('恢复主绑定、额外、全局和对话级世界书关系，并明确记录未解析名称', async () => {
+    const st = createMemFs();
+    await st.writeBinary('characters/赫敏.png', makeCardPngBase64({
+      spec: 'chara_card_v2',
+      data: { name: '赫敏', extensions: { world: '主世界书' } },
+    }));
+    await st.writeText('chats/赫敏/主线.jsonl', makeJsonlWithWorldbook('赫敏', '对话世界书'));
+    for (const name of ['主世界书', '额外世界书', '全局世界书', '对话世界书']) {
+      await st.writeText(`worlds/${name}.json`, JSON.stringify({ entries: {} }));
+    }
+    await st.writeText('settings.json', JSON.stringify({
+      world_info_settings: { world_info: {
+        globalSelect: ['全局世界书'],
+        charLore: [{ name: '赫敏.png', extraBooks: ['额外世界书', '缺失世界书'] }],
+      } },
+    }));
+    const vaultFs = setupVault();
+
+    const scan = await scanSTUserDir(st);
+    const summary = await importSelected(st, selectAll(scan));
+    setActiveVault(createVault(vaultFs));
+    const books = await getAllWorldBooks();
+    const byTitle = new Map(books.map((book) => [book.title, book]));
+    const character = (await getAllCharacters())[0];
+    const story = (await getAllArchiveStories())[0];
+
+    expect(character.assets).toEqual(expect.arrayContaining([
+      { kind: 'worldbook', assetId: byTitle.get('主世界书')!.id, relations: ['primary'] },
+      { kind: 'worldbook', assetId: byTitle.get('额外世界书')!.id, relations: ['extra'] },
+    ]));
+    expect(character.unresolvedAssets).toEqual([
+      { kind: 'worldbook', name: '缺失世界书', relation: 'extra', reason: 'missing' },
+    ]);
+    expect(story.assets).toEqual([
+      { kind: 'worldbook', assetId: byTitle.get('对话世界书')!.id, relations: ['chat'] },
+    ]);
+    expect(byTitle.get('全局世界书')!.stGlobal).toBe(true);
+    expect(summary.relationships).toBe(4);
+    expect(summary.unresolvedRelationships).toEqual([
+      { owner: '赫敏', name: '缺失世界书', relation: 'extra', reason: 'missing' },
+    ]);
+
+    // ST 侧取消全局与额外链接后，重新扫描应移除旧关系而不是累积残留。
+    await st.writeText('settings.json', JSON.stringify({
+      world_info_settings: { world_info: { globalSelect: [], charLore: [] } },
+    }));
+    const scan2 = await scanSTUserDir(st);
+    await importSelected(st, selectAll(scan2));
+    const refreshedCharacter = (await getAllCharacters())[0];
+    expect(refreshedCharacter.assets).toEqual([
+      { kind: 'worldbook', assetId: byTitle.get('主世界书')!.id, relations: ['primary'] },
+    ]);
+    expect((await getAllWorldBooks()).find((book) => book.title === '全局世界书')!.stGlobal).toBe(false);
+
+    await st.writeBinary('characters/赫敏.png', makeCardPngBase64({
+      spec: 'chara_card_v2',
+      data: { name: '赫敏', extensions: {} },
+    }));
+    await importSelected(st, selectAll(await scanSTUserDir(st)));
+    expect((await getAllCharacters())[0].assets).toBeUndefined();
+  });
+
+  it('把 extensions / assets 原样复制到其他资产区，并生成可核对的说明和清单', async () => {
+    const st = createMemFs();
+    await st.writeBinary('extensions/third-party/插件/index.js', btoa('alert(1)'));
+    await st.writeBinary('extensions/third-party/插件/settings.json', btoa('{}'));
+    await st.writeBinary('assets/bgm/theme.mp3', 'YXVkaW8=');
+    const vaultFs = setupVault();
+    const scan = await scanSTUserDir(st);
+
+    const summary = await importSelected(st, {
+      stRoot: 'C:/ST',
+      characters: [],
+      strayChats: [],
+      worldbooks: [],
+      presets: [],
+      archives: scan.archives,
+      relationships: scan.relationships,
+    });
+
+    expect(summary.archivedFiles).toBe(3);
+    expect(summary.archiveBytes).toBeGreaterThan(0);
+    const files = Object.keys(vaultFs.dump());
+    expect(files).toContain('资产/其他/SillyTavern/extensions/third-party/插件/index.js');
+    expect(files).toContain('资产/其他/SillyTavern/extensions/third-party/插件/settings.json');
+    expect(files).toContain('资产/其他/SillyTavern/assets/bgm/theme.mp3');
+    expect(files).toContain('说明/SillyTavern 导入说明.md');
+    expect(files).toContain('说明/SillyTavern 最近一次导入.json');
+  });
+
+  it('世界书关系优先指向 worlds 来源文件，不误连到同名手动资产', async () => {
+    const st = createMemFs();
+    await st.writeBinary('characters/角色.png', makeCardPngBase64({
+      spec: 'chara_card_v2',
+      data: { name: '角色', extensions: { world: '同名书' } },
+    }));
+    await st.writeText('worlds/同名书.json', JSON.stringify({ entries: {} }));
+    setupVault();
+    const now = Date.now();
+    await saveWorldBook({
+      id: 'manual-book',
+      title: '同名书',
+      worldbook: { entries: {} },
+      createdAt: now,
+      updatedAt: now + 100,
+    });
+
+    await importSelected(st, selectAll(await scanSTUserDir(st)));
+    const books = await getAllWorldBooks();
+    const imported = books.find((book) => book.sourcePath?.endsWith('/worlds/同名书.json'))!;
+    expect((await getAllCharacters())[0].assets).toEqual([
+      { kind: 'worldbook', assetId: imported.id, relations: ['primary'] },
+    ]);
+  });
+
+  it('全局关系按 settings 来源隔离；解析失败、其他根和未选择关系都不能清除', async () => {
+    const stA = createMemFs();
+    await stA.writeText('worlds/A世界书.json', JSON.stringify({ entries: {} }));
+    await stA.writeText('settings.json', JSON.stringify({
+      world_info_settings: { world_info: { globalSelect: ['A世界书'] } },
+    }));
+    setupVault();
+    await importSelected(stA, selectAll(await scanSTUserDir(stA), 'C:/ST-A'));
+    let book = (await getAllWorldBooks()).find((item) => item.title === 'A世界书')!;
+    expect(book.stGlobalSources).toEqual(['C:/ST-A/settings.json']);
+
+    await stA.writeText('settings.json', '{broken');
+    await importSelected(stA, selectAll(await scanSTUserDir(stA), 'C:/ST-A'));
+    book = (await getAllWorldBooks()).find((item) => item.title === 'A世界书')!;
+    expect(book.stGlobal).toBe(true);
+
+    const stB = createMemFs();
+    await stB.writeText('settings.json', JSON.stringify({
+      world_info_settings: { world_info: { globalSelect: [] } },
+    }));
+    await importSelected(stB, selectAll(await scanSTUserDir(stB), 'C:/ST-B'));
+    book = (await getAllWorldBooks()).find((item) => item.title === 'A世界书')!;
+    expect(book.stGlobal).toBe(true);
+
+    await stA.writeBinary('assets/test.bin', 'dGVzdA==');
+    const archiveScan = await scanSTUserDir(stA);
+    await importSelected(stA, {
+      stRoot: 'C:/ST-A',
+      characters: [],
+      strayChats: [],
+      worldbooks: [],
+      presets: [],
+      archives: archiveScan.archives,
+    });
+    expect((await getAllWorldBooks()).find((item) => item.title === 'A世界书')!.stGlobal).toBe(true);
+
+    await stA.writeText('settings.json', JSON.stringify({
+      world_info_settings: { world_info: { globalSelect: [] } },
+    }));
+    await importSelected(stA, selectAll(await scanSTUserDir(stA), 'C:/ST-A'));
+    book = (await getAllWorldBooks()).find((item) => item.title === 'A世界书')!;
+    expect(book.stGlobal).toBe(false);
+    expect(book.stGlobalSources).toEqual([]);
+  });
+
+  it('已导入聊天复扫时只刷新对话级世界书关系，不覆盖故事内容', async () => {
+    const st = createMemFs();
+    await st.writeBinary('characters/角色.png', makeCardPngBase64({ spec: 'chara_card_v2', data: { name: '角色' } }));
+    await st.writeText('chats/角色/主线.jsonl', makeJsonlWithWorldbook('角色', '书A'));
+    await st.writeText('worlds/书A.json', JSON.stringify({ entries: {} }));
+    await st.writeText('worlds/书B.json', JSON.stringify({ entries: {} }));
+    setupVault();
+    await importSelected(st, selectAll(await scanSTUserDir(st)));
+    const original = (await getAllArchiveStories())[0];
+    const originalMessages = original.session.messages;
+
+    await st.writeText('chats/角色/主线.jsonl', makeJsonlWithWorldbook('角色', '书B'));
+    await importSelected(st, selectAll(await scanSTUserDir(st)));
+    let story = (await getAllArchiveStories())[0];
+    const bookB = (await getAllWorldBooks()).find((book) => book.title === '书B')!;
+    expect(story.assets).toEqual([{ kind: 'worldbook', assetId: bookB.id, relations: ['chat'] }]);
+    expect(story.session.messages).toEqual(originalMessages);
+
+    await st.writeText('chats/角色/主线.jsonl', makeJsonlWithWorldbook('角色', '不存在'));
+    await importSelected(st, selectAll(await scanSTUserDir(st)));
+    story = (await getAllArchiveStories())[0];
+    expect(story.assets).toBeUndefined();
+    expect(story.unresolvedAssets).toEqual([
+      { kind: 'worldbook', name: '不存在', relation: 'chat', reason: 'missing' },
+    ]);
+
+    await st.writeText('chats/角色/主线.jsonl', makeJsonl('角色', 1));
+    await importSelected(st, selectAll(await scanSTUserDir(st)));
+    story = (await getAllArchiveStories())[0];
+    expect(story.assets).toBeUndefined();
+    expect(story.unresolvedAssets).toBeUndefined();
+  });
+
+  it('已有聊天首行损坏时保留原对话级关系并报告失败', async () => {
+    const st = createMemFs();
+    await st.writeBinary('characters/角色.png', makeCardPngBase64({ spec: 'chara_card_v2', data: { name: '角色' } }));
+    await st.writeText('chats/角色/主线.jsonl', makeJsonlWithWorldbook('角色', '书A'));
+    await st.writeText('worlds/书A.json', JSON.stringify({ entries: {} }));
+    setupVault();
+    await importSelected(st, selectAll(await scanSTUserDir(st)));
+    const originalAssets = (await getAllArchiveStories())[0].assets;
+
+    await st.writeText('chats/角色/主线.jsonl', '{broken');
+    const summary = await importSelected(st, selectAll(await scanSTUserDir(st)));
+
+    expect((await getAllArchiveStories())[0].assets).toEqual(originalAssets);
+    expect(summary.failed).toBe(1);
+    expect(summary.details).toContainEqual(expect.objectContaining({ status: 'failed', kind: '聊天关系', name: '主线' }));
+  });
+
+  it('已有聊天部分截断时不采用新元数据覆盖原对话级关系', async () => {
+    const st = createMemFs();
+    await st.writeBinary('characters/角色.png', makeCardPngBase64({ spec: 'chara_card_v2', data: { name: '角色' } }));
+    await st.writeText('chats/角色/主线.jsonl', makeJsonlWithWorldbook('角色', '书A'));
+    for (const name of ['书A', '书B']) await st.writeText(`worlds/${name}.json`, JSON.stringify({ entries: {} }));
+    setupVault();
+    await importSelected(st, selectAll(await scanSTUserDir(st)));
+    const originalAssets = (await getAllArchiveStories())[0].assets;
+
+    await st.writeText('chats/角色/主线.jsonl', `${makeJsonlWithWorldbook('角色', '书B')}\n{truncated`);
+    const summary = await importSelected(st, selectAll(await scanSTUserDir(st)));
+
+    expect((await getAllArchiveStories())[0].assets).toEqual(originalAssets);
+    expect(summary.failed).toBe(1);
+  });
+
+  it('已有聊天只剩元数据行时保留原对话级关系', async () => {
+    const st = createMemFs();
+    await st.writeBinary('characters/角色.png', makeCardPngBase64({ spec: 'chara_card_v2', data: { name: '角色' } }));
+    await st.writeText('chats/角色/主线.jsonl', makeJsonlWithWorldbook('角色', '书A'));
+    for (const name of ['书A', '书B']) await st.writeText(`worlds/${name}.json`, JSON.stringify({ entries: {} }));
+    setupVault();
+    await importSelected(st, selectAll(await scanSTUserDir(st)));
+    const originalAssets = (await getAllArchiveStories())[0].assets;
+
+    await st.writeText('chats/角色/主线.jsonl', JSON.stringify({
+      user_name: '我', character_name: '角色', chat_metadata: { world_info: '书B' },
+    }));
+    const summary = await importSelected(st, selectAll(await scanSTUserDir(st)));
+
+    expect((await getAllArchiveStories())[0].assets).toEqual(originalAssets);
+    expect(summary.failed).toBe(1);
+  });
+
+  it('已有聊天缺少元数据首行时保留原对话级关系', async () => {
+    const st = createMemFs();
+    await st.writeBinary('characters/角色.png', makeCardPngBase64({ spec: 'chara_card_v2', data: { name: '角色' } }));
+    await st.writeText('chats/角色/主线.jsonl', makeJsonlWithWorldbook('角色', '书A'));
+    await st.writeText('worlds/书A.json', JSON.stringify({ entries: {} }));
+    setupVault();
+    await importSelected(st, selectAll(await scanSTUserDir(st)));
+    const originalAssets = (await getAllArchiveStories())[0].assets;
+
+    await st.writeText('chats/角色/主线.jsonl', JSON.stringify({ name: '我', is_user: true, mes: '仍是合法消息' }));
+    const summary = await importSelected(st, selectAll(await scanSTUserDir(st)));
+
+    expect((await getAllArchiveStories())[0].assets).toEqual(originalAssets);
+    expect(summary.failed).toBe(1);
+  });
+
+  it('来源角色卡临时损坏时不使用库内旧卡回滚主绑定', async () => {
+    const st = createMemFs();
+    for (const name of ['书A', '书B']) await st.writeText(`worlds/${name}.json`, JSON.stringify({ entries: {} }));
+    await st.writeBinary('characters/角色.png', makeCardPngBase64({
+      spec: 'chara_card_v2',
+      data: { name: '角色', extensions: { world: '书A' } },
+    }));
+    setupVault();
+    await importSelected(st, selectAll(await scanSTUserDir(st)));
+
+    await st.writeBinary('characters/角色.png', makeCardPngBase64({
+      spec: 'chara_card_v2',
+      data: { name: '角色', extensions: { world: '书B' } },
+    }));
+    await importSelected(st, selectAll(await scanSTUserDir(st)));
+    const relationToB = (await getAllCharacters())[0].assets;
+
+    await st.writeBinary('characters/角色.png', 'bm90LWEtcG5n');
+    const summary = await importSelected(st, selectAll(await scanSTUserDir(st)));
+
+    expect((await getAllCharacters())[0].assets).toEqual(relationToB);
+    expect(summary.failed).toBe(1);
+    expect(summary.details).toContainEqual(expect.objectContaining({ status: 'failed', kind: '角色卡关系', name: '角色' }));
+  });
+
+  it('角色世界书写时复制后复扫仍保留派生副本关系', async () => {
+    const st = createMemFs();
+    await st.writeText('worlds/书A.json', JSON.stringify({ entries: {} }));
+    await st.writeBinary('characters/角色.png', makeCardPngBase64({
+      spec: 'chara_card_v2',
+      data: { name: '角色', extensions: { world: '书A' } },
+    }));
+    setupVault();
+    await importSelected(st, selectAll(await scanSTUserDir(st)));
+
+    const character = (await getAllCharacters())[0];
+    const sourceBook = (await getAllWorldBooks()).find((book) => book.title === '书A')!;
+    const now = Date.now();
+    await saveWorldBook({
+      ...sourceBook,
+      id: 'derived-book',
+      title: '书A_角色',
+      sourcePath: undefined,
+      derived: { derivedFrom: sourceBook.id, characterId: character.id, createdAt: now, updatedAt: now },
+    });
+    character.assets = [{ kind: 'worldbook', assetId: 'derived-book', relations: ['primary'] }];
+    await saveCharacter(character);
+
+    await importSelected(st, selectAll(await scanSTUserDir(st)));
+
+    expect((await getAllCharacters())[0].assets).toEqual([
+      { kind: 'worldbook', assetId: 'derived-book', relations: ['primary'] },
+    ]);
+  });
+
+  it('多本额外世界书写时复制后复扫按各自来源保留派生副本', async () => {
+    const st = createMemFs();
+    for (const name of ['书A', '书B']) await st.writeText(`worlds/${name}.json`, JSON.stringify({ entries: {} }));
+    await st.writeBinary('characters/角色.png', makeCardPngBase64({ spec: 'chara_card_v2', data: { name: '角色' } }));
+    await st.writeText('settings.json', JSON.stringify({
+      world_info_settings: { world_info: { charLore: [{ name: '角色.png', extraBooks: ['书A', '书B'] }] } },
+    }));
+    setupVault();
+    await importSelected(st, selectAll(await scanSTUserDir(st)));
+
+    const character = (await getAllCharacters())[0];
+    const books = await getAllWorldBooks();
+    const now = Date.now();
+    for (const name of ['书A', '书B']) {
+      const source = books.find((book) => book.title === name)!;
+      await saveWorldBook({
+        ...source,
+        id: `derived-${name}`,
+        title: `${name}_角色`,
+        sourcePath: undefined,
+        derived: { derivedFrom: source.id, characterId: character.id, createdAt: now, updatedAt: now },
+      });
+    }
+    character.assets = [
+      { kind: 'worldbook', assetId: 'derived-书A', relations: ['extra'] },
+      { kind: 'worldbook', assetId: 'derived-书B', relations: ['extra'] },
+    ];
+    await saveCharacter(character);
+    await st.writeText('settings.json', JSON.stringify({
+      world_info_settings: { world_info: { charLore: [{ name: '角色.png', extraBooks: ['书B', '书A'] }] } },
+    }));
+
+    await importSelected(st, selectAll(await scanSTUserDir(st)));
+
+    expect((await getAllCharacters())[0].assets).toEqual(expect.arrayContaining([
+      { kind: 'worldbook', assetId: 'derived-书A', relations: ['extra'] },
+      { kind: 'worldbook', assetId: 'derived-书B', relations: ['extra'] },
+    ]));
+  });
+
+  it('没有当前 ST 来源文件且存在同名候选时保留为歧义，不随列表顺序误连', async () => {
+    const st = createMemFs();
+    await st.writeBinary('characters/角色.png', makeCardPngBase64({
+      spec: 'chara_card_v2',
+      data: { name: '角色', extensions: { world: '同名书' } },
+    }));
+    setupVault();
+    const now = Date.now();
+    for (const id of ['manual-1', 'manual-2']) {
+      await saveWorldBook({ id, title: '同名书', worldbook: { entries: {} }, createdAt: now, updatedAt: now });
+    }
+
+    const summary = await importSelected(st, selectAll(await scanSTUserDir(st)));
+    const character = (await getAllCharacters())[0];
+    expect(character.assets).toBeUndefined();
+    expect(character.unresolvedAssets).toEqual([
+      { kind: 'worldbook', name: '同名书', relation: 'primary', reason: 'ambiguous' },
+    ]);
+    expect(summary.unresolvedRelationships[0].reason).toBe('ambiguous');
+  });
+
+  it('递归盘点跳过符号链接并把遗漏写入扫描警告', async () => {
+    const base = createMemFs();
+    await base.writeBinary('extensions/real/file.bin', 'dGVzdA==');
+    const fs = {
+      ...base,
+      async list(dir: string) {
+        const entries = await base.list(dir);
+        return dir === 'extensions'
+          ? [...entries, { name: 'outside', isDir: true, isSymlink: true, size: 0 }]
+          : entries;
+      },
+    };
+
+    const scan = await scanSTUserDir(fs);
+    expect(scan.archives[0].files.map((file) => file.relativePath)).toEqual(['real/file.bin']);
+    expect(scan.warnings).toEqual([
+      { path: 'extensions/outside', reason: 'symlink' },
+    ]);
+  });
+
+  it('扩展根目录本身是符号链接时跳过，并继续下钻真正的 ST 用户目录', async () => {
+    const base = createMemFs();
+    await base.writeBinary('extensions/outside/file.bin', 'dGVzdA==');
+    await base.writeText('data/default-user/worlds/真实世界书.json', JSON.stringify({ entries: {} }));
+    const fs = {
+      ...base,
+      async list(dir: string) {
+        const entries = await base.list(dir);
+        return dir === ''
+          ? entries.map((entry) => (entry.name === 'extensions' ? { ...entry, isSymlink: true } : entry))
+          : entries;
+      },
+    };
+
+    const scan = await scanSTUserDir(fs);
+    expect(scan.userDir).toBe('data/default-user');
+    expect(scan.worldbooks.map((book) => book.name)).toEqual(['真实世界书']);
+    expect(scan.archives).toEqual([]);
+    expect(scan.warnings).toContainEqual({ path: 'extensions', reason: 'symlink' });
+  });
+
+  it('角色卡等结构化来源文件是符号链接时不纳入扫描', async () => {
+    const base = createMemFs();
+    await base.writeBinary('characters/外部角色.png', makeCardPngBase64({ spec: 'chara_card_v2', data: { name: '外部角色' } }));
+    const fs = {
+      ...base,
+      async list(dir: string) {
+        const entries = await base.list(dir);
+        return dir === 'characters'
+          ? entries.map((entry) => ({ ...entry, isSymlink: true }))
+          : entries;
+      },
+    };
+
+    const scan = await scanSTUserDir(fs);
+    expect(scan.characters).toEqual([]);
+    expect(scan.warnings).toContainEqual({ path: 'characters/外部角色.png', reason: 'symlink' });
+  });
+
+  it('递归归档拒绝会被解释成路径穿越的目录项名称', async () => {
+    const base = createMemFs();
+    await base.writeBinary('extensions/real.bin', 'dGVzdA==');
+    const fs = {
+      ...base,
+      async list(dir: string) {
+        const entries = await base.list(dir);
+        return dir === 'extensions'
+          ? [...entries, { name: '..\\..\\escape.txt', isDir: false, size: 6 }]
+          : entries;
+      },
+    };
+
+    const scan = await scanSTUserDir(fs);
+    expect(scan.archives[0].files.map((file) => file.relativePath)).toEqual(['real.bin']);
+    expect(scan.warnings).toContainEqual({ path: 'extensions/..\\..\\escape.txt', reason: 'unsafe-path' });
   });
 });

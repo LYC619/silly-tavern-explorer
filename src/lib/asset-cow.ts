@@ -76,12 +76,17 @@ export function switchAssetRef(
   toId: string,
 ): AssetRef[] {
   const list = refs ?? [];
-  if (list.some((r) => r.kind === kind && r.assetId === toId)) {
-    return list.filter((r) => !(r.kind === kind && r.assetId === fromId && fromId !== toId));
+  const source = list.find((r) => r.kind === kind && r.assetId === fromId);
+  const target = list.find((r) => r.kind === kind && r.assetId === toId);
+  if (target) {
+    const relations = [...new Set([...(target.relations ?? []), ...(source?.relations ?? [])])];
+    return list
+      .filter((r) => !(r.kind === kind && r.assetId === fromId && fromId !== toId))
+      .map((r) => (r === target && relations.length > 0 ? { ...r, relations } : r));
   }
   const idx = list.findIndex((r) => r.kind === kind && r.assetId === fromId);
   if (idx === -1) return [...list, { kind, assetId: toId }];
-  return list.map((r, i) => (i === idx ? { kind, assetId: toId } : r));
+  return list.map((r, i) => (i === idx ? { ...r, assetId: toId } : r));
 }
 
 /** 资产引用的增删（角色页关联资产区用） */

@@ -57,6 +57,7 @@ interface AssetRow {
   derived?: boolean;
   autoSaved?: boolean;
   fromST?: boolean;
+  stGlobal?: boolean;
   updatedAt: number;
 }
 
@@ -166,6 +167,7 @@ const AssetLibrary = () => {
       derived: !!w.derived,
       autoSaved: w.autoSaved,
       fromST: !!w.sourcePath,
+      stGlobal: w.stGlobal,
       updatedAt: w.updatedAt,
     })),
     preset: presets.map((p) => ({
@@ -354,6 +356,9 @@ const AssetLibrary = () => {
                           )}
                           {a.fromST && (
                             <span className="text-[9px] px-1.5 py-px rounded-full bg-[var(--status-ok-bg)] text-[color:var(--status-ok)]">来自 ST</span>
+                          )}
+                          {a.stGlobal && (
+                            <span className="text-[9px] px-1.5 py-px rounded-full bg-[var(--brand-active-bg)] text-brand">ST 全局</span>
                           )}
                         </div>
                         <DropdownMenu>

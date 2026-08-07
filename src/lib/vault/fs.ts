@@ -9,6 +9,8 @@
 export interface VaultEntry {
   name: string;
   isDir: boolean;
+  /** 递归导入必须跳过，防止链接越出用户选择的根目录。 */
+  isSymlink?: boolean;
   size: number;
 }
 

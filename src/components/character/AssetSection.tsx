@@ -21,7 +21,14 @@ import {
 } from '@/components/ui/alert-dialog';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { useToast } from '@/hooks/use-toast';
-import type { ArchiveCharacter, AssetKind, AssetRef, DerivedAssetMeta, QuoteAsset } from '@/types/archive';
+import type {
+  ArchiveCharacter,
+  AssetKind,
+  AssetRef,
+  DerivedAssetMeta,
+  QuoteAsset,
+  STAssetRelation,
+} from '@/types/archive';
 import type { WorldBookEntry } from '@/types/worldbook';
 import { getAllWorldBooks } from '@/lib/worldbook-db';
 import { getAllPresets } from '@/lib/preset-db';
@@ -47,9 +54,17 @@ interface AssetView {
   derived?: DerivedAssetMeta;
   entries: AssetEntry[];
   count: number;
+  relations?: STAssetRelation[];
 }
 
 const PREVIEW_LIMIT = 8;
+
+const RELATION_LABELS: Record<STAssetRelation, string> = {
+  embedded: '卡内嵌',
+  primary: '主绑定',
+  extra: '额外链接',
+  chat: '对话级',
+};
 
 const KIND_META: Record<AssetView['kind'], { label: string; icon: typeof Globe; toolPath: string; unit: string }> = {
   worldbook: { label: '世界书', icon: Globe, toolPath: '/worldbook', unit: '条目' },
@@ -125,7 +140,10 @@ export function AssetSection({ character, onAssetsChange, onQuotesChange, onRead
   const refs = character.assets ?? [];
   const quotes = character.quotes ?? [];
   const linked = refs
-    .map((ref) => library.find((a) => a.kind === ref.kind && a.id === ref.assetId))
+    .map((ref) => {
+      const asset = library.find((a) => a.kind === ref.kind && a.id === ref.assetId);
+      return asset ? { ...asset, relations: ref.relations } : undefined;
+    })
     .filter((a): a is AssetView => !!a);
   const quoteViews = quotes.map((q): AssetView => {
     const quotePreview = buildQuotePreview(q.body);
@@ -138,6 +156,7 @@ export function AssetSection({ character, onAssetsChange, onQuotesChange, onRead
   const items = [...linked, ...quoteViews];
   // 引用里有、库里已删的（提示失效引用可移除）
   const broken = refs.filter((ref) => !library.some((a) => a.kind === ref.kind && a.id === ref.assetId));
+  const unresolved = character.unresolvedAssets ?? [];
   const linkable = library.filter((a) => !refs.some((r) => r.kind === a.kind && r.assetId === a.id));
 
   const handleAdd = async (a: AssetView) => {
@@ -222,7 +241,7 @@ export function AssetSection({ character, onAssetsChange, onQuotesChange, onRead
         </Popover>
       </div>
 
-      {items.length === 0 && broken.length === 0 ? (
+      {items.length === 0 && broken.length === 0 && unresolved.length === 0 ? (
         <p className="text-xs text-muted-foreground">
           还没有关联资产。角色用到的世界书/预设/正则可以在这里挂引用；在角色上下文里修改共享资产时，
           会自动生成「资产名_{character.name}」的派生副本，不影响其他角色。摘录、语料片段可从「导入资产」进来。
@@ -252,6 +271,11 @@ export function AssetSection({ character, onAssetsChange, onQuotesChange, onRead
                     <Badge variant="outline" className="h-4 px-1 text-[10px] text-muted-foreground shrink-0">共享</Badge>
                   )
                 )}
+                {a.relations?.map((relation) => (
+                  <Badge key={relation} variant="outline" className="h-4 px-1 text-[10px] text-primary shrink-0">
+                    {RELATION_LABELS[relation]}
+                  </Badge>
+                ))}
                 <span className="text-xs text-muted-foreground shrink-0 hidden sm:inline">{a.count} {meta.unit}</span>
                 <span className="ml-auto text-xs text-muted-foreground shrink-0 hidden sm:inline" title={formatFullTime(a.updatedAt)}>
                   {formatListTime(a.updatedAt)}
@@ -294,6 +318,15 @@ export function AssetSection({ character, onAssetsChange, onQuotesChange, onRead
               >
                 移除失效引用
               </Button>
+            </div>
+          ))}
+          {unresolved.map((ref) => (
+            <div key={`${ref.kind}-${ref.relation}-${ref.name}`} className="flex items-center gap-2.5 rounded-lg border border-dashed border-amber-500/50 px-3 py-2 text-sm">
+              <Globe className="w-4 h-4 text-amber-600 shrink-0" />
+              <span className="min-w-0 truncate">未找到世界书「{ref.name}」</span>
+              <Badge variant="outline" className="ml-auto h-4 px-1 text-[10px] text-amber-700 shrink-0">
+                {RELATION_LABELS[ref.relation]}
+              </Badge>
             </div>
           ))}
         </div>

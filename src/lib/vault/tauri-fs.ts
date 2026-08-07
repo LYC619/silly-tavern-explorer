@@ -14,41 +14,45 @@ export function isTauri(): boolean {
 interface RawEntry {
   name: string;
   is_dir: boolean;
+  is_symlink: boolean;
   size: number;
+}
+
+function safeRelativePath(path: string): string {
+  if (path.includes('\\') || path.startsWith('/')) throw new Error(`不安全的相对路径: ${path}`);
+  const parts = path.split('/').filter(Boolean);
+  if (parts.some((part) => part === '.' || part === '..')) throw new Error(`不安全的相对路径: ${path}`);
+  return parts.join('/');
 }
 
 /** 以 root 为库根的真实磁盘实现；root 为绝对路径（来自目录选择器） */
 export function createTauriFs(root: string): VaultFs {
-  const abs = (rel: string) => (rel ? `${root}/${rel}` : root);
+  const args = (path: string) => ({ root, path: safeRelativePath(path) });
   return {
     async list(dir): Promise<VaultEntry[]> {
-      try {
-        const entries = await invoke<RawEntry[]>('vault_list_dir', { path: abs(dir) });
-        return entries.map((e) => ({ name: e.name, isDir: e.is_dir, size: e.size }));
-      } catch {
-        return []; // 目录不存在
-      }
+      const entries = await invoke<RawEntry[]>('vault_list_dir', args(dir));
+      return entries.map((e) => ({ name: e.name, isDir: e.is_dir, isSymlink: e.is_symlink, size: e.size }));
     },
-    readText: (path) => invoke('vault_read_text', { path: abs(path) }),
-    writeText: (path, content) => invoke('vault_write_text', { path: abs(path), content }),
-    readBinary: (path) => invoke('vault_read_binary', { path: abs(path) }),
-    writeBinary: (path, base64) => invoke('vault_write_binary', { path: abs(path), base64 }),
-    removeFile: (path) => invoke('vault_remove_file', { path: abs(path) }),
-    removeEmptyDir: (path) => invoke('vault_remove_empty_dir', { path: abs(path) }),
-    rename: (from, to) => invoke('vault_rename', { from: abs(from), to: abs(to) }),
-    mkdir: (path) => invoke('vault_mkdir', { path: abs(path) }),
-    stat: (path) => invoke<VaultStat>('vault_stat', { path: abs(path) }),
+    readText: (path) => invoke('vault_read_text', args(path)),
+    writeText: (path, content) => invoke('vault_write_text', { ...args(path), content }),
+    readBinary: (path) => invoke('vault_read_binary', args(path)),
+    writeBinary: (path, base64) => invoke('vault_write_binary', { ...args(path), base64 }),
+    removeFile: (path) => invoke('vault_remove_file', args(path)),
+    removeEmptyDir: (path) => invoke('vault_remove_empty_dir', args(path)),
+    rename: (from, to) => invoke('vault_rename', { root, from: safeRelativePath(from), to: safeRelativePath(to) }),
+    mkdir: (path) => invoke('vault_mkdir', args(path)),
+    stat: (path) => invoke<VaultStat>('vault_stat', args(path)),
   };
 }
 
 /** 按绝对路径读文本（库外文件，如 ST 目录里的聊天；7.4 检查更新用） */
 export function readAbsText(path: string): Promise<string> {
-  return invoke('vault_read_text', { path });
+  return invoke('vault_read_abs_text', { path });
 }
 
 /** 按绝对路径写文本（7.5 写回 ST 用；Rust 侧临时文件+rename 原子写） */
 export function writeAbsText(path: string, content: string): Promise<void> {
-  return invoke('vault_write_text', { path, content });
+  return invoke('vault_write_abs_text', { path, content });
 }
 
 // ---- 应用配置（系统配置目录 config.json，不进库；API Key 后续同通道）----

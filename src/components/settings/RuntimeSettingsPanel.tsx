@@ -15,6 +15,7 @@ import {
 } from '@/lib/vault/tauri-fs';
 import { scanSTUserDir, type STScanResult } from '@/lib/vault/st-import';
 import { STAIConfigDialog } from '@/components/tools/STAIConfigDialog';
+import { STImportCard } from '@/components/tools/STImportCard';
 
 interface STCounts {
   characters: number;
@@ -22,6 +23,8 @@ interface STCounts {
   worldbooks: number;
   presets: number;
   regexes: number;
+  archivedFiles: number;
+  relationshipSets: number;
 }
 
 function scanCounts(scan: STScanResult): STCounts {
@@ -31,6 +34,8 @@ function scanCounts(scan: STScanResult): STCounts {
     worldbooks: scan.worldbooks.length,
     presets: scan.presets.length,
     regexes: scan.regex?.count ?? 0,
+    archivedFiles: scan.archives.reduce((total, group) => total + group.files.length, 0),
+    relationshipSets: scan.relationships.status === 'parsed' ? 1 : 0,
   };
 }
 
@@ -150,7 +155,7 @@ export function DirectorySettingsPanel() {
             <div className="min-w-0">
               <h3 className="text-sm font-semibold">SillyTavern 目录</h3>
               <p className="text-xs text-muted-foreground mt-1">
-                {stRoot ? '已接入，可重新选择目录扫描最新内容。' : '尚未接入 SillyTavern 目录。'}
+                {stRoot ? '已接入，可直接重新扫描并选择最新内容。' : '尚未接入 SillyTavern 目录。'}
               </p>
             </div>
           </div>
@@ -159,10 +164,13 @@ export function DirectorySettingsPanel() {
         {stRoot && <p className="text-xs break-all rounded bg-muted/50 px-2.5 py-2">{stRoot}</p>}
         {stCounts && (
           <p className="text-xs text-muted-foreground">
-            最近扫描：{stCounts.characters} 张角色卡 · {stCounts.chats} 场聊天 · {stCounts.worldbooks} 本世界书 · {stCounts.presets} 份预设 · {stCounts.regexes} 条正则
+            最近扫描：{stCounts.characters} 张角色卡 · {stCounts.chats} 场聊天 · {stCounts.worldbooks} 本世界书 · {stCounts.presets} 份预设 · {stCounts.regexes} 条正则 · {stCounts.archivedFiles} 个扩展/媒体文件
           </p>
         )}
         <div className="flex flex-wrap gap-2">
+          {client && stRoot && (
+            <STImportCard variant="compact" root={stRoot} onChanged={() => void refreshPaths()} />
+          )}
           <Button variant="outline" size="sm" onClick={handleChangeStRoot} disabled={!client || busy !== null}>
             {busy === 'st' ? <Loader2 className="w-4 h-4 mr-1.5 animate-spin" /> : <FolderOpen className="w-4 h-4 mr-1.5" />}
             {stRoot ? '更换 ST 目录' : '选择 ST 目录'}

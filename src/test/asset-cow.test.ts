@@ -99,6 +99,15 @@ describe('switchAssetRef 引用切换', () => {
     expect(switchAssetRef(withBoth, 'worldbook', 'wb_1', 'wb_2')).toEqual([{ kind: 'worldbook', assetId: 'wb_2' }]);
   });
 
+  it('切到写时复制副本时保留 ST 关系标签', () => {
+    const refs: AssetRef[] = [
+      { kind: 'worldbook', assetId: 'wb_1', relations: ['primary', 'extra'] },
+    ];
+    expect(switchAssetRef(refs, 'worldbook', 'wb_1', 'wb_2')).toEqual([
+      { kind: 'worldbook', assetId: 'wb_2', relations: ['primary', 'extra'] },
+    ]);
+  });
+
   it('refs 为 undefined 时从空开始', () => {
     expect(switchAssetRef(undefined, 'worldbook', 'a', 'b')).toEqual([{ kind: 'worldbook', assetId: 'b' }]);
   });

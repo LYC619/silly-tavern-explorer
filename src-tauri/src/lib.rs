@@ -1,7 +1,8 @@
 use base64::Engine;
 use serde::Serialize;
 use std::fs;
-use std::path::{Path, PathBuf};
+use std::io::Write;
+use std::path::{Component, Path, PathBuf};
 
 /// 文件库(FileVault)的 Rust 侧原语：列目录/读写文本与二进制/删除/改名 + 应用配置读写。
 /// 策略与映射逻辑全部在 TS 层（src/lib/vault/），这里保持薄且可单测。
@@ -11,6 +12,7 @@ use std::path::{Path, PathBuf};
 pub struct DirEntryInfo {
     pub name: String,
     pub is_dir: bool,
+    pub is_symlink: bool,
     pub size: u64,
 }
 
@@ -19,11 +21,17 @@ fn list_dir_impl(path: &Path) -> Result<Vec<DirEntryInfo>, String> {
     let entries = fs::read_dir(path).map_err(|e| format!("读取目录失败 {}: {e}", path.display()))?;
     for entry in entries {
         let entry = entry.map_err(|e| e.to_string())?;
-        let meta = entry.metadata().map_err(|e| e.to_string())?;
+        let meta = fs::symlink_metadata(entry.path()).map_err(|e| e.to_string())?;
+        let is_symlink = meta.file_type().is_symlink();
         out.push(DirEntryInfo {
             name: entry.file_name().to_string_lossy().into_owned(),
-            is_dir: meta.is_dir(),
-            size: if meta.is_dir() { 0 } else { meta.len() },
+            is_dir: !is_symlink && meta.is_dir(),
+            is_symlink,
+            size: if is_symlink || meta.is_dir() {
+                0
+            } else {
+                meta.len()
+            },
         });
     }
     out.sort_by(|a, b| (b.is_dir, a.name.to_lowercase()).cmp(&(a.is_dir, b.name.to_lowercase())));
@@ -35,14 +43,46 @@ fn read_text_impl(path: &Path) -> Result<String, String> {
 }
 
 fn write_bytes_atomic(path: &Path, bytes: &[u8]) -> Result<(), String> {
-    if let Some(parent) = path.parent() {
-        fs::create_dir_all(parent).map_err(|e| format!("创建目录失败 {}: {e}", parent.display()))?;
+    let parent = path
+        .parent()
+        .ok_or_else(|| format!("目标路径没有父目录: {}", path.display()))?;
+    fs::create_dir_all(parent).map_err(|e| format!("创建目录失败 {}: {e}", parent.display()))?;
+    let file_name = path
+        .file_name()
+        .ok_or_else(|| format!("目标路径没有文件名: {}", path.display()))?
+        .to_string_lossy();
+    let nonce = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map_err(|e| format!("生成临时文件名失败: {e}"))?
+        .as_nanos();
+
+    for attempt in 0..32 {
+        let tmp = parent.join(format!(
+            ".{file_name}.ste-tmp-{}-{nonce}-{attempt}",
+            std::process::id()
+        ));
+        let mut file = match fs::OpenOptions::new()
+            .write(true)
+            .create_new(true)
+            .open(&tmp)
+        {
+            Ok(file) => file,
+            Err(err) if err.kind() == std::io::ErrorKind::AlreadyExists => continue,
+            Err(err) => return Err(format!("创建临时文件失败 {}: {err}", tmp.display())),
+        };
+        if let Err(err) = file.write_all(bytes).and_then(|_| file.sync_all()) {
+            drop(file);
+            let _ = fs::remove_file(&tmp);
+            return Err(format!("写入失败 {}: {err}", tmp.display()));
+        }
+        drop(file);
+        if let Err(err) = fs::rename(&tmp, path) {
+            let _ = fs::remove_file(&tmp);
+            return Err(format!("替换失败 {}: {err}", path.display()));
+        }
+        return Ok(());
     }
-    // 先写临时文件再改名，避免写一半断电留下残缺文件
-    let tmp = path.with_extension("ste-tmp");
-    fs::write(&tmp, bytes).map_err(|e| format!("写入失败 {}: {e}", tmp.display()))?;
-    fs::rename(&tmp, path).map_err(|e| format!("替换失败 {}: {e}", path.display()))?;
-    Ok(())
+    Err(format!("无法创建唯一临时文件: {}", path.display()))
 }
 
 fn read_binary_impl(path: &Path) -> Result<String, String> {
@@ -134,54 +174,103 @@ fn config_set_impl(config_dir: &Path, key: &str, value: serde_json::Value) -> Re
 
 // ---- Tauri 命令层（薄封装）----
 
-#[tauri::command]
-fn vault_list_dir(path: String) -> Result<Vec<DirEntryInfo>, String> {
-    list_dir_impl(&PathBuf::from(path))
+fn rooted_path(root: &str, relative: &str) -> Result<PathBuf, String> {
+    if relative.contains('\\') {
+        return Err(format!("相对路径含非法分隔符: {relative}"));
+    }
+    let rel = Path::new(relative);
+    if rel.is_absolute()
+        || rel
+            .components()
+            .any(|part| !matches!(part, Component::Normal(_)))
+    {
+        return Err(format!("拒绝越出根目录的路径: {relative}"));
+    }
+
+    let mut resolved = fs::canonicalize(root).map_err(|e| format!("读取根目录失败 {root}: {e}"))?;
+    for part in rel.components() {
+        let Component::Normal(name) = part else {
+            return Err(format!("拒绝越出根目录的路径: {relative}"));
+        };
+        resolved.push(name);
+        match fs::symlink_metadata(&resolved) {
+            Ok(meta) if meta.file_type().is_symlink() => {
+                return Err(format!(
+                    "拒绝访问根目录内的符号链接: {}",
+                    resolved.display()
+                ));
+            }
+            Ok(_) => {}
+            Err(err) if err.kind() == std::io::ErrorKind::NotFound => {}
+            Err(err) => return Err(format!("检查路径失败 {}: {err}", resolved.display())),
+        }
+    }
+    Ok(resolved)
 }
 
 #[tauri::command]
-fn vault_read_text(path: String) -> Result<String, String> {
+fn vault_list_dir(root: String, path: String) -> Result<Vec<DirEntryInfo>, String> {
+    let path = rooted_path(&root, &path)?;
+    if !path.exists() {
+        return Ok(Vec::new());
+    }
+    list_dir_impl(&path)
+}
+
+#[tauri::command]
+fn vault_read_text(root: String, path: String) -> Result<String, String> {
+    read_text_impl(&rooted_path(&root, &path)?)
+}
+
+#[tauri::command]
+fn vault_write_text(root: String, path: String, content: String) -> Result<(), String> {
+    write_bytes_atomic(&rooted_path(&root, &path)?, content.as_bytes())
+}
+
+#[tauri::command]
+fn vault_read_binary(root: String, path: String) -> Result<String, String> {
+    read_binary_impl(&rooted_path(&root, &path)?)
+}
+
+#[tauri::command]
+fn vault_write_binary(root: String, path: String, base64: String) -> Result<(), String> {
+    write_binary_impl(&rooted_path(&root, &path)?, &base64)
+}
+
+#[tauri::command]
+fn vault_remove_file(root: String, path: String) -> Result<(), String> {
+    remove_file_impl(&rooted_path(&root, &path)?)
+}
+
+#[tauri::command]
+fn vault_remove_empty_dir(root: String, path: String) -> Result<bool, String> {
+    remove_empty_dir_impl(&rooted_path(&root, &path)?)
+}
+
+#[tauri::command]
+fn vault_rename(root: String, from: String, to: String) -> Result<(), String> {
+    rename_impl(&rooted_path(&root, &from)?, &rooted_path(&root, &to)?)
+}
+
+#[tauri::command]
+fn vault_mkdir(root: String, path: String) -> Result<(), String> {
+    let path = rooted_path(&root, &path)?;
+    fs::create_dir_all(&path).map_err(|e| format!("创建目录失败 {}: {e}", path.display()))
+}
+
+#[tauri::command]
+fn vault_stat(root: String, path: String) -> Result<StatInfo, String> {
+    Ok(stat_impl(&rooted_path(&root, &path)?))
+}
+
+#[tauri::command]
+fn vault_read_abs_text(path: String) -> Result<String, String> {
     read_text_impl(&PathBuf::from(path))
 }
 
 #[tauri::command]
-fn vault_write_text(path: String, content: String) -> Result<(), String> {
+fn vault_write_abs_text(path: String, content: String) -> Result<(), String> {
     write_bytes_atomic(&PathBuf::from(path), content.as_bytes())
-}
-
-#[tauri::command]
-fn vault_read_binary(path: String) -> Result<String, String> {
-    read_binary_impl(&PathBuf::from(path))
-}
-
-#[tauri::command]
-fn vault_write_binary(path: String, base64: String) -> Result<(), String> {
-    write_binary_impl(&PathBuf::from(path), &base64)
-}
-
-#[tauri::command]
-fn vault_remove_file(path: String) -> Result<(), String> {
-    remove_file_impl(&PathBuf::from(path))
-}
-
-#[tauri::command]
-fn vault_remove_empty_dir(path: String) -> Result<bool, String> {
-    remove_empty_dir_impl(&PathBuf::from(path))
-}
-
-#[tauri::command]
-fn vault_rename(from: String, to: String) -> Result<(), String> {
-    rename_impl(&PathBuf::from(from), &PathBuf::from(to))
-}
-
-#[tauri::command]
-fn vault_mkdir(path: String) -> Result<(), String> {
-    fs::create_dir_all(&path).map_err(|e| format!("创建目录失败 {path}: {e}"))
-}
-
-#[tauri::command]
-fn vault_stat(path: String) -> StatInfo {
-    stat_impl(&PathBuf::from(path))
 }
 
 fn app_config_dir(app: &tauri::AppHandle) -> Result<PathBuf, String> {
@@ -224,6 +313,8 @@ pub fn run() {
             vault_rename,
             vault_mkdir,
             vault_stat,
+            vault_read_abs_text,
+            vault_write_abs_text,
             config_get,
             config_set
         ])
@@ -266,6 +357,89 @@ mod tests {
         assert_eq!(entries[1].name, "聊天.jsonl");
         assert_eq!(entries[1].size, 3);
         let _ = fs::remove_dir_all(&root);
+    }
+
+    #[test]
+    fn list_dir_marks_symlink_without_following_it() {
+        let root = temp_root("symlink");
+        let outside = temp_root("symlink-outside");
+        fs::write(outside.join("secret.txt"), "outside").unwrap();
+        let link = root.join("outside-link");
+
+        #[cfg(unix)]
+        std::os::unix::fs::symlink(&outside, &link).unwrap();
+        #[cfg(windows)]
+        if std::os::windows::fs::symlink_dir(&outside, &link).is_err() {
+            let _ = fs::remove_dir_all(&root);
+            let _ = fs::remove_dir_all(&outside);
+            return;
+        }
+
+        let entries = list_dir_impl(&root).unwrap();
+        assert_eq!(entries.len(), 1);
+        assert!(entries[0].is_symlink);
+        assert!(!entries[0].is_dir);
+        assert_eq!(entries[0].size, 0);
+        let _ = fs::remove_file(&link);
+        let _ = fs::remove_dir_all(&root);
+        let _ = fs::remove_dir_all(&outside);
+    }
+
+    #[test]
+    fn rooted_path_rejects_traversal_and_backslash() {
+        let root = temp_root("rooted-traversal");
+        assert!(rooted_path(root.to_str().unwrap(), "../outside.txt").is_err());
+        assert!(rooted_path(root.to_str().unwrap(), "safe\\..\\outside.txt").is_err());
+        assert_eq!(
+            rooted_path(root.to_str().unwrap(), "safe/file.txt").unwrap(),
+            fs::canonicalize(&root)
+                .unwrap()
+                .join("safe")
+                .join("file.txt")
+        );
+        let _ = fs::remove_dir_all(&root);
+    }
+
+    #[test]
+    fn rooted_path_rechecks_symlink_after_scan() {
+        let root = temp_root("rooted-symlink");
+        let outside = temp_root("rooted-symlink-outside");
+        let outside_file = outside.join("secret.txt");
+        fs::write(&outside_file, "outside").unwrap();
+        let link = root.join("selected.txt");
+
+        #[cfg(unix)]
+        std::os::unix::fs::symlink(&outside_file, &link).unwrap();
+        #[cfg(windows)]
+        if std::os::windows::fs::symlink_file(&outside_file, &link).is_err() {
+            let _ = fs::remove_dir_all(&root);
+            let _ = fs::remove_dir_all(&outside);
+            return;
+        }
+
+        assert!(rooted_path(root.to_str().unwrap(), "selected.txt").is_err());
+        let _ = fs::remove_file(&link);
+        let _ = fs::remove_dir_all(&root);
+        let _ = fs::remove_dir_all(&outside);
+    }
+
+    #[test]
+    fn atomic_write_does_not_follow_precreated_temp_link() {
+        let root = temp_root("atomic-temp-link");
+        let outside = temp_root("atomic-temp-link-outside");
+        let outside_file = outside.join("secret.txt");
+        fs::write(&outside_file, "outside").unwrap();
+        let target = root.join("item.json");
+        let legacy_temp = target.with_extension("ste-tmp");
+
+        fs::hard_link(&outside_file, &legacy_temp).unwrap();
+
+        write_bytes_atomic(&target, b"inside").unwrap();
+        assert_eq!(fs::read_to_string(&outside_file).unwrap(), "outside");
+        assert_eq!(fs::read_to_string(&target).unwrap(), "inside");
+        let _ = fs::remove_file(&legacy_temp);
+        let _ = fs::remove_dir_all(&root);
+        let _ = fs::remove_dir_all(&outside);
     }
 
     #[test]

@@ -116,6 +116,12 @@ describe('阶段 D 外壳与 NSFW 契约', () => {
     expect(assets).toContain('tab === null');
   });
 
+  it('资产库持续显示从 ST 恢复的全局世界书标记', () => {
+    const assets = read('src/pages/AssetLibrary.tsx');
+    expect(assets).toContain('stGlobal: w.stGlobal');
+    expect(assets).toContain('ST 全局');
+  });
+
   it('编辑区展开态在 AppLayout 路由重挂后从模块状态恢复', () => {
     const layout = read('src/components/AppLayout.tsx');
     expect(layout).toContain('getEditorOpen()');
@@ -167,11 +173,20 @@ describe('阶段 D 外壳与 NSFW 契约', () => {
     expect(runtime).toContain("getAppConfig<string>('stRoot')");
     expect(runtime).toContain("setAppConfig('stRoot', root)");
     expect(runtime).toContain('pickDirectory');
+    expect(runtime).toContain('<STImportCard');
+    expect(runtime).toContain('root={stRoot}');
+    expect(read('src/components/tools/STImportCard.tsx')).toContain('重新扫描并选择');
     expect(runtime).toContain('chooseVaultRoot');
     expect(runtime).toContain('getVaultRoot');
     expect(runtime).toContain('window.location.reload()');
     expect(global).toContain('export function DataSettingsPanel');
     expect(global).toContain('export function AboutSettingsPanel');
+  });
+
+  it('ST 扫描只有安全警告时会把被跳过路径告诉用户', () => {
+    const importer = read('src/components/tools/STImportCard.tsx');
+    expect(importer).toContain("scan.warnings.length ? '未发现可安全导入的内容'");
+    expect(importer).toContain('scan.warnings.slice(0, 3)');
   });
 
   it('AppLayout 提升为路由布局并保留真实出入场动画', () => {
