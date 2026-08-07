@@ -31,6 +31,14 @@ export interface MigrationResult {
 
 export const ARCHIVE_SCHEMA_VERSION = 2;
 
+export async function needsArchiveMigrationWith(getVersion: () => Promise<number>): Promise<boolean> {
+  return await getVersion() < ARCHIVE_SCHEMA_VERSION;
+}
+
+export async function needsArchiveMigration(): Promise<boolean> {
+  return needsArchiveMigrationWith(getArchiveSchemaVersion);
+}
+
 export interface ArchiveMigrationDependencies {
   getSchemaVersion: () => Promise<number>;
   setSchemaVersion: (version: number) => Promise<void>;

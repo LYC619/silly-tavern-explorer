@@ -1,6 +1,6 @@
 /**
  * 存量迁移执行 + 首次说明弹窗（10.0）。挂在 App（VaultGate 内，库就绪后）。
- * - 每次启动后台跑 runArchiveMigration（增量幂等，正常情况秒级空转）
+ * - 每次启动先静默检查 schema，仅旧库进入阻塞迁移
  * - 老库首次进新版（本地无 flag 且库里有角色）弹一次性说明：旧状态废弃去向 + 旧标签自动转 v2
  */
 import { useCallback, useEffect, useState, type ReactNode } from 'react';
@@ -9,7 +9,7 @@ import {
   Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle,
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
-import { runArchiveMigration } from '@/lib/archive-migrate';
+import { needsArchiveMigration, runArchiveMigration } from '@/lib/archive-migrate';
 
 const NOTICE_FLAG = 'ste-tag-migration-v2-notice';
 
@@ -21,31 +21,48 @@ interface MigrationNoticeProps {
 }
 
 type MigrationState =
+  | { status: 'checking' }
   | { status: 'running' }
   | { status: 'failed'; message: string }
   | { status: 'ready'; showNotice: boolean };
 
 export function MigrationNotice({ children }: MigrationNoticeProps) {
-  const [state, setState] = useState<MigrationState>({ status: 'running' });
+  const [state, setState] = useState<MigrationState>({ status: 'checking' });
 
-  const migrate = useCallback((retry = false) => {
+  const start = useCallback((retry = false) => {
     if (retry) migrationOnce = null;
-    setState({ status: 'running' });
-    let flagged = true;
-    try { flagged = localStorage.getItem(NOTICE_FLAG) === '1'; } catch { /* 读不了就当已看过 */ }
-    migrationOnce ??= runArchiveMigration();
-    void migrationOnce.then((result) => {
-      const showNotice = !flagged && result.characterCount > 0;
-      try { localStorage.setItem(NOTICE_FLAG, '1'); } catch { /* 存不了就每次启动都可能弹，可接受 */ }
-      setState({ status: 'ready', showNotice });
+    setState({ status: 'checking' });
+    void needsArchiveMigration().then((required) => {
+      if (!required) {
+        setState({ status: 'ready', showNotice: false });
+        return;
+      }
+
+      setState({ status: 'running' });
+      let flagged = true;
+      try { flagged = localStorage.getItem(NOTICE_FLAG) === '1'; } catch { /* 读不了就当已看过 */ }
+      const migration = migrationOnce ??= runArchiveMigration();
+      return migration.then((result) => {
+        const showNotice = !flagged && result.characterCount > 0;
+        try { localStorage.setItem(NOTICE_FLAG, '1'); } catch { /* 存不了就每次启动都可能弹，可接受 */ }
+        setState({ status: 'ready', showNotice });
+      });
     }).catch((error: unknown) => {
       setState({ status: 'failed', message: error instanceof Error ? error.message : '未知错误' });
     });
   }, []);
 
   useEffect(() => {
-    migrate();
-  }, [migrate]);
+    start();
+  }, [start]);
+
+  if (state.status === 'checking') {
+    return (
+      <div className="h-full min-h-48 flex items-center justify-center" role="status" aria-label="正在检查档案库">
+        <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+      </div>
+    );
+  }
 
   if (state.status !== 'ready') {
     return (
@@ -69,7 +86,7 @@ export function MigrationNotice({ children }: MigrationNoticeProps) {
             </div>
           ) : (
             <DialogFooter>
-              <Button onClick={() => migrate(true)}>重试</Button>
+              <Button onClick={() => start(true)}>重试</Button>
             </DialogFooter>
           )}
         </DialogContent>

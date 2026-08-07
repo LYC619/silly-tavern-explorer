@@ -4,6 +4,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { NsfwImage } from '@/components/NsfwImage';
 
 const migrationMock = vi.hoisted(() => ({
+  needsArchiveMigration: vi.fn(),
   runArchiveMigration: vi.fn(),
 }));
 
@@ -30,6 +31,7 @@ beforeEach(() => {
   container = document.createElement('div');
   document.body.appendChild(container);
   localStorage.clear();
+  migrationMock.needsArchiveMigration.mockReset();
   migrationMock.runArchiveMigration.mockReset();
 });
 
@@ -53,8 +55,38 @@ describe('component behavior', () => {
     expect(container.querySelector('img')?.dataset.nsfwBlurred).toBe('false');
   });
 
+  it('opens current libraries without showing or running migration', async () => {
+    const preflight = deferred<boolean>();
+    migrationMock.needsArchiveMigration.mockReturnValue(preflight.promise);
+    root = createRoot(container);
+
+    await act(async () => {
+      root.render(
+        <MigrationNotice>
+          <span data-testid="editor-content">editor content</span>
+        </MigrationNotice>,
+      );
+      await Promise.resolve();
+    });
+
+    expect(container.querySelector('[data-testid="editor-content"]')).toBeNull();
+    expect(document.body.textContent).not.toContain('正在升级档案库');
+    expect(migrationMock.runArchiveMigration).not.toHaveBeenCalled();
+
+    await act(async () => {
+      preflight.resolve(false);
+      await Promise.resolve();
+    });
+
+    expect(container.querySelector('[data-testid="editor-content"]')).not.toBeNull();
+    expect(document.body.textContent).not.toContain('正在升级档案库');
+    expect(document.body.textContent).not.toContain('整理体系升级说明');
+    expect(migrationMock.runArchiveMigration).not.toHaveBeenCalled();
+  });
+
   it('blocks editor content until migration succeeds, then exposes retry recovery', async () => {
     const firstAttempt = deferred<unknown>();
+    migrationMock.needsArchiveMigration.mockResolvedValue(true);
     migrationMock.runArchiveMigration
       .mockReturnValueOnce(firstAttempt.promise)
       .mockResolvedValueOnce({
@@ -98,6 +130,7 @@ describe('component behavior', () => {
     });
 
     expect(container.querySelector('[data-testid="editor-content"]')).not.toBeNull();
+    expect(migrationMock.needsArchiveMigration).toHaveBeenCalledTimes(2);
     expect(migrationMock.runArchiveMigration).toHaveBeenCalledTimes(2);
   });
 });

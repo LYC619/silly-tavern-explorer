@@ -6,11 +6,20 @@ import {
   ARCHIVE_SCHEMA_VERSION,
   migrateCharacterRecord,
   ensureStoryProps,
+  needsArchiveMigrationWith,
   runArchiveMigrationWith,
   type ArchiveMigrationDependencies,
 } from '@/lib/archive-migrate';
 
 const card = { name: '测试' } as unknown as STCharacterCard;
+
+describe('needsArchiveMigrationWith', () => {
+  it('only requests migration for schema versions older than the current version', async () => {
+    expect(await needsArchiveMigrationWith(async () => 1)).toBe(true);
+    expect(await needsArchiveMigrationWith(async () => ARCHIVE_SCHEMA_VERSION)).toBe(false);
+    expect(await needsArchiveMigrationWith(async () => ARCHIVE_SCHEMA_VERSION + 1)).toBe(false);
+  });
+});
 
 function char(tags: string[], extra: Partial<ArchiveCharacter> = {}): ArchiveCharacter {
   return { id: 'c1', name: '测试', card, tags, status: '未开始', createdAt: 1, updatedAt: 2, ...extra };
