@@ -226,7 +226,7 @@ function PersistentAppLayout({ children, actions, leftActions }: AppLayoutProps)
     <LayoutContext.Provider value={layout}>
       <div className="h-screen flex flex-col overflow-hidden bg-canvas text-[color:var(--text-body)]">
       {client ? <ClientTitleBar /> : (
-        <header className="h-9 shrink-0 bg-chrome border-b border-[color:var(--border-subtle)] flex items-center justify-center px-3.5">
+        <header className="relative z-[60] h-9 shrink-0 bg-chrome border-b border-[color:var(--border-subtle)] flex items-center justify-center px-3.5">
           <GlobalSearch />
         </header>
       )}

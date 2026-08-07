@@ -41,7 +41,7 @@ export function ClientTitleBar() {
 
   return (
     <header
-      className="relative h-11 shrink-0 select-none border-b border-[color:var(--border-subtle)] bg-chrome"
+      className="relative z-[60] h-11 shrink-0 select-none border-b border-[color:var(--border-subtle)] bg-chrome"
       data-tauri-drag-region
     >
       <div
