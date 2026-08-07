@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { readFileSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 
 const read = (path: string) => readFileSync(resolve(process.cwd(), path), 'utf8');
@@ -172,5 +172,33 @@ describe('阶段 D 外壳与 NSFW 契约', () => {
     const search = read('src/components/GlobalSearch.tsx');
     expect(search).toContain('flattenSearchGroups(groups)');
     expect(search).not.toContain('results.indexOf(item)');
+  });
+
+  it('Tauri 客户端将全局搜索并入可拖动的自定义窗口栏', () => {
+    const config = JSON.parse(read('src-tauri/tauri.conf.json'));
+    const capability = JSON.parse(read('src-tauri/capabilities/default.json'));
+    const layout = read('src/components/AppLayout.tsx');
+    const titleBarPath = resolve(process.cwd(), 'src/components/ClientTitleBar.tsx');
+
+    expect(config.app.windows[0].decorations).toBe(false);
+    expect(capability.permissions).toEqual(expect.arrayContaining([
+      'core:window:allow-start-dragging',
+      'core:window:allow-minimize',
+      'core:window:allow-toggle-maximize',
+      'core:window:allow-close',
+    ]));
+    expect(layout).toContain('<ClientTitleBar />');
+    expect(existsSync(titleBarPath)).toBe(true);
+    if (!existsSync(titleBarPath)) return;
+
+    const titleBar = read('src/components/ClientTitleBar.tsx');
+    expect(titleBar).toContain('data-tauri-drag-region');
+    expect(titleBar).toContain('<GlobalSearch />');
+    expect(titleBar).toContain("aria-label=\"最小化窗口\"");
+    expect(titleBar).toContain("aria-label={maximized ? '还原窗口' : '最大化窗口'}");
+    expect(titleBar).toContain("aria-label=\"关闭窗口\"");
+    expect(titleBar).toContain('.minimize()');
+    expect(titleBar).toContain('.toggleMaximize()');
+    expect(titleBar).toContain('.close()');
   });
 });

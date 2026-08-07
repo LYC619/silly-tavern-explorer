@@ -1,6 +1,7 @@
 /**
  * 全局应用外壳（10.1 改版，0801 实测反馈）：
- * - 标题栏去品牌文字层，变纯工具栏：全局搜索（⌘K，最小可用）居中
+ * - 客户端使用自定义窗口栏：左侧品牌、全局搜索（⌘K）和右侧窗口控制合为一层；
+ *   网页版保留独立搜索工具栏
  * - 侧栏：头部=展开/折叠符号；默认展开、切页不再自动折叠（use-sidenav-state 改版）；
  *   折叠态=「图标+小字在下」窄栏（插图1）；导航扩充 7 项，世界书/预设/正则走 /assets 深链；
  *   编辑区可展开列最近处理条目（editor-recent 派生，无新埋点）
@@ -27,6 +28,7 @@ import {
 import { motion, AnimatePresence } from 'framer-motion';
 import { ThemeSwitcher } from '@/components/ThemeSwitcher';
 import { GlobalSearch } from '@/components/GlobalSearch';
+import { ClientTitleBar } from '@/components/ClientTitleBar';
 import { useSidenavState } from '@/hooks/use-sidenav-state';
 import { APP_VERSION } from '@/components/GlobalSettings';
 import { isTauri } from '@/lib/vault/tauri-fs';
@@ -190,6 +192,7 @@ function PersistentAppLayout({ children, actions, leftActions }: AppLayoutProps)
   const navigate = useNavigate();
   const location = useLocation();
   const outlet = useOutlet();
+  const client = isTauri();
   const { expanded, toggle } = useSidenavState();
   const [editorOpen, setEditorOpen] = useState(() => getEditorOpen());
   const [registration, setRegistration] = useState<LayoutRegistration | null>(null);
@@ -222,12 +225,11 @@ function PersistentAppLayout({ children, actions, leftActions }: AppLayoutProps)
   return (
     <LayoutContext.Provider value={layout}>
       <div className="h-screen flex flex-col overflow-hidden bg-canvas text-[color:var(--text-body)]">
-      {/* ===== 工具栏（原第二层标题栏，0801 反馈去掉品牌文字，只留搜索与功能钮） ===== */}
-      <header className="h-9 shrink-0 bg-chrome border-b border-[color:var(--border-subtle)] flex items-center gap-3 px-3.5">
-        <div className="flex-1" />
-        <GlobalSearch />
-        <div className="flex-1" />
-      </header>
+      {client ? <ClientTitleBar /> : (
+        <header className="h-9 shrink-0 bg-chrome border-b border-[color:var(--border-subtle)] flex items-center justify-center px-3.5">
+          <GlobalSearch />
+        </header>
+      )}
 
       {/* ===== 主体：侧栏 + 主区 ===== */}
       <div className="flex-1 flex min-h-0">
@@ -357,7 +359,7 @@ function PersistentAppLayout({ children, actions, leftActions }: AppLayoutProps)
 
       {/* ===== 状态栏（10.1-A6：ST 接入与数据占用挪设置页，这里只留环境+版本） ===== */}
       <footer className="h-[26px] shrink-0 bg-chrome border-t border-[color:var(--border-subtle)] flex items-center justify-between px-3.5 text-[11px] text-[color:var(--text-muted)]">
-        <span className="truncate">{isTauri() ? '客户端' : '网页版 · 数据保存在浏览器本地'}</span>
+        <span className="truncate">{client ? '客户端' : '网页版 · 数据保存在浏览器本地'}</span>
         <span className="shrink-0">STE {APP_VERSION}</span>
       </footer>
       </div>
