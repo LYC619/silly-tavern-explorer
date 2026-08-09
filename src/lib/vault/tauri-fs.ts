@@ -18,6 +18,11 @@ interface RawEntry {
   size: number;
 }
 
+interface RawStat {
+  exists: boolean;
+  is_dir: boolean;
+}
+
 function safeRelativePath(path: string): string {
   if (path.includes('\\') || path.startsWith('/')) throw new Error(`不安全的相对路径: ${path}`);
   const parts = path.split('/').filter(Boolean);
@@ -41,7 +46,10 @@ export function createTauriFs(root: string): VaultFs {
     removeEmptyDir: (path) => invoke('vault_remove_empty_dir', args(path)),
     rename: (from, to) => invoke('vault_rename', { root, from: safeRelativePath(from), to: safeRelativePath(to) }),
     mkdir: (path) => invoke('vault_mkdir', args(path)),
-    stat: (path) => invoke<VaultStat>('vault_stat', args(path)),
+    async stat(path): Promise<VaultStat> {
+      const value = await invoke<RawStat>('vault_stat', args(path));
+      return { exists: value.exists, isDir: value.is_dir };
+    },
   };
 }
 
