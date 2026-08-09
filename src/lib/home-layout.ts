@@ -1,18 +1,20 @@
 /** 首页首屏的空间约束，集中维护，避免 JSX 中散落难以复验的魔法数字。 */
 import type { ArchiveCharacter, ArchiveStory } from '@/types/archive';
 
-export const HOME_RECENT_STORY_VISIBLE_COUNT = 3;
-/** 最近故事行的固定几何尺寸：h-10 缩略图 + py-2 = 3.5rem，行间距为 gap-2。 */
-export const HOME_RECENT_STORY_ROW_HEIGHT_REM = 3.5;
-export const HOME_RECENT_STORY_GAP_REM = 0.5;
-
-export function homeRecentStoryMaxHeightRem(
-  visibleCount = HOME_RECENT_STORY_VISIBLE_COUNT,
+/**
+ * 桌面端横向内容轨道的滚轮位移：鼠标滚轮使用 deltaY，触控板原生横向手势
+ * 使用 deltaX。取主要轴可以避免斜向手势被重复累加。
+ */
+export function horizontalWheelDelta(
+  deltaX: number,
+  deltaY: number,
+  deltaMode = 0,
+  pageSize = 0,
 ): number {
-  const count = Math.max(0, Math.floor(visibleCount));
-  return count === 0
-    ? 0
-    : count * HOME_RECENT_STORY_ROW_HEIGHT_REM + (count - 1) * HOME_RECENT_STORY_GAP_REM;
+  const rawDelta = Math.abs(deltaX) > Math.abs(deltaY) ? deltaX : deltaY;
+  if (deltaMode === 1) return rawDelta * 32;
+  if (deltaMode === 2) return rawDelta * Math.max(0, pageSize);
+  return rawDelta;
 }
 
 export type StoryWorkspaceView = 'volume' | 'tree';
@@ -70,6 +72,7 @@ export const EDITOR_TOOL_COPY = {
   chat: '处理你的聊天文件，支持正则处理、txt 转换、瘦身导出',
   summary: '按楼层范围生成分卷总结、日记或自定义记录',
   storyTree: '把人物、事件和伏笔整理成可编辑的故事树',
+  summaryAndTree: '生成分卷总结、日记，并把人物、事件和伏笔整理成故事树',
   worldbook: '编辑世界设定条目，并检查角色关联关系',
   card: '查看角色卡字段、内嵌资产与导入结果',
   preset: '调整提示词块、顺序和生成参数',

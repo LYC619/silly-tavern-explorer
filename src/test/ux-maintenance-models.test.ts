@@ -3,8 +3,7 @@ import { THEMES, themeSwatchBackground } from '@/lib/theme';
 import { NAV_AREAS, findNavArea } from '@/lib/navigation-model';
 import {
   EDITOR_TOOL_COPY,
-  HOME_RECENT_STORY_VISIBLE_COUNT,
-  homeRecentStoryMaxHeightRem,
+  horizontalWheelDelta,
   storyWorkspaceViewForEditorFocus,
 } from '@/lib/home-layout';
 import { shouldAutoCollapse } from '@/hooks/use-sidenav-state';
@@ -37,11 +36,19 @@ describe('维护阶段 UX 规则模型', () => {
     expect(shouldAutoCollapse('/', '/')).toBe(false);
   });
 
-  it('首页故事区只保证三条首屏空间，更多内容交给内部滚动', () => {
-    expect(HOME_RECENT_STORY_VISIBLE_COUNT).toBe(3);
-    expect(homeRecentStoryMaxHeightRem()).toBe(11.5);
+  it('首页编辑入口用一句用途说明功能边界', () => {
     expect(EDITOR_TOOL_COPY.chat).toContain('聊天');
     expect(EDITOR_TOOL_COPY.chat).toContain('正则');
+    expect(EDITOR_TOOL_COPY.summaryAndTree).toContain('故事树');
+  });
+
+  it('首页角色轨道把纵向滚轮换算成横向位移，并保留触控板横向手势', () => {
+    expect(horizontalWheelDelta(0, 120)).toBe(120);
+    expect(horizontalWheelDelta(0, -80)).toBe(-80);
+    expect(horizontalWheelDelta(45, 8)).toBe(45);
+    expect(horizontalWheelDelta(-60, -12)).toBe(-60);
+    expect(horizontalWheelDelta(0, 3, 1, 800)).toBe(96);
+    expect(horizontalWheelDelta(0, 1, 2, 720)).toBe(720);
   });
 
   it('多库注册按路径去重，激活只改变活动库标识', () => {

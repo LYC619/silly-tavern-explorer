@@ -47,6 +47,8 @@ import { NAV_AREAS, matchesNavDestination, type NavAreaKey, type NavDestination 
 
 interface AppLayoutProps {
   children?: React.ReactNode;
+  /** 自定义窗口栏中的页面摘要；随路由注册，因此离开页面后自动清除。 */
+  titleBarContent?: React.ReactNode;
   /** 页面右上角的专属操作区（导入/导出/编辑等），由各页面传入 */
   actions?: React.ReactNode;
   /** 操作条左侧的常驻区（页面标题、外观设置等），与 actions 分列两端，互不遮挡 */
@@ -54,6 +56,7 @@ interface AppLayoutProps {
 }
 
 interface LayoutChrome {
+  titleBarContent?: React.ReactNode;
   actions?: React.ReactNode;
   leftActions?: React.ReactNode;
 }
@@ -182,16 +185,16 @@ function EditorRecentList({ onGo }: { onGo: (item: RecentEditItem) => void }) {
   );
 }
 
-function PageChromeBridge({ children, actions, leftActions, layout }: AppLayoutProps & { layout: LayoutContextValue }) {
+function PageChromeBridge({ children, titleBarContent, actions, leftActions, layout }: AppLayoutProps & { layout: LayoutContextValue }) {
   const location = useLocation();
   useLayoutEffect(() => {
-    layout.register(location.key, { actions, leftActions });
+    layout.register(location.key, { titleBarContent, actions, leftActions });
     return () => layout.clear(location.key);
-  }, [actions, leftActions, layout, location.key]);
+  }, [actions, leftActions, layout, location.key, titleBarContent]);
   return <>{children}</>;
 }
 
-function PersistentAppLayout({ children, actions, leftActions }: AppLayoutProps) {
+function PersistentAppLayout({ children, titleBarContent, actions, leftActions }: AppLayoutProps) {
   const navigate = useNavigate();
   const location = useLocation();
   const outlet = useOutlet();
@@ -221,7 +224,9 @@ function PersistentAppLayout({ children, actions, leftActions }: AppLayoutProps)
     previousPathRef.current = location.pathname;
   }, [collapse, expanded, location.pathname]);
 
-  const activeChrome = registration?.routeKey === location.key ? registration : { actions, leftActions };
+  const activeChrome = registration?.routeKey === location.key
+    ? registration
+    : { titleBarContent, actions, leftActions };
   const content = children ?? outlet;
 
   const isActive = useCallback((item: NavDestination) => (
@@ -250,8 +255,13 @@ function PersistentAppLayout({ children, actions, leftActions }: AppLayoutProps)
   return (
     <LayoutContext.Provider value={layout}>
       <div className="h-screen flex flex-col overflow-hidden bg-canvas text-[color:var(--text-body)]">
-      {client ? <ClientTitleBar /> : (
+      {client ? <ClientTitleBar titleBarContent={activeChrome.titleBarContent} /> : (
         <header className="relative z-[60] h-9 shrink-0 bg-chrome border-b border-[color:var(--border-subtle)] flex items-center justify-center px-3.5">
+          {activeChrome.titleBarContent && (
+            <div className="pointer-events-none absolute left-4 hidden max-w-[320px] items-center overflow-hidden xl:flex">
+              {activeChrome.titleBarContent}
+            </div>
+          )}
           <GlobalSearch />
         </header>
       )}

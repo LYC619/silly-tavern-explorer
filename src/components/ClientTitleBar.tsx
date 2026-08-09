@@ -4,7 +4,11 @@ import { getCurrentWindow } from '@tauri-apps/api/window';
 import { GlobalSearch } from '@/components/GlobalSearch';
 import appIconUrl from '../../src-tauri/icons/32x32.png';
 
-export function ClientTitleBar() {
+interface ClientTitleBarProps {
+  titleBarContent?: React.ReactNode;
+}
+
+export function ClientTitleBar({ titleBarContent }: ClientTitleBarProps) {
   const [maximized, setMaximized] = useState(false);
 
   const syncMaximized = useCallback(async () => {
@@ -53,6 +57,15 @@ export function ClientTitleBar() {
           ST Explorer
         </span>
       </div>
+
+      {titleBarContent && (
+        <div
+          className="pointer-events-none absolute inset-y-0 left-44 hidden max-w-[320px] items-center overflow-hidden xl:flex"
+          data-tauri-drag-region
+        >
+          {titleBarContent}
+        </div>
+      )}
 
       <div className="absolute left-[56%] top-1/2 flex -translate-x-1/2 -translate-y-1/2 justify-center">
         <GlobalSearch />

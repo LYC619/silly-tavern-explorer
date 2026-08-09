@@ -1,16 +1,16 @@
 /**
  * 首页（10.1-A5/A6 重排，0801 实测反馈）：
- * - 问候行：问候 + 欢迎语「您已经归档了 N 个故事」（替代高密度的上次离开信息）
+ * - 窗口栏：仅首页显示紧凑问候与归档故事数，不再占内容区一整行
  * - 接入 ST 卡：仅客户端且未接入时显示（接入后入口在设置页，10.4 收容）
- * - 左列：纵向放大的最近角色 + 固定三条高度、内部滚动的最近故事
- * - 右列：作为第二主区的编辑处理入口 + 其他资产
+ * - 左列：4/5 张 2:3 最近角色卡 + 固定三行、双列且内部滚动的最近故事
+ * - 右列：单列编辑处理入口 + 独立其他资产区
  * 硬约束：占满一屏且页面本身不滚动（基准 1440×900、100% 缩放）。
  */
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Users, ArrowRight, BookOpenText, KeyRound, ChevronRight,
-  MessagesSquare, BookOpen, IdCard, SlidersHorizontal, LayoutGrid,
+  MessagesSquare, BookOpen, IdCard, SlidersHorizontal, MessageSquare,
 } from 'lucide-react';
 import { isTauri, getAppConfig } from '@/lib/vault/tauri-fs';
 import { STAIConfigDialog } from '@/components/tools/STAIConfigDialog';
@@ -27,7 +27,7 @@ import { displayCharacterName } from '@/lib/library-query';
 import { formatListTime, formatFullTime } from '@/lib/time-display';
 import {
   EDITOR_TOOL_COPY,
-  homeRecentStoryMaxHeightRem,
+  horizontalWheelDelta,
   pickRecentlyViewedStories,
 } from '@/lib/home-layout';
 
@@ -78,8 +78,7 @@ function PillLink({ label, onClick }: { label: string; onClick: () => void }) {
 /** 编辑处理区工具列表（0801 反馈 #5：标题+列表化） */
 const EDIT_TOOLS = [
   { label: '聊天处理', description: EDITOR_TOOL_COPY.chat, icon: MessagesSquare, path: '/chat' },
-  { label: '总结', description: EDITOR_TOOL_COPY.summary, icon: BookOpenText, path: '/tools?focus=summary' },
-  { label: '故事树', description: EDITOR_TOOL_COPY.storyTree, icon: LayoutGrid, path: '/tools?focus=story-tree' },
+  { label: '总结', description: EDITOR_TOOL_COPY.summaryAndTree, icon: BookOpenText, path: '/tools?focus=summary' },
   { label: '世界书', description: EDITOR_TOOL_COPY.worldbook, icon: BookOpen, path: '/worldbook' },
   { label: '角色卡', description: EDITOR_TOOL_COPY.card, icon: IdCard, path: '/card-viewer' },
   { label: '预设', description: EDITOR_TOOL_COPY.preset, icon: SlidersHorizontal, path: '/preset' },
@@ -93,6 +92,8 @@ const Home = () => {
   const [resourceSnapshot] = useState(() => homeSnapshot.resources);
   const [assetCounts, setAssetCounts] = useState(() => homeSnapshot.assetCounts);
   const [stConfigOpen, setStConfigOpen] = useState(false);
+  const characterWheelSurfaceRef = useRef<HTMLElement>(null);
+  const characterRailRef = useRef<HTMLDivElement>(null);
   /** A6：已接入（stRoot 已配置）则不再显示接入卡；null = 还没查完，先不显示防闪烁 */
   const [stConnected, setStConnected] = useState<boolean | null>(null);
 
@@ -106,7 +107,7 @@ const Home = () => {
         getAllRegexCollections().catch(() => []),
       ]);
       // 最近在看的故事：只列看过的（无记录的还谈不上「最近」），绑定与未绑定都算
-      const viewed = pickRecentlyViewedStories(allStories, 6);
+      const viewed = pickRecentlyViewedStories(allStories, 12);
       const nextSnapshot: HomeSnapshot = {
         characters: chars,
         stories: allStories,
@@ -157,25 +158,62 @@ const Home = () => {
     })
     .slice(0, 12);
 
-  const STAT_CELLS = [
-    { label: '角色卡', count: characters.length, onClick: () => navigate('/library') },
-    { label: '故事', count: stories.length, onClick: () => navigate('/library') },
-    { label: '世界书', count: assetCounts.worldbooks, onClick: () => navigate('/assets?tab=worldbook') },
-    { label: '预设', count: assetCounts.presets, onClick: () => navigate('/assets?tab=preset') },
-    { label: '正则', count: assetCounts.regexes, onClick: () => navigate('/assets?tab=regex') },
+  useEffect(() => {
+    const surface = characterWheelSurfaceRef.current;
+    const rail = characterRailRef.current;
+    if (!surface || !rail) return undefined;
+
+    const handleWheel = (event: WheelEvent) => {
+      if (rail.scrollWidth <= rail.clientWidth) return;
+      const delta = horizontalWheelDelta(
+        event.deltaX,
+        event.deltaY,
+        event.deltaMode,
+        rail.clientWidth,
+      );
+      if (delta === 0) return;
+      const maxScrollLeft = rail.scrollWidth - rail.clientWidth;
+      const nextScrollLeft = Math.min(maxScrollLeft, Math.max(0, rail.scrollLeft + delta));
+      if (nextScrollLeft === rail.scrollLeft) return;
+      event.preventDefault();
+      rail.scrollLeft = nextScrollLeft;
+    };
+
+    surface.addEventListener('wheel', handleWheel, { passive: false });
+    return () => surface.removeEventListener('wheel', handleWheel);
+  }, [recentCharacters.length]);
+
+  const ASSET_CELLS = [
+    {
+      label: '世界书',
+      description: '整理世界设定条目与角色关联',
+      count: assetCounts.worldbooks,
+      onClick: () => navigate('/assets?tab=worldbook'),
+    },
+    {
+      label: '预设',
+      description: '复用提示词、顺序和生成参数',
+      count: assetCounts.presets,
+      onClick: () => navigate('/assets?tab=preset'),
+    },
+    {
+      label: '正则',
+      description: '管理聊天清理与替换规则',
+      count: assetCounts.regexes,
+      onClick: () => navigate('/assets?tab=regex'),
+    },
   ];
 
   return (
-    <AppLayout>
-      <div className="h-full min-h-0 overflow-hidden flex flex-col px-6 py-4 gap-3.5" data-home-resource-cache={Object.keys(resourceSnapshot).length}>
-        {/* 问候行：欢迎语只报归档数（0801 反馈 #8：原「书名+楼层+时间」信息密度高且与功能区重复） */}
-        <div className="shrink-0 flex items-baseline gap-3.5 flex-wrap">
-          <h1 className="font-serif text-[22px] font-semibold tracking-wide text-[color:var(--text-primary)]">{greeting()}</h1>
-          <span className="text-xs text-[color:var(--text-muted)]">
-            您已经归档了 {stories.length} 个故事
-          </span>
+    <AppLayout
+      titleBarContent={(
+        <div className="flex min-w-0 items-baseline gap-2 truncate" data-home-title-summary>
+          <span className="shrink-0 font-serif text-sm font-semibold text-[color:var(--text-primary)]">{greeting()}</span>
+          <span className="truncate text-[11px] text-[color:var(--text-muted)]">您已经归档了 {stories.length} 个故事</span>
         </div>
-
+      )}
+    >
+      <div className="h-full min-h-0 overflow-hidden flex flex-col px-6 py-4 gap-3.5" data-home-resource-cache={Object.keys(resourceSnapshot).length}>
         {/* 接入 ST 目录：仅客户端且未接入时显示（A6）；网页版组件自隐藏 */}
         {stConnected === false && (
           <div className="shrink-0 empty:hidden">
@@ -184,20 +222,25 @@ const Home = () => {
         )}
 
         <div
-          className="flex-1 min-h-0 grid gap-4 grid-cols-[minmax(0,1fr)_clamp(360px,32vw,520px)]"
+          className="flex-1 min-h-0 grid gap-4 grid-cols-[minmax(0,1fr)_clamp(320px,24vw,400px)]"
           data-home-columns
         >
           {/* ===== 左主列：角色 + 故事 ===== */}
-          <div className="min-w-0 min-h-0 flex flex-col gap-3.5" data-home-primary-column>
-            {/* ① 最近查看的角色：吃掉故事区之外的纵向空间，卡片由高度驱动放大。 */}
-            <section className="flex-1 min-h-0 flex flex-col rounded-xl bg-[var(--bg-elevated)] p-4" data-tour="home-library">
+          <div className="min-w-0 min-h-0 grid grid-rows-[minmax(0,3fr)_minmax(0,2fr)] gap-3.5" data-home-primary-column>
+            {/* ① 最近查看的角色：常规宽度完整显示 4 张，宽屏完整显示 5 张。 */}
+            <section
+              ref={characterWheelSurfaceRef}
+              className="min-h-0 flex flex-col rounded-xl bg-[var(--bg-elevated)] p-4"
+              data-tour="home-library"
+              data-home-character-wheel-surface
+            >
               <div className="flex items-center justify-between mb-2.5 gap-2">
-                <h3 className="font-serif text-base font-semibold text-[color:var(--text-primary)]">
+                <h2 className="font-serif text-xl font-semibold tracking-wide text-[color:var(--text-primary)]">
                   最近查看的角色
-                  <span className="text-xs text-[color:var(--text-muted)] font-sans font-normal ml-1.5">
+                  <span className="text-sm text-[color:var(--text-muted)] font-sans font-normal tracking-normal ml-2">
                     共 {characters.length} 张
                   </span>
-                </h3>
+                </h2>
                 <PillLink label="进入角色库" onClick={() => navigate('/library')} />
               </div>
               {recentCharacters.length === 0 ? (
@@ -208,7 +251,8 @@ const Home = () => {
                 </div>
               ) : (
                 <div
-                  className="flex-1 min-h-0 flex items-stretch gap-3.5 overflow-x-auto overflow-y-hidden pb-1.5 scrollbar-thin"
+                  ref={characterRailRef}
+                  className="flex-1 min-h-0 flex items-center gap-3.5 overflow-x-auto overflow-y-hidden overscroll-x-contain pb-1.5 scrollbar-thin"
                   data-home-character-rail
                 >
                   {recentCharacters.map((c) => {
@@ -219,7 +263,7 @@ const Home = () => {
                       <button
                         key={c.id}
                         onClick={() => navigate(`/character/${c.id}`)}
-                        className="relative h-full max-h-[480px] aspect-[3/4] shrink-0 self-center rounded-xl overflow-hidden bg-elevated transition-transform duration-200 hover:-translate-y-0.5 text-left"
+                        className="relative w-[calc((100%-2.625rem)/4)] 2xl:w-[calc((100%-3.5rem)/5)] aspect-[2/3] shrink-0 self-center rounded-xl overflow-hidden bg-elevated transition-transform duration-200 hover:-translate-y-0.5 text-left"
                         data-home-character-card
                       >
                         {c.pngBase64 ? (
@@ -235,24 +279,29 @@ const Home = () => {
                             <div className="char-mark" style={{ fontSize: 24 }}>{displayName.slice(0, 1)}</div>
                           </div>
                         )}
-                        {/* 顶部右角：故事数角标（对齐角色库卡面） */}
-                        {(storyCounts[c.id] ?? 0) > 0 && (
-                          <span className="absolute top-1.5 right-1.5 px-1.5 py-0.5 rounded-md text-[10px] bg-black/60 text-white/90 backdrop-blur-sm">
-                            {storyCounts[c.id]} 段故事
+                        {/* 顶部信息与角色库保持一致：左侧评分/日期，右侧故事数。 */}
+                        <div className="absolute top-0 left-0 right-0 z-10 flex justify-between items-start px-2.5 py-2 gap-1.5">
+                          <span className="flex items-center gap-1.5 px-2 py-[3px] rounded-full text-[11px] bg-[rgba(0,0,0,0.65)] backdrop-blur-sm border border-[rgba(255,255,255,0.12)] min-w-0">
+                            <b className="font-semibold text-[color:var(--brand-hi)]">
+                              {c.rating !== undefined ? c.rating : '未评分'}
+                            </b>
+                            <span className="text-white/70 truncate" title={formatFullTime(timeTs)}>
+                              {formatListTime(timeTs)}
+                            </span>
                           </span>
-                        )}
-                        {/* 底部渐变信息条（对齐角色库：名字 → 简介 → 评分/时间） */}
-                        <div className="absolute left-0 right-0 bottom-0 px-2.5 pb-2 pt-8 bg-[linear-gradient(transparent,rgba(0,0,0,0.75)_40%,rgba(0,0,0,0.92))]">
-                          <p className="font-serif text-xs font-semibold text-white truncate [text-shadow:0_1px_4px_rgba(0,0,0,0.5)]" title={displayName}>{displayName}</p>
+                          {(storyCounts[c.id] ?? 0) > 0 && (
+                            <span className="text-[11px] px-2 py-[3px] rounded-full bg-[rgba(0,0,0,0.65)] backdrop-blur-sm text-white border border-[rgba(255,255,255,0.12)] flex items-center gap-1 shrink-0">
+                              <MessageSquare className="w-3 h-3" />
+                              {storyCounts[c.id]}
+                            </span>
+                          )}
+                        </div>
+                        {/* 底部只保留名称和简介，避免与顶部信息重复。 */}
+                        <div className="absolute left-0 right-0 bottom-0 px-3.5 pb-3 pt-12 bg-[linear-gradient(transparent,rgba(0,0,0,0.75)_40%,rgba(0,0,0,0.92))]">
+                          <p className="font-serif text-sm font-semibold text-white truncate [text-shadow:0_1px_4px_rgba(0,0,0,0.5)]" title={displayName}>{displayName}</p>
                           {intro && (
                             <p className="text-[11px] leading-snug text-white/70 line-clamp-2 mt-0.5">{intro}</p>
                           )}
-                          <div className="flex items-center justify-between mt-1 text-[11px]">
-                            <span className="font-semibold text-[color:var(--brand-hi)]">
-                              {c.rating !== undefined ? `★ ${c.rating}` : '未评分'}
-                            </span>
-                            <span className="text-white/55" title={formatFullTime(timeTs)}>{formatListTime(timeTs)}</span>
-                          </div>
                         </div>
                       </button>
                     );
@@ -261,27 +310,21 @@ const Home = () => {
               )}
             </section>
 
-            {/* ② 最近在看的故事：只占三条列表的高度，更多内容在本区滚动。 */}
-            <section className="shrink-0 rounded-xl bg-elevated p-4" data-tour="home-recent">
-              <div className="mb-2.5 flex items-end justify-between gap-3">
-                <div>
-                  <h3 className="font-serif text-base font-semibold text-[color:var(--text-primary)]">最近在看的故事</h3>
-                  <p className="mt-1 text-xs text-[color:var(--text-muted)]">滚动查看更多故事。</p>
-                </div>
+            {/* ② 最近在看的故事：占左列两份高度，始终展示三行，更多内容内部滚动。 */}
+            <section className="min-h-0 flex flex-col rounded-xl bg-elevated p-4" data-tour="home-recent">
+              <div className="shrink-0 mb-2.5 flex items-end justify-between gap-3" data-home-story-heading>
+                <h2 className="font-serif text-base font-semibold text-[color:var(--text-primary)]">最近在看的故事</h2>
+                <span className="pb-0.5 text-xs text-[color:var(--text-muted)]">滚动查看更多故事。</span>
               </div>
               {recentStories.length === 0 ? (
-                <div
-                  className="rounded-xl bg-elevated-strong p-5 text-center flex flex-col items-center justify-center"
-                  style={{ minHeight: `${homeRecentStoryMaxHeightRem()}rem` }}
-                >
+                <div className="flex-1 min-h-0 rounded-xl bg-elevated-strong p-5 text-center flex flex-col items-center justify-center">
                   <BookOpenText className="mx-auto mb-2 h-7 w-7 text-muted-foreground/40" />
                   <p className="text-sm text-muted-foreground">还没有看过的故事</p>
                 </div>
               ) : (
                 <div
-                  className="flex flex-col gap-2 overflow-y-auto pr-1 scrollbar-thin"
+                  className="flex-1 min-h-0 grid grid-cols-2 auto-rows-[calc((100%-1rem)/3)] gap-2 overflow-y-auto pr-1 scrollbar-thin"
                   data-home-story-scroll
-                  style={{ maxHeight: `${homeRecentStoryMaxHeightRem()}rem` }}
                 >
                   {recentStories.map((s) => {
                     const char = s.characterId ? characterById[s.characterId] : undefined;
@@ -289,9 +332,9 @@ const Home = () => {
                       <button
                         key={s.id}
                         onClick={() => navigate(s.characterId ? `/character/${s.characterId}?story=${s.id}` : `/story/${s.id}`)}
-                        className="flex min-h-[3.5rem] min-w-0 shrink-0 items-center gap-2.5 rounded-lg bg-chrome px-2.5 py-2 text-left transition-colors hover:bg-elevated-strong"
+                        className="flex h-full min-h-0 min-w-0 items-center gap-2.5 rounded-lg bg-chrome px-3 py-2.5 text-left transition-colors hover:bg-elevated-strong"
                       >
-                        <div className="h-10 w-8 shrink-0 overflow-hidden rounded bg-[var(--hover-overlay)]">
+                        <div className="aspect-[3/4] h-full max-h-14 shrink-0 overflow-hidden rounded bg-[var(--hover-overlay)]">
                           {char?.pngBase64 ? (
                             <NsfwImage src={`data:image/png;base64,${char.pngBase64}`} alt={displayCharacterName(char)} nsfw={char.nsfw} className="h-full w-full object-cover object-top" loading="lazy" />
                           ) : <BookOpenText className="m-2 h-4 w-4 text-muted-foreground/50" />}
@@ -308,7 +351,7 @@ const Home = () => {
 
           {/* ===== 右次列：编辑 + 其他 ===== */}
           <div className="min-w-0 min-h-0 flex flex-col gap-3.5" data-home-secondary-column>
-            {/* ③ 编辑处理区：二号位，纵向扩大并用两列宽卡呈现用途。 */}
+            {/* ③ 编辑处理区：二号位，使用窄栏单列工具入口。 */}
             <section className="flex-[3] min-h-0 flex flex-col rounded-xl bg-elevated p-4" data-tour="home-tools">
               <div className="shrink-0 flex items-start justify-between mb-3 gap-3">
                 <div className="min-w-0">
@@ -319,53 +362,60 @@ const Home = () => {
                 </div>
                 <PillLink label="进入编辑区" onClick={() => navigate('/tools')} />
               </div>
-              <div className="flex-1 min-h-0 grid grid-cols-2 grid-rows-3 gap-2.5">
+              <div className="flex-1 min-h-0 grid grid-cols-1 grid-rows-5 gap-2">
                 {EDIT_TOOLS.map((tool) => {
                   const Icon = tool.icon;
                   return (
                     <button
                       key={tool.label}
                       onClick={() => navigate(tool.path)}
-                      className="min-h-0 flex flex-col items-start gap-1.5 rounded-lg bg-chrome px-3.5 py-3 text-left transition-colors hover:bg-elevated-strong"
+                      className="min-h-0 flex items-center gap-2.5 rounded-lg bg-chrome px-3 py-2 text-left transition-colors hover:bg-elevated-strong"
                     >
-                      <div className="flex w-full items-center gap-2">
-                        <Icon className="h-4 w-4 shrink-0 text-[color:var(--brand-hi)]" />
-                        <span className="flex-1 text-sm font-medium text-[color:var(--text-body)]">{tool.label}</span>
-                        <ChevronRight className="h-3.5 w-3.5 shrink-0 text-[color:var(--text-faint)]" />
+                      <Icon className="h-4 w-4 shrink-0 text-[color:var(--brand-hi)]" />
+                      <div className="min-w-0 flex-1">
+                        <span className="block text-sm font-medium text-[color:var(--text-body)]">{tool.label}</span>
+                        <span className="mt-0.5 block truncate text-[11px] text-[color:var(--text-muted)]">{tool.description}</span>
                       </div>
-                      <span className="line-clamp-3 text-[11px] leading-relaxed text-[color:var(--text-muted)]">{tool.description}</span>
+                      <ChevronRight className="h-3.5 w-3.5 shrink-0 text-[color:var(--text-faint)]" />
                     </button>
                   );
                 })}
               </div>
             </section>
 
-            {/* ④ 其他资产：保留原归属，使用右列剩余高度。 */}
+            {/* ④ 其他资产：保留明确的右列份额，不被编辑入口挤到角落。 */}
             <section className="flex-[2] min-h-0 flex flex-col rounded-xl bg-elevated p-4" data-tour="home-assets">
-              <div className="shrink-0 mb-2.5 flex items-end justify-between gap-3">
+              <div className="shrink-0 mb-3 flex items-start justify-between gap-3">
                 <div className="min-w-0">
-                  <h2 className="font-serif text-[15px] font-semibold text-[color:var(--text-primary)]">最近使用的资产</h2>
-                  <p className="mt-1 truncate text-xs text-[color:var(--text-muted)]">世界书、预设和正则是可复用的共享资源。</p>
+                  <h2 className="font-serif text-[17px] font-semibold text-[color:var(--text-primary)]">最近使用的资产</h2>
+                  <p className="mt-1 text-xs leading-relaxed text-[color:var(--text-muted)]">世界书、预设和正则是可复用的共享资源。</p>
                 </div>
                 <PillLink label="打开附属库" onClick={() => navigate('/assets')} />
               </div>
               <div className="flex-1 min-h-0 grid grid-cols-2 auto-rows-fr gap-2">
-                {STAT_CELLS.slice(2).map((cell) => (
+                {ASSET_CELLS.map((cell) => (
                   <button
                     key={cell.label}
                     onClick={cell.onClick}
-                    className="min-h-0 flex items-center justify-between rounded-lg bg-chrome px-3 py-2.5 text-xs text-[color:var(--text-body)] transition-colors hover:bg-elevated-strong"
+                    className="min-h-0 flex items-start justify-between gap-2 rounded-lg bg-chrome px-3 py-3 text-left transition-colors hover:bg-elevated-strong"
                   >
-                    <span>{cell.label}</span>
-                    <span className="font-serif text-[15px] font-bold text-[color:var(--text-primary)]">{cell.count}</span>
+                    <span className="min-w-0">
+                      <span className="block text-sm font-medium text-[color:var(--text-body)]">{cell.label}</span>
+                      <span className="mt-1 block line-clamp-2 text-[11px] leading-relaxed text-[color:var(--text-muted)]">{cell.description}</span>
+                    </span>
+                    <span className="shrink-0 font-serif text-[17px] font-bold text-[color:var(--text-primary)]">{cell.count}</span>
                   </button>
                 ))}
                 {isTauri() && (
                   <button
                     onClick={() => setStConfigOpen(true)}
-                    className="min-h-0 flex items-center justify-between rounded-lg bg-chrome px-3 py-2.5 text-xs text-[color:var(--text-body)] transition-colors hover:bg-elevated-strong"
+                    className="min-h-0 flex items-start justify-between gap-2 rounded-lg bg-chrome px-3 py-3 text-left transition-colors hover:bg-elevated-strong"
                   >
-                    <span className="flex items-center gap-1.5"><KeyRound className="h-3.5 w-3.5 text-[color:var(--text-muted)]" />ST 配置</span>
+                    <span className="min-w-0">
+                      <span className="flex items-center gap-1.5 text-sm font-medium text-[color:var(--text-body)]"><KeyRound className="h-3.5 w-3.5 text-[color:var(--text-muted)]" />ST 配置</span>
+                      <span className="mt-1 block line-clamp-2 text-[11px] leading-relaxed text-[color:var(--text-muted)]">连接 SillyTavern 目录与接口</span>
+                    </span>
+                    <ChevronRight className="mt-0.5 h-3.5 w-3.5 shrink-0 text-[color:var(--text-faint)]" />
                   </button>
                 )}
               </div>

@@ -251,6 +251,7 @@ describe('阶段 D 外壳与 NSFW 契约', () => {
   it('首页占满视口并保持左右双列，只有故事列表内部滚动', () => {
     const home = read('src/pages/Home.tsx');
     const rootClass = home.match(/<div className="([^"]+)" data-home-resource-cache/)?.[1] ?? '';
+    const primaryColumnClass = home.match(/className="([^"]+)" data-home-primary-column/)?.[1] ?? '';
     expect(rootClass.split(/\s+/)).toEqual(expect.arrayContaining([
       'h-full',
       'min-h-0',
@@ -263,6 +264,65 @@ describe('阶段 D 外壳与 NSFW 契约', () => {
     expect(home).toContain('data-home-character-card');
     expect(home).toContain('data-home-story-scroll');
     expect(home).not.toContain('HOME_RECENT_CHARACTER_CARD_WIDTH');
+    expect(primaryColumnClass.split(/\s+/)).toEqual(expect.arrayContaining([
+      'grid',
+      'grid-rows-[minmax(0,3fr)_minmax(0,2fr)]',
+    ]));
+    expect(home).toContain('auto-rows-[calc((100%-1rem)/3)]');
+    expect(home).toContain('aspect-[3/4] h-full max-h-14');
+  });
+
+  it('首页摘要进入窗口栏，内容区按单列编辑与完整角色卡重新分配空间', () => {
+    const home = read('src/pages/Home.tsx');
+    const layout = read('src/components/AppLayout.tsx');
+    const titleBar = read('src/components/ClientTitleBar.tsx');
+    const characterCardClass = home.match(/className="([^"]+)"\s+data-home-character-card/)?.[1] ?? '';
+
+    expect(home).toContain('titleBarContent=');
+    expect(home).toContain('data-home-title-summary');
+    expect(home).not.toContain('<h1 className=');
+    expect(layout).toContain('titleBarContent?: React.ReactNode');
+    expect(layout).toContain('titleBarContent={activeChrome.titleBarContent}');
+    expect(titleBar).toContain('titleBarContent?: React.ReactNode');
+
+    expect(home).toContain("surface.addEventListener('wheel', handleWheel, { passive: false })");
+    expect(home).toContain("surface.removeEventListener('wheel', handleWheel)");
+    expect(home).toContain('const surface = characterWheelSurfaceRef.current');
+    expect(home).toContain('ref={characterWheelSurfaceRef}');
+    expect(home).toContain('ref={characterRailRef}');
+    expect(home).not.toContain('snap-x');
+    expect(home).not.toContain('snap-proximity');
+    expect(home).not.toContain('snap-start');
+    expect(home).toContain('w-[calc((100%-2.625rem)/4)]');
+    expect(home).toContain('2xl:w-[calc((100%-3.5rem)/5)]');
+    expect(characterCardClass).toContain('aspect-[2/3]');
+    expect(characterCardClass).not.toContain('aspect-[3/4]');
+    expect(home).toContain("{c.rating !== undefined ? c.rating : '未评分'}");
+    expect(home).toContain('<MessageSquare');
+    expect(home).not.toContain("c.rating !== undefined ? `★ ${c.rating}`");
+
+    const editTools = home.match(/const EDIT_TOOLS = \[[\s\S]*?\n\];/)?.[0] ?? '';
+    expect(editTools).toContain("label: '总结'");
+    expect(editTools).toContain('EDITOR_TOOL_COPY.summaryAndTree');
+    expect(editTools).not.toContain("label: '故事树'");
+    expect(home).toContain('grid-cols-1 grid-rows-5');
+    expect(home).toContain('section className="flex-[3]');
+    expect(home).toContain('section className="flex-[2]');
+    expect(home).toContain('grid grid-cols-2 auto-rows-[calc((100%-1rem)/3)] gap-2 overflow-y-auto');
+    expect(home).toContain('pickRecentlyViewedStories(allStories, 12)');
+
+    expect(home).toContain('font-serif text-xl font-semibold');
+    expect(home).toContain('data-home-story-heading');
+    const storyHeading = home.match(/<div[^>]+data-home-story-heading[\s\S]*?<\/div>/)?.[0] ?? '';
+    expect(storyHeading).toContain('最近在看的故事');
+    expect(storyHeading).toContain('滚动查看更多故事。');
+    expect(storyHeading).not.toContain('<p');
+
+    expect(home).toContain('cell.description');
+    expect(home).toContain("description: '整理世界设定条目与角色关联'");
+    expect(home).toContain("description: '复用提示词、顺序和生成参数'");
+    expect(home).toContain("description: '管理聊天清理与替换规则'");
+    expect(home).toContain('连接 SillyTavern 目录与接口');
   });
 
   it('导入入口明确区分跳过与更新归档策略', () => {
@@ -341,7 +401,8 @@ describe('阶段 D 外壳与 NSFW 契约', () => {
       'core:window:allow-toggle-maximize',
       'core:window:allow-close',
     ]));
-    expect(layout).toContain('<ClientTitleBar />');
+    expect(layout).toContain('<ClientTitleBar');
+    expect(layout).toContain('titleBarContent={activeChrome.titleBarContent}');
     expect(existsSync(titleBarPath)).toBe(true);
     if (!existsSync(titleBarPath)) return;
 
