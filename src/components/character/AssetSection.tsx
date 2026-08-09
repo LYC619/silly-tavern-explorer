@@ -139,12 +139,10 @@ export function AssetSection({ character, onAssetsChange, onQuotesChange, onRead
 
   const refs = character.assets ?? [];
   const quotes = character.quotes ?? [];
-  const linked = refs
-    .map((ref) => {
-      const asset = library.find((a) => a.kind === ref.kind && a.id === ref.assetId);
-      return asset ? { ...asset, relations: ref.relations } : undefined;
-    })
-    .filter((a): a is AssetView => !!a);
+  const linked: AssetView[] = refs.flatMap((ref): AssetView[] => {
+    const asset = library.find((a) => a.kind === ref.kind && a.id === ref.assetId);
+    return asset ? [{ ...asset, relations: ref.relations }] : [];
+  });
   const quoteViews = quotes.map((q): AssetView => {
     const quotePreview = buildQuotePreview(q.body);
     return {
