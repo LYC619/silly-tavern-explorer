@@ -4,7 +4,6 @@ import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
 import { useToast } from '@/hooks/use-toast';
 import { getNsfwBlur, setNsfwBlur } from '@/lib/local-settings';
-import { chooseVaultRoot } from '@/lib/vault/bootstrap';
 import {
   createTauriFs,
   getAppConfig,
@@ -16,6 +15,9 @@ import {
 import { scanSTUserDir, type STScanResult } from '@/lib/vault/st-import';
 import { STAIConfigDialog } from '@/components/tools/STAIConfigDialog';
 import { STImportCard } from '@/components/tools/STImportCard';
+import { chooseVaultForNextBoot, selectRegisteredVaultForNextBoot } from '@/lib/vault/vault-registry-runtime';
+import { loadVaultRegistry } from '@/lib/vault/vault-registry-store';
+import type { VaultRegistry } from '@/lib/vault/vault-registry';
 
 interface STCounts {
   characters: number;
@@ -76,18 +78,21 @@ export function DirectorySettingsPanel() {
   const client = isTauri();
   const [stRoot, setStRoot] = useState<string | null>(null);
   const [vaultRoot, setVaultRootState] = useState<string | null>(null);
+  const [vaultRegistry, setVaultRegistry] = useState<VaultRegistry | null>(null);
   const [stCounts, setStCounts] = useState<STCounts | null>(null);
   const [busy, setBusy] = useState<'st' | 'vault' | null>(null);
   const [stConfigOpen, setStConfigOpen] = useState(false);
 
   const refreshPaths = useCallback(async () => {
     if (!client) return;
-    const [nextStRoot, nextVaultRoot] = await Promise.all([
+    const [nextStRoot, nextVaultRoot, nextRegistry] = await Promise.all([
       getAppConfig<string>('stRoot').catch(() => null),
       getVaultRoot().catch(() => null),
+      loadVaultRegistry().catch(() => null),
     ]);
     setStRoot(nextStRoot);
     setVaultRootState(nextVaultRoot);
+    setVaultRegistry(nextRegistry);
   }, [client]);
 
   useEffect(() => { void refreshPaths(); }, [refreshPaths]);
@@ -130,14 +135,32 @@ export function DirectorySettingsPanel() {
     if (!client) return;
     setBusy('vault');
     try {
-      const picked = await chooseVaultRoot();
+      const picked = await chooseVaultForNextBoot();
       if (!picked) return;
-      setVaultRootState(picked);
+      setVaultRootState(picked.path);
+      setVaultRegistry(await loadVaultRegistry().catch(() => null));
       toast({ title: '库目录已切换', description: '应用将重新载入并使用新目录；旧目录不会自动迁移或修改。' });
       window.location.reload();
     } catch (error) {
       toast({
         title: '切换库目录失败',
+        description: error instanceof Error ? error.message : '无法激活所选目录',
+        variant: 'destructive',
+      });
+    } finally {
+      setBusy(null);
+    }
+  };
+
+  const handleActivateRegisteredVault = async (id: string) => {
+    setBusy('vault');
+    try {
+      const next = await selectRegisteredVaultForNextBoot(id);
+      if (!next) throw new Error('所选库已不在注册表中，请刷新设置后重试');
+      window.location.reload();
+    } catch (error) {
+      toast({
+        title: '切换已注册库失败',
         description: error instanceof Error ? error.message : '无法激活所选目录',
         variant: 'destructive',
       });
@@ -204,6 +227,33 @@ export function DirectorySettingsPanel() {
           {!client && <span className="text-xs text-muted-foreground">网页版使用浏览器本地存储</span>}
         </div>
       </section>
+
+      {client && vaultRegistry && vaultRegistry.vaults.length > 1 && (
+        <section className="rounded-md border border-border p-4 space-y-3">
+          <div className="flex items-start gap-3">
+            <RefreshCw className="w-4 h-4 mt-0.5 text-primary shrink-0" />
+            <div className="min-w-0">
+              <h3 className="text-sm font-semibold">已注册的库</h3>
+              <p className="text-xs text-muted-foreground mt-1">演示库和私人库各自独立；切换后会重新载入页面，避免旧库缓存混入。</p>
+            </div>
+          </div>
+          <div className="space-y-1.5">
+            {vaultRegistry.vaults.map((profile) => (
+              <button
+                type="button"
+                key={profile.id}
+                disabled={profile.id === vaultRegistry.activeId || busy !== null}
+                onClick={() => void handleActivateRegisteredVault(profile.id)}
+                className="flex w-full items-center gap-2 rounded-md border border-border px-2.5 py-2 text-left text-xs transition-colors hover:bg-accent disabled:cursor-default disabled:opacity-70"
+              >
+                <span className={profile.id === vaultRegistry.activeId ? 'h-2 w-2 rounded-full bg-primary' : 'h-2 w-2 rounded-full bg-muted-foreground/30'} />
+                <span className="min-w-0 flex-1 truncate font-medium">{profile.name}</span>
+                <span className="max-w-[16rem] truncate text-[10px] text-muted-foreground" title={profile.path}>{profile.path}</span>
+              </button>
+            ))}
+          </div>
+        </section>
+      )}
 
       {client && <STAIConfigDialog open={stConfigOpen} onOpenChange={setStConfigOpen} />}
     </div>

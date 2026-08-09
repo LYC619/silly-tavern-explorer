@@ -6,7 +6,7 @@ import type { ArchiveCharacter, ArchiveStory, CharacterStatus, CharacterType, St
 import type { ChatSession, ChatMessage, ChapterMarker } from '@/types/chat';
 import type { STCharacterCard } from '@/lib/png-parser';
 import { normalizeCharacterCard } from '@/lib/png-parser';
-import { createRepo } from '@/lib/repo';
+import { createRepo, getCurrentRepo } from '@/lib/repo';
 import { extractModels, estimatePlayTime, computeStoryProps } from '@/lib/story-meta';
 import { KeyedSerialQueue } from '@/lib/keyed-serial-queue';
 
@@ -32,20 +32,22 @@ export async function getCharacter(id: string): Promise<ArchiveCharacter | undef
 }
 
 export async function saveCharacter(item: ArchiveCharacter): Promise<void> {
-  return characterWrites.enqueue(item.id, () => characterRepo.put(item));
+  const repo = getCurrentRepo<ArchiveCharacter>('characters');
+  return characterWrites.enqueue(item.id, () => repo.put(item));
 }
 
 export async function updateCharacter(
   id: string,
   updater: (current: ArchiveCharacter) => Partial<ArchiveCharacter> | undefined | Promise<Partial<ArchiveCharacter> | undefined>,
 ): Promise<ArchiveCharacter | undefined> {
+  const repo = getCurrentRepo<ArchiveCharacter>('characters');
   return characterWrites.enqueue(id, async () => {
-    const current = await characterRepo.get(id);
+    const current = await repo.get(id);
     if (!current) return undefined;
     const patch = await updater(current);
     if (!patch) return current;
     const next: ArchiveCharacter = { ...current, ...patch, id: current.id };
-    await characterRepo.put(next);
+    await repo.put(next);
     return next;
   });
 }
@@ -56,7 +58,8 @@ export async function markCharacterViewed(id: string, viewedAt = Date.now()): Pr
 }
 
 export async function deleteCharacter(id: string): Promise<void> {
-  return characterWrites.enqueue(id, () => characterRepo.remove(id));
+  const repo = getCurrentRepo<ArchiveCharacter>('characters');
+  return characterWrites.enqueue(id, () => repo.remove(id));
 }
 
 export async function getAllArchiveStories(): Promise<ArchiveStory[]> {
@@ -68,11 +71,13 @@ export async function getArchiveStory(id: string): Promise<ArchiveStory | undefi
 }
 
 export async function saveArchiveStory(item: ArchiveStory): Promise<void> {
-  return storyWrites.enqueue(item.id, () => storyRepo.put(item));
+  const repo = getCurrentRepo<ArchiveStory>('archiveStories');
+  return storyWrites.enqueue(item.id, () => repo.put(item));
 }
 
 export async function deleteArchiveStory(id: string): Promise<void> {
-  return storyWrites.enqueue(id, () => storyRepo.remove(id));
+  const repo = getCurrentRepo<ArchiveStory>('archiveStories');
+  return storyWrites.enqueue(id, () => repo.remove(id));
 }
 
 const ARCHIVE_SCHEMA_META_ID = 'archive-schema';

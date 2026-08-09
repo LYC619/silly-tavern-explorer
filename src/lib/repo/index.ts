@@ -11,13 +11,28 @@ import { createIdbRepo, type BaseRecord, type Repo } from './idb-repo';
 export type { BaseRecord, Repo } from './idb-repo';
 export { pruneAutoSaved } from './idb-repo';
 
+/**
+ * 在一次业务操作开始时捕获当前后端。
+ * 文件库切换会替换模块态 active；调用方若需要排队写入，必须在入队前捕获，
+ * 否则排队任务真正执行时可能把旧库数据写进新库。
+ */
+export function getCurrentRepo<T extends BaseRecord>(store: StoreName): Repo<T> {
+  const active = getActiveVault();
+  if (active) return active.repo<T>(store);
+  const cached = idbRepos.get(store);
+  if (cached) return cached as Repo<T>;
+  const created = createIdbRepo<T>(store);
+  idbRepos.set(store, created as Repo<BaseRecord>);
+  return created;
+}
+
+const idbRepos = new Map<StoreName, Repo<BaseRecord>>();
+
 export function createRepo<T extends BaseRecord>(store: StoreName): Repo<T> {
-  let idb: Repo<T> | undefined;
-  const pick = (): Repo<T> => getActiveVault()?.repo<T>(store) ?? (idb ??= createIdbRepo<T>(store));
   return {
-    list: () => pick().list(),
-    get: (id) => pick().get(id),
-    put: (item) => pick().put(item),
-    remove: (id) => pick().remove(id),
+    list: () => getCurrentRepo<T>(store).list(),
+    get: (id) => getCurrentRepo<T>(store).get(id),
+    put: (item) => getCurrentRepo<T>(store).put(item),
+    remove: (id) => getCurrentRepo<T>(store).remove(id),
   };
 }

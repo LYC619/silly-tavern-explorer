@@ -65,6 +65,17 @@ export async function setAppConfig(key: string, value: unknown): Promise<void> {
   await invoke('config_set', { key, value });
 }
 
+const INVALID_APP_CONFIG_PREFIX = 'STE_CONFIG_INVALID:';
+
+export function isInvalidAppConfigError(error: unknown): boolean {
+  return String(error).includes(INVALID_APP_CONFIG_PREFIX);
+}
+
+/** 仅在配置无法解析时调用：Rust 侧先生成同目录备份，再把 config.json 重置为空对象。 */
+export async function repairAppConfig(): Promise<string | null> {
+  return (await invoke<string | null>('config_repair')) ?? null;
+}
+
 const VAULT_ROOT_KEY = 'vaultRoot';
 
 export function getVaultRoot(): Promise<string | null> {

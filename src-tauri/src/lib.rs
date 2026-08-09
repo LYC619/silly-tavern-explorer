@@ -147,29 +147,85 @@ fn config_file(config_dir: &Path) -> PathBuf {
     config_dir.join("config.json")
 }
 
+const CONFIG_INVALID_PREFIX: &str = "STE_CONFIG_INVALID:";
+
+fn read_config_text(path: &Path) -> Result<String, String> {
+    let bytes = fs::read(path).map_err(|e| format!("读取配置文件失败 {}: {e}", path.display()))?;
+    String::from_utf8(bytes)
+        .map_err(|e| format!("{CONFIG_INVALID_PREFIX}配置文件不是有效 UTF-8: {e}"))
+}
+
+fn parse_config_object(text: &str) -> Result<serde_json::Value, String> {
+    let value = serde_json::from_str::<serde_json::Value>(text)
+        .map_err(|e| format!("{CONFIG_INVALID_PREFIX}配置文件损坏: {e}"))?;
+    if !value.is_object() {
+        return Err(format!("{CONFIG_INVALID_PREFIX}配置文件根不是对象"));
+    }
+    Ok(value)
+}
+
 fn config_get_impl(config_dir: &Path, key: &str) -> Result<Option<serde_json::Value>, String> {
     let file = config_file(config_dir);
     if !file.exists() {
         return Ok(None);
     }
-    let text = read_text_impl(&file)?;
-    let map: serde_json::Value = serde_json::from_str(&text).map_err(|e| format!("配置文件损坏: {e}"))?;
+    let text = read_config_text(&file)?;
+    let map = parse_config_object(&text)?;
     Ok(map.get(key).cloned())
 }
 
 fn config_set_impl(config_dir: &Path, key: &str, value: serde_json::Value) -> Result<(), String> {
     let file = config_file(config_dir);
     let mut map = if file.exists() {
-        serde_json::from_str::<serde_json::Value>(&read_text_impl(&file)?)
-            .unwrap_or_else(|_| serde_json::json!({}))
+        parse_config_object(&read_config_text(&file)?)?
     } else {
         serde_json::json!({})
     };
     map.as_object_mut()
-        .ok_or("配置文件根不是对象")?
+        .ok_or_else(|| format!("{CONFIG_INVALID_PREFIX}配置文件根不是对象"))?
         .insert(key.to_string(), value);
     let text = serde_json::to_string_pretty(&map).map_err(|e| e.to_string())?;
     write_bytes_atomic(&file, text.as_bytes())
+}
+
+fn config_repair_impl(config_dir: &Path) -> Result<Option<PathBuf>, String> {
+    let file = config_file(config_dir);
+    if !file.exists() {
+        return Ok(None);
+    }
+    let original = fs::read(&file).map_err(|e| format!("读取配置文件失败 {}: {e}", file.display()))?;
+    if std::str::from_utf8(&original)
+        .ok()
+        .and_then(|text| parse_config_object(text).ok())
+        .is_some()
+    {
+        return Ok(None);
+    }
+
+    fs::create_dir_all(config_dir)
+        .map_err(|e| format!("创建配置目录失败 {}: {e}", config_dir.display()))?;
+    let nonce = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map_err(|e| format!("生成配置备份名失败: {e}"))?
+        .as_millis();
+    let mut backup = None;
+    for attempt in 0..32 {
+        let candidate = config_dir.join(format!("config.invalid-{nonce}-{attempt}.json"));
+        let mut output = match fs::OpenOptions::new().write(true).create_new(true).open(&candidate) {
+            Ok(file) => file,
+            Err(err) if err.kind() == std::io::ErrorKind::AlreadyExists => continue,
+            Err(err) => return Err(format!("创建配置备份失败 {}: {err}", candidate.display())),
+        };
+        output
+            .write_all(&original)
+            .and_then(|_| output.sync_all())
+            .map_err(|e| format!("写入配置备份失败 {}: {e}", candidate.display()))?;
+        backup = Some(candidate);
+        break;
+    }
+    let backup = backup.ok_or_else(|| "无法创建唯一的配置备份文件".to_string())?;
+    write_bytes_atomic(&file, b"{}")?;
+    Ok(Some(backup))
 }
 
 // ---- Tauri 命令层（薄封装）----
@@ -288,6 +344,12 @@ fn config_set(app: tauri::AppHandle, key: String, value: serde_json::Value) -> R
     config_set_impl(&app_config_dir(&app)?, &key, value)
 }
 
+#[tauri::command]
+fn config_repair(app: tauri::AppHandle) -> Result<Option<String>, String> {
+    config_repair_impl(&app_config_dir(&app)?)
+        .map(|backup| backup.map(|path| path.to_string_lossy().into_owned()))
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
@@ -316,7 +378,8 @@ pub fn run() {
             vault_read_abs_text,
             vault_write_abs_text,
             config_get,
-            config_set
+            config_set,
+            config_repair
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
@@ -495,6 +558,76 @@ mod tests {
             config_get_impl(&root, "vaultRoot").unwrap(),
             Some(serde_json::json!("D:/我的STE库"))
         );
+        let _ = fs::remove_dir_all(&root);
+    }
+
+    #[test]
+    fn config_set_refuses_to_overwrite_corrupt_config() {
+        let root = temp_root("cfg-corrupt");
+        let file = config_file(&root);
+        fs::write(&file, "{ not valid json").unwrap();
+
+        let result = config_set_impl(&root, "vaultRegistry", serde_json::json!({
+            "version": 1,
+        }));
+
+        assert!(result.is_err());
+        assert_eq!(fs::read_to_string(&file).unwrap(), "{ not valid json");
+        let _ = fs::remove_dir_all(&root);
+    }
+
+    #[test]
+    fn config_get_rejects_non_object_root() {
+        let root = temp_root("cfg-non-object");
+        let file = config_file(&root);
+        fs::write(&file, "[]").unwrap();
+
+        let result = config_get_impl(&root, "vaultRoot");
+
+        assert!(result.is_err());
+        let _ = fs::remove_dir_all(&root);
+    }
+
+    #[test]
+    fn config_get_rejects_non_utf8_config_as_invalid_config() {
+        let root = temp_root("cfg-non-utf8");
+        let file = config_file(&root);
+        fs::write(&file, [0xff_u8, 0xfe_u8, 0x00_u8]).unwrap();
+
+        let result = config_get_impl(&root, "vaultRoot").unwrap_err();
+
+        assert!(result.starts_with(CONFIG_INVALID_PREFIX));
+        let _ = fs::remove_dir_all(&root);
+    }
+
+    #[test]
+    fn config_repair_backs_up_and_resets_invalid_file() {
+        let root = temp_root("cfg-repair");
+        let file = config_file(&root);
+        fs::write(&file, "{ broken json").unwrap();
+
+        let backup = config_repair_impl(&root).unwrap().unwrap();
+
+        assert_eq!(fs::read_to_string(&backup).unwrap(), "{ broken json");
+        assert_eq!(fs::read_to_string(&file).unwrap(), "{}");
+        assert_eq!(config_get_impl(&root, "vaultRoot").unwrap(), None);
+        let _ = fs::remove_dir_all(&root);
+    }
+
+    #[test]
+    fn config_repair_handles_non_object_root_and_leaves_valid_config_alone() {
+        let root = temp_root("cfg-repair-root");
+        let file = config_file(&root);
+        fs::write(&file, "[]").unwrap();
+
+        let backup = config_repair_impl(&root).unwrap().unwrap();
+        assert_eq!(fs::read_to_string(&backup).unwrap(), "[]");
+        assert_eq!(fs::read_to_string(&file).unwrap(), "{}");
+
+        config_set_impl(&root, "vaultRoot", serde_json::json!("D:/vault")).unwrap();
+        let valid = fs::read_to_string(&file).unwrap();
+        assert_eq!(config_repair_impl(&root).unwrap(), None);
+        assert_eq!(fs::read_to_string(&file).unwrap(), valid);
         let _ = fs::remove_dir_all(&root);
     }
 }
