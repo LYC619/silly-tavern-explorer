@@ -5,9 +5,9 @@
  * 丢文件后弹类型选择（程序给默认猜测，用户确认），随后分流到对应工具页。
  */
 import { useState, useEffect, useCallback } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import {
-  UploadCloud, ScrollText, Globe, IdCard, SlidersHorizontal, Regex, BookOpenText,
+  UploadCloud, ScrollText, Globe, IdCard, SlidersHorizontal, Regex, BookOpenText, Network,
 } from 'lucide-react';
 import { AppLayout } from '@/components/AppLayout';
 import { Button } from '@/components/ui/button';
@@ -29,7 +29,13 @@ import { getAllCharacters, getAllArchiveStories } from '@/lib/archive-db';
 import { getAllWorldBooks } from '@/lib/worldbook-db';
 import { getAllPresets } from '@/lib/preset-db';
 import { getAllRegexCollections } from '@/lib/regex-db';
-import type { ArchiveStory } from '@/types/archive';
+import type { ArchiveCharacter, ArchiveStory } from '@/types/archive';
+import {
+  buildEditorStoryPickerItems,
+  EDITOR_TOOL_COPY,
+  pickRecentlyViewedStories,
+  storyWorkspaceViewForEditorFocus,
+} from '@/lib/home-layout';
 
 interface ToolEntry {
   type: ToolFileType;
@@ -47,15 +53,31 @@ const TOOLS: ToolEntry[] = [
   { type: 'regex', label: '正则', desc: '规则管理、批量导入、可视化生效预览', icon: Regex, path: '/regex' },
 ];
 
+const ORGANIZE_ENTRIES = [
+  { focus: 'summary', label: '总结', desc: EDITOR_TOOL_COPY.summary, icon: BookOpenText },
+  { focus: 'story-tree', label: '故事树', desc: EDITOR_TOOL_COPY.storyTree, icon: Network },
+] as const;
+
 const Tools = () => {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const focus = searchParams.get('focus');
+  const focusView = storyWorkspaceViewForEditorFocus(focus);
+  const focusCopy = focus === 'summary'
+    ? { title: '总结', description: EDITOR_TOOL_COPY.summary, action: '进入分卷总结' }
+    : focus === 'story-tree'
+      ? { title: '故事树', description: EDITOR_TOOL_COPY.storyTree, action: '打开故事树' }
+      : null;
   const [dragOver, setDragOver] = useState(false);
   // 待确认的文件 + 程序猜测（null = 没猜出来，让用户自己选）
   const [pending, setPending] = useState<{ file: File; guess: ToolFileType | null } | null>(null);
   const [chosenType, setChosenType] = useState<ToolFileType>('chat');
   /** 二级列表计数与最近打开（加载失败静默为 0/空，不挡工具入口） */
   const [counts, setCounts] = useState<Partial<Record<ToolFileType, number>>>({});
+  const [stories, setStories] = useState<ArchiveStory[]>([]);
+  const [characters, setCharacters] = useState<ArchiveCharacter[]>([]);
   const [recent, setRecent] = useState<ArchiveStory[]>([]);
+  const [storyQuery, setStoryQuery] = useState('');
 
   const loadData = useCallback(async () => {
     const [stories, wbs, cards, presets, regexes] = await Promise.all([
@@ -72,12 +94,11 @@ const Tools = () => {
       preset: presets.length,
       regex: regexes.length,
     });
-    setRecent(
-      stories
-        .filter((s) => s.lastViewedAt !== undefined)
-        .sort((a, b) => b.lastViewedAt! - a.lastViewedAt!)
-        .slice(0, 3),
-    );
+    const sortedStories = [...stories]
+      .sort((a, b) => (b.lastViewedAt ?? b.updatedAt) - (a.lastViewedAt ?? a.updatedAt));
+    setStories(sortedStories);
+    setCharacters(cards);
+    setRecent(pickRecentlyViewedStories(sortedStories));
   }, []);
 
   useEffect(() => { void loadData(); }, [loadData]);
@@ -115,6 +136,12 @@ const Tools = () => {
     navigate(target.path);
   };
 
+  const openStory = useCallback((storyId: string) => {
+    navigate(`/story/${storyId}`, focusView ? { state: { view: focusView } } : undefined);
+  }, [focusView, navigate]);
+
+  const storyPickerItems = buildEditorStoryPickerItems(stories, characters, storyQuery);
+
   return (
     <AppLayout>
       <div className="h-full flex overflow-hidden">
@@ -140,13 +167,38 @@ const Tools = () => {
               );
             })}
           </div>
+          <div className="mt-2.5 border-t border-[color:var(--hairline-inner)] pt-2.5">
+            <div className="px-2.5 pb-1.5 text-[10px] tracking-[1.2px] text-[color:var(--text-muted)]">整理与记录</div>
+            {ORGANIZE_ENTRIES.map((entry) => {
+              const Icon = entry.icon;
+              const active = focus === entry.focus;
+              return (
+                <button
+                  key={entry.focus}
+                  type="button"
+                  aria-current={active ? 'page' : undefined}
+                  onClick={() => navigate(`/tools?focus=${entry.focus}`)}
+                  title={entry.desc}
+                  className={cn(
+                    'flex w-full items-center gap-2 rounded-md px-2.5 py-1.5 text-xs transition-colors',
+                    active
+                      ? 'bg-[var(--brand-active-bg)] text-brand'
+                      : 'text-[color:var(--text-muted)] hover:bg-[var(--hover-overlay)] hover:text-[color:var(--text-body)]',
+                  )}
+                >
+                  <Icon className="h-3.5 w-3.5 shrink-0 opacity-70" />
+                  <span className="flex-1 text-left">{entry.label}</span>
+                </button>
+              );
+            })}
+          </div>
           {recent.length > 0 && (
             <div className="mt-2.5 pt-2.5 border-t border-[color:var(--hairline-inner)]">
-              <div className="text-[10px] tracking-[1.2px] text-[color:var(--text-muted)] px-2.5 pb-1.5">最近打开</div>
+              <div className="text-[10px] tracking-[1.2px] text-[color:var(--text-muted)] px-2.5 pb-1.5">最近故事</div>
               {recent.map((s) => (
                 <button
                   key={s.id}
-                  onClick={() => navigate(`/story/${s.id}`)}
+                  onClick={() => openStory(s.id)}
                   className="w-full flex items-center gap-2 px-2.5 py-1.5 rounded-md text-xs text-[color:var(--text-muted)] hover:bg-[var(--hover-overlay)] hover:text-[color:var(--text-body)] transition-colors"
                 >
                   <BookOpenText className="w-3.5 h-3.5 opacity-70 shrink-0" />
@@ -161,11 +213,72 @@ const Tools = () => {
         <div className="flex-1 min-w-0 overflow-y-auto scrollbar-thin px-6 py-4">
           <div className="max-w-3xl mx-auto space-y-5 animate-fade-in">
             <div>
-              <h1 className="font-serif text-[22px] font-semibold tracking-wide text-[color:var(--text-primary)]">编辑区</h1>
+              <h1 className="font-serif text-[22px] font-semibold tracking-wide text-[color:var(--text-primary)]">
+                {focusCopy ? `${focusCopy.title} · 编辑区` : '编辑区'}
+              </h1>
               <p className="text-[11px] text-[color:var(--text-muted)] mt-1">
-                丢进来一个文件，或从左侧打开工具。处理完可入库归档，也可以只导出、不留档。
+                {focusCopy?.description ?? '丢进来一个文件，或从左侧打开工具。处理完可入库归档，也可以只导出、不留档。'}
               </p>
+              {focusCopy && (
+                <div className="mt-3 rounded-lg border border-[color:var(--brand-hairline)] bg-[var(--brand-active-bg)] px-3 py-2 text-xs text-[color:var(--text-body)]" data-editor-focus={focus}>
+                  选择一个故事后会直接进入对应工作台，不再先落到阅读页。
+                </div>
+              )}
             </div>
+
+            {focusCopy && (
+              <section className="rounded-xl border border-[color:var(--border-normal)] bg-elevated p-4" data-editor-story-picker>
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <h2 className="font-serif text-base font-semibold text-[color:var(--text-primary)]">选择要处理的故事</h2>
+                    <p className="mt-1 text-xs text-[color:var(--text-muted)]">从全部故事中选择后，直接打开「{focusCopy.title}」视图。</p>
+                  </div>
+                  <Button type="button" variant="outline" size="sm" onClick={() => navigate('/chat')}>导入新聊天</Button>
+                </div>
+                {stories.length > 0 && (
+                  <div className="mt-3 flex flex-wrap items-center gap-2">
+                    <input
+                      type="search"
+                      value={storyQuery}
+                      onChange={(event) => setStoryQuery(event.target.value)}
+                      placeholder="搜索故事或角色"
+                      aria-label="搜索故事或角色"
+                      className="min-w-0 flex-1 rounded-md border border-[color:var(--border-normal)] bg-chrome px-2.5 py-1.5 text-xs text-[color:var(--text-body)] outline-none placeholder:text-[color:var(--text-muted)] focus:border-brand focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring"
+                    />
+                    <span className="shrink-0 text-[11px] text-[color:var(--text-muted)]">
+                      {storyPickerItems.length}/{stories.length} 个故事
+                    </span>
+                  </div>
+                )}
+                {storyPickerItems.length > 0 ? (
+                  <div className="mt-3 max-h-[24rem] overflow-y-auto pr-1 scrollbar-thin">
+                    <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+                    {storyPickerItems.map(({ story, characterName }) => (
+                      <button
+                        key={story.id}
+                        type="button"
+                        onClick={() => openStory(story.id)}
+                        aria-label={`${story.title} · ${characterName}`}
+                        className="flex min-w-0 flex-col items-start rounded-lg bg-chrome px-3 py-3 text-left transition-colors hover:bg-elevated-strong"
+                      >
+                        <span className="w-full truncate text-sm font-medium text-[color:var(--text-body)]" title={story.title}>{story.title}</span>
+                        <span className="mt-1 w-full truncate text-[11px] text-[color:var(--text-muted)]" title={characterName}>
+                          {characterName} · {story.session.messages.length} 楼 · {focusCopy.action}
+                        </span>
+                      </button>
+                    ))}
+                    </div>
+                  </div>
+                ) : (
+                  <div className="mt-3 rounded-lg bg-chrome px-4 py-5 text-center">
+                    <p className="text-sm text-[color:var(--text-body)]">{stories.length > 0 ? '没有匹配的故事' : '还没有可以整理的故事'}</p>
+                    <p className="mt-1 text-xs text-[color:var(--text-muted)]">
+                      {stories.length > 0 ? '换一个标题或角色关键词试试。' : `先导入一份聊天记录，再回来生成${focusCopy.title}。`}
+                    </p>
+                  </div>
+                )}
+              </section>
+            )}
 
             {/* 大拖放区 */}
             <div
