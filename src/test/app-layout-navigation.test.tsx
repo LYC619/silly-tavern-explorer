@@ -3,6 +3,8 @@ import { createRoot, type Root } from 'react-dom/client';
 import { MemoryRouter, Route, Routes, useNavigate } from 'react-router-dom';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
+const collapseSidenav = vi.hoisted(() => vi.fn());
+
 vi.mock('@/components/ClientTitleBar', () => ({ ClientTitleBar: () => null }));
 vi.mock('@/components/GlobalSearch', () => ({ GlobalSearch: () => null }));
 vi.mock('@/components/GlobalSettings', () => ({ APP_VERSION: 'v0.18.0' }));
@@ -10,7 +12,8 @@ vi.mock('@/components/ThemeSwitcher', () => ({
   ThemeSwitcher: ({ trigger }: { trigger: React.ReactNode }) => trigger,
 }));
 vi.mock('@/hooks/use-sidenav-state', () => ({
-  useSidenavState: () => ({ expanded: false, toggle: vi.fn() }),
+  shouldAutoCollapse: (previous: string, next: string) => previous === '/' && next !== '/',
+  useSidenavState: () => ({ expanded: true, toggle: vi.fn(), collapse: collapseSidenav }),
 }));
 vi.mock('@/lib/vault/tauri-fs', () => ({ isTauri: () => false }));
 vi.mock('@/lib/editor-open-state', () => ({
@@ -45,6 +48,7 @@ let container: HTMLDivElement;
 let root: Root;
 
 beforeEach(() => {
+  collapseSidenav.mockClear();
   container = document.createElement('div');
   document.body.appendChild(container);
   root = createRoot(container);
@@ -82,5 +86,6 @@ describe('AppLayout route transitions', () => {
     expect(container.querySelector('[data-testid="library-page"]')).not.toBeNull();
     expect(container.querySelector('[data-testid="home-page"]')).toBeNull();
     expect(container.querySelectorAll('main > div')).toHaveLength(1);
+    expect(collapseSidenav).toHaveBeenCalledTimes(1);
   });
 });

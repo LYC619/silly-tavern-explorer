@@ -13,11 +13,12 @@ describe('前端状态刷新契约', () => {
     expect(footer).not.toContain('usage');
   });
 
-  it('侧栏不再按页面自动折叠（0801 反馈：切页保持用户选择）', () => {
+  it('侧栏只在离开首页时自动折叠，其他页面切换不覆盖用户选择', () => {
     const hook = read('src/hooks/use-sidenav-state.ts');
     const layout = read('src/components/AppLayout.tsx');
-    expect(hook).not.toContain('pageDefault');
+    expect(hook).toContain('shouldAutoCollapse');
     expect(layout).toContain('useSidenavState()');
+    expect(layout).toContain('shouldAutoCollapse(previousPathRef.current, location.pathname)');
   });
 
   it('STImportCard 暴露变更通知，首页和编辑区接入刷新；首页仅未接入时显示', () => {
@@ -79,6 +80,15 @@ describe('卡片键盘操作契约', () => {
     const tools = read('src/pages/Tools.tsx');
     expect(card).toContain("variant?: 'full' | 'compact'");
     expect(tools).toContain('variant="compact"');
+  });
+
+  it('首页表面和编辑区搜索焦点使用实际生成的语义样式', () => {
+    const home = read('src/pages/Home.tsx');
+    const tools = read('src/pages/Tools.tsx');
+    expect(home).toContain('bg-[var(--bg-elevated)]');
+    expect(home).not.toContain('bg-elevated/40');
+    expect(tools).toContain('focus-visible:ring-ring');
+    expect(tools).not.toContain('focus:ring-brand/30');
   });
 });
 
@@ -176,7 +186,7 @@ describe('阶段 D 外壳与 NSFW 契约', () => {
     expect(runtime).toContain('<STImportCard');
     expect(runtime).toContain('root={stRoot}');
     expect(read('src/components/tools/STImportCard.tsx')).toContain('重新扫描并选择');
-    expect(runtime).toContain('chooseVaultRoot');
+    expect(runtime).toContain('chooseVaultForNextBoot');
     expect(runtime).toContain('getVaultRoot');
     expect(runtime).toContain('window.location.reload()');
     expect(global).toContain('export function DataSettingsPanel');
@@ -187,6 +197,30 @@ describe('阶段 D 外壳与 NSFW 契约', () => {
     const importer = read('src/components/tools/STImportCard.tsx');
     expect(importer).toContain("scan.warnings.length ? '未发现可安全导入的内容'");
     expect(importer).toContain('scan.warnings.slice(0, 3)');
+  });
+
+  it('ST 导入使用分类选择与摘要优先的视口安全弹窗', () => {
+    const importer = read('src/components/tools/STImportCard.tsx');
+    const selection = read('src/components/tools/st-import/STImportSelectionDialog.tsx');
+    const result = read('src/components/tools/st-import/STImportResultDialog.tsx');
+
+    expect(importer).toContain('<STImportSelectionDialog');
+    expect(importer).toContain('<STImportResultDialog');
+    expect(selection).toContain('<Tabs');
+    expect(selection).toContain('max-h-[calc(100vh-2rem)]');
+    expect(selection).toContain('min-h-0 overflow-y-auto');
+    expect(result).toContain('groupUnresolvedRelationships');
+    expect(result).toContain('查看完整处理明细');
+    expect(result).toContain('max-h-[calc(100vh-2rem)]');
+    expect(result).toContain('min-h-0 overflow-y-auto');
+    for (const label of ['角色', '故事', '世界书', '预设', '正则', '原样归档']) {
+      expect(result).toContain(`label="${label}"`);
+    }
+  });
+
+  it('导入结果换批次时完整明细重新默认折叠', () => {
+    const result = read('src/components/tools/st-import/STImportResultDialog.tsx');
+    expect(result).toContain('useEffect(() => { setDetailsOpen(false); }, [result])');
   });
 
   it('AppLayout 路由切换只保留一个页面节点并提供短入场动画', () => {
@@ -212,6 +246,54 @@ describe('阶段 D 外壳与 NSFW 契约', () => {
     expect(home).toContain('homeSnapshot.assetCounts');
     expect(home).toContain('homeSnapshot = nextSnapshot');
     expect(home).toContain('useEffect(() => { void loadData(); }, [loadData])');
+  });
+
+  it('首页只使用外层主滚动容器，故事列表才保留独立滚动', () => {
+    const home = read('src/pages/Home.tsx');
+    const rootClass = home.match(/<div className="([^"]+)" data-home-resource-cache/)?.[1] ?? '';
+    expect(rootClass).not.toContain('overflow-y-auto');
+    expect(home).toContain('data-home-story-scroll');
+  });
+
+  it('导入入口明确区分跳过与更新归档策略', () => {
+    const importer = read('src/components/tools/STImportCard.tsx');
+    const selection = read('src/components/tools/st-import/STImportSelectionDialog.tsx');
+    const result = read('src/components/tools/st-import/STImportResultDialog.tsx');
+    const presentation = read('src/lib/vault/st-import-presentation.ts');
+    expect(importer).toContain('IMPORT_POLICY_SUMMARY');
+    expect(selection).toContain('IMPORT_POLICY_SUMMARY');
+    expect(result).toContain('IMPORT_POLICY_SUMMARY');
+    expect(presentation).toContain('同一路径的角色、聊天、世界书、预设和正则会跳过');
+    expect(presentation).toContain('扩展与媒体按同路径更新归档');
+    expect(importer).not.toContain('已有来源会安全跳过');
+  });
+
+  it('多库配置读取失败时不把现有配置静默当成空注册表覆盖', () => {
+    const store = read('src/lib/vault/vault-registry-store.ts');
+    expect(store).not.toContain('getAppConfig<unknown>(REGISTRY_KEY).catch(() => null)');
+    expect(store).not.toContain('getVaultRoot().catch(() => null)');
+    expect(store).toContain('const [raw, legacyRootValue] = await Promise.all');
+    expect(store).toContain("typeof legacyRootValue === 'string'");
+  });
+
+  it('启动时验证活动库根目录，失效路径回到选库引导而不是放行坏后端', () => {
+    const bootstrap = read('src/lib/vault/bootstrap.ts');
+    expect(bootstrap).toContain("await fs.stat('')");
+    expect(bootstrap).toContain("return 'unset'");
+  });
+
+  it('已注册库切换失败时显示可见错误，而不是留下未处理 Promise', () => {
+    const runtime = read('src/components/settings/RuntimeSettingsPanel.tsx');
+    expect(runtime).toContain('handleActivateRegisteredVault');
+    expect(runtime).toContain("title: '切换已注册库失败'");
+  });
+
+  it('侧栏库切换和首次选库失败时都给出可恢复的可见反馈', () => {
+    const switcher = read('src/components/vault/VaultSwitcher.tsx');
+    const gate = read('src/components/vault/VaultGate.tsx');
+    expect(switcher).toContain('if (!profile) throw');
+    expect(gate).toContain('setError');
+    expect(gate).toContain('role="alert"');
   });
 
   it('全局搜索键盘导航基于分组后的视觉顺序', () => {

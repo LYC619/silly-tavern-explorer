@@ -1,9 +1,9 @@
 /**
  * 全局应用外壳（10.1 改版，0801 实测反馈）：
- * - 客户端使用自定义窗口栏：左侧品牌、全局搜索（⌘K）和右侧窗口控制合为一层；
+ * - 客户端使用自定义窗口栏：左侧品牌、全局搜索（Ctrl+F）和右侧窗口控制合为一层；
  *   网页版保留独立搜索工具栏
- * - 侧栏：头部=展开/折叠符号；默认展开、切页不再自动折叠（use-sidenav-state 改版）；
- *   折叠态=「图标+小字在下」窄栏（插图1）；导航扩充 7 项，世界书/预设/正则走 /assets 深链；
+ * - 侧栏：头部=展开/折叠符号；默认展开，从首页离开时自动折叠，其他页面之间保留用户选择；
+ *   折叠态=「图标+小字在下」窄栏（插图1）；导航按首页/角色库/编辑区/附属库四个一级区域组织；
  *   编辑区可展开列最近处理条目（editor-recent 派生，无新埋点）
  * - 状态栏：只留运行环境+版本（「已接入 ST」「数据占用」挪设置页，10.4 收容）
  * - 主区内容 framer-motion 入场 fade+slide（A7 切换平滑专项；侧栏不参与动画）
@@ -18,18 +18,19 @@ import {
   useEffect,
   useLayoutEffect,
   useMemo,
+  useRef,
   useState,
 } from 'react';
 import { useNavigate, useLocation, useOutlet } from 'react-router-dom';
 import {
-  Home, Users, BookOpen, SlidersHorizontal, Regex, Layers, PenLine,
   Palette, Wrench, PanelLeftClose, PanelLeftOpen, ChevronDown, Loader2,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ThemeSwitcher } from '@/components/ThemeSwitcher';
 import { GlobalSearch } from '@/components/GlobalSearch';
 import { ClientTitleBar } from '@/components/ClientTitleBar';
-import { useSidenavState } from '@/hooks/use-sidenav-state';
+import { VaultSwitcher } from '@/components/vault/VaultSwitcher';
+import { shouldAutoCollapse, useSidenavState } from '@/hooks/use-sidenav-state';
 import { APP_VERSION } from '@/components/GlobalSettings';
 import { isTauri } from '@/lib/vault/tauri-fs';
 import { pickRecentEdits, RECENT_EDIT_KIND_LABEL, type RecentEditItem } from '@/lib/editor-recent';
@@ -42,6 +43,7 @@ import { getAllStoryTrees } from '@/lib/story-tree-db';
 import { getAllCards } from '@/lib/card-db';
 import { cn } from '@/lib/utils';
 import { getEditorOpen, setEditorOpenState } from '@/lib/editor-open-state';
+import { NAV_AREAS, matchesNavDestination, type NavAreaKey, type NavDestination } from '@/lib/navigation-model';
 
 interface AppLayoutProps {
   children?: React.ReactNode;
@@ -67,36 +69,8 @@ interface LayoutContextValue {
 
 const LayoutContext = createContext<LayoutContextValue | null>(null);
 
-/** 导航 7 项（10.1-A4）：资产三类走 /assets?tab= 深链；「其他」= 资产类别入口空态 */
-interface NavItem {
-  label: string;
-  icon: typeof Home;
-  path: string;
-  /** pathname 前缀点亮 */
-  prefixes?: string[];
-  /** /assets 页按 tab 参数点亮（undefined 表示无 tab 参数时点亮） */
-  assetTab?: string | null;
-}
-
-const NAV_ITEMS: NavItem[] = [
-  { label: '首页', icon: Home, path: '/', prefixes: ['/'] },
-  { label: '角色', icon: Users, path: '/library', prefixes: ['/library', '/character'] },
-  { label: '世界书', icon: BookOpen, path: '/assets?tab=worldbook', assetTab: 'worldbook' },
-  { label: '预设', icon: SlidersHorizontal, path: '/assets?tab=preset', assetTab: 'preset' },
-  { label: '正则', icon: Regex, path: '/assets?tab=regex', assetTab: 'regex' },
-  { label: '其他', icon: Layers, path: '/assets', assetTab: null },
-];
-
-/** 编辑区入口：单列（带可展开的最近处理条目），/story 工作区=编辑器也归它点亮 */
-const EDITOR_ITEM: NavItem = {
-  label: '编辑区',
-  icon: PenLine,
-  path: '/tools',
-  prefixes: ['/tools', '/chat', '/worldbook', '/card-viewer', '/preset', '/regex', '/story'],
-};
-
 interface SideItemProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
-  icon: typeof Home;
+  icon: React.ComponentType<{ className?: string }>;
   label: string;
   expanded: boolean;
   active?: boolean;
@@ -122,10 +96,10 @@ const SideItem = forwardRef<HTMLButtonElement, SideItemProps>(function SideItem(
           : 'flex flex-col items-center gap-1 py-2 px-0.5',
         active
           ? 'bg-[var(--brand-active-bg)] text-brand'
-          : 'text-[color:var(--text-muted)] hover:bg-[var(--hover-overlay)] hover:text-[color:var(--text-body)]',
+          : 'text-[color:var(--sidebar-text-muted)] hover:bg-[var(--hover-overlay)] hover:text-[color:var(--sidebar-text)]',
       )}
     >
-      {active && <span className="absolute left-0 top-2 bottom-2 w-0.5 rounded-full bg-brand" />}
+      {active && <span className="absolute left-0 top-2 bottom-2 w-0.5 rounded-full bg-brand-accent" />}
       <Icon className="w-[18px] h-[18px] shrink-0" />
       <span className={cn('text-left', expanded ? 'flex-1 truncate' : 'text-[10px] leading-none whitespace-nowrap')}>
         {label}
@@ -133,6 +107,35 @@ const SideItem = forwardRef<HTMLButtonElement, SideItemProps>(function SideItem(
     </button>
   );
 });
+
+function SideSubItem({
+  item,
+  active,
+  onClick,
+}: {
+  item: NavDestination;
+  active: boolean;
+  onClick: () => void;
+}) {
+  const Icon = item.icon;
+  return (
+    <button
+      type="button"
+      aria-current={active ? 'page' : undefined}
+      title={item.description}
+      onClick={onClick}
+      className={cn(
+        'flex w-full items-center gap-2 rounded-md py-1.5 pl-9 pr-2 text-left text-[11px] transition-colors',
+        active
+          ? 'bg-[var(--brand-active-bg)] text-brand font-medium'
+          : 'text-[color:var(--sidebar-text-muted)] hover:bg-[var(--hover-overlay)] hover:text-[color:var(--sidebar-text)]',
+      )}
+    >
+      <Icon className="h-3.5 w-3.5 shrink-0 opacity-80" />
+      <span className="min-w-0 flex-1 truncate">{item.label}</span>
+    </button>
+  );
+}
 
 /** 编辑区最近处理条目（展开侧栏时可见）：故事、整理记录、故事树和资产，updatedAt 最近 6 条 */
 function EditorRecentList({ onGo }: { onGo: (item: RecentEditItem) => void }) {
@@ -157,10 +160,10 @@ function EditorRecentList({ onGo }: { onGo: (item: RecentEditItem) => void }) {
   }, []);
 
   if (items === null) {
-    return <p className="pl-9 pr-2 py-1 text-[10px] text-[color:var(--text-faint)]">加载中…</p>;
+    return <p className="pl-9 pr-2 py-1 text-[10px] text-[color:var(--sidebar-text-faint)]">加载中…</p>;
   }
   if (items.length === 0) {
-    return <p className="pl-9 pr-2 py-1 text-[10px] text-[color:var(--text-faint)]">还没有处理过的条目</p>;
+    return <p className="pl-9 pr-2 py-1 text-[10px] text-[color:var(--sidebar-text-faint)]">还没有处理过的条目</p>;
   }
   return (
     <div className="flex flex-col">
@@ -169,10 +172,10 @@ function EditorRecentList({ onGo }: { onGo: (item: RecentEditItem) => void }) {
           key={`${item.kind}-${item.id}`}
           onClick={() => onGo(item)}
           title={item.title}
-          className="flex items-center gap-1.5 pl-9 pr-2 py-1 text-left text-[11px] text-[color:var(--text-muted)] hover:text-[color:var(--text-body)] hover:bg-[var(--hover-overlay)] rounded-md"
+          className="flex items-center gap-1.5 pl-9 pr-2 py-1 text-left text-[11px] text-[color:var(--sidebar-text-muted)] hover:text-[color:var(--sidebar-text)] hover:bg-[var(--hover-overlay)] rounded-md"
         >
           <span className="truncate flex-1">{item.title}</span>
-          <span className="text-[9px] shrink-0 text-[color:var(--text-faint)]">{RECENT_EDIT_KIND_LABEL[item.kind]}</span>
+          <span className="text-[9px] shrink-0 text-[color:var(--sidebar-text-faint)]">{RECENT_EDIT_KIND_LABEL[item.kind]}</span>
         </button>
       ))}
     </div>
@@ -193,9 +196,13 @@ function PersistentAppLayout({ children, actions, leftActions }: AppLayoutProps)
   const location = useLocation();
   const outlet = useOutlet();
   const client = isTauri();
-  const { expanded, toggle } = useSidenavState();
+  const { expanded, toggle, collapse } = useSidenavState();
   const [editorOpen, setEditorOpen] = useState(() => getEditorOpen());
+  const [assetsOpen, setAssetsOpen] = useState(() => {
+    try { return localStorage.getItem('ste-assets-nav-open') !== 'false'; } catch { return true; }
+  });
   const [registration, setRegistration] = useState<LayoutRegistration | null>(null);
+  const previousPathRef = useRef(location.pathname);
 
   const register = useCallback((routeKey: string, chrome: LayoutChrome) => {
     setRegistration({ routeKey, ...chrome });
@@ -209,18 +216,36 @@ function PersistentAppLayout({ children, actions, leftActions }: AppLayoutProps)
     setRegistration(null);
   }, [location.key]);
 
+  useLayoutEffect(() => {
+    if (shouldAutoCollapse(previousPathRef.current, location.pathname) && expanded) collapse();
+    previousPathRef.current = location.pathname;
+  }, [collapse, expanded, location.pathname]);
+
   const activeChrome = registration?.routeKey === location.key ? registration : { actions, leftActions };
   const content = children ?? outlet;
 
-  const isActive = useCallback((item: NavItem) => {
-    if (item.assetTab !== undefined) {
-      if (location.pathname !== '/assets') return false;
-      const tab = new URLSearchParams(location.search).get('tab');
-      return item.assetTab === null ? tab === null : tab === item.assetTab;
+  const isActive = useCallback((item: NavDestination) => (
+    matchesNavDestination(item, location.pathname, location.search)
+  ), [location.pathname, location.search]);
+  const activeAreaKey = NAV_AREAS.find((area) => isActive(area))?.key;
+
+  const toggleArea = useCallback((key: NavAreaKey) => {
+    if (key === 'editor') {
+      setEditorOpen((current) => {
+        const next = !current;
+        setEditorOpenState(next);
+        return next;
+      });
+      return;
     }
-    return (item.prefixes ?? []).some((m) =>
-      m === '/' ? location.pathname === '/' : location.pathname.startsWith(m));
-  }, [location.pathname, location.search]);
+    if (key === 'assets') {
+      setAssetsOpen((current) => {
+        const next = !current;
+        try { localStorage.setItem('ste-assets-nav-open', String(next)); } catch { /* no-op */ }
+        return next;
+      });
+    }
+  }, []);
 
   return (
     <LayoutContext.Provider value={layout}>
@@ -245,7 +270,7 @@ function PersistentAppLayout({ children, actions, leftActions }: AppLayoutProps)
             title={expanded ? '折叠侧栏' : '展开侧栏'}
             aria-label={expanded ? '折叠侧栏' : '展开侧栏'}
             className={cn(
-              'flex items-center pb-2.5 pt-1 mb-2 border-b border-[color:var(--border-subtle)] text-[color:var(--text-muted)] hover:text-[color:var(--text-body)] transition-colors',
+              'flex items-center pb-2.5 pt-1 mb-2 border-b border-[color:var(--border-subtle)] text-[color:var(--sidebar-text-muted)] hover:text-[color:var(--sidebar-text)] transition-colors',
               expanded ? 'px-2.5 justify-end' : 'px-0 justify-center',
             )}
           >
@@ -255,58 +280,66 @@ function PersistentAppLayout({ children, actions, leftActions }: AppLayoutProps)
           </button>
 
           <div className="flex flex-col gap-0.5 min-h-0 overflow-y-auto">
-            {NAV_ITEMS.map((item) => (
-              <SideItem
-                key={item.label}
-                icon={item.icon}
-                label={item.label}
-                expanded={expanded}
-                active={isActive(item)}
-                onClick={() => navigate(item.path)}
-              />
-            ))}
-
-            {/* 编辑区：主体点击进 /tools；展开态右侧折角展开最近处理条目 */}
-            <div className="relative">
-              <SideItem
-                icon={EDITOR_ITEM.icon}
-                label={EDITOR_ITEM.label}
-                expanded={expanded}
-                active={isActive(EDITOR_ITEM)}
-                onClick={() => navigate(EDITOR_ITEM.path)}
-              />
-              {expanded && (
-                <button
-                  onClick={() => setEditorOpen((v) => {
-                    const next = !v;
-                    setEditorOpenState(next);
-                    return next;
-                  })}
-                  title={editorOpen ? '收起最近处理' : '展开最近处理'}
-                  aria-label={editorOpen ? '收起最近处理' : '展开最近处理'}
-                  className="absolute right-1 top-1/2 -translate-y-1/2 p-1 rounded text-[color:var(--text-faint)] hover:text-[color:var(--text-body)] hover:bg-[var(--hover-overlay)]"
-                >
-                  <ChevronDown className={cn('w-3.5 h-3.5 transition-transform', editorOpen && 'rotate-180')} />
-                </button>
-              )}
-            </div>
-            <AnimatePresence initial={false}>
-              {expanded && editorOpen && (
-                <motion.div
-                  initial={{ height: 0, opacity: 0 }}
-                  animate={{ height: 'auto', opacity: 1 }}
-                  exit={{ height: 0, opacity: 0 }}
-                  transition={{ duration: 0.18, ease: 'easeOut' }}
-                  className="overflow-hidden"
-                >
-                  <EditorRecentList onGo={(item) => navigate(item.path, { state: item.state })} />
-                </motion.div>
-              )}
-            </AnimatePresence>
+            {NAV_AREAS.map((area) => {
+              const AreaIcon = area.icon;
+              const areaOpen = area.key === 'editor' ? editorOpen : area.key === 'assets' ? assetsOpen : false;
+              const hasChildren = area.children.length > 0;
+              return (
+                <div key={area.key} className="relative">
+                  <SideItem
+                    icon={AreaIcon}
+                    label={area.label}
+                    expanded={expanded}
+                    active={activeAreaKey === area.key}
+                    title={area.description}
+                    onClick={() => navigate(area.path)}
+                  />
+                  {expanded && hasChildren && (
+                    <button
+                      type="button"
+                      onClick={(event) => { event.stopPropagation(); toggleArea(area.key); }}
+                      title={areaOpen ? `收起${area.label}` : `展开${area.label}`}
+                      aria-label={areaOpen ? `收起${area.label}` : `展开${area.label}`}
+                      aria-expanded={areaOpen}
+                      className="absolute right-1 top-1/2 -translate-y-1/2 rounded p-1 text-[color:var(--sidebar-text-faint)] hover:bg-[var(--hover-overlay)] hover:text-[color:var(--sidebar-text)]"
+                    >
+                      <ChevronDown className={cn('h-3.5 w-3.5 transition-transform', areaOpen && 'rotate-180')} />
+                    </button>
+                  )}
+                  <AnimatePresence initial={false}>
+                    {expanded && hasChildren && areaOpen && (
+                      <motion.div
+                        initial={{ height: 0, opacity: 0 }}
+                        animate={{ height: 'auto', opacity: 1 }}
+                        exit={{ height: 0, opacity: 0 }}
+                        transition={{ duration: 0.18, ease: 'easeOut' }}
+                        className="overflow-hidden"
+                      >
+                        {area.children.map((child) => (
+                          <SideSubItem
+                            key={`${area.key}-${child.key}`}
+                            item={child}
+                            active={isActive(child)}
+                            onClick={() => navigate(child.path)}
+                          />
+                        ))}
+                        {area.key === 'editor' && (
+                          <>
+                            <div className="mx-3 my-1 border-t border-[color:var(--hairline-inner)]" />
+                            <EditorRecentList onGo={(item) => navigate(item.path, { state: item.state })} />
+                          </>
+                        )}
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
+                </div>
+              );
+            })}
           </div>
 
-          {/* 底部：主题（弹层）+ 设置 */}
+          {/* 底部：当前文件库（客户端）+ 主题（弹层）+ 设置 */}
           <div className="mt-auto pt-2 border-t border-[color:var(--border-subtle)] flex flex-col gap-0.5">
+            <VaultSwitcher expanded={expanded} />
             <ThemeSwitcher
               side="right"
               trigger={
