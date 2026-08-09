@@ -65,6 +65,14 @@
   --text-body: #d4cec2;
   --text-muted: #a8987a;
   --text-faint: #7a6f5d;
+  --brand-text: #E08A4A;
+
+  /* 结构性侧栏语义色：页面不再按某一套主题写死文字颜色 */
+  --sidebar-text: var(--text-body);
+  --sidebar-text-muted: var(--text-muted);
+  --sidebar-text-faint: var(--text-faint);
+  --sidebar-icon: var(--text-muted);
+  --sidebar-icon-active: var(--brand-text);
 
   /* 交互反馈 */
   --hover-overlay: rgba(255, 255, 255, 0.04);
@@ -93,6 +101,13 @@
   --text-body: #c8c4bd;
   --text-muted: #8a857b;
   --text-faint: #6a655c;
+  --brand-text: #E08A4A;
+
+  --sidebar-text: var(--text-body);
+  --sidebar-text-muted: var(--text-muted);
+  --sidebar-text-faint: var(--text-faint);
+  --sidebar-icon: var(--text-muted);
+  --sidebar-icon-active: var(--brand-text);
 
   --hover-overlay: rgba(255, 255, 255, 0.04);
   --hover-overlay-strong: rgba(255, 255, 255, 0.08);
@@ -119,6 +134,13 @@
   --text-body: #b8c0cf;
   --text-muted: #7a8497;
   --text-faint: #5a637a;
+  --brand-text: #E08A4A;
+
+  --sidebar-text: var(--text-body);
+  --sidebar-text-muted: var(--text-muted);
+  --sidebar-text-faint: var(--text-faint);
+  --sidebar-icon: var(--text-muted);
+  --sidebar-icon-active: var(--brand-text);
 
   --hover-overlay: rgba(255, 255, 255, 0.04);
   --hover-overlay-strong: rgba(255, 255, 255, 0.08);
@@ -145,6 +167,14 @@
   --text-body: #4a4238;
   --text-muted: #6b6255;
   --text-faint: #8a7d6a;
+  --brand-text: #8A4A18;
+  --brand-hi: #8A4A18;
+
+  --sidebar-text: var(--text-body);
+  --sidebar-text-muted: var(--text-muted);
+  --sidebar-text-faint: var(--text-faint);
+  --sidebar-icon: var(--text-muted);
+  --sidebar-icon-active: var(--brand-text);
 
   --hover-overlay: rgba(0, 0, 0, 0.03);
   --hover-overlay-strong: rgba(0, 0, 0, 0.06);

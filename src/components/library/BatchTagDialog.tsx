@@ -101,7 +101,7 @@ export function BatchTagDialog({ open, onOpenChange, targets, allCharacters, onD
                       className={cn(
                         'px-2.5 py-1 rounded-full text-xs border transition-colors',
                         picked.has(o.raw)
-                          ? 'bg-brand text-white border-transparent'
+                          ? 'bg-brand-accent text-white border-transparent'
                           : 'border-[color:var(--border-normal)] text-[color:var(--text-muted)] hover:text-[color:var(--text-body)]',
                       )}
                     >

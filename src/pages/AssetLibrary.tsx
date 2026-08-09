@@ -77,7 +77,7 @@ function FilterItem({
         'w-full flex items-center justify-between gap-1.5 px-2.5 py-1.5 rounded-md text-xs mb-px text-left',
         active
           ? 'bg-[var(--brand-active-bg)] text-brand'
-          : 'text-[color:var(--text-muted)] hover:bg-[var(--hover-overlay)] hover:text-[color:var(--text-body)]',
+          : 'text-[color:var(--sidebar-text-muted)] hover:bg-[var(--hover-overlay)] hover:text-[color:var(--sidebar-text)]',
       )}
     >
       <span className="truncate">{label}</span>

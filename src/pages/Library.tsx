@@ -158,7 +158,7 @@ function FilterItem({
         'w-full flex items-center justify-between gap-1.5 px-2.5 py-1.5 rounded-md text-[13px] mb-px text-left',
         active
           ? 'bg-[var(--brand-active-bg)] text-brand'
-          : 'text-[color:var(--text-muted)] hover:bg-[var(--hover-overlay)] hover:text-[color:var(--text-body)]',
+          : 'text-[color:var(--sidebar-text-muted)] hover:bg-[var(--hover-overlay)] hover:text-[color:var(--sidebar-text)]',
       )}
     >
       <span className="flex items-center min-w-0">
@@ -479,7 +479,7 @@ const Library = () => {
             </PopoverTrigger>
             <PopoverContent align="end" className="w-64 space-y-4">
               <div>
-                <p className="text-xs font-medium text-muted-foreground mb-2">视图</p>
+                <p className="text-xs font-medium text-[color:var(--sidebar-text-muted)] mb-2">视图</p>
                 <div className="flex items-center rounded-md border border-border overflow-hidden w-fit">
                   <button
                     aria-label="网格视图"
@@ -488,7 +488,7 @@ const Library = () => {
                       'h-8 w-10 flex items-center justify-center transition-colors',
                       viewMode === 'grid'
                         ? 'bg-[var(--brand-active-bg)] text-brand'
-                        : 'text-muted-foreground hover:text-[color:var(--text-body)]',
+                        : 'text-[color:var(--sidebar-text-muted)] hover:text-[color:var(--sidebar-text)]',
                     )}
                   >
                     <LayoutGrid className="w-4 h-4" />
@@ -500,7 +500,7 @@ const Library = () => {
                       'h-8 w-10 flex items-center justify-center transition-colors border-l border-border',
                       viewMode === 'list'
                         ? 'bg-[var(--brand-active-bg)] text-brand'
-                        : 'text-muted-foreground hover:text-[color:var(--text-body)]',
+                        : 'text-[color:var(--sidebar-text-muted)] hover:text-[color:var(--sidebar-text)]',
                     )}
                   >
                     <ListIcon className="w-4 h-4" />
@@ -509,7 +509,7 @@ const Library = () => {
               </div>
               {viewMode === 'grid' && (
                 <div>
-                  <p className="text-xs font-medium text-muted-foreground mb-2">卡片大小</p>
+                  <p className="text-xs font-medium text-[color:var(--sidebar-text-muted)] mb-2">卡片大小</p>
                   <Slider
                     value={[cardWidth]}
                     min={CARD_W_MIN}
@@ -521,7 +521,7 @@ const Library = () => {
                 </div>
               )}
               <div>
-                <p className="text-xs font-medium text-muted-foreground mb-2">卡面字体大小</p>
+                <p className="text-xs font-medium text-[color:var(--sidebar-text-muted)] mb-2">卡面字体大小</p>
                 <Slider
                   value={[fontScale]}
                   min={FONT_MIN}
@@ -562,7 +562,7 @@ const Library = () => {
             </Button>
             {/* 类型（互斥，置顶；替代旧五档游玩状态） */}
             <div>
-              <div className="text-[10px] tracking-[1.5px] text-[color:var(--text-faint)] mb-2 pl-1.5 flex items-center gap-1">
+              <div className="text-[10px] tracking-[1.5px] text-[color:var(--sidebar-text-faint)] mb-2 pl-1.5 flex items-center gap-1">
                 类型
                 <span title="每张卡只归一类（人物/剧情/玩法/综合/同人），替代旧版的游玩状态；状态改到每个故事上维护" className="cursor-help">
                   <HelpCircle className="w-3 h-3" />
@@ -600,7 +600,7 @@ const Library = () => {
               if (options.length === 0) return null;
               return (
                 <div key={cat} className="mt-4 pt-3.5 border-t border-[color:var(--hairline-inner)]">
-                  <div className="text-[10px] tracking-[1.5px] text-[color:var(--text-faint)] mb-2 pl-1.5 flex items-center gap-1">
+                  <div className="text-[10px] tracking-[1.5px] text-[color:var(--sidebar-text-faint)] mb-2 pl-1.5 flex items-center gap-1">
                     <span className="inline-block w-1.5 h-1.5 rounded-full shrink-0" style={{ background: CATEGORY_DOT[cat] }} />
                     {cat}
                     <span title={CATEGORY_HELP[cat]} className="cursor-help">

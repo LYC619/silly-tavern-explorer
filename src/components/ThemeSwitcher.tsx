@@ -3,7 +3,7 @@ import { Palette, Check } from 'lucide-react';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
-import { THEMES } from '@/lib/theme';
+import { THEMES, themeSwatchBackground } from '@/lib/theme';
 
 /** 主题选择弹层（交接包定稿：点开弹层选择，不做小圆点组）。trigger 可注入自定义触发器（侧栏 side-item 用） */
 export function ThemeSwitcher({
@@ -36,8 +36,9 @@ export function ThemeSwitcher({
               )}
             >
               <span
-                className="w-4 h-4 rounded-full border border-border shrink-0"
-                style={{ background: t.swatch }}
+                className="w-4 h-4 rounded-full border border-border shrink-0 shadow-inner"
+                style={{ background: themeSwatchBackground(t) }}
+                data-theme-swatch={t.key}
               />
               <span className="flex-1">{t.label}</span>
               {theme === t.key && <Check className="w-3.5 h-3.5" />}
