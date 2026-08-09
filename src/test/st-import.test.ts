@@ -128,6 +128,30 @@ describe('scanSTUserDir', () => {
     expect(r.regex).toEqual({ path: 'data/default-user/settings.json', count: 1 });
   });
 
+  it('安装根同时含 extensions/assets 时仍优先扫描 data/default-user', async () => {
+    const st = createMemFs();
+    await seedSTTree(st, 'data/default-user');
+    await st.writeText('extensions/third-party/index.js', 'export default {};');
+    await st.writeText('assets/emotes/sample.png', 'asset');
+
+    const r = await scanSTUserDir(st);
+
+    expect(r.userDir).toBe('data/default-user');
+    expect(r.characters.map((character) => character.name)).toContain('赫敏');
+    expect(r.archives.map((group) => group.kind)).toEqual([]);
+  });
+
+  it('安装根只有 data/default-user/settings.json 时仍扫描用户配置', async () => {
+    const st = createMemFs();
+    await st.writeText('data/default-user/settings.json', settingsJson);
+    await st.writeText('package.json', '{}');
+
+    const r = await scanSTUserDir(st);
+
+    expect(r.userDir).toBe('data/default-user');
+    expect(r.regex).toEqual({ path: 'data/default-user/settings.json', count: 1 });
+  });
+
   it('目录缺失 = 空组不抛错（空目录/只有部分子目录）', async () => {
     const empty = await scanSTUserDir(createMemFs());
     expect(empty).toEqual({
@@ -287,6 +311,37 @@ describe('importSelected', () => {
     expect(await getAllRegexCollections()).toHaveLength(1);
   });
 
+  it('同一 ST 目录先选安装根、再选 data/default-user 时仍识别为重复来源', async () => {
+    const installRoot = createMemFs();
+    await seedSTTree(installRoot, 'data/default-user');
+    const userRoot = createMemFs();
+    await seedSTTree(userRoot);
+    setupVault();
+
+    const installScan = await scanSTUserDir(installRoot);
+    await importSelected(installRoot, selectAll(installScan, 'D:\\SillyTavern'));
+
+    const userScan = await scanSTUserDir(userRoot);
+    const again = await importSelected(
+      userRoot,
+      selectAll(userScan, 'D:\\SillyTavern\\data\\default-user'),
+    );
+
+    expect(again).toMatchObject({
+      characters: 0,
+      stories: 0,
+      worldbooks: 0,
+      presets: 0,
+      regexes: 0,
+      skipped: 8,
+    });
+    expect(await getAllCharacters()).toHaveLength(1);
+    expect(await getAllArchiveStories()).toHaveLength(4);
+    expect(await getAllWorldBooks()).toHaveLength(1);
+    expect(await getAllPresets()).toHaveLength(1);
+    expect(await getAllRegexCollections()).toHaveLength(1);
+  });
+
   it('已导入过的卡再勾选新聊天：新聊天绑到原角色，不建第二个角色', async () => {
     const st = createMemFs();
     await seedSTTree(st);
@@ -436,6 +491,10 @@ describe('importSelected', () => {
     expect(files).toContain('资产/其他/SillyTavern/assets/bgm/theme.mp3');
     expect(files).toContain('说明/SillyTavern 导入说明.md');
     expect(files).toContain('说明/SillyTavern 最近一次导入.json');
+    const guide = await vaultFs.readText('说明/SillyTavern 导入说明.md');
+    expect(guide).toContain('世界书关系');
+    expect(guide).toContain('同一路径再次导入');
+    expect(guide).toContain('当前没有结构化导入');
   });
 
   it('世界书关系优先指向 worlds 来源文件，不误连到同名手动资产', async () => {

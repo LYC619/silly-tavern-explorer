@@ -206,27 +206,33 @@ export async function scanSTUserDir(fs: VaultFs): Promise<STScanResult> {
       warnings.push(warning);
     }
   };
-  const hasAny = async (base: string) => {
-    const names = new Set(['characters', 'chats', 'worlds', 'extensions', 'assets', 'OpenAI Settings']);
+  // 仅用用户数据目录的结构化入口判断“这里就是用户目录”。
+  // extensions/assets 属于用户目录内的可选归档内容，不能单独把完整安装根目录
+  // 误判成用户目录；否则根目录下恰好有插件时就不会继续下钻 data/default-user。
+  const hasUserDataDirs = async (base: string, includeSettingsFile = false) => {
+    const userDataNames = new Set(['characters', 'chats', 'worlds', 'OpenAI Settings']);
+    const archiveNames = new Set(['extensions', 'assets']);
     let found = false;
     for (const entry of await fs.list(base)) {
-      if (!names.has(entry.name)) continue;
+      const isUserDataDir = userDataNames.has(entry.name);
+      const isSettingsFile = includeSettingsFile && entry.name === 'settings.json' && !entry.isDir;
+      if (!isUserDataDir && !archiveNames.has(entry.name) && !isSettingsFile) continue;
       if (entry.isSymlink) {
         warn({ path: joinPath(base, entry.name), reason: 'symlink' });
         continue;
       }
-      if (entry.isDir) found = true;
+      if ((isUserDataDir && entry.isDir) || isSettingsFile) found = true;
     }
     return found;
   };
-  if (!(await hasAny(''))) {
+  if (!(await hasUserDataDirs(''))) {
     const nested = 'data/default-user';
     const dataEntry = (await fs.list('')).find((entry) => entry.name === 'data');
     if (dataEntry?.isSymlink) warn({ path: 'data', reason: 'symlink' });
     else if (dataEntry?.isDir) {
       const userEntry = (await fs.list('data')).find((entry) => entry.name === 'default-user');
       if (userEntry?.isSymlink) warn({ path: nested, reason: 'symlink' });
-      else if (userEntry?.isDir && (await hasAny(nested))) userDir = nested;
+      else if (userEntry?.isDir && (await hasUserDataDirs(nested, true))) userDir = nested;
     }
   }
   const userEntries = await fs.list(userDir);
@@ -420,9 +426,13 @@ function sourceStem(path: string): string {
   return path.replace(/\\/g, '/').split('/').pop()?.replace(/\.json$/i, '') ?? '';
 }
 
+function sourcePathKey(value: string | undefined): string {
+  if (!value) return '';
+  return value.trim().replace(/\\/g, '/').replace(/\/{2,}/g, '/').replace(/\/+$/, '').toLowerCase();
+}
+
 function sameSourcePath(a: string, b: string): boolean {
-  const normalize = (value: string) => value.replace(/\\/g, '/').replace(/\/+$/, '').toLowerCase();
-  return normalize(a) === normalize(b);
+  return sourcePathKey(a) === sourcePathKey(b);
 }
 
 function addRelation(refs: AssetRef[] | undefined, assetId: string, relation: STAssetRelation): AssetRef[] {
@@ -446,6 +456,8 @@ const ST_IMPORT_GUIDE = `# SillyTavern 导入说明
 
 STE 只读取 SillyTavern 来源目录，导入不会移动、删除或改写来源文件。
 
+## 当前扫描与去向
+
 | SillyTavern 来源 | STE 去向 | 处理方式 |
 | --- | --- | --- |
 | characters/*.png | 角色/<角色名>/ | 解析为角色档案，PNG 原件保留 |
@@ -456,9 +468,29 @@ STE 只读取 SillyTavern 来源目录，导入不会移动、删除或改写来
 | extensions/ | 资产/其他/SillyTavern/extensions/ | 原样复制，绝不执行扩展代码 |
 | assets/ | 资产/其他/SillyTavern/assets/ | 原样复制并保持相对路径 |
 
-角色卡主绑定、settings.json 额外链接与全局世界书、聊天元数据中的对话级世界书会优先连接当前 ST 根下 worlds/ 的同名来源文件。找不到或存在歧义的名称会列在最近一次导入清单中，不会猜测资产。settings.json 损坏时不会清理已有关系；不同 ST 根的全局标记分别记录来源。
+选择角色卡时，会同时选择该角色目录下的全部聊天；没有对应角色卡的散聊天会进入“临时”故事，不会被丢弃。世界书、预设、正则和“扩展与媒体”可以在导入窗口中分别勾选；settings.json 的关系单独控制。
+
+## 世界书关系
+
+| 关系 | SillyTavern 来源 | STE 记录 |
+| --- | --- | --- |
+| 卡内嵌 | 角色卡 data.character_book | 提取为独立世界书，并在角色上标记卡内嵌 |
+| 主绑定 | 角色卡 data.extensions.world | 角色引用同名世界书，并标记主绑定 |
+| 额外链接 | settings.json 的 world_info.charLore[].extraBooks | 按角色卡文件名匹配，标记额外链接 |
+| 全局启用 | settings.json 的 world_info.globalSelect | 在世界书资产上保存全局启用来源 |
+| 对话级 | 聊天首行 chat_metadata.world_info | 在故事上保存对话级引用 |
+
+世界书关系优先连接当前 ST 根下 worlds/ 的同名来源文件。找不到或存在歧义的名称会列在最近一次导入清单中，不会猜测资产。settings.json、角色卡或聊天损坏时，不会用空结果清理已有关系；不同 ST 根的全局标记分别记录来源。
 
 扫描与实际文件操作都会拒绝符号链接、路径穿越名称和超过深度上限的目录，防止越出所选 ST 根；遗漏项会写入扫描警告。来源聊天或角色卡损坏时，重新扫描会保留已有关系并报告失败。角色专属派生世界书在来源关系未改变时不会被复扫换回原件。
+
+## 重复导入与更新
+
+同一路径再次导入时，角色、聊天、世界书、预设和正则会跳过，不创建副本；角色目录中新出现的聊天仍会补进原角色。已有聊天只刷新对话级世界书关系，不覆盖 STE 中已经编辑的消息。extensions/ 和 assets/ 按同一路径更新 STE 内的归档副本，来源目录保持不变。
+
+## 当前没有结构化导入
+
+群组、群聊、Persona、其他模型后端预设、主题、背景、快捷回复和向量索引目前只会在扫描清单中提示，尚未转换为 STE 业务对象。密钥文件不进入导入范围；角色卡和聊天中的未知字段仍随原始数据保留。
 `;
 
 /**
@@ -485,11 +517,12 @@ export async function importSelected(stFs: VaultFs, plan: STImportPlan): Promise
 
   // 独立世界书必须先入库，角色卡与聊天随后才能把名称解析为稳定 id。
   const existingWorldbooks = await getAllWorldBooks();
-  const wbSources = new Set(existingWorldbooks.map((w) => w.sourcePath).filter(Boolean));
+  const wbSources = new Set(existingWorldbooks.map((w) => sourcePathKey(w.sourcePath)).filter(Boolean));
   const worldbooks = [...existingWorldbooks];
   for (const wb of plan.worldbooks) {
     const src = sourcePathOf(plan.stRoot, wb.path);
-    if (wbSources.has(src)) {
+    const srcKey = sourcePathKey(src);
+    if (wbSources.has(srcKey)) {
       summary.skipped++;
       detail({ status: 'skipped', kind: '世界书', name: wb.name, sourcePath: src });
       continue;
@@ -507,7 +540,7 @@ export async function importSelected(stFs: VaultFs, plan: STImportPlan): Promise
       };
       await saveWorldBook(item);
       worldbooks.push(item);
-      wbSources.add(src);
+      wbSources.add(srcKey);
       summary.worldbooks++;
       detail({ status: 'imported', kind: '世界书', name: wb.name, sourcePath: src, target: '资产/世界书' });
     } catch (err) {
@@ -589,14 +622,14 @@ export async function importSelected(stFs: VaultFs, plan: STImportPlan): Promise
   const existingCharacters = await getAllCharacters();
   const charBySource = new Map<string, ArchiveCharacter>();
   for (const character of existingCharacters) {
-    if (character.sourcePath) charBySource.set(character.sourcePath, character);
+    if (character.sourcePath) charBySource.set(sourcePathKey(character.sourcePath), character);
   }
   const storyBySource = new Map<string, ArchiveStory>();
   for (const story of await getAllArchiveStories()) {
-    if (story.sourcePath) storyBySource.set(story.sourcePath, story);
+    if (story.sourcePath) storyBySource.set(sourcePathKey(story.sourcePath), story);
   }
-  const presetSources = new Set((await getAllPresets()).map((p) => p.sourcePath).filter(Boolean));
-  const regexSources = new Set((await getAllRegexCollections()).map((r) => r.sourcePath).filter(Boolean));
+  const presetSources = new Set((await getAllPresets()).map((p) => sourcePathKey(p.sourcePath)).filter(Boolean));
+  const regexSources = new Set((await getAllRegexCollections()).map((r) => sourcePathKey(r.sourcePath)).filter(Boolean));
 
   const applyCharacterRelations = (
     character: ArchiveCharacter,
@@ -625,10 +658,10 @@ export async function importSelected(stFs: VaultFs, plan: STImportPlan): Promise
     const extras = (reconcileExtras ? plan.relationships?.characterWorldbooks ?? [] : [])
       .filter((row) => normalizedCharacterFile(row.characterFile) === normalizedCharacterFile(scanName))
       .flatMap((row) => row.worldbooks);
-    for (const [name, relation] of [
-      ...(reconcilePrimary && primary ? [[primary, 'primary' as const]] : []),
-      ...extras.map((name) => [name, 'extra' as const] as const),
-    ] as const) {
+    const relationTargets: Array<readonly [string, STAssetRelation]> = [];
+    if (reconcilePrimary && primary) relationTargets.push([primary, 'primary']);
+    for (const name of extras) relationTargets.push([name, 'extra']);
+    for (const [name, relation] of relationTargets) {
       const resolved = resolveWorldbook(name);
       if (resolved.book) {
         const derivedTarget = existingRefs
@@ -683,7 +716,8 @@ export async function importSelected(stFs: VaultFs, plan: STImportPlan): Promise
   /** 导入一条聊天为归档故事；characterId 省略 = 未绑定。返回是否计入 stories */
   const importChat = async (chat: Pick<STScanChat, 'name' | 'path'>, fallbackCharName: string, characterId?: string) => {
     const src = sourcePathOf(plan.stRoot, chat.path);
-    const existingStory = storyBySource.get(src);
+    const srcKey = sourcePathKey(src);
+    const existingStory = storyBySource.get(srcKey);
     if (existingStory) {
       summary.skipped++;
       detail({ status: 'skipped', kind: '聊天', name: chat.name, sourcePath: src });
@@ -720,7 +754,7 @@ export async function importSelected(stFs: VaultFs, plan: STImportPlan): Promise
       story.lastImportedAt = Date.now();
       applyChatRelations(story, chatWorldbookNames(metadata));
       await saveArchiveStory(story);
-      storyBySource.set(src, story);
+      storyBySource.set(srcKey, story);
       summary.stories++;
       detail({ status: 'imported', kind: '聊天', name: chat.name, sourcePath: src, target: characterId ? '角色故事' : '临时故事' });
     } catch (err) {
@@ -733,7 +767,8 @@ export async function importSelected(stFs: VaultFs, plan: STImportPlan): Promise
   // 角色卡（先导卡拿到 id，聊天才有绑定目标）
   for (const c of plan.characters) {
     const src = sourcePathOf(plan.stRoot, c.pngPath);
-    let character = charBySource.get(src);
+    const srcKey = sourcePathKey(src);
+    let character = charBySource.get(srcKey);
     let charId = character?.id;
     if (character) {
       summary.skipped++; // 卡已导入过：不重复建，但名下新聊天仍绑到原角色
@@ -768,7 +803,7 @@ export async function importSelected(stFs: VaultFs, plan: STImportPlan): Promise
         }
         applyCharacterRelations(character, c.name);
         await saveCharacter(character);
-        charBySource.set(src, character);
+        charBySource.set(srcKey, character);
         charId = character.id;
         summary.characters++;
         detail({ status: 'imported', kind: '角色卡', name: c.name, sourcePath: src, target: '角色档案' });
@@ -787,7 +822,8 @@ export async function importSelected(stFs: VaultFs, plan: STImportPlan): Promise
   // 预设（OpenAI Settings 聊天补全预设）
   for (const p of plan.presets) {
     const src = sourcePathOf(plan.stRoot, p.path);
-    if (presetSources.has(src)) {
+    const srcKey = sourcePathKey(src);
+    if (presetSources.has(srcKey)) {
       summary.skipped++;
       detail({ status: 'skipped', kind: '预设', name: p.name, sourcePath: src });
       continue;
@@ -804,7 +840,7 @@ export async function importSelected(stFs: VaultFs, plan: STImportPlan): Promise
         updatedAt: now,
       };
       await savePreset(item);
-      presetSources.add(src);
+      presetSources.add(srcKey);
       summary.presets++;
       detail({ status: 'imported', kind: '预设', name: p.name, sourcePath: src, target: '资产/预设' });
     } catch (err) {
@@ -817,7 +853,8 @@ export async function importSelected(stFs: VaultFs, plan: STImportPlan): Promise
   // 全局正则：settings.json → extensions.regex，整组导入为一套规则集
   if (plan.regex) {
     const src = sourcePathOf(plan.stRoot, plan.regex.path);
-    if (regexSources.has(src)) {
+    const srcKey = sourcePathKey(src);
+    if (regexSources.has(srcKey)) {
       summary.skipped++;
       detail({ status: 'skipped', kind: '全局正则', name: 'ST 全局正则', sourcePath: src });
     } else {
