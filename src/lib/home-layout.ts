@@ -2,7 +2,6 @@
 import type { ArchiveCharacter, ArchiveStory } from '@/types/archive';
 
 export const HOME_RECENT_STORY_VISIBLE_COUNT = 3;
-export const HOME_RECENT_CHARACTER_CARD_WIDTH = 176;
 /** 最近故事行的固定几何尺寸：h-10 缩略图 + py-2 = 3.5rem，行间距为 gap-2。 */
 export const HOME_RECENT_STORY_ROW_HEIGHT_REM = 3.5;
 export const HOME_RECENT_STORY_GAP_REM = 0.5;

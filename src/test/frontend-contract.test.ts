@@ -248,11 +248,21 @@ describe('阶段 D 外壳与 NSFW 契约', () => {
     expect(home).toContain('useEffect(() => { void loadData(); }, [loadData])');
   });
 
-  it('首页只使用外层主滚动容器，故事列表才保留独立滚动', () => {
+  it('首页占满视口并保持左右双列，只有故事列表内部滚动', () => {
     const home = read('src/pages/Home.tsx');
     const rootClass = home.match(/<div className="([^"]+)" data-home-resource-cache/)?.[1] ?? '';
-    expect(rootClass).not.toContain('overflow-y-auto');
+    expect(rootClass.split(/\s+/)).toEqual(expect.arrayContaining([
+      'h-full',
+      'min-h-0',
+      'overflow-hidden',
+    ]));
+    expect(home).toContain('data-home-columns');
+    expect(home).toContain('data-home-primary-column');
+    expect(home).toContain('data-home-secondary-column');
+    expect(home).toContain('data-home-character-rail');
+    expect(home).toContain('data-home-character-card');
     expect(home).toContain('data-home-story-scroll');
+    expect(home).not.toContain('HOME_RECENT_CHARACTER_CARD_WIDTH');
   });
 
   it('导入入口明确区分跳过与更新归档策略', () => {

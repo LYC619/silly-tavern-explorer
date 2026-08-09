@@ -2,9 +2,9 @@
  * 首页（10.1-A5/A6 重排，0801 实测反馈）：
  * - 问候行：问候 + 欢迎语「您已经归档了 N 个故事」（替代高密度的上次离开信息）
  * - 接入 ST 卡：仅客户端且未接入时显示（接入后入口在设置页，10.4 收容）
- * - 最近查看的角色（横滚最近 12 张，卡面样式对齐角色库：简介/故事数/评分）
- * - 编辑处理区作为第二主区横向展开；底部并列其他资产统计与最近在看的故事
- * 硬约束：一屏无滚动（基准 1440×900、100% 缩放），超出内容走「查看全部」进二级页。
+ * - 左列：纵向放大的最近角色 + 固定三条高度、内部滚动的最近故事
+ * - 右列：作为第二主区的编辑处理入口 + 其他资产
+ * 硬约束：占满一屏且页面本身不滚动（基准 1440×900、100% 缩放）。
  */
 import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
@@ -27,7 +27,6 @@ import { displayCharacterName } from '@/lib/library-query';
 import { formatListTime, formatFullTime } from '@/lib/time-display';
 import {
   EDITOR_TOOL_COPY,
-  HOME_RECENT_CHARACTER_CARD_WIDTH,
   homeRecentStoryMaxHeightRem,
   pickRecentlyViewedStories,
 } from '@/lib/home-layout';
@@ -168,7 +167,7 @@ const Home = () => {
 
   return (
     <AppLayout>
-      <div className="min-h-full flex flex-col px-6 py-5 gap-4" data-home-resource-cache={Object.keys(resourceSnapshot).length}>
+      <div className="h-full min-h-0 overflow-hidden flex flex-col px-6 py-4 gap-3.5" data-home-resource-cache={Object.keys(resourceSnapshot).length}>
         {/* 问候行：欢迎语只报归档数（0801 反馈 #8：原「书名+楼层+时间」信息密度高且与功能区重复） */}
         <div className="shrink-0 flex items-baseline gap-3.5 flex-wrap">
           <h1 className="font-serif text-[22px] font-semibold tracking-wide text-[color:var(--text-primary)]">{greeting()}</h1>
@@ -184,9 +183,14 @@ const Home = () => {
           </div>
         )}
 
-        <div className="flex flex-col gap-4">
-            {/* ① 最近查看的角色：区域内横滚最近 12 张（0801 反馈 #3/#11） */}
-            <section className="shrink-0 rounded-xl bg-[var(--bg-elevated)] p-4" data-tour="home-library">
+        <div
+          className="flex-1 min-h-0 grid gap-4 grid-cols-[minmax(0,1fr)_clamp(360px,32vw,520px)]"
+          data-home-columns
+        >
+          {/* ===== 左主列：角色 + 故事 ===== */}
+          <div className="min-w-0 min-h-0 flex flex-col gap-3.5" data-home-primary-column>
+            {/* ① 最近查看的角色：吃掉故事区之外的纵向空间，卡片由高度驱动放大。 */}
+            <section className="flex-1 min-h-0 flex flex-col rounded-xl bg-[var(--bg-elevated)] p-4" data-tour="home-library">
               <div className="flex items-center justify-between mb-2.5 gap-2">
                 <h3 className="font-serif text-base font-semibold text-[color:var(--text-primary)]">
                   最近查看的角色
@@ -197,13 +201,16 @@ const Home = () => {
                 <PillLink label="进入角色库" onClick={() => navigate('/library')} />
               </div>
               {recentCharacters.length === 0 ? (
-                <div className="rounded-xl bg-elevated p-6 flex flex-col items-center gap-1.5 text-center">
+                <div className="flex-1 min-h-0 rounded-xl bg-chrome p-6 flex flex-col items-center justify-center gap-1.5 text-center">
                   <Users className="w-8 h-8 text-muted-foreground/40" />
                   <p className="text-sm text-muted-foreground">还没有角色卡</p>
                   <p className="text-xs text-muted-foreground/70">去角色库导入 PNG/JSON 角色卡，开始你的收藏</p>
                 </div>
               ) : (
-                <div className="flex gap-3.5 overflow-x-auto overflow-y-hidden pb-1.5 scrollbar-thin">
+                <div
+                  className="flex-1 min-h-0 flex items-stretch gap-3.5 overflow-x-auto overflow-y-hidden pb-1.5 scrollbar-thin"
+                  data-home-character-rail
+                >
                   {recentCharacters.map((c) => {
                     const intro = introOf(c);
                     const displayName = displayCharacterName(c);
@@ -212,8 +219,8 @@ const Home = () => {
                       <button
                         key={c.id}
                         onClick={() => navigate(`/character/${c.id}`)}
-                        className="relative shrink-0 rounded-xl overflow-hidden bg-elevated transition-transform duration-200 hover:-translate-y-0.5 text-left"
-                        style={{ width: `${HOME_RECENT_CHARACTER_CARD_WIDTH}px`, aspectRatio: '3 / 4' }}
+                        className="relative h-full max-h-[480px] aspect-[3/4] shrink-0 self-center rounded-xl overflow-hidden bg-elevated transition-transform duration-200 hover:-translate-y-0.5 text-left"
+                        data-home-character-card
                       >
                         {c.pngBase64 ? (
                           <NsfwImage
@@ -254,78 +261,19 @@ const Home = () => {
               )}
             </section>
 
-            {/* ② 编辑处理区：二号位，卡片横向展开并直接说明用途 */}
-            <section className="shrink-0 rounded-xl bg-elevated p-4" data-tour="home-tools">
-              <div className="flex items-start justify-between mb-3 gap-3">
-                <div className="min-w-0">
-                  <h2 className="font-serif text-[17px] font-semibold text-[color:var(--text-primary)]">编辑处理区</h2>
-                  <p className="mt-1 max-w-3xl text-xs leading-relaxed text-[color:var(--text-muted)]">
-                    从聊天、总结到角色资产，集中完成清理、整理和导出；每个入口都保留原始文件，不会悄悄覆盖你的来源。
-                  </p>
-                </div>
-                <PillLink label="进入编辑区" onClick={() => navigate('/tools')} />
-              </div>
-              <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
-                {EDIT_TOOLS.map((tool) => {
-                  const Icon = tool.icon;
-                  return (
-                    <button
-                      key={tool.label}
-                      onClick={() => navigate(tool.path)}
-                      className="flex min-h-[108px] flex-col items-start gap-2 rounded-lg bg-chrome px-3.5 py-3 text-left transition-colors hover:bg-elevated-strong"
-                    >
-                      <div className="flex w-full items-center gap-2">
-                        <Icon className="h-4 w-4 shrink-0 text-[color:var(--brand-hi)]" />
-                        <span className="flex-1 text-sm font-medium text-[color:var(--text-body)]">{tool.label}</span>
-                        <ChevronRight className="h-3.5 w-3.5 shrink-0 text-[color:var(--text-faint)]" />
-                      </div>
-                      <span className="text-[11px] leading-relaxed text-[color:var(--text-muted)]">{tool.description}</span>
-                    </button>
-                  );
-                })}
-              </div>
-            </section>
-
-          <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_300px]">
-            {/* ④ 其他资产：保留为辅助入口，不挤占编辑处理区的首屏宽度 */}
-            <section className="rounded-xl bg-elevated p-4" data-tour="home-assets">
+            {/* ② 最近在看的故事：只占三条列表的高度，更多内容在本区滚动。 */}
+            <section className="shrink-0 rounded-xl bg-elevated p-4" data-tour="home-recent">
               <div className="mb-2.5 flex items-end justify-between gap-3">
                 <div>
-                  <h2 className="font-serif text-[15px] font-semibold text-[color:var(--text-primary)]">最近使用的资产</h2>
-                  <p className="mt-1 text-xs text-[color:var(--text-muted)]">世界书、预设和正则是可复用的共享资源。</p>
+                  <h3 className="font-serif text-base font-semibold text-[color:var(--text-primary)]">最近在看的故事</h3>
+                  <p className="mt-1 text-xs text-[color:var(--text-muted)]">滚动查看更多故事。</p>
                 </div>
-                <PillLink label="打开附属库" onClick={() => navigate('/assets')} />
-              </div>
-              <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
-                {STAT_CELLS.slice(2).map((cell) => (
-                  <button
-                    key={cell.label}
-                    onClick={cell.onClick}
-                    className="flex min-h-[68px] items-center justify-between rounded-lg bg-chrome px-3 py-2.5 text-xs text-[color:var(--text-body)] transition-colors hover:bg-elevated-strong"
-                  >
-                    <span>{cell.label}</span>
-                    <span className="font-serif text-[15px] font-bold text-[color:var(--text-primary)]">{cell.count}</span>
-                  </button>
-                ))}
-                {isTauri() && (
-                  <button
-                    onClick={() => setStConfigOpen(true)}
-                    className="flex min-h-[68px] items-center justify-between rounded-lg bg-chrome px-3 py-2.5 text-xs text-[color:var(--text-body)] transition-colors hover:bg-elevated-strong"
-                  >
-                    <span className="flex items-center gap-1.5"><KeyRound className="h-3.5 w-3.5 text-[color:var(--text-muted)]" />ST 配置</span>
-                  </button>
-                )}
-              </div>
-            </section>
-
-            {/* ③ 最近在看的故事：放在底部区域，首屏列表仍保持三条高度 */}
-            <section className="rounded-xl bg-elevated p-4" data-tour="home-recent">
-              <div className="mb-2.5">
-                <h3 className="font-serif text-base font-semibold text-[color:var(--text-primary)]">最近在看的故事</h3>
-                <p className="mt-1 text-xs text-[color:var(--text-muted)]">滚动查看更多故事。</p>
               </div>
               {recentStories.length === 0 ? (
-                <div className="rounded-xl bg-elevated-strong p-5 text-center">
+                <div
+                  className="rounded-xl bg-elevated-strong p-5 text-center flex flex-col items-center justify-center"
+                  style={{ minHeight: `${homeRecentStoryMaxHeightRem()}rem` }}
+                >
                   <BookOpenText className="mx-auto mb-2 h-7 w-7 text-muted-foreground/40" />
                   <p className="text-sm text-muted-foreground">还没有看过的故事</p>
                 </div>
@@ -355,6 +303,72 @@ const Home = () => {
                   })}
                 </div>
               )}
+            </section>
+          </div>
+
+          {/* ===== 右次列：编辑 + 其他 ===== */}
+          <div className="min-w-0 min-h-0 flex flex-col gap-3.5" data-home-secondary-column>
+            {/* ③ 编辑处理区：二号位，纵向扩大并用两列宽卡呈现用途。 */}
+            <section className="flex-[3] min-h-0 flex flex-col rounded-xl bg-elevated p-4" data-tour="home-tools">
+              <div className="shrink-0 flex items-start justify-between mb-3 gap-3">
+                <div className="min-w-0">
+                  <h2 className="font-serif text-[17px] font-semibold text-[color:var(--text-primary)]">编辑处理区</h2>
+                  <p className="mt-1 text-xs leading-relaxed text-[color:var(--text-muted)]">
+                    从聊天、总结到角色资产，集中完成清理、整理和导出。
+                  </p>
+                </div>
+                <PillLink label="进入编辑区" onClick={() => navigate('/tools')} />
+              </div>
+              <div className="flex-1 min-h-0 grid grid-cols-2 grid-rows-3 gap-2.5">
+                {EDIT_TOOLS.map((tool) => {
+                  const Icon = tool.icon;
+                  return (
+                    <button
+                      key={tool.label}
+                      onClick={() => navigate(tool.path)}
+                      className="min-h-0 flex flex-col items-start gap-1.5 rounded-lg bg-chrome px-3.5 py-3 text-left transition-colors hover:bg-elevated-strong"
+                    >
+                      <div className="flex w-full items-center gap-2">
+                        <Icon className="h-4 w-4 shrink-0 text-[color:var(--brand-hi)]" />
+                        <span className="flex-1 text-sm font-medium text-[color:var(--text-body)]">{tool.label}</span>
+                        <ChevronRight className="h-3.5 w-3.5 shrink-0 text-[color:var(--text-faint)]" />
+                      </div>
+                      <span className="line-clamp-3 text-[11px] leading-relaxed text-[color:var(--text-muted)]">{tool.description}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            </section>
+
+            {/* ④ 其他资产：保留原归属，使用右列剩余高度。 */}
+            <section className="flex-[2] min-h-0 flex flex-col rounded-xl bg-elevated p-4" data-tour="home-assets">
+              <div className="shrink-0 mb-2.5 flex items-end justify-between gap-3">
+                <div className="min-w-0">
+                  <h2 className="font-serif text-[15px] font-semibold text-[color:var(--text-primary)]">最近使用的资产</h2>
+                  <p className="mt-1 truncate text-xs text-[color:var(--text-muted)]">世界书、预设和正则是可复用的共享资源。</p>
+                </div>
+                <PillLink label="打开附属库" onClick={() => navigate('/assets')} />
+              </div>
+              <div className="flex-1 min-h-0 grid grid-cols-2 auto-rows-fr gap-2">
+                {STAT_CELLS.slice(2).map((cell) => (
+                  <button
+                    key={cell.label}
+                    onClick={cell.onClick}
+                    className="min-h-0 flex items-center justify-between rounded-lg bg-chrome px-3 py-2.5 text-xs text-[color:var(--text-body)] transition-colors hover:bg-elevated-strong"
+                  >
+                    <span>{cell.label}</span>
+                    <span className="font-serif text-[15px] font-bold text-[color:var(--text-primary)]">{cell.count}</span>
+                  </button>
+                ))}
+                {isTauri() && (
+                  <button
+                    onClick={() => setStConfigOpen(true)}
+                    className="min-h-0 flex items-center justify-between rounded-lg bg-chrome px-3 py-2.5 text-xs text-[color:var(--text-body)] transition-colors hover:bg-elevated-strong"
+                  >
+                    <span className="flex items-center gap-1.5"><KeyRound className="h-3.5 w-3.5 text-[color:var(--text-muted)]" />ST 配置</span>
+                  </button>
+                )}
+              </div>
             </section>
           </div>
         </div>
