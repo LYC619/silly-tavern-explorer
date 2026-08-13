@@ -52,6 +52,8 @@ interface ChatPreviewProps {
   showOOC?: boolean;
   /** 切换某楼的 swipe 候选（有多候选时显示切换控件；不传则不显示） */
   onSwipeSelect?: (messageId: string, targetId: number) => void;
+  /** 楼层跳转时避开滚动容器顶部的 sticky 工具栏。 */
+  scrollPaddingStart?: number;
 }
 
 /**
@@ -428,7 +430,7 @@ const MessageRow = memo(function MessageRow({
 });
 
 export const ChatPreview = memo(forwardRef<ChatPreviewHandle, ChatPreviewProps>(
-  ({ session, theme, showTimestamp, showAvatar, fontSize, regexRules, markers = [], onMessageClick, onEditMessage, editMode = false, fontFamily, previewRule = null, onVisibleFloorChange, onFloorMapChange, searchQuery = '', onSearchResult, showHidden = true, showOOC = true, onSwipeSelect }, ref) => {
+  ({ session, theme, showTimestamp, showAvatar, fontSize, regexRules, markers = [], onMessageClick, onEditMessage, editMode = false, fontFamily, previewRule = null, onVisibleFloorChange, onFloorMapChange, searchQuery = '', onSearchResult, showHidden = true, showOOC = true, onSwipeSelect, scrollPaddingStart = 0 }, ref) => {
     const markerMap = useMemo(() => {
       const map = new Map<string, ChapterMarker>();
       markers.forEach(m => map.set(m.messageId, m));
@@ -522,6 +524,7 @@ export const ChatPreview = memo(forwardRef<ChatPreviewHandle, ChatPreviewProps>(
       // 行用 message.id 做稳定 key，正则预览/排序变化时复用 DOM、保留测量
       getItemKey: (i) => processedMessages[i]?.id ?? i,
       scrollMargin,
+      scrollPaddingStart,
     });
 
     const virtualItems = virtualizer.getVirtualItems();

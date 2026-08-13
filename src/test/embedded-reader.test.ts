@@ -35,6 +35,15 @@ describe('角色卡页内嵌阅读器契约', () => {
     expect(nav).not.toContain("'sticky top-16 self-start'");
   });
 
+  it('楼层跳转为上方置顶栏预留滚动空间，使目标楼层顶部完整露出', () => {
+    const preview = read('src/components/chat/ChatPreview.tsx');
+    const workbench = read('src/components/chat/ChatWorkbench.tsx');
+
+    expect(preview).toContain('scrollPaddingStart?: number');
+    expect(preview).toContain('scrollPaddingStart,');
+    expect(workbench).toContain('scrollPaddingStart={readerMode ? readerStickyTop + toolbarHeight + 8 : 0}');
+  });
+
   it('小说视图提供嵌入模式，角色卡页不会使用全屏 fixed 根节点', () => {
     const novel = read('src/components/reader/NovelView.tsx');
     const inline = read('src/components/character/InlineStoryReader.tsx');

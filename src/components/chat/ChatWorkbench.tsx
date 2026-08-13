@@ -543,6 +543,7 @@ export const ChatWorkbench = forwardRef<ChatWorkbenchHandle, ChatWorkbenchProps>
                     onSearchResult={handleSearchResult}
                     showHidden={showHidden}
                     showOOC={showOOC}
+                    scrollPaddingStart={readerMode ? readerStickyTop + toolbarHeight + 8 : 0}
                   />
                 </div>
               </div>
