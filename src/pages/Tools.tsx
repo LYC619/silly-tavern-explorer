@@ -5,7 +5,7 @@
  * 丢文件后弹类型选择（程序给默认猜测，用户确认），随后分流到对应工具页。
  */
 import { useState, useEffect, useCallback } from 'react';
-import { useNavigate, useSearchParams } from 'react-router-dom';
+import { Navigate, useNavigate, useSearchParams } from 'react-router-dom';
 import {
   UploadCloud, ScrollText, Globe, IdCard, SlidersHorizontal, Regex, BookOpenText, Network,
 } from 'lucide-react';
@@ -141,6 +141,9 @@ const Tools = () => {
   }, [focusView, navigate]);
 
   const storyPickerItems = buildEditorStoryPickerItems(stories, characters, storyQuery);
+
+  // 编辑区一级入口沿用 7 月 26 日前的直接工作台模式；本页仅承载整理类选择器。
+  if (!focusView) return <Navigate to="/chat" replace />;
 
   return (
     <AppLayout>

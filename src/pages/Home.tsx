@@ -360,7 +360,7 @@ const Home = () => {
                     从聊天、总结到角色资产，集中完成清理、整理和导出。
                   </p>
                 </div>
-                <PillLink label="进入编辑区" onClick={() => navigate('/tools')} />
+                <PillLink label="进入编辑区" onClick={() => navigate('/chat')} />
               </div>
               <div className="flex-1 min-h-0 grid grid-cols-1 grid-rows-5 gap-2">
                 {EDIT_TOOLS.map((tool) => {

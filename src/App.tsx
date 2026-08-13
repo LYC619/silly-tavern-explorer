@@ -81,7 +81,7 @@ const App = () => {
           <Route path="/library" element={<Library />} />
           <Route path="/character/:id" element={<CharacterPage />} />
           <Route path="/story/:id" element={<StoryWorkspace />} />
-          {/* 处理区（2.0 阶段5）：入口页 + 各工具；聊天处理从 "/" 移到 /chat */}
+          {/* 编辑区一级入口直接进入 /chat；/tools 仅承载总结/故事树选择器。 */}
           <Route path="/tools" element={<Tools />} />
           <Route path="/chat" element={<Index />} />
           <Route path="/assets" element={<AssetLibrary />} />

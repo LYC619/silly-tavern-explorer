@@ -57,7 +57,7 @@ export const NAV_AREAS: NavArea[] = [
     label: '编辑区',
     description: '处理聊天与整理故事资料',
     icon: PenLine,
-    path: '/tools',
+    path: '/chat',
     prefixes: ['/tools', '/chat', '/worldbook', '/card-viewer', '/preset', '/regex', '/story'],
     children: [
       { key: 'chat', label: '聊天处理', description: '正则清理、转换与导出', icon: MessageSquare, path: '/chat', prefixes: ['/chat'] },

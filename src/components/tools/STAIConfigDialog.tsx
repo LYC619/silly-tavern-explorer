@@ -11,6 +11,7 @@ import { Button } from '@/components/ui/button';
 import { createTauriFs, getAppConfig } from '@/lib/vault/tauri-fs';
 import { joinPath } from '@/lib/vault/fs';
 import { extractSTAIConfig, type STAIConfigRow } from '@/lib/st-ai-config';
+import { saveSettingsSection } from '@/lib/settings-navigation';
 
 interface STAIConfigDialogProps {
   open: boolean;
@@ -26,6 +27,12 @@ type LoadState =
 export function STAIConfigDialog({ open, onOpenChange }: STAIConfigDialogProps) {
   const navigate = useNavigate();
   const [state, setState] = useState<LoadState>({ kind: 'loading' });
+
+  const openDirectorySettings = () => {
+    saveSettingsSection('directories');
+    onOpenChange(false);
+    navigate('/settings');
+  };
 
   useEffect(() => {
     if (!open) return;
@@ -78,16 +85,22 @@ export function STAIConfigDialog({ open, onOpenChange }: STAIConfigDialogProps) 
         {state.kind === 'no-root' && (
           <div className="py-4 text-center space-y-3">
             <p className="text-sm text-muted-foreground">还没有接入 SillyTavern 目录</p>
-            <Button size="sm" onClick={() => { onOpenChange(false); navigate('/tools'); }}>
+            <Button size="sm" onClick={openDirectorySettings}>
               <FolderSearch className="w-4 h-4 mr-1.5" />
-              去处理区接入 ST
+              去设置接入 ST
             </Button>
           </div>
         )}
         {state.kind === 'no-settings' && (
-          <p className="py-6 text-center text-sm text-muted-foreground">
-            读不到 ST 的 settings.json（目录可能移动过），可在处理区重新选择 ST 目录。
-          </p>
+          <div className="space-y-3 py-4 text-center">
+            <p className="text-sm text-muted-foreground">
+              读不到 ST 的 settings.json（目录可能移动过），请重新选择 ST 目录。
+            </p>
+            <Button size="sm" variant="outline" onClick={openDirectorySettings}>
+              <FolderSearch className="mr-1.5 h-4 w-4" />
+              去设置重新选择
+            </Button>
+          </div>
         )}
         {state.kind === 'ok' && (
           <div className="space-y-1.5">
