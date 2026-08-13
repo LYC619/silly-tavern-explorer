@@ -4,7 +4,7 @@
  *   网页版保留独立搜索工具栏
  * - 侧栏：头部=展开/折叠符号；默认展开，从首页离开时自动折叠，其他页面之间保留用户选择；
  *   折叠态=「图标+小字在下」窄栏（插图1）；导航按首页/角色库/编辑区/附属库四个一级区域组织；
- *   编辑区可展开列最近处理条目（editor-recent 派生，无新埋点）
+ *   展开态只显示该区域的正式子界面，避免把最近记录混入导航层级
  * - 状态栏：只留运行环境+版本（「已接入 ST」「数据占用」挪设置页，10.4 收容）
  * - 主区内容 framer-motion 入场 fade+slide（A7 切换平滑专项；侧栏不参与动画）
  * - actions/leftActions 契约保留：页面专属操作条仍在主区顶部一行
@@ -33,14 +33,6 @@ import { VaultSwitcher } from '@/components/vault/VaultSwitcher';
 import { shouldAutoCollapse, useSidenavState } from '@/hooks/use-sidenav-state';
 import { APP_VERSION } from '@/components/GlobalSettings';
 import { isTauri } from '@/lib/vault/tauri-fs';
-import { pickRecentEdits, RECENT_EDIT_KIND_LABEL, type RecentEditItem } from '@/lib/editor-recent';
-import { getAllArchiveStories } from '@/lib/archive-db';
-import { getAllWorldBooks } from '@/lib/worldbook-db';
-import { getAllPresets } from '@/lib/preset-db';
-import { getAllRegexCollections } from '@/lib/regex-db';
-import { getAllSummaries } from '@/lib/summary-db';
-import { getAllStoryTrees } from '@/lib/story-tree-db';
-import { getAllCards } from '@/lib/card-db';
 import { cn } from '@/lib/utils';
 import { getEditorOpen, setEditorOpenState } from '@/lib/editor-open-state';
 import { NAV_AREAS, matchesNavDestination, type NavAreaKey, type NavDestination } from '@/lib/navigation-model';
@@ -137,51 +129,6 @@ function SideSubItem({
       <Icon className="h-3.5 w-3.5 shrink-0 opacity-80" />
       <span className="min-w-0 flex-1 truncate">{item.label}</span>
     </button>
-  );
-}
-
-/** 编辑区最近处理条目（展开侧栏时可见）：故事、整理记录、故事树和资产，updatedAt 最近 6 条 */
-function EditorRecentList({ onGo }: { onGo: (item: RecentEditItem) => void }) {
-  const [items, setItems] = useState<RecentEditItem[] | null>(null);
-  useEffect(() => {
-    let cancelled = false;
-    (async () => {
-      const [stories, summaries, trees, cards, worldbooks, presets, regexes] = await Promise.all([
-        getAllArchiveStories().catch(() => []),
-        getAllSummaries().catch(() => []),
-        getAllStoryTrees().catch(() => []),
-        getAllCards().catch(() => []),
-        getAllWorldBooks().catch(() => []),
-        getAllPresets().catch(() => []),
-        getAllRegexCollections().catch(() => []),
-      ]);
-      if (!cancelled) {
-        setItems(pickRecentEdits({ stories, summaries, trees, cards, worldbooks, presets, regexes }));
-      }
-    })();
-    return () => { cancelled = true; };
-  }, []);
-
-  if (items === null) {
-    return <p className="pl-9 pr-2 py-1 text-[10px] text-[color:var(--sidebar-text-faint)]">加载中…</p>;
-  }
-  if (items.length === 0) {
-    return <p className="pl-9 pr-2 py-1 text-[10px] text-[color:var(--sidebar-text-faint)]">还没有处理过的条目</p>;
-  }
-  return (
-    <div className="flex flex-col">
-      {items.map((item) => (
-        <button
-          key={`${item.kind}-${item.id}`}
-          onClick={() => onGo(item)}
-          title={item.title}
-          className="flex items-center gap-1.5 pl-9 pr-2 py-1 text-left text-[11px] text-[color:var(--sidebar-text-muted)] hover:text-[color:var(--sidebar-text)] hover:bg-[var(--hover-overlay)] rounded-md"
-        >
-          <span className="truncate flex-1">{item.title}</span>
-          <span className="text-[9px] shrink-0 text-[color:var(--sidebar-text-faint)]">{RECENT_EDIT_KIND_LABEL[item.kind]}</span>
-        </button>
-      ))}
-    </div>
   );
 }
 
@@ -333,12 +280,6 @@ function PersistentAppLayout({ children, titleBarContent, actions, leftActions }
                             onClick={() => navigate(child.path)}
                           />
                         ))}
-                        {area.key === 'editor' && (
-                          <>
-                            <div className="mx-3 my-1 border-t border-[color:var(--hairline-inner)]" />
-                            <EditorRecentList onGo={(item) => navigate(item.path, { state: item.state })} />
-                          </>
-                        )}
                       </motion.div>
                     )}
                   </AnimatePresence>

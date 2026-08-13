@@ -2,6 +2,8 @@ import { act } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { MemoryRouter, Route, Routes, useNavigate } from 'react-router-dom';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
 
 const collapseSidenav = vi.hoisted(() => vi.fn());
 
@@ -60,6 +62,13 @@ afterEach(() => {
 });
 
 describe('AppLayout route transitions', () => {
+  it('编辑区展开后只展示正式子界面，不混入最近处理条目', () => {
+    const source = readFileSync(resolve(process.cwd(), 'src/components/AppLayout.tsx'), 'utf8');
+
+    expect(source).not.toContain('EditorRecentList');
+    expect(source).not.toContain("@/lib/editor-recent");
+  });
+
   it('removes the previous route instead of stacking pages in the main scroller', async () => {
     await act(async () => {
       root.render(

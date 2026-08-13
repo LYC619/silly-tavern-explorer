@@ -139,12 +139,11 @@ describe('阶段 D 外壳与 NSFW 契约', () => {
     expect(layout).not.toContain('useState(false)');
   });
 
-  it('编辑区最近列表覆盖故事、记录、故事树和角色卡，并传递精确导航状态', () => {
+  it('编辑区侧栏只保留正式子界面，不把最近记录混入导航', () => {
     const layout = read('src/components/AppLayout.tsx');
-    expect(layout).toContain('getAllSummaries()');
-    expect(layout).toContain('getAllStoryTrees()');
-    expect(layout).toContain('getAllCards()');
-    expect(layout).toContain('navigate(item.path, { state: item.state })');
+    expect(layout).not.toContain('EditorRecentList');
+    expect(layout).not.toContain("@/lib/editor-recent");
+    expect(layout).toContain('area.children.map((child)');
   });
 
   it('故事工作区把最近条目的 initialTarget 交给整理面板', () => {
