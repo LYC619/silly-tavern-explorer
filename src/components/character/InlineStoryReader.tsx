@@ -5,7 +5,7 @@
  *   无章节标记钮、无沉浸阅读钮——插图4 保留清单）
  * - 持久化沿用工作区模式：dirty+防抖 600ms，卸载兜底补存；lastViewedAt/lastFloor 照记
  */
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useLayoutEffect, useRef, useCallback } from 'react';
 import { ArrowLeft, BookOpenCheck, ChevronDown, ExternalLink, GitBranch } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -42,6 +42,18 @@ export function InlineStoryReader({ storyId, stories, onSwitchStory, onBack, onO
   const [branchId, setBranchId] = useState<string | null>(null);
   const [novelOpen, setNovelOpen] = useState(false);
   const workbenchRef = useRef<ChatWorkbenchHandle>(null);
+  const readerHeaderRef = useRef<HTMLDivElement>(null);
+  const [readerHeaderHeight, setReaderHeaderHeight] = useState(0);
+
+  useLayoutEffect(() => {
+    const header = readerHeaderRef.current;
+    if (!header) return;
+    const measure = () => setReaderHeaderHeight(header.getBoundingClientRect().height);
+    measure();
+    const observer = new ResizeObserver(measure);
+    observer.observe(header);
+    return () => observer.disconnect();
+  }, [storyId, loading]);
 
   const storyRef = useRef<ArchiveStory | null>(null);
   const saverRef = useRef(new StoryDraftSaver(saveArchiveStory));
@@ -170,7 +182,7 @@ export function InlineStoryReader({ storyId, stories, onSwitchStory, onBack, onO
   return (
     <div className="flex flex-col">
       {/* ===== 阅读顶栏：返回 + 故事名下拉（含分支）+ 状态 + 在编辑器中打开 ===== */}
-      <div className="flex items-center gap-2 flex-wrap py-1.5">
+      <div ref={readerHeaderRef} className="sticky top-0 z-50 flex items-center gap-2 flex-wrap border-b border-border bg-background/95 py-1.5 backdrop-blur-sm">
         <Button variant="ghost" size="sm" className="px-1.5 text-muted-foreground" onClick={() => void transitionAfterFlush(onBack)}>
           <ArrowLeft className="w-4 h-4 mr-1" />
           故事列表
@@ -226,29 +238,8 @@ export function InlineStoryReader({ storyId, stories, onSwitchStory, onBack, onO
 
       <div className="border-b border-border" />
 
-      {/* ===== 正文（key 按 故事+脉络 切换重挂） ===== */}
-      <ChatWorkbench
-        key={`${story.id}:${branchId ?? 'trunk'}`}
-        ref={workbenchRef}
-        session={line.session}
-        markers={line.markers}
-        favorites={line.favorites}
-        settings={settings}
-        onFavoritesChange={handleFavoritesChange}
-        onSettingsChange={handleSettingsChange}
-        onFloorChange={handleFloorChange}
-        initialFloor={line.lastFloor}
-        readerMode
-        navBarLeftClass="left-[29.5rem]"
-        toolbarExtras={
-          <Button variant="outline" size="sm" onClick={() => setNovelOpen(true)} title="小说视图：拆句重排+用户楼层弱化/隐藏+场景分隔（Esc 退出）">
-            <BookOpenCheck className="w-4 h-4 mr-1.5" />
-            小说视图
-          </Button>
-        }
-      />
-
-      {novelOpen && (
+      {/* 小说视图替换普通正文，保持在角色页内；不追加到长聊天底部。 */}
+      {novelOpen ? (
         <NovelView
           session={line.session}
           markers={line.markers}
@@ -259,7 +250,29 @@ export function InlineStoryReader({ storyId, stories, onSwitchStory, onBack, onO
           initialFloor={line.lastFloor}
           onFloorChange={handleFloorChange}
           progressKey={`${story.id}:${branchId ?? 'main'}`}
+          embedded
           readOnly
+        />
+      ) : (
+        <ChatWorkbench
+          key={`${story.id}:${branchId ?? 'trunk'}`}
+          ref={workbenchRef}
+          session={line.session}
+          markers={line.markers}
+          favorites={line.favorites}
+          settings={settings}
+          onFavoritesChange={handleFavoritesChange}
+          onSettingsChange={handleSettingsChange}
+          onFloorChange={handleFloorChange}
+          initialFloor={line.lastFloor}
+          readerMode
+          readerStickyTop={readerHeaderHeight}
+          toolbarExtras={
+            <Button variant="outline" size="sm" onClick={() => setNovelOpen(true)} title="小说视图：拆句重排+用户楼层弱化/隐藏+场景分隔（Esc 退出）">
+              <BookOpenCheck className="w-4 h-4 mr-1.5" />
+              小说视图
+            </Button>
+          }
         />
       )}
     </div>

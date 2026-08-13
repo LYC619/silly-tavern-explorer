@@ -7,7 +7,7 @@
  * （聊天处理页 → 书架自动同步；工作区 → 归档故事防抖落库），
  * 本组件只持 UI 态。父页切换数据源（如切分支）时应换 key 重挂，内部 UI 态随之复位。
  */
-import { useState, useEffect, useRef, useCallback, useMemo, forwardRef, useImperativeHandle } from 'react';
+import { useState, useEffect, useLayoutEffect, useRef, useCallback, useMemo, forwardRef, useImperativeHandle } from 'react';
 import { Eye, EyeOff, Pencil, MessageSquareDashed } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { ChatPreview, type ChatPreviewHandle } from '@/components/chat/ChatPreview';
@@ -54,6 +54,8 @@ interface ChatWorkbenchProps {
   navBarLeftClass?: string;
   /** 就地阅读模式（10.3b）：只保留阅读增强和非破坏性操作 */
   readerMode?: boolean;
+  /** 就地阅读返回栏的实测高度；工作台工具栏与楼层栏按此向下堆叠。 */
+  readerStickyTop?: number;
 }
 
 export const ChatWorkbench = forwardRef<ChatWorkbenchHandle, ChatWorkbenchProps>(function ChatWorkbench(
@@ -61,6 +63,7 @@ export const ChatWorkbench = forwardRef<ChatWorkbenchHandle, ChatWorkbenchProps>
     session, markers, favorites, settings,
     onSessionChange, onMarkersChange, onFavoritesChange, onSettingsChange,
     onFloorChange, initialFloor, titleBadge, toolbarExtras, onReset, navBarLeftClass, readerMode,
+    readerStickyTop = 0,
   },
   ref,
 ) {
@@ -108,6 +111,19 @@ export const ChatWorkbench = forwardRef<ChatWorkbenchHandle, ChatWorkbenchProps>
   const [messageEditDialogOpen, setMessageEditDialogOpen] = useState(false);
   const [selectedMessage, setSelectedMessage] = useState<{ id: string; index: number } | null>(null);
   const [regexSidebarOpen, setRegexSidebarOpen] = useState(false);
+  const toolbarRef = useRef<HTMLDivElement>(null);
+  const [toolbarHeight, setToolbarHeight] = useState(0);
+
+  useLayoutEffect(() => {
+    if (!readerMode) return;
+    const toolbar = toolbarRef.current;
+    if (!toolbar) return;
+    const measure = () => setToolbarHeight(toolbar.getBoundingClientRect().height);
+    measure();
+    const observer = new ResizeObserver(measure);
+    observer.observe(toolbar);
+    return () => observer.disconnect();
+  }, [readerMode]);
   // 正在主界面原地预览的正则规则（点侧栏「预览」时设置，再次点取消）
   const [previewRule, setPreviewRule] = useState<RegexRule | null>(null);
 
@@ -380,7 +396,11 @@ export const ChatWorkbench = forwardRef<ChatWorkbenchHandle, ChatWorkbenchProps>
   return (
     <div className="flex flex-col">
       {/* 工作台自带工具条（不占用 AppLayout header 槽，工作区/聊天处理页共用） */}
-      <div className="border-b border-border bg-card/60 backdrop-blur-sm sticky top-0 z-40">
+      <div
+        ref={toolbarRef}
+        className={`sticky z-40 border-b border-border bg-card/60 backdrop-blur-sm ${readerMode ? '' : 'top-0'}`}
+        style={readerMode ? { top: readerStickyTop } : undefined}
+      >
         <div className="px-4 py-2.5 flex items-center justify-between gap-2 flex-wrap">
           {/* 左侧常驻：外观 + 搜索（popover 从左展开不遮正文） */}
           <div className="flex items-center gap-2 flex-wrap min-w-0">
@@ -419,7 +439,7 @@ export const ChatWorkbench = forwardRef<ChatWorkbenchHandle, ChatWorkbenchProps>
         <div className="flex gap-4 items-start">
           {/* Preview Area */}
           <div className="flex-1 min-w-0">
-            <div className="mb-3 flex items-center justify-between gap-3">
+            {!readerMode && <div className="mb-3 flex items-center justify-between gap-3">
               <div className="flex items-center gap-2 text-sm text-muted-foreground min-w-0 flex-wrap">
                 {titleBadge}
                 {!readerMode && titleEditing ? (
@@ -479,9 +499,9 @@ export const ChatWorkbench = forwardRef<ChatWorkbenchHandle, ChatWorkbenchProps>
                   点击消息添加章节标记
                 </div>
               )}
-            </div>
+            </div>}
 
-            <div className="rounded-lg border border-border bg-card/50" data-tour="chat-preview">
+            <div className={`rounded-lg border border-border bg-card/50 ${readerMode ? 'flex items-start gap-3 p-3' : ''}`} data-tour="chat-preview">
               {/* 左侧悬浮竖向跳转条（fixed 自定位，不随滚动消失、不压缩阅读区） */}
               <MessageNavBar
                 floorCount={floorCount}
@@ -494,8 +514,10 @@ export const ChatWorkbench = forwardRef<ChatWorkbenchHandle, ChatWorkbenchProps>
                 onToggleFavorite={handleToggleFavorite}
                 onJumpToMessageId={(id) => previewRef.current?.scrollToMessageId(id)}
                 leftClass={navBarLeftClass}
+                position={readerMode ? 'sticky' : 'fixed'}
+                stickyTop={readerStickyTop + toolbarHeight + 8}
               />
-              <div className="flex justify-center py-6 px-4">
+              <div className={`flex min-w-0 flex-1 justify-center ${readerMode ? 'py-3 px-1' : 'py-6 px-4'}`}>
                 <div
                   style={{ width: settings.paperWidth, maxWidth: '100%' }}
                   className="shadow-warm rounded-lg overflow-hidden animate-fade-in"

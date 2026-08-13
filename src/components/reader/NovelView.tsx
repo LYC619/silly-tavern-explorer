@@ -63,6 +63,8 @@ interface NovelViewProps {
   polish?: { story: ArchiveStory; branchId: string | null };
   /** 只读查看：隐藏会写入章节标记或自定义记录的 AI 操作。 */
   readOnly?: boolean;
+  /** 嵌入角色卡页时使用内部阅读面板，不脱离当前页面进入全屏层。 */
+  embedded?: boolean;
 }
 
 interface StoredOptions {
@@ -93,6 +95,7 @@ const NovelView = ({
   onFavoritesChange,
   polish,
   readOnly = false,
+  embedded = false,
 }: NovelViewProps) => {
   const { toast } = useToast();
   const [stored] = useState(loadStoredOptions);
@@ -362,13 +365,16 @@ const NovelView = ({
 
   const handleSurfaceClick = (event: React.MouseEvent<HTMLDivElement>) => {
     if ((event.target as HTMLElement).closest('button, input, [role="slider"], [role="dialog"]')) return;
-    goToPage(event.clientX < window.innerWidth / 2 ? currentPage - 1 : currentPage + 1);
+    const bounds = event.currentTarget.getBoundingClientRect();
+    goToPage(event.clientX < bounds.left + bounds.width / 2 ? currentPage - 1 : currentPage + 1);
   };
 
   return (
     <div
       ref={rootRef}
-      className="fixed inset-0 z-50 bg-canvas text-[color:var(--text-body)] flex flex-col"
+      className={embedded
+        ? 'relative z-0 flex h-[min(78vh,900px)] min-h-[560px] flex-col overflow-hidden rounded-lg border border-border bg-canvas text-[color:var(--text-body)] shadow-sm'
+        : 'fixed inset-0 z-50 flex flex-col bg-canvas text-[color:var(--text-body)]'}
       onTouchStart={(event) => { touchStartX.current = event.changedTouches[0]?.clientX ?? null; }}
       onTouchEnd={(event) => {
         const start = touchStartX.current;

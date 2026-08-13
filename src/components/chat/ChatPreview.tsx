@@ -1,5 +1,5 @@
-import { forwardRef, useMemo, useState, useEffect, useRef, useImperativeHandle, memo } from 'react';
-import { useWindowVirtualizer } from '@tanstack/react-virtual';
+import { forwardRef, useMemo, useState, useEffect, useLayoutEffect, useRef, useImperativeHandle, memo } from 'react';
+import { useVirtualizer } from '@tanstack/react-virtual';
 import { User, Bot, Bookmark, BookmarkPlus, Pencil, EyeOff, MessageSquareDashed, ChevronLeft, ChevronRight } from 'lucide-react';
 import type { ChatSession, ThemeStyle, RegexRule, ChapterMarker } from '@/types/chat';
 import { applyRegexRules, parseRegex } from '@/lib/regex-processor';
@@ -486,20 +486,36 @@ export const ChatPreview = memo(forwardRef<ChatPreviewHandle, ChatPreviewProps>(
     // 窗口虚拟化：沿用整页滚动，只渲染可视区±overscan 的消息行。
     // scrollMargin = 列表容器相对文档顶部的偏移，让虚拟坐标对齐整页滚动。
     const listRef = useRef<HTMLDivElement>(null);
-    // 容器挂载/布局变化后测量 offsetTop（首帧 ref 仍为 null，故用 state 兜住）。
+    const [scrollElement, setScrollElement] = useState<HTMLElement | null>(null);
     const [scrollMargin, setScrollMargin] = useState(0);
-    useEffect(() => {
+    useLayoutEffect(() => {
       const el = listRef.current;
       if (!el) return;
-      const measure = () => setScrollMargin(el.offsetTop);
+      let parent = el.parentElement;
+      while (parent && parent !== document.body) {
+        const overflowY = getComputedStyle(parent).overflowY;
+        if (overflowY === 'auto' || overflowY === 'scroll' || overflowY === 'overlay') break;
+        parent = parent.parentElement;
+      }
+      const nextScrollElement = parent ?? (document.scrollingElement as HTMLElement | null);
+      setScrollElement(nextScrollElement);
+      const measure = () => {
+        if (!nextScrollElement) {
+          setScrollMargin(0);
+          return;
+        }
+        const listRect = el.getBoundingClientRect();
+        const scrollRect = nextScrollElement.getBoundingClientRect();
+        setScrollMargin(Math.max(0, listRect.top - scrollRect.top + nextScrollElement.scrollTop));
+      };
       measure();
-      // 标题块高度随主题变化、字体加载会改变 offsetTop，用 ResizeObserver 跟随
       const ro = new ResizeObserver(measure);
       if (el.parentElement) ro.observe(el.parentElement);
       return () => ro.disconnect();
     }, [theme, session.title]);
 
-    const virtualizer = useWindowVirtualizer({
+    const virtualizer = useVirtualizer({
+      getScrollElement: () => scrollElement,
       count: processedMessages.length,
       estimateSize: () => 200, // 估计行高；measureElement 会逐行校正
       overscan: 6,

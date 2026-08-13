@@ -37,6 +37,7 @@ import {
   RATING_TIER_LABELS, RATING_TIER_PREFILL, type RatingTier,
 } from '@/lib/tag-taxonomy';
 import { IntroSection } from '@/components/character/IntroSection';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 
 interface CharacterHeaderProps {
   character: ArchiveCharacter;
@@ -175,12 +176,18 @@ export function CharacterHeader({ character, norm, onPatch, collapsed, onCollaps
                   aria-label="NSFW 标记"
                 />
                 <Label htmlFor="nsfw-switch" className="text-xs text-[color:var(--text-muted)] cursor-pointer">NSFW</Label>
-                <span
-                  title="标记卡面尺度：开启自动加「卡面/NSFW」标签；配合设置里的「模糊 NSFW 卡面」在列表打码"
-                  className="cursor-help text-[color:var(--text-faint)]"
-                >
-                  <HelpCircle className="w-3 h-3" />
-                </span>
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <button type="button" className="cursor-help text-[color:var(--character-label)]" aria-label="NSFW 标记说明">
+                        <HelpCircle className="w-3 h-3" />
+                      </button>
+                    </TooltipTrigger>
+                    <TooltipContent side="top" className="max-w-xs text-xs leading-relaxed">
+                      标记卡面尺度：开启后自动加“卡面/NSFW”标签；配合设置里的“模糊 NSFW 卡面”在列表打码。
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
               </div>
               {character.tags.map((t) => (
                 <Badge key={t} variant="secondary" className="gap-1 font-normal">

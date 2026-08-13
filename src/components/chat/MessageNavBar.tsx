@@ -30,6 +30,10 @@ interface MessageNavBarProps {
   onJumpToMessageId: (messageId: string) => void;
   /** 悬浮条距视口左缘的定位类；默认避开全局导航（left-24），工作区多一条二级栏时传更大值 */
   leftClass?: string;
+  /** 默认悬浮在窗口左侧；嵌入阅读器时改为跟随正文的 sticky 布局。 */
+  position?: 'fixed' | 'sticky' | 'static';
+  /** sticky 模式下避开上方实际占用的返回栏与工具栏。 */
+  stickyTop?: number;
 }
 
 /**
@@ -50,6 +54,8 @@ export function MessageNavBar({
   onToggleFavorite,
   onJumpToMessageId,
   leftClass = 'left-24',
+  position = 'fixed',
+  stickyTop = 0,
 }: MessageNavBarProps) {
   const [floorInput, setFloorInput] = useState(String(currentFloor));
   const [editing, setEditing] = useState(false);
@@ -76,7 +82,10 @@ export function MessageNavBar({
 
   return (
     <TooltipProvider>
-      <div className={`fixed ${leftClass} top-1/2 z-30 -translate-y-1/2 flex flex-col items-center gap-1.5 rounded-xl border border-border bg-card/90 px-1.5 py-2 shadow-md backdrop-blur-sm`}>
+      <div
+        className={`${position === 'fixed' ? `fixed ${leftClass} top-1/2 -translate-y-1/2` : position === 'sticky' ? 'sticky self-start' : 'relative'} z-30 flex shrink-0 flex-col items-center gap-1.5 rounded-xl border border-border bg-card/90 px-1.5 py-2 shadow-md backdrop-blur-sm`}
+        style={position === 'sticky' ? { top: stickyTop } : undefined}
+      >
         {/* 上一层 */}
         <Tooltip>
           <TooltipTrigger asChild>
