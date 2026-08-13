@@ -32,8 +32,9 @@ import { callOpenAIMessages } from '@/components/ai-tools/useOpenAI';
 import {
   buildNovelDocument, buildChapterSuggestMessages, parseChapterSuggestions,
   buildNovelBookmarks, findNovelPageIndex, paginateNovelDocument,
+  normalizeNovelSpreadStart,
   DEFAULT_NOVEL_OPTIONS,
-  type UserFloorMode, type NovelChapter, type ChapterSuggestion, type NovelBookmark,
+  type UserFloorMode, type NovelChapter, type NovelPage, type ChapterSuggestion, type NovelBookmark,
 } from '@/lib/novel-view';
 import { buildSummaryMessages } from '@/lib/summary-engine';
 import { listTemplatesForKind, type AnySummaryTemplate } from '@/lib/summary-templates';
@@ -118,7 +119,8 @@ const NovelView = ({
     () => buildNovelDocument(session.messages, markers, { userMode, showHidden, sceneGapMinutes: sceneGap, regexRules }),
     [session.messages, markers, userMode, showHidden, sceneGap, regexRules],
   );
-  const pages = useMemo(() => paginateNovelDocument(chapters), [chapters]);
+  const pageWeight = useMemo(() => Math.max(90, Math.round(140 * (18 / fontSize))), [fontSize]);
+  const pages = useMemo(() => paginateNovelDocument(chapters, pageWeight), [chapters, pageWeight]);
   const hiddenUserFloors = useMemo(
     () => session.messages.filter((m) => m.role === 'user').length,
     [session.messages],
@@ -139,7 +141,10 @@ const NovelView = ({
   }, [progressKey]);
 
   useEffect(() => {
-    const next = findNovelPageIndex(pages, initialFloor ?? readStoredFloor());
+    const next = normalizeNovelSpreadStart(
+      findNovelPageIndex(pages, initialFloor ?? readStoredFloor()),
+      pages.length,
+    );
     currentPageRef.current = next;
     setCurrentPage(next);
   }, [initialFloor, pages, readStoredFloor]);
@@ -155,7 +160,7 @@ const NovelView = ({
 
   const goToPage = useCallback((pageIndex: number) => {
     if (pages.length === 0) return;
-    const next = Math.min(Math.max(pageIndex, 0), pages.length - 1);
+    const next = normalizeNovelSpreadStart(pageIndex, pages.length);
     currentPageRef.current = next;
     setCurrentPage(next);
     const floor = pages[next].startFloor;
@@ -164,6 +169,8 @@ const NovelView = ({
   }, [onFloorChange, pages, saveProgress]);
 
   const current = pages[currentPage];
+  const facing = pages[currentPage + 1];
+  const lastSpreadStart = normalizeNovelSpreadStart(pages.length - 1, pages.length);
   const polishTarget = current ? chapters[current.chapterIndex] : undefined;
   const novelBookmarks = useMemo<NovelBookmark[]>(
     () => buildNovelBookmarks(session.messages, favorites, pages),
@@ -348,10 +355,10 @@ const NovelView = ({
         onClose();
       } else if (e.key === 'ArrowLeft' || e.key === 'PageUp') {
         e.preventDefault();
-        goToPage(currentPageRef.current - 1);
+        goToPage(currentPageRef.current - 2);
       } else if (e.key === 'ArrowRight' || e.key === 'PageDown' || e.key === ' ') {
         e.preventDefault();
-        goToPage(currentPageRef.current + 1);
+        goToPage(currentPageRef.current + 2);
       }
     };
     window.addEventListener('keydown', handler);
@@ -366,8 +373,75 @@ const NovelView = ({
   const handleSurfaceClick = (event: React.MouseEvent<HTMLDivElement>) => {
     if ((event.target as HTMLElement).closest('button, input, [role="slider"], [role="dialog"]')) return;
     const bounds = event.currentTarget.getBoundingClientRect();
-    goToPage(event.clientX < bounds.left + bounds.width / 2 ? currentPage - 1 : currentPage + 1);
+    goToPage(event.clientX < bounds.left + bounds.width / 2 ? currentPage - 2 : currentPage + 2);
   };
+
+  const renderNovelPage = (page: NovelPage | undefined, pageIndex: number, side: 'left' | 'right') => (
+    <section
+      data-novel-page={side}
+      className={cn(
+        'relative min-w-0 overflow-hidden bg-card px-7 pb-10 pt-7 text-card-foreground sm:px-10',
+        side === 'left' ? 'rounded-l-md border-r border-border/70' : 'rounded-r-md',
+      )}
+    >
+      {page ? (
+        <article
+          className="h-full font-serif text-foreground/90"
+          style={{ fontSize: `${fontSize}px`, lineHeight: 1.75 }}
+        >
+          {page.title && (
+            <div className="mb-4 text-center">
+              <h2 className="font-display text-lg font-semibold text-primary/90">{page.title}</h2>
+              <div className="mx-auto mt-2 h-px w-14 bg-primary/30" />
+            </div>
+          )}
+          <div className="mb-3 flex items-center justify-center gap-2 text-[10px] text-muted-foreground">
+            <span>#{page.startFloor}–{page.endFloor} 楼</span>
+            {side === 'left' && !readOnly && polish && polishTarget && (
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-6 gap-1 px-2 text-[10px] text-muted-foreground hover:text-primary"
+                onClick={() => { setPolishChapter(polishTarget); setPolishResult(''); setPolishSavedId(null); }}
+                title="用自定义记录的「小说化」模板重写本章（调用 AI，需要 API 配置）"
+              >
+                <Feather className="h-3 w-3" />AI 润色本章
+              </Button>
+            )}
+          </div>
+          {page.blocks.map((block, blockIndex) => {
+            if (block.type === 'scene-break') {
+              return <div key={blockIndex} className="my-5 text-center text-xs tracking-[0.45em] text-muted-foreground/70">✦ ✦ ✦</div>;
+            }
+            return (
+              <p
+                key={blockIndex}
+                className={cn(
+                  'mb-2 whitespace-pre-wrap',
+                  block.type === 'narration' && 'indent-8',
+                  block.type === 'user' && 'border-l-2 border-border pl-3 text-[0.9em] text-muted-foreground/75 indent-0',
+                  block.hidden && 'border-l-2 border-dashed border-primary/40 pl-3',
+                )}
+              >
+                {block.text}
+              </p>
+            );
+          })}
+          {pageIndex === pages.length - 1 && (
+            <p className="pt-3 text-center text-xs text-muted-foreground/60">—— 完 ——</p>
+          )}
+        </article>
+      ) : (
+        <div className="h-full" aria-hidden="true" />
+      )}
+      <span className={cn(
+        'absolute bottom-4 text-xs tabular-nums text-muted-foreground/70',
+        side === 'left' ? 'left-7 sm:left-10' : 'right-7 sm:right-10',
+      )}>
+        {page ? pageIndex + 1 : ''}
+      </span>
+    </section>
+  );
 
   return (
     <div
@@ -381,7 +455,7 @@ const NovelView = ({
         const end = event.changedTouches[0]?.clientX;
         touchStartX.current = null;
         if (start === null || end === undefined || Math.abs(end - start) < 48) return;
-        goToPage(end < start ? currentPage + 1 : currentPage - 1);
+        goToPage(end < start ? currentPage + 2 : currentPage - 2);
       }}
     >
       {/* ===== 顶栏 ===== */}
@@ -527,58 +601,16 @@ const NovelView = ({
             没有可显示的内容（可能全部楼层被隐藏或清洗）。
           </p>
         ) : (
-          <div className="flex h-full items-center justify-center overflow-y-auto px-8 py-12 sm:px-14">
-            <article
+          <div className="flex h-full items-center justify-center px-12 py-5 sm:px-16 sm:py-7">
+            <div
+              data-novel-spread="true"
               key={`${currentPage}:${current?.startFloor}`}
-              className="w-full max-w-2xl font-serif text-foreground/90"
-              style={{ fontSize: `${fontSize}px`, lineHeight: 1.9 }}
+              className="relative grid h-full max-h-[720px] w-full max-w-5xl grid-cols-2 overflow-hidden rounded-md border border-border bg-card shadow-xl"
             >
-              {(current?.title || polish) && (
-                <div className="mb-6">
-                  {current?.title && (
-                    <div className="text-center">
-                      <h2 className="font-display text-xl font-semibold text-primary/80">{current.title}</h2>
-                      <div className="w-16 h-0.5 bg-primary/30 mx-auto mt-2" />
-                    </div>
-                  )}
-                  <div className="flex items-center justify-center gap-2 mt-2">
-                    <span className="text-[11px] text-muted-foreground">#{current?.startFloor}–{current?.endFloor} 楼</span>
-                    {!readOnly && polish && polishTarget && (
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className="h-6 gap-1 text-[11px] text-muted-foreground hover:text-primary"
-                        onClick={() => { setPolishChapter(polishTarget); setPolishResult(''); setPolishSavedId(null); }}
-                        title="用自定义记录的「小说化」模板重写本章（调用 AI，需要 API 配置）"
-                      >
-                        <Feather className="w-3 h-3" />AI 润色本章
-                      </Button>
-                    )}
-                  </div>
-                </div>
-              )}
-              {current?.blocks.map((block, blockIndex) => {
-                if (block.type === 'scene-break') {
-                  return <div key={blockIndex} className="text-center text-muted-foreground/70 my-8 tracking-[0.5em] text-sm">✦ ✦ ✦</div>;
-                }
-                return (
-                  <p
-                    key={blockIndex}
-                    className={cn(
-                      'mb-4 whitespace-pre-wrap',
-                      block.type === 'narration' && 'indent-8',
-                      block.type === 'user' && 'text-muted-foreground/70 text-[0.9em] border-l-2 border-border pl-3 indent-0',
-                      block.hidden && 'border-l-2 border-dashed border-primary/40 pl-3',
-                    )}
-                  >
-                    {block.text}
-                  </p>
-                );
-              })}
-              {currentPage === pages.length - 1 && (
-                <p className="text-center text-xs text-muted-foreground/60 pt-4 pb-6">—— 完 ——</p>
-              )}
-            </article>
+              {renderNovelPage(current, currentPage, 'left')}
+              {renderNovelPage(facing, currentPage + 1, 'right')}
+              <div className="pointer-events-none absolute inset-y-0 left-1/2 z-10 w-6 -translate-x-1/2 bg-gradient-to-r from-transparent via-foreground/10 to-transparent" />
+            </div>
           </div>
         )}
 
@@ -586,7 +618,7 @@ const NovelView = ({
           variant="ghost"
           size="icon"
           className="absolute left-2 top-1/2 h-10 w-10 -translate-y-1/2"
-          onClick={(event) => { event.stopPropagation(); goToPage(currentPage - 1); }}
+          onClick={(event) => { event.stopPropagation(); goToPage(currentPage - 2); }}
           disabled={currentPage <= 0 || pages.length === 0}
           aria-label="上一页"
           title="上一页"
@@ -597,8 +629,8 @@ const NovelView = ({
           variant="ghost"
           size="icon"
           className="absolute right-2 top-1/2 h-10 w-10 -translate-y-1/2"
-          onClick={(event) => { event.stopPropagation(); goToPage(currentPage + 1); }}
-          disabled={currentPage >= pages.length - 1 || pages.length === 0}
+          onClick={(event) => { event.stopPropagation(); goToPage(currentPage + 2); }}
+          disabled={currentPage >= lastSpreadStart || pages.length === 0}
           aria-label="下一页"
           title="下一页"
         >
@@ -623,14 +655,16 @@ const NovelView = ({
             value={[currentPage]}
             onValueChange={([value]) => goToPage(value)}
             min={0}
-            max={Math.max(pages.length - 1, 0)}
-            step={1}
-            disabled={pages.length <= 1}
+            max={lastSpreadStart}
+            step={2}
+            disabled={pages.length <= 2}
             aria-label="小说阅读进度"
             className="flex-1"
           />
           <span className="min-w-20 text-right text-xs text-muted-foreground">
-            {pages.length ? `${currentPage + 1} / ${pages.length}` : '0 / 0'}
+            {pages.length
+              ? `${currentPage + 1}${facing ? `–${currentPage + 2}` : ''} / ${pages.length}`
+              : '0 / 0'}
           </span>
         </div>
       </div>

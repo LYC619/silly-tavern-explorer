@@ -97,7 +97,10 @@ describe('readerMode capability boundary', () => {
     const story = buildStoryFromSession(session, 'character-1');
     const html = renderToStaticMarkup(
       <NovelView
-        session={session}
+        session={{
+          ...session,
+          messages: [{ ...session.messages[0], content: 'A long paragraph. '.repeat(40) }],
+        }}
         markers={[]}
         regexRules={[rule]}
         onClose={vi.fn()}
@@ -108,6 +111,11 @@ describe('readerMode capability boundary', () => {
     );
 
     expect(html).toContain('小说视图');
+    expect(html).toContain('data-novel-spread="true"');
+    expect(html).toContain('data-novel-page="left"');
+    expect(html).toContain('data-novel-page="right"');
+    expect(html).toMatch(/1–2 \/ \d+/);
+    expect(html).not.toContain('flex h-full items-center justify-center overflow-y-auto');
     expect(html).not.toContain('AI 章节');
     expect(html).not.toContain('AI 润色本章');
   });

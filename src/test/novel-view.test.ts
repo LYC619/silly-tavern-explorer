@@ -10,6 +10,7 @@ import {
   buildNovelBookmarks,
   buildChapterSuggestMessages,
   findNovelPageIndex,
+  normalizeNovelSpreadStart,
   paginateNovelDocument,
   parseChapterSuggestions,
   type NovelViewOptions,
@@ -146,7 +147,7 @@ describe('小说翻页与书签联动', () => {
       opts(),
     );
 
-    const pages = paginateNovelDocument(doc, 40);
+    const pages = paginateNovelDocument(doc, 100);
     const floorOnePages = pages.filter((page) => page.blocks.some((block) => block.floor === 1));
 
     expect(floorOnePages).toHaveLength(1);
@@ -160,11 +161,34 @@ describe('小说翻页与书签联动', () => {
         msg(0, { content: '甲'.repeat(45) }),
         msg(1, { content: '乙'.repeat(5) }),
       ], [], opts()),
-      50,
+      70,
     );
 
     expect(pages).toHaveLength(1);
     expect(pages[0].endFloor).toBe(1);
+  });
+
+  it('超长单楼会拆成多个完整页面，不再依赖页内滚动显示余下内容', () => {
+    const text = '甲乙丙丁戊己庚辛壬癸'.repeat(13);
+    const pages = paginateNovelDocument([{
+      startFloor: 7,
+      endFloor: 7,
+      blocks: [{ type: 'narration', text, floor: 7 }],
+    }], 40);
+
+    expect(pages.length).toBeGreaterThan(1);
+    expect(pages.every((page) => page.startFloor === 7 && page.endFloor === 7)).toBe(true);
+    expect(pages.flatMap((page) => page.blocks).every((block) => block.text.length <= 40)).toBe(true);
+    expect(pages.flatMap((page) => page.blocks).map((block) => block.text).join('')).toBe(text);
+  });
+
+  it('阅读位置总是归一到双页书籍的左页，末页也不会越界', () => {
+    expect(normalizeNovelSpreadStart(0, 5)).toBe(0);
+    expect(normalizeNovelSpreadStart(1, 5)).toBe(0);
+    expect(normalizeNovelSpreadStart(2, 5)).toBe(2);
+    expect(normalizeNovelSpreadStart(99, 5)).toBe(4);
+    expect(normalizeNovelSpreadStart(4, 6)).toBe(4);
+    expect(normalizeNovelSpreadStart(99, 0)).toBe(0);
   });
 
   it('按故事/分支保存的旧楼层恢复到对应页，越界时夹到首尾', () => {

@@ -226,15 +226,28 @@ export function buildNovelDocument(
   return chapters.filter((c) => c.blocks.length > 0);
 }
 
-const DEFAULT_PAGE_WEIGHT = 1800;
+const DEFAULT_PAGE_WEIGHT = 220;
+const BLOCK_SPACING_WEIGHT = 6;
 
 function blockWeight(block: NovelBlock): number {
-  return block.type === 'scene-break' ? 12 : Math.max(block.text.length, 1);
+  return block.type === 'scene-break'
+    ? 18
+    : Math.max(block.text.length, 1) + BLOCK_SPACING_WEIGHT;
+}
+
+function splitOversizedBlock(block: NovelBlock, limit: number): NovelBlock[] {
+  const chunkLength = Math.max(1, limit - BLOCK_SPACING_WEIGHT);
+  if (block.type === 'scene-break' || block.text.length <= chunkLength) return [block];
+  const chunks: NovelBlock[] = [];
+  for (let start = 0; start < block.text.length; start += chunkLength) {
+    chunks.push({ ...block, text: block.text.slice(start, start + chunkLength) });
+  }
+  return chunks;
 }
 
 /**
- * 把章节按楼层边界切成稳定的翻页单元。单个超长楼层不会被静默丢弃，
- * 只会形成一个可滚动的长页；这样书签和楼层定位始终指向真实消息。
+ * 把章节切成稳定的实体书页。一般楼层保持完整；只有单楼本身超过一页容量时，
+ * 才按正文片段续到后页，避免任何页面依赖内部滚动才能读完。
  */
 export function paginateNovelDocument(
   chapters: NovelChapter[],
@@ -271,14 +284,33 @@ export function paginateNovelDocument(
 
     for (const group of floorGroups) {
       const groupWeight = group.reduce((sum, block) => sum + blockWeight(block), 0);
-      if (pageBlocks.length > 0 && pageWeight + groupWeight > limit) flush();
-      pageBlocks.push(...group);
-      pageWeight += groupWeight;
+      if (groupWeight <= limit) {
+        if (pageBlocks.length > 0 && pageWeight + groupWeight > limit) flush();
+        pageBlocks.push(...group);
+        pageWeight += groupWeight;
+        continue;
+      }
+
+      if (pageBlocks.length > 0) flush();
+      for (const block of group.flatMap((item) => splitOversizedBlock(item, limit))) {
+        const weight = blockWeight(block);
+        if (pageBlocks.length > 0 && pageWeight + weight > limit) flush();
+        pageBlocks.push(block);
+        pageWeight += weight;
+        if (pageWeight >= limit) flush();
+      }
     }
     flush();
   });
 
   return pages;
+}
+
+/** 双页书籍始终以偶数页作为左页，并把越界位置夹到最后一组跨页。 */
+export function normalizeNovelSpreadStart(pageIndex: number, pageCount: number): number {
+  if (pageCount <= 0) return 0;
+  const clamped = Math.min(Math.max(Math.floor(pageIndex), 0), pageCount - 1);
+  return clamped - (clamped % 2);
 }
 
 /** 根据持久化的真实楼层把阅读位置夹到可见页范围。 */
