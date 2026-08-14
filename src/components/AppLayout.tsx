@@ -242,27 +242,29 @@ function PersistentAppLayout({ children, titleBarContent, actions, leftActions }
               const areaOpen = area.key === 'editor' ? editorOpen : area.key === 'assets' ? assetsOpen : false;
               const hasChildren = area.children.length > 0;
               return (
-                <div key={area.key} className="relative">
-                  <SideItem
-                    icon={AreaIcon}
-                    label={area.label}
-                    expanded={expanded}
-                    active={activeAreaKey === area.key}
-                    title={area.description}
-                    onClick={() => navigate(area.path)}
-                  />
-                  {expanded && hasChildren && (
-                    <button
-                      type="button"
-                      onClick={(event) => { event.stopPropagation(); toggleArea(area.key); }}
-                      title={areaOpen ? `收起${area.label}` : `展开${area.label}`}
-                      aria-label={areaOpen ? `收起${area.label}` : `展开${area.label}`}
-                      aria-expanded={areaOpen}
-                      className="absolute right-1 top-1/2 -translate-y-1/2 rounded p-1 text-[color:var(--sidebar-text-faint)] hover:bg-[var(--hover-overlay)] hover:text-[color:var(--sidebar-text)]"
-                    >
-                      <ChevronDown className={cn('h-3.5 w-3.5 transition-transform', areaOpen && 'rotate-180')} />
-                    </button>
-                  )}
+                <div key={area.key}>
+                  <div className="relative" data-nav-parent-row>
+                    <SideItem
+                      icon={AreaIcon}
+                      label={area.label}
+                      expanded={expanded}
+                      active={activeAreaKey === area.key}
+                      title={area.description}
+                      onClick={() => navigate(area.path)}
+                    />
+                    {expanded && hasChildren && (
+                      <button
+                        type="button"
+                        onClick={(event) => { event.stopPropagation(); toggleArea(area.key); }}
+                        title={areaOpen ? `收起${area.label}` : `展开${area.label}`}
+                        aria-label={areaOpen ? `收起${area.label}` : `展开${area.label}`}
+                        aria-expanded={areaOpen}
+                        className="absolute right-1 top-1/2 -translate-y-1/2 rounded p-1 text-[color:var(--sidebar-text-faint)] hover:bg-[var(--hover-overlay)] hover:text-[color:var(--sidebar-text)]"
+                      >
+                        <ChevronDown className={cn('h-3.5 w-3.5 transition-transform', areaOpen && 'rotate-180')} />
+                      </button>
+                    )}
+                  </div>
                   <AnimatePresence initial={false}>
                     {expanded && hasChildren && areaOpen && (
                       <motion.div

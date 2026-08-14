@@ -5,6 +5,70 @@ import { resolve } from 'node:path';
 const read = (path: string) => readFileSync(resolve(process.cwd(), path), 'utf8');
 
 describe('前端状态刷新契约', () => {
+  it('角色库将标签和批量管理紧跟搜索，筛选栏使用独立组件', () => {
+    const library = read('src/pages/Library.tsx');
+    const searchIndex = library.indexOf('placeholder="搜索角色或标签"');
+    const tagIndex = library.indexOf('aria-label="标签管理"', searchIndex);
+    const batchIndex = library.indexOf("batchMode ? '退出批量' : '批量管理'", tagIndex);
+    const sortIndex = library.indexOf('<Select value={sortKey}', batchIndex);
+
+    expect(library).toContain("import { LibraryFilterRail } from '@/components/library/LibraryFilterRail'");
+    expect(library).toContain('<LibraryFilterRail');
+    expect(searchIndex).toBeGreaterThanOrEqual(0);
+    expect(tagIndex).toBeGreaterThan(searchIndex);
+    expect(batchIndex).toBeGreaterThan(tagIndex);
+    expect(sortIndex).toBeGreaterThan(batchIndex);
+  });
+
+  it('角色库批量导出在 Tauri 中写入用户选定目录并反馈真实结果', () => {
+    const library = read('src/pages/Library.tsx');
+
+    expect(library).toContain("import { exportCharactersToDirectory } from '@/lib/character-batch-export'");
+    expect(library).toContain("import { createTauriFs, isTauri, pickDirectory } from '@/lib/vault/tauri-fs'");
+    expect(library).toContain("const root = await pickDirectory('选择角色卡导出文件夹')");
+    expect(library).toContain('exportCharactersToDirectory(targets, createTauriFs(root))');
+    expect(library).toContain('result.failed');
+    expect(library).toContain('已取消导出');
+    expect(library).toContain('onPreferencesChange={handleTagPreferencesChange}');
+    expect(library).toContain('导出角色卡');
+  });
+
+  it('角色库导入先准备文件和标签选择，再保存可导出的空白图片卡', () => {
+    const library = read('src/pages/Library.tsx');
+
+    expect(library).toContain("from '@/components/library/LibraryImportDialog'");
+    expect(library).toContain('prepareLibraryCharacterFile');
+    expect(library).toContain('registerLibraryImportCustomTag');
+    expect(library).toContain('applyLibraryImportTags');
+    expect(library).toContain('<LibraryImportDialog');
+    expect(library).toContain('await importEmbeddedAssets(character)');
+    expect(library).toContain('await saveCharacter(character)');
+  });
+
+  it('角色库网格视图提供持久化分组和可选的一级标签分类', () => {
+    const library = read('src/pages/Library.tsx');
+
+    expect(library).toContain("lsGet('ste-library-group-by')");
+    expect(library).toContain("lsSet('ste-library-group-by', groupBy)");
+    expect(library).toContain('LIBRARY_GROUP_BY_OPTIONS.map');
+    expect(library).toContain("lsGet('ste-library-group-tag-category')");
+    expect(library).toContain("lsSet('ste-library-group-tag-category', groupTagCategory)");
+    expect(library).toContain('getTagCategories,');
+    expect(library).toContain('aria-label="标签分组分类"');
+    expect(library).toContain('buildLibraryGroups(pageItems, groupBy, { tagCategory: groupTagCategory })');
+    expect(library).toContain('group.items.map');
+  });
+
+  it('角色页快速标签使用宽版多列勾选面板并包含未分类', () => {
+    const header = read('src/components/character/CharacterHeader.tsx');
+    expect(header).toContain("from '@/components/ui/popover'");
+    expect(header).toContain("from '@/components/ui/checkbox'");
+    expect(header).toContain("category === '未分类'");
+    expect(header).toContain('grid-cols-2');
+    expect(header).toContain('onCheckedChange');
+    expect(header).not.toContain('DropdownMenuContent');
+  });
+
   it('状态栏不再展示 ST 接入与数据占用（0801 反馈挪设置页），也不永久缓存状态', () => {
     const source = read('src/components/AppLayout.tsx');
     expect(source).not.toContain('let statusCache');
@@ -117,12 +181,40 @@ describe('阶段 D 外壳与 NSFW 契约', () => {
     expect(home).not.toContain('function relativeTime');
   });
 
-  it('无 tab 的其他资产入口显示专门空态并提供三类入口', () => {
+  it('角色页提供就地角色卡编辑与开场白页签，并保留名称双层语义', () => {
+    const characterPage = read('src/pages/CharacterPage.tsx');
+    const rail = read('src/components/character/CharacterInfoRail.tsx');
+    expect(characterPage).toContain('CharacterCardEditSection');
+    expect(characterPage).toContain('GreetingsSection');
+    expect(characterPage).toContain('角色卡编辑');
+    expect(characterPage).toContain('开场白');
+    expect(characterPage).toContain('applyCharacterPageCardEdits');
+    expect(characterPage).toContain('实际名');
+    expect(characterPage).toContain('展示名');
+    expect(rail).toContain('w-[304px]');
+    expect(rail).toContain('text-sm');
+    expect(rail).toContain('var(--character-label)');
+  });
+
+  it('展示名草稿跟随档案值同步，跨角色直跳时保存被守卫拦截', () => {
+    const characterPage = read('src/pages/CharacterPage.tsx');
+    // 双入口（铅笔弹窗/卡编辑页签）同步：档案 displayMeta.name 变化必须刷新草稿，防旧草稿回写。
+    expect(characterPage).toContain('[character?.displayMeta?.name]');
+    // id 已切换但旧角色仍在闭包时禁止写入新 id 的档案。
+    expect(characterPage.match(/character\.id !== id/g)?.length).toBeGreaterThanOrEqual(2);
+    // 用户手输标签入口统一走 validateUserTagInput（类型保留字/评价档位拒收）。
+    const batchDialog = read('src/components/library/BatchTagDialog.tsx');
+    expect(batchDialog).toContain('validateUserTagInput');
+    const libraryImport = read('src/lib/library-character-import.ts');
+    expect(libraryImport).toContain('validateUserTagInput');
+  });
+
+  it('无 tab 的其他资产入口显示真实归档浏览器，不再重复三类既有资产', () => {
     const assets = read('src/pages/AssetLibrary.tsx');
-    expect(assets).toContain('其他资产');
-    expect(assets).toContain("/assets?tab=worldbook");
-    expect(assets).toContain("/assets?tab=preset");
-    expect(assets).toContain("/assets?tab=regex");
+    expect(assets).toContain("import { OtherAssetsBrowser } from '@/components/assets/OtherAssetsBrowser'");
+    expect(assets).toContain('<OtherAssetsBrowser />');
+    expect(assets).not.toContain('OtherAssetsEmptyState');
+    expect(assets).not.toContain('选择一个资产库开始处理');
     expect(assets).toContain('tab === null');
   });
 
@@ -179,6 +271,9 @@ describe('阶段 D 外壳与 NSFW 契约', () => {
     expect(runtime).toContain('export function DirectorySettingsPanel');
     expect(runtime).toContain('getNsfwBlur');
     expect(runtime).toContain('setNsfwBlur');
+    expect(runtime).toContain('getHideUnusedLibraryTags');
+    expect(runtime).toContain('setHideUnusedLibraryTags');
+    expect(runtime).toContain('隐藏未使用标签');
     expect(runtime).toContain("getAppConfig<string>('stRoot')");
     expect(runtime).toContain("setAppConfig('stRoot', root)");
     expect(runtime).toContain('pickDirectory');
@@ -212,9 +307,11 @@ describe('阶段 D 外壳与 NSFW 契约', () => {
     expect(result).toContain('查看完整处理明细');
     expect(result).toContain('max-h-[calc(100vh-2rem)]');
     expect(result).toContain('min-h-0 overflow-y-auto');
-    for (const label of ['角色', '故事', '世界书', '预设', '正则', '原样归档']) {
+    for (const label of ['角色', '故事', '世界书', '预设', '正则', '其他资产']) {
       expect(result).toContain(`label="${label}"`);
     }
+    expect(result).not.toContain('label="原样归档"');
+    expect(result).toContain('可在“附属库 → 其他”查看');
   });
 
   it('导入结果换批次时完整明细重新默认折叠', () => {
@@ -324,6 +421,28 @@ describe('阶段 D 外壳与 NSFW 契约', () => {
     expect(home).toContain('连接 SillyTavern 目录与接口');
   });
 
+  it('首页编辑入口在保留单行摘要时，为鼠标和键盘提供完整说明', () => {
+    const home = read('src/pages/Home.tsx');
+    expect(home).toContain("from '@/components/ui/tooltip'");
+    expect(home).toContain('<Tooltip key={tool.label}>');
+    expect(home).toContain('<TooltipTrigger asChild>');
+    expect(home).toContain('<TooltipContent');
+    expect(home).toContain('{tool.description}');
+    expect(home).toContain('block truncate text-[11px]');
+  });
+
+  it('侧栏分区箭头固定在父级行，不随展开内容向下移动', () => {
+    const layout = read('src/components/AppLayout.tsx');
+    const parentStart = layout.indexOf('<div className="relative" data-nav-parent-row>');
+    const animationStart = layout.indexOf('<AnimatePresence initial={false}>', parentStart);
+    expect(parentStart).toBeGreaterThanOrEqual(0);
+    expect(animationStart).toBeGreaterThan(parentStart);
+    const parentRegion = layout.slice(parentStart, animationStart);
+    expect(parentRegion).toContain('<SideItem');
+    expect(parentRegion).toContain('<ChevronDown');
+    expect(parentRegion.trimEnd()).toMatch(/<\/div>$/);
+  });
+
   it('导入入口明确区分跳过与更新归档策略', () => {
     const importer = read('src/components/tools/STImportCard.tsx');
     const selection = read('src/components/tools/st-import/STImportSelectionDialog.tsx');
@@ -333,8 +452,18 @@ describe('阶段 D 外壳与 NSFW 契约', () => {
     expect(selection).toContain('IMPORT_POLICY_SUMMARY');
     expect(result).toContain('IMPORT_POLICY_SUMMARY');
     expect(presentation).toContain('同一路径的角色、聊天、世界书、预设和正则会跳过');
-    expect(presentation).toContain('扩展与媒体按同路径更新归档');
+    expect(presentation).toContain('其他资产按同路径更新归档');
     expect(importer).not.toContain('已有来源会安全跳过');
+  });
+
+  it('ST 导入按用户可理解的其他资产类别展示来源与去向', () => {
+    const selection = read('src/components/tools/st-import/STImportSelectionDialog.tsx');
+    expect(selection).toContain("label: '其他资产'");
+    expect(selection).toContain('group.label');
+    expect(selection).toContain('group.description');
+    expect(selection).toContain('group.itemCount');
+    expect(selection).not.toContain('title={`${group.kind}/`}');
+    expect(selection).not.toContain("label: '扩展与媒体'");
   });
 
   it('多库配置读取失败时不把现有配置静默当成空注册表覆盖', () => {

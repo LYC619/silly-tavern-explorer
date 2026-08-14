@@ -72,4 +72,11 @@ describe('编辑区故事选择器模型', () => {
     expect(picker.pickRecentlyViewedStories(stories, 3).map((story) => story.id))
       .toEqual(['viewed-1', 'viewed-2']);
   });
+
+  it('首页最近故事默认保留十二条可滚动内容', () => {
+    const stories = Array.from({ length: 13 }, (_, index) =>
+      makeStory(`s${index}`, `故事 ${index}`, undefined, index + 1));
+
+    expect(picker.pickRecentlyViewedStories(stories)).toHaveLength(12);
+  });
 });

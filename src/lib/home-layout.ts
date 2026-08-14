@@ -1,6 +1,9 @@
 /** 首页首屏的空间约束，集中维护，避免 JSX 中散落难以复验的魔法数字。 */
 import type { ArchiveCharacter, ArchiveStory } from '@/types/archive';
 
+/** 首页最近故事默认保留的可滚动数量。 */
+export const HOME_RECENT_STORY_VISIBLE_COUNT = 12;
+
 /**
  * 桌面端横向内容轨道的滚轮位移：鼠标滚轮使用 deltaY，触控板原生横向手势
  * 使用 deltaX。取主要轴可以避免斜向手势被重复累加。

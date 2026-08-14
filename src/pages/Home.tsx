@@ -17,6 +17,7 @@ import { STAIConfigDialog } from '@/components/tools/STAIConfigDialog';
 import { STImportCard } from '@/components/tools/STImportCard';
 import { AppLayout } from '@/components/AppLayout';
 import { NsfwImage } from '@/components/NsfwImage';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import type { ArchiveCharacter, ArchiveStory } from '@/types/archive';
 import { getAllCharacters, getAllArchiveStories } from '@/lib/archive-db';
 import { getAllWorldBooks } from '@/lib/worldbook-db';
@@ -366,18 +367,24 @@ const Home = () => {
                 {EDIT_TOOLS.map((tool) => {
                   const Icon = tool.icon;
                   return (
-                    <button
-                      key={tool.label}
-                      onClick={() => navigate(tool.path)}
-                      className="min-h-0 flex items-center gap-2.5 rounded-lg bg-chrome px-3 py-2 text-left transition-colors hover:bg-elevated-strong"
-                    >
-                      <Icon className="h-4 w-4 shrink-0 text-[color:var(--brand-hi)]" />
-                      <div className="min-w-0 flex-1">
-                        <span className="block text-sm font-medium text-[color:var(--text-body)]">{tool.label}</span>
-                        <span className="mt-0.5 block truncate text-[11px] text-[color:var(--text-muted)]">{tool.description}</span>
-                      </div>
-                      <ChevronRight className="h-3.5 w-3.5 shrink-0 text-[color:var(--text-faint)]" />
-                    </button>
+                    <Tooltip key={tool.label}>
+                      <TooltipTrigger asChild>
+                        <button
+                          onClick={() => navigate(tool.path)}
+                          className="min-h-0 flex items-center gap-2.5 rounded-lg bg-chrome px-3 py-2 text-left transition-colors hover:bg-elevated-strong"
+                        >
+                          <Icon className="h-4 w-4 shrink-0 text-[color:var(--brand-hi)]" />
+                          <div className="min-w-0 flex-1">
+                            <span className="block text-sm font-medium text-[color:var(--text-body)]">{tool.label}</span>
+                            <span className="mt-0.5 block truncate text-[11px] text-[color:var(--text-muted)]">{tool.description}</span>
+                          </div>
+                          <ChevronRight className="h-3.5 w-3.5 shrink-0 text-[color:var(--text-faint)]" />
+                        </button>
+                      </TooltipTrigger>
+                      <TooltipContent side="left" className="max-w-xs leading-relaxed">
+                        {tool.description}
+                      </TooltipContent>
+                    </Tooltip>
                   );
                 })}
               </div>

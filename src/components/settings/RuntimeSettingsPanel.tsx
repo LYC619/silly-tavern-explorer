@@ -1,9 +1,14 @@
 import { useCallback, useEffect, useState } from 'react';
-import { Check, Eye, FolderOpen, FolderSearch, KeyRound, Loader2, RefreshCw } from 'lucide-react';
+import { Check, Eye, FolderOpen, FolderSearch, KeyRound, Loader2, RefreshCw, Tags } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
 import { useToast } from '@/hooks/use-toast';
-import { getNsfwBlur, setNsfwBlur } from '@/lib/local-settings';
+import {
+  getHideUnusedLibraryTags,
+  getNsfwBlur,
+  setHideUnusedLibraryTags,
+  setNsfwBlur,
+} from '@/lib/local-settings';
 import {
   createTauriFs,
   getAppConfig,
@@ -47,10 +52,16 @@ function hasSTContent(counts: STCounts): boolean {
 
 export function DisplaySettingsPanel() {
   const [blurNsfw, setBlurNsfw] = useState(() => getNsfwBlur());
+  const [hideUnusedTags, setHideUnusedTags] = useState(() => getHideUnusedLibraryTags());
 
   const handleBlurChange = (checked: boolean) => {
     setBlurNsfw(checked);
     setNsfwBlur(checked);
+  };
+
+  const handleHideUnusedTagsChange = (checked: boolean) => {
+    setHideUnusedTags(checked);
+    setHideUnusedLibraryTags(checked);
   };
 
   return (
@@ -67,6 +78,22 @@ export function DisplaySettingsPanel() {
           checked={blurNsfw}
           onCheckedChange={handleBlurChange}
           aria-label="默认模糊 NSFW 卡面"
+        />
+      </div>
+      <div className="flex items-start justify-between gap-4 border-t border-border pt-3">
+        <div className="flex min-w-0 items-start gap-3">
+          <Tags className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
+          <div className="min-w-0">
+            <h3 className="text-sm font-semibold">隐藏未使用标签</h3>
+            <p className="mt-1 text-xs text-muted-foreground">
+              只精简角色库左侧筛选栏；类型标签仍全部显示，标签管理中的定义不会被删除。
+            </p>
+          </div>
+        </div>
+        <Switch
+          checked={hideUnusedTags}
+          onCheckedChange={handleHideUnusedTagsChange}
+          aria-label="隐藏未使用标签"
         />
       </div>
     </section>
