@@ -99,7 +99,7 @@ export function STImportCard({ onChanged, variant = 'full', root }: STImportCard
         `预设 ${summary.presets}`,
       ];
       if (summary.regexes) parts.push(`正则规则集 ${summary.regexes}`);
-      if (summary.archivedFiles) parts.push(`原样归档 ${summary.archivedFiles} 个文件`);
+      if (summary.archivedFiles) parts.push(`其他资产 ${summary.archivedFiles} 个文件`);
       if (summary.relationships) parts.push(`恢复关联 ${summary.relationships}`);
       if (summary.unresolvedRelationships.length) parts.push(`未解析关联 ${summary.unresolvedRelationships.length}`);
       if (summary.skipped) parts.push(`跳过已导入 ${summary.skipped}`);

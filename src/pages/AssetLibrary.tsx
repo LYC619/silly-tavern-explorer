@@ -1,5 +1,5 @@
 /**
- * 其他资产（2.1-P3，按新前端交接包 demo ④ 重做）：世界书 / 预设 / 正则 的总览页（独立顶级入口）。
+ * 附属库：世界书 / 预设 / 正则结构化资产，以及 SillyTavern 其他资产的只读归档浏览器。
  * - 左侧 176px 筛选栏：引用状态 / 来源（按库里真实字段：来自ST/工具入库/派生副本/自动保留）
  * - 主区分类 tabs + 三列 .asset-card：图标+标题+徽标 / 摘要 / 统计行 / 绑定关系 / 页脚操作
  * `?tab=` 深链保留；点卡 → 对应工具页 `?assetId=` 打开编辑。删除有确认。
@@ -11,6 +11,7 @@ import {
   Globe, SlidersHorizontal, Regex as RegexIcon, MoreVertical, Trash2, PenSquare, Plus, Link2,
 } from 'lucide-react';
 import { AppLayout } from '@/components/AppLayout';
+import { OtherAssetsBrowser } from '@/components/assets/OtherAssetsBrowser';
 import { HelpCard } from '@/components/HelpCard';
 import { Button } from '@/components/ui/button';
 import {
@@ -88,36 +89,6 @@ function FilterItem({
   );
 }
 
-function OtherAssetsEmptyState({ onOpen }: { onOpen: (path: string) => void }) {
-  const entries = [
-    { path: '/assets?tab=worldbook', icon: Globe, label: '世界书', description: '角色设定与世界信息' },
-    { path: '/assets?tab=preset', icon: SlidersHorizontal, label: '预设', description: '提示词与生成配置' },
-    { path: '/assets?tab=regex', icon: RegexIcon, label: '正则', description: '文本处理规则集' },
-  ];
-  return (
-    <div className="h-full flex flex-col items-center justify-center px-6 py-12 text-center gap-5">
-      <div>
-        <h1 className="font-serif text-[22px] font-semibold text-[color:var(--text-primary)]">其他资产</h1>
-        <p className="mt-2 text-sm text-[color:var(--text-muted)]">选择一个资产库开始处理</p>
-      </div>
-      <div className="grid w-full max-w-xl grid-cols-1 sm:grid-cols-3 gap-3">
-        {entries.map(({ path, icon: Icon, label, description }) => (
-          <button
-            key={path}
-            type="button"
-            onClick={() => onOpen(path)}
-            className="flex flex-col items-center gap-2 rounded-lg border border-[color:var(--border-subtle)] bg-elevated px-4 py-5 text-center hover:bg-elevated-strong transition-colors"
-          >
-            <Icon className="w-6 h-6 text-brand" />
-            <span className="text-sm font-medium text-[color:var(--text-primary)]">{label}</span>
-            <span className="text-xs text-[color:var(--text-muted)]">{description}</span>
-          </button>
-        ))}
-      </div>
-    </div>
-  );
-}
-
 const AssetLibrary = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
@@ -157,7 +128,10 @@ const AssetLibrary = () => {
     }
   }, []);
 
-  useEffect(() => { load(); }, [load]);
+  useEffect(() => {
+    if (tab !== null) void load();
+    else setLoading(false);
+  }, [load, tab]);
 
   const rows: Record<AssetTab, AssetRow[]> = useMemo(() => ({
     worldbook: worldbooks.map((w) => ({
@@ -231,7 +205,7 @@ const AssetLibrary = () => {
   return (
     <AppLayout>
       {tab === null ? (
-        <OtherAssetsEmptyState onOpen={(path) => navigate(path)} />
+        <OtherAssetsBrowser />
       ) : (
       <div className="h-full flex flex-col overflow-hidden">
         {/* ===== 页头（demo .main-header）===== */}

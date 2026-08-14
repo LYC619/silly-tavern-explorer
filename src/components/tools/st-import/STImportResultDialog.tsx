@@ -102,7 +102,7 @@ export function STImportResultDialog({ result, onClose }: STImportResultDialogPr
               <Metric label="世界书" value={result.worldbooks} />
               <Metric label="预设" value={result.presets} />
               <Metric label="正则" value={result.regexes} />
-              <Metric label="原样归档" value={result.archivedFiles} note={formatBytes(result.archiveBytes)} />
+              <Metric label="其他资产" value={result.archivedFiles} note={formatBytes(result.archiveBytes)} />
             </div>
           </div>
 
@@ -172,7 +172,7 @@ export function STImportResultDialog({ result, onClose }: STImportResultDialogPr
 
           {result.archivedFiles > 0 && (
             <p className="mt-3 text-xs text-muted-foreground">
-              原样归档 {result.archivedFiles} 个扩展或媒体文件，共 {formatBytes(result.archiveBytes)}；扩展代码不会在本应用中执行。
+              其他资产已保存 {result.archivedFiles} 个文件，共 {formatBytes(result.archiveBytes)}；可在“附属库 → 其他”查看，扩展代码不会在本应用中执行。
             </p>
           )}
         </div>

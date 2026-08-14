@@ -99,7 +99,7 @@ export function STImportSelectionDialog({
         id: 'presets', label: '预设', found: scan.presets.length, selected: picks.presets.size, icon: SlidersHorizontal,
       },
       scan.archives.length > 0 && {
-        id: 'archives', label: '扩展与媒体', found: scan.archives.length, selected: picks.archives.size, icon: Archive,
+        id: 'archives', label: '其他资产', found: scan.archives.length, selected: picks.archives.size, icon: Archive,
       },
       scan.regex !== null && {
         id: 'regex', label: '正则', found: 1, selected: picks.regex ? 1 : 0, icon: Braces,
@@ -248,14 +248,16 @@ export function STImportSelectionDialog({
               </TabsContent>
 
               <TabsContent value="archives" className="m-0">
-                <p className="mb-2 text-xs text-muted-foreground">扩展代码不会执行；文件保持原目录结构，归档到“资产/其他/SillyTavern”。</p>
+                <p className="mb-2 text-xs text-muted-foreground">
+                  扩展代码不会执行；其他文件保持原目录结构，用户人设只提取相关设置，统一归档到“资产/其他/SillyTavern”。
+                </p>
                 {scan.archives.map((group) => (
                   <PickRow
                     key={group.kind}
                     icon={Archive}
                     checked={picks.archives.has(group.kind)}
-                    title={`${group.kind}/`}
-                    description={`${group.files.length} 个文件 · ${formatBytes(group.bytes)} · 原样归档`}
+                    title={group.label}
+                    description={`${group.description} · 识别 ${group.itemCount} 项 · 共 ${group.files.length + (group.generatedFiles?.length ?? 0)} 个归档文件 · ${formatBytes(group.bytes)}`}
                     onCheckedChange={(checked) => onPicksChange({
                       ...picks,
                       archives: toggleImportPick(picks.archives, group.kind, checked),

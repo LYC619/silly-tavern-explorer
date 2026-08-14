@@ -87,7 +87,14 @@ export interface STScanRegex {
   count: number;
 }
 
-export type STArchiveKind = 'extensions' | 'assets';
+export type STArchiveKind =
+  | 'extensions'
+  | 'assets'
+  | 'quick-replies'
+  | 'personas'
+  | 'backgrounds'
+  | 'appearance'
+  | 'user-media';
 
 export interface STScanArchiveFile {
   /** 相对用户目录的完整来源路径。 */
@@ -97,10 +104,24 @@ export interface STScanArchiveFile {
   size: number;
 }
 
+export interface STScanGeneratedFile {
+  /** 归档组内的目标相对路径。 */
+  relativePath: string;
+  /** 生成内容所依据的来源文件，用于导入结果追溯。 */
+  sourcePath?: string;
+  /** 从 settings.json 中选择性提取的 UTF-8 文本；不包含密钥或无关设置。 */
+  text: string;
+  size: number;
+}
+
 export interface STScanArchiveGroup {
   kind: STArchiveKind;
+  label: string;
+  description: string;
+  itemCount: number;
   rootPath: string;
   files: STScanArchiveFile[];
+  generatedFiles?: STScanGeneratedFile[];
   bytes: number;
 }
 
@@ -126,7 +147,7 @@ export interface STScanResult {
   presets: STScanPreset[];
   /** null = settings.json 不存在/解析失败/没有全局正则脚本 */
   regex: STScanRegex | null;
-  /** 不执行、不解析的扩展与媒体目录原样归档清单。 */
+  /** 不执行扩展代码的其他资产归档清单；部分设置会选择性生成安全清单。 */
   archives: STScanArchiveGroup[];
   /** settings.json 中可恢复的世界书关系。 */
   relationships: STScanRelationships;
@@ -188,6 +209,26 @@ async function listTreeFiles(fs: VaultFs, root: string, warnings: STScanWarning[
 function stringList(value: unknown): string[] {
   if (!Array.isArray(value)) return [];
   return [...new Set(value.filter((item): item is string => typeof item === 'string').map((item) => item.trim()).filter(Boolean))];
+}
+
+function objectRecord(value: unknown): Record<string, unknown> | null {
+  return value !== null && typeof value === 'object' && !Array.isArray(value)
+    ? value as Record<string, unknown>
+    : null;
+}
+
+function stringRecord(value: unknown): Record<string, string> {
+  const record = objectRecord(value);
+  if (!record) return {};
+  return Object.fromEntries(Object.entries(record).filter((entry): entry is [string, string] => typeof entry[1] === 'string'));
+}
+
+function prefixArchiveFiles(files: STScanArchiveFile[], prefix: string): STScanArchiveFile[] {
+  return files.map((file) => ({ ...file, relativePath: joinPath(prefix, file.relativePath) }));
+}
+
+function utf8Size(text: string): number {
+  return new TextEncoder().encode(text).byteLength;
 }
 
 /**
@@ -284,18 +325,21 @@ export async function scanSTUserDir(fs: VaultFs): Promise<STScanResult> {
   const presets: STScanPreset[] = hasSafeDir('OpenAI Settings')
     ? await listFiles(fs, joinPath(userDir, 'OpenAI Settings'), '.json', warnings)
     : [];
-  // 全局正则：settings.json → extensions.regex（读失败/没有脚本 = null，不打扰）
+  // settings.json 同时承载全局正则、世界书关系和 Persona 定义；只解析一次，
+  // 后续只选择性提取明确字段，绝不把整份设置或 secrets.json 当普通资产归档。
   let regex: STScanRegex | null = null;
   let relationships: STScanRelationships = { status: 'missing', globalWorldbooks: [], characterWorldbooks: [] };
+  let parsedSettings: Record<string, unknown> | null = null;
   const settingsPath = joinPath(userDir, 'settings.json');
   const settingsEntry = userEntries.find((entry) => entry.name === 'settings.json');
   if (settingsEntry?.isSymlink) warn({ path: settingsPath, reason: 'symlink' });
   else if (settingsEntry && !settingsEntry.isDir) {
     try {
-      const settings = JSON.parse(await fs.readText(settingsPath)) as {
+      const settings = JSON.parse(await fs.readText(settingsPath)) as Record<string, unknown> & {
         extensions?: { regex?: unknown[] };
         world_info_settings?: { world_info?: { globalSelect?: unknown; charLore?: unknown } };
       };
+      parsedSettings = settings;
       const scripts = settings.extensions?.regex;
       if (Array.isArray(scripts) && scripts.length > 0) regex = { path: settingsPath, count: scripts.length };
       const worldInfo = settings.world_info_settings?.world_info;
@@ -327,17 +371,164 @@ export async function scanSTUserDir(fs: VaultFs): Promise<STScanResult> {
   strayChats.sort((a, b) => cmp(a.name, b.name));
   worldbooks.sort((a, b) => cmp(a.name, b.name));
   presets.sort((a, b) => cmp(a.name, b.name));
-  const archives: STScanArchiveGroup[] = [];
-  for (const kind of ['extensions', 'assets'] as const) {
-    const rootPath = joinPath(userDir, kind);
-    const rootEntry = userEntries.find((entry) => entry.name === kind);
-    if (rootEntry?.isSymlink) {
-      warn({ path: rootPath, reason: 'symlink' });
-      continue;
+  const scanArchiveDir = async (sourceDir: string, targetPrefix = '') => {
+    const parts = sourceDir.split('/').filter(Boolean);
+    let current = userDir;
+    for (const part of parts) {
+      const entry = (await fs.list(current)).find((item) => item.name === part);
+      const path = joinPath(current, part);
+      if (!entry?.isDir) return null;
+      if (entry.isSymlink) {
+        warn({ path, reason: 'symlink' });
+        return null;
+      }
+      current = path;
     }
-    if (!rootEntry?.isDir) continue;
-    const files = await listTreeFiles(fs, rootPath, warnings);
-    if (files.length > 0) archives.push({ kind, rootPath, files, bytes: files.reduce((sum, file) => sum + file.size, 0) });
+    const entries = await fs.list(current);
+    const sourceFiles = await listTreeFiles(fs, current, warnings);
+    return {
+      rootPath: current,
+      files: targetPrefix ? prefixArchiveFiles(sourceFiles, targetPrefix) : sourceFiles,
+      directDirectories: entries.filter((entry) => entry.isDir && !entry.isSymlink && safeEntryName(entry.name)).length,
+    };
+  };
+  const fileBytes = (files: STScanArchiveFile[]) => files.reduce((sum, file) => sum + file.size, 0);
+  const archives: STScanArchiveGroup[] = [];
+  const addArchive = (group: Omit<STScanArchiveGroup, 'bytes'>) => {
+    const bytes = fileBytes(group.files) + (group.generatedFiles?.reduce((sum, file) => sum + file.size, 0) ?? 0);
+    if (group.files.length + (group.generatedFiles?.length ?? 0) === 0) return;
+    archives.push({ ...group, bytes });
+  };
+
+  const extensionScan = await scanArchiveDir('extensions');
+  if (extensionScan) {
+    const itemCount = extensionScan.directDirectories || extensionScan.files.length;
+    addArchive({
+      kind: 'extensions',
+      label: '第三方扩展',
+      description: `${itemCount} 个扩展 · ${extensionScan.files.length} 个文件 · 按原目录只读保存，不会执行代码`,
+      itemCount,
+      rootPath: extensionScan.rootPath,
+      files: extensionScan.files,
+    });
+  }
+
+  const assetScan = await scanArchiveDir('assets');
+  if (assetScan) {
+    const itemCount = assetScan.directDirectories || assetScan.files.length;
+    addArchive({
+      kind: 'assets',
+      label: '扩展资产',
+      description: `${itemCount} 组扩展资源 · ${assetScan.files.length} 个文件`,
+      itemCount,
+      rootPath: assetScan.rootPath,
+      files: assetScan.files,
+    });
+  }
+
+  const quickReplyScan = await scanArchiveDir('QuickReplies');
+  if (quickReplyScan) {
+    let replyCount = 0;
+    for (const file of quickReplyScan.files) {
+      if (!file.path.toLowerCase().endsWith('.json')) continue;
+      try {
+        const json = JSON.parse(await fs.readText(file.path)) as { qrList?: unknown };
+        if (Array.isArray(json.qrList)) replyCount += json.qrList.length;
+      } catch {
+        // 文件仍会原样归档；损坏的集合只是不参与条目数统计。
+      }
+    }
+    addArchive({
+      kind: 'quick-replies',
+      label: '快速回复',
+      description: `${quickReplyScan.files.length} 套快速回复${replyCount ? ` · ${replyCount} 条内容` : ''}`,
+      itemCount: quickReplyScan.files.length,
+      rootPath: quickReplyScan.rootPath,
+      files: quickReplyScan.files,
+    });
+  }
+
+  const avatarScan = await scanArchiveDir('User Avatars', 'avatars');
+  const powerUser = objectRecord(parsedSettings?.power_user);
+  const personas = stringRecord(powerUser?.personas);
+  const personaDescriptions = objectRecord(powerUser?.persona_descriptions)
+    ?? objectRecord(parsedSettings?.persona_descriptions)
+    ?? {};
+  const generatedPersonaFiles: STScanGeneratedFile[] = [];
+  if (Object.keys(personas).length > 0 || Object.keys(personaDescriptions).length > 0) {
+    const manifest: Record<string, unknown> = {
+      version: 1,
+      personas,
+      personaDescriptions,
+    };
+    if (typeof powerUser?.default_persona === 'string') manifest.defaultPersona = powerUser.default_persona;
+    const personaSortOrder = stringList(powerUser?.persona_sort_order);
+    if (personaSortOrder.length > 0) manifest.personaSortOrder = personaSortOrder;
+    const text = JSON.stringify(manifest, null, 2);
+    generatedPersonaFiles.push({
+      relativePath: 'personas.json',
+      sourcePath: settingsPath,
+      text,
+      size: utf8Size(text),
+    });
+  }
+  if (avatarScan || generatedPersonaFiles.length > 0) {
+    const files = avatarScan?.files ?? [];
+    const itemCount = Object.keys(personas).length || files.length;
+    addArchive({
+      kind: 'personas',
+      label: '用户人设',
+      description: `${itemCount} 个人设 · ${files.length} 张头像 · 仅提取人设相关设置`,
+      itemCount,
+      rootPath: avatarScan?.rootPath ?? settingsPath,
+      files,
+      generatedFiles: generatedPersonaFiles,
+    });
+  }
+
+  const backgroundScan = await scanArchiveDir('backgrounds');
+  if (backgroundScan) {
+    addArchive({
+      kind: 'backgrounds',
+      label: '聊天背景',
+      description: `${backgroundScan.files.length} 个背景文件`,
+      itemCount: backgroundScan.files.length,
+      rootPath: backgroundScan.rootPath,
+      files: backgroundScan.files,
+    });
+  }
+
+  const movingUiScan = await scanArchiveDir('movingUI', 'movingUI');
+  const themeScan = await scanArchiveDir('themes', 'themes');
+  const appearanceFiles = [...(movingUiScan?.files ?? []), ...(themeScan?.files ?? [])];
+  if (appearanceFiles.length > 0) {
+    addArchive({
+      kind: 'appearance',
+      label: '主题与界面布局',
+      description: `${themeScan?.files.length ?? 0} 套主题 · ${movingUiScan?.files.length ?? 0} 套界面布局`,
+      itemCount: appearanceFiles.length,
+      rootPath: userDir,
+      files: appearanceFiles,
+    });
+  }
+
+  const userFileScan = await scanArchiveDir('user/files', 'files');
+  const userImageScan = await scanArchiveDir('user/images', 'images');
+  const workflowScan = await scanArchiveDir('user/workflows', 'workflows');
+  const userMediaFiles = [
+    ...(userFileScan?.files ?? []),
+    ...(userImageScan?.files ?? []),
+    ...(workflowScan?.files ?? []),
+  ];
+  if (userMediaFiles.length > 0) {
+    addArchive({
+      kind: 'user-media',
+      label: '用户媒体与工作流',
+      description: `${userImageScan?.files.length ?? 0} 张图片 · ${userFileScan?.files.length ?? 0} 个附件 · ${workflowScan?.files.length ?? 0} 个工作流`,
+      itemCount: userMediaFiles.length,
+      rootPath: joinPath(userDir, 'user'),
+      files: userMediaFiles,
+    });
   }
   return { userDir, characters, strayChats, worldbooks, presets, regex, archives, relationships, warnings };
 }
@@ -465,10 +656,15 @@ STE 只读取 SillyTavern 来源目录，导入不会移动、删除或改写来
 | worlds/*.json | 资产/世界书/ | 解析为世界书资产 |
 | OpenAI Settings/*.json | 资产/预设/ | 解析为聊天补全预设 |
 | settings.json -> extensions.regex | 资产/正则/ | 整组解析为全局正则规则集 |
-| extensions/ | 资产/其他/SillyTavern/extensions/ | 原样复制，绝不执行扩展代码 |
-| assets/ | 资产/其他/SillyTavern/assets/ | 原样复制并保持相对路径 |
+| extensions/ | 资产/其他/SillyTavern/extensions/ | 按原目录保存，绝不执行扩展代码 |
+| assets/ | 资产/其他/SillyTavern/assets/ | 按原目录保存并保持相对路径 |
+| QuickReplies/ | 资产/其他/SillyTavern/quick-replies/ | 按原目录保存快速回复集合 |
+| settings.json Persona 字段 + User Avatars/ | 资产/其他/SillyTavern/personas/ | 只提取 Persona 相关字段，并归档头像 |
+| backgrounds/ | 资产/其他/SillyTavern/backgrounds/ | 按原目录保存聊天背景 |
+| themes/ + movingUI/ | 资产/其他/SillyTavern/appearance/ | 按原目录保存主题与界面布局 |
+| user/images、files、workflows/ | 资产/其他/SillyTavern/user-media/ | 按原目录保存用户媒体与工作流 |
 
-选择角色卡时，会同时选择该角色目录下的全部聊天；没有对应角色卡的散聊天会进入“临时”故事，不会被丢弃。世界书、预设、正则和“扩展与媒体”可以在导入窗口中分别勾选；settings.json 的关系单独控制。
+选择角色卡时，会同时选择该角色目录下的全部聊天；没有对应角色卡的散聊天会进入“临时”故事，不会被丢弃。世界书、预设、正则和“其他资产”可以在导入窗口中分别勾选；settings.json 的关系单独控制。其他资产只保存可还原副本，不会执行扩展代码；用户人设仅提取 Persona 相关字段，不会整份复制 settings.json。
 
 ## 世界书关系
 
@@ -486,11 +682,11 @@ STE 只读取 SillyTavern 来源目录，导入不会移动、删除或改写来
 
 ## 重复导入与更新
 
-同一路径再次导入时，角色、聊天、世界书、预设和正则会跳过，不创建副本；角色目录中新出现的聊天仍会补进原角色。已有聊天只刷新对话级世界书关系，不覆盖 STE 中已经编辑的消息。extensions/ 和 assets/ 按同一路径更新 STE 内的归档副本，来源目录保持不变。
+同一路径再次导入时，角色、聊天、世界书、预设和正则会跳过，不创建副本；角色目录中新出现的聊天仍会补进原角色。已有聊天只刷新对话级世界书关系，不覆盖 STE 中已经编辑的消息。其他资产按同一路径更新 STE 内的归档副本，来源目录保持不变。
 
 ## 当前没有结构化导入
 
-群组、群聊、Persona、其他模型后端预设、主题、背景、快捷回复和向量索引目前只会在扫描清单中提示，尚未转换为 STE 业务对象。密钥文件不进入导入范围；角色卡和聊天中的未知字段仍随原始数据保留。
+群组、群聊、其他模型后端预设和向量索引目前尚未转换为 STE 业务对象。快速回复、Persona、主题和媒体已作为可还原的安全归档保存，但尚无专用编辑器。密钥文件不进入导入范围；角色卡和聊天中的未知字段仍随原始数据保留。
 `;
 
 /**
@@ -876,7 +1072,7 @@ export async function importSelected(stFs: VaultFs, plan: STImportPlan): Promise
     }
   }
 
-  // 扩展与媒体只做二进制原样复制，不加载、不执行，也不尝试解释未知插件格式。
+  // 其他资产不执行扩展代码；原文件做二进制归档，选择性设置以安全文本清单归档。
   const vaultFs = getActiveVault()?.fs;
   for (const group of plan.archives ?? []) {
     for (const file of group.files) {
@@ -887,22 +1083,41 @@ export async function importSelected(stFs: VaultFs, plan: STImportPlan): Promise
         await vaultFs.writeBinary(target, await stFs.readBinary(file.path));
         summary.archivedFiles++;
         summary.archiveBytes += file.size;
-        detail({ status: 'archived', kind: group.kind, name: file.relativePath, sourcePath: src, target });
+        detail({ status: 'archived', kind: group.label, name: file.relativePath, sourcePath: src, target });
       } catch (err) {
         console.warn(`[st-import] 原样归档失败 ${file.path}:`, err);
         summary.failed++;
-        detail({ status: 'failed', kind: group.kind, name: file.relativePath, sourcePath: src, target });
+        detail({ status: 'failed', kind: group.label, name: file.relativePath, sourcePath: src, target });
+      }
+    }
+    for (const file of group.generatedFiles ?? []) {
+      const src = sourcePathOf(plan.stRoot, file.sourcePath ?? group.rootPath);
+      const target = joinPath('资产/其他/SillyTavern', group.kind, file.relativePath);
+      try {
+        if (!vaultFs) throw new Error('当前未激活客户端文件库');
+        await vaultFs.writeText(target, file.text);
+        summary.archivedFiles++;
+        summary.archiveBytes += file.size;
+        detail({ status: 'archived', kind: group.label, name: file.relativePath, sourcePath: src, target });
+      } catch (err) {
+        console.warn(`[st-import] 安全清单归档失败 ${file.relativePath}:`, err);
+        summary.failed++;
+        detail({ status: 'failed', kind: group.label, name: file.relativePath, sourcePath: src, target });
       }
     }
   }
 
   const selectedAnything = plan.characters.length + plan.strayChats.length + plan.worldbooks.length + plan.presets.length
-    + (plan.regex ? 1 : 0) + (plan.archives?.reduce((sum, group) => sum + group.files.length, 0) ?? 0)
+    + (plan.regex ? 1 : 0) + (plan.archives?.reduce(
+      (sum, group) => sum + group.files.length + (group.generatedFiles?.length ?? 0),
+      0,
+    ) ?? 0)
     + (plan.relationships?.status === 'parsed' ? 1 : 0) > 0;
   if (vaultFs && selectedAnything) {
     try {
       const guidePath = '说明/SillyTavern 导入说明.md';
-      if (!(await vaultFs.stat(guidePath)).exists) await vaultFs.writeText(guidePath, ST_IMPORT_GUIDE);
+      // 这是应用维护的导入规则说明；每次导入刷新，避免升级后旧库继续展示过时范围。
+      await vaultFs.writeText(guidePath, ST_IMPORT_GUIDE);
       await vaultFs.writeText('说明/SillyTavern 最近一次导入.json', JSON.stringify({
         sourceRoot: plan.stRoot,
         importedAt: new Date().toISOString(),

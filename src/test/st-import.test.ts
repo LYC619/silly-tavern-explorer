@@ -203,6 +203,97 @@ describe('scanSTUserDir', () => {
       characterWorldbooks: [{ characterFile: '赫敏.png', worldbooks: ['魔法补充', '未找到的书'] }],
     });
   });
+
+  it('按用户可理解的类别识别 ST 1.18 扩展、人设、快速回复和媒体，并排除密钥与缓存', async () => {
+    const st = createMemFs();
+    await st.writeText('extensions/st-stage/index.js', 'stage');
+    await st.writeText('extensions/ST-summary/index.js', 'summary');
+    await st.writeBinary('assets/角色A/开心.png', 'aW1hZ2U=');
+    await st.writeText('QuickReplies/Default.json', JSON.stringify({
+      version: 2,
+      name: 'Default',
+      qrList: [{ id: 1 }, { id: 2 }],
+    }));
+    await st.writeText('QuickReplies/日常.json', JSON.stringify({
+      version: 2,
+      name: '日常',
+      qrList: [{ id: 1 }],
+    }));
+    await st.writeBinary('User Avatars/me.png', 'YXZhdGFy');
+    await st.writeBinary('User Avatars/demo.png', 'YXZhdGFy');
+    await st.writeBinary('backgrounds/room.jpg', 'YmFja2dyb3VuZA==');
+    await st.writeText('themes/cream.json', '{}');
+    await st.writeText('movingUI/desktop.json', '{}');
+    await st.writeBinary('user/images/upload.png', 'aW1hZ2U=');
+    await st.writeText('user/files/notes.txt', 'notes');
+    await st.writeText('user/workflows/demo.json', '{}');
+    await st.writeText('settings.json', JSON.stringify({
+      power_user: {
+        personas: { 'me.png': '我的人设', 'demo.png': '演示人设' },
+        persona_descriptions: {
+          'me.png': { description: '第一人设', position: 0, depth: 2, role: 0, lorebook: '我的世界书' },
+          'demo.png': { description: '演示人设', position: 0, depth: 2, role: 0 },
+        },
+        default_persona: 'me.png',
+        persona_sort_order: ['me.png', 'demo.png'],
+      },
+    }));
+    await st.writeText('secrets.json', '{"apiKey":"never archive"}');
+    await st.writeText('backups/settings.json', '{}');
+    await st.writeBinary('thumbnails/persona/me.png', 'dGh1bWI=');
+    await st.writeText('vectors/index.json', '{}');
+
+    const scan = await scanSTUserDir(st);
+    expect(scan.archives.map((group) => ({
+      kind: group.kind,
+      label: group.label,
+      itemCount: group.itemCount,
+      files: group.files.map((file) => file.relativePath),
+      generated: group.generatedFiles?.map((file) => file.relativePath) ?? [],
+    }))).toEqual([
+      {
+        kind: 'extensions', label: '第三方扩展', itemCount: 2,
+        files: ['ST-summary/index.js', 'st-stage/index.js'], generated: [],
+      },
+      {
+        kind: 'assets', label: '扩展资产', itemCount: 1,
+        files: ['角色A/开心.png'], generated: [],
+      },
+      {
+        kind: 'quick-replies', label: '快速回复', itemCount: 2,
+        files: ['Default.json', '日常.json'], generated: [],
+      },
+      {
+        kind: 'personas', label: '用户人设', itemCount: 2,
+        files: ['avatars/demo.png', 'avatars/me.png'], generated: ['personas.json'],
+      },
+      {
+        kind: 'backgrounds', label: '聊天背景', itemCount: 1,
+        files: ['room.jpg'], generated: [],
+      },
+      {
+        kind: 'appearance', label: '主题与界面布局', itemCount: 2,
+        files: ['movingUI/desktop.json', 'themes/cream.json'], generated: [],
+      },
+      {
+        kind: 'user-media', label: '用户媒体与工作流', itemCount: 3,
+        files: ['files/notes.txt', 'images/upload.png', 'workflows/demo.json'], generated: [],
+      },
+    ]);
+
+    const personaGroup = scan.archives.find((group) => group.kind === 'personas')!;
+    expect(JSON.parse(personaGroup.generatedFiles![0].text)).toEqual({
+      version: 1,
+      personas: { 'me.png': '我的人设', 'demo.png': '演示人设' },
+      personaDescriptions: {
+        'me.png': { description: '第一人设', position: 0, depth: 2, role: 0, lorebook: '我的世界书' },
+        'demo.png': { description: '演示人设', position: 0, depth: 2, role: 0 },
+      },
+      defaultPersona: 'me.png',
+      personaSortOrder: ['me.png', 'demo.png'],
+    });
+    expect(JSON.stringify(scan.archives)).not.toMatch(/secrets|backups|thumbnails|vectors|apiKey/);
+  });
 });
 
 // ---------- 导入 ----------
@@ -495,6 +586,75 @@ describe('importSelected', () => {
     expect(guide).toContain('世界书关系');
     expect(guide).toContain('同一路径再次导入');
     expect(guide).toContain('当前没有结构化导入');
+  });
+
+  it('把快速回复、人设、背景、主题布局和用户媒体安全归档到稳定目录', async () => {
+    const st = createMemFs();
+    await st.writeBinary('QuickReplies/Default.json', btoa(JSON.stringify({ name: 'Default', qrList: [{ id: 1 }] })));
+    await st.writeBinary('User Avatars/me.png', 'YXZhdGFy');
+    await st.writeBinary('backgrounds/room.jpg', 'YmFja2dyb3VuZA==');
+    await st.writeBinary('themes/cream.json', btoa('{"name":"cream"}'));
+    await st.writeBinary('movingUI/desktop.json', btoa('{"layout":"desktop"}'));
+    await st.writeBinary('user/images/upload.png', 'aW1hZ2U=');
+    await st.writeText('settings.json', JSON.stringify({
+      power_user: {
+        personas: { 'me.png': '我的人设' },
+        persona_descriptions: { 'me.png': { description: '人设正文', lorebook: '个人世界书' } },
+        default_persona: 'me.png',
+        persona_sort_order: ['me.png'],
+      },
+      unrelated_private_setting: '不能进入人设清单',
+    }));
+    await st.writeText('secrets.json', '{"apiKey":"never archive"}');
+    const vaultFs = setupVault();
+    await vaultFs.writeText('说明/SillyTavern 导入说明.md', '# 旧版说明\n\n仅支持 extensions/。');
+    const scan = await scanSTUserDir(st);
+
+    const summary = await importSelected(st, {
+      stRoot: 'C:/ST',
+      characters: [],
+      strayChats: [],
+      worldbooks: [],
+      presets: [],
+      archives: scan.archives,
+      relationships: scan.relationships,
+    });
+
+    expect(summary.archivedFiles).toBe(7);
+    const files = Object.keys(vaultFs.dump());
+    expect(files).toEqual(expect.arrayContaining([
+      '资产/其他/SillyTavern/quick-replies/Default.json',
+      '资产/其他/SillyTavern/personas/avatars/me.png',
+      '资产/其他/SillyTavern/personas/personas.json',
+      '资产/其他/SillyTavern/backgrounds/room.jpg',
+      '资产/其他/SillyTavern/appearance/themes/cream.json',
+      '资产/其他/SillyTavern/appearance/movingUI/desktop.json',
+      '资产/其他/SillyTavern/user-media/images/upload.png',
+    ]));
+    expect(files.some((file) => /settings\.json|secrets\.json/.test(file) && file.startsWith('资产/其他/'))).toBe(false);
+    const manifestText = await vaultFs.readText('资产/其他/SillyTavern/personas/personas.json');
+    expect(JSON.parse(manifestText)).toEqual({
+      version: 1,
+      personas: { 'me.png': '我的人设' },
+      personaDescriptions: { 'me.png': { description: '人设正文', lorebook: '个人世界书' } },
+      defaultPersona: 'me.png',
+      personaSortOrder: ['me.png'],
+    });
+    expect(manifestText).not.toContain('unrelated_private_setting');
+    expect(manifestText).not.toContain('apiKey');
+
+    const firstArchivePaths = files.filter((file) => file.startsWith('资产/其他/SillyTavern/')).sort();
+    await st.writeBinary('QuickReplies/Default.json', btoa(JSON.stringify({ name: 'Default', qrList: [{ id: 2 }] })));
+    await importSelected(st, selectAll(await scanSTUserDir(st)));
+    const secondArchivePaths = Object.keys(vaultFs.dump()).filter((file) => file.startsWith('资产/其他/SillyTavern/')).sort();
+    expect(secondArchivePaths).toEqual(firstArchivePaths);
+
+    const guide = await vaultFs.readText('说明/SillyTavern 导入说明.md');
+    expect(guide).not.toContain('旧版说明');
+    expect(guide).toContain('QuickReplies/');
+    expect(guide).toContain('User Avatars/');
+    expect(guide).toContain('只提取 Persona 相关字段');
+    expect(guide).not.toContain('Persona、其他模型后端预设、主题、背景、快捷回复');
   });
 
   it('世界书关系优先指向 worlds 来源文件，不误连到同名手动资产', async () => {

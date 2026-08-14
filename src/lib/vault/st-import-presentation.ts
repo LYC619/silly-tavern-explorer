@@ -24,7 +24,7 @@ export interface STUnresolvedGroup {
 }
 
 /** 导入前必须让用户看懂的重复项策略，选择弹窗和入口卡共用。 */
-export const IMPORT_POLICY_SUMMARY = '同一路径的角色、聊天、世界书、预设和正则会跳过；扩展与媒体按同路径更新归档，不会改动来源文件。';
+export const IMPORT_POLICY_SUMMARY = '同一路径的角色、聊天、世界书、预设和正则会跳过；其他资产按同路径更新归档，不会改动来源文件。';
 
 export interface ImportResultStatusInput {
   failed: number;

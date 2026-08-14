@@ -63,6 +63,11 @@ describe('ST 导入展示模型', () => {
     expect(countImportPicks(picks)).toBe(8);
   });
 
+  it('重复策略把所有其他资产统一说明为同路径更新归档', () => {
+    expect(presentationModule.IMPORT_POLICY_SUMMARY).toContain('其他资产按同路径更新归档');
+    expect(presentationModule.IMPORT_POLICY_SUMMARY).not.toContain('扩展与媒体按同路径更新归档');
+  });
+
   it('只有扫描警告时明确说明安全跳过，不误报为全部正常', () => {
     expect(buildImportResultStatus({ failed: 0, unresolved: 0, warnings: 2 })).toEqual({
       needsAttention: true,
