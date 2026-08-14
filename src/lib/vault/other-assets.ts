@@ -7,6 +7,7 @@ export const IMAGE_PREVIEW_LIMIT = 12 * 1024 * 1024;
 
 export type OtherAssetCategoryId =
   | 'extensions'
+  | 'assets'
   | 'quick-replies'
   | 'personas'
   | 'backgrounds'
@@ -26,6 +27,7 @@ export interface OtherAssetCategorySummary extends OtherAssetCategoryMeta {
 
 export const OTHER_ASSET_CATEGORIES: readonly OtherAssetCategoryMeta[] = [
   { id: 'extensions', label: '扩展', description: '查看扩展清单、版本与归档源码', relativePath: 'extensions' },
+  { id: 'assets', label: '扩展资产', description: '浏览扩展资产文件，保持原相对路径', relativePath: 'assets' },
   { id: 'quick-replies', label: '快速回复', description: '直接核对回复选项与命令正文', relativePath: 'quick-replies' },
   { id: 'personas', label: '用户人设', description: '查看用户名称、头像、描述与关联', relativePath: 'personas' },
   { id: 'backgrounds', label: '背景', description: '浏览并预览聊天背景图片', relativePath: 'backgrounds' },
@@ -285,8 +287,9 @@ async function countFilesOneLevel(fs: VaultFs, relativePath: string): Promise<nu
 }
 
 export async function loadOtherAssetOverview(fs: VaultFs): Promise<OtherAssetCategorySummary[]> {
-  const [extensions, quickReplies, personas, backgrounds, appearance, userMedia] = await Promise.all([
+  const [extensions, assets, quickReplies, personas, backgrounds, appearance, userMedia] = await Promise.all([
     safeList(fs, archivePath('extensions')).then((entries) => entries.filter((entry) => entry.isDir).length),
+    countFilesOneLevel(fs, 'assets'),
     countImmediateFiles(fs, 'quick-replies'),
     loadPersonas(fs).then((items) => items.length),
     countImmediateFiles(fs, 'backgrounds'),
@@ -295,6 +298,7 @@ export async function loadOtherAssetOverview(fs: VaultFs): Promise<OtherAssetCat
   ]);
   const counts: Record<OtherAssetCategoryId, number> = {
     extensions,
+    assets,
     'quick-replies': quickReplies,
     personas,
     backgrounds,

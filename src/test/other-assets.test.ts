@@ -42,13 +42,14 @@ async function createArchiveFixture() {
 }
 
 describe('其他资产归档模型', () => {
-  it('按用户可理解的六类汇总真实归档内容', async () => {
+  it('按用户可理解的七类汇总真实归档内容（扩展资产未导入时计数为 0 但入口存在）', async () => {
     const fs = await createArchiveFixture();
 
     const overview = await loadOtherAssetOverview(fs);
 
     expect(overview.map((item) => [item.id, item.count])).toEqual([
       ['extensions', 1],
+      ['assets', 0],
       ['quick-replies', 1],
       ['personas', 1],
       ['backgrounds', 1],

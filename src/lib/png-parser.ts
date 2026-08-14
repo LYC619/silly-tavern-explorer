@@ -164,6 +164,11 @@ export function extractCharacterFromPngBuffer(buffer: ArrayBuffer): STCharacterC
   throw new Error('PNG 文件中未找到角色卡数据（缺少 chara / ccv3 tEXt 块）');
 }
 
+/** 判定「PNG 无卡元数据」错误：调用方以此区分可转空白卡的普通图片；文案变更时同步维护此处。 */
+export function isMissingCardMetadataError(error: unknown): boolean {
+  return error instanceof Error && error.message.includes('缺少 chara / ccv3');
+}
+
 /** 探测卡版本 */
 function detectSpec(card: STCharacterCard): 'v1' | 'v2' | 'v3' {
   const spec = (card.spec || '').toLowerCase();

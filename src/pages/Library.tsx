@@ -753,7 +753,7 @@ const Library = () => {
           <input
             ref={fileInputRef}
             type="file"
-            accept=".png,.json"
+            accept=".png,.jpg,.jpeg,.json"
             multiple
             className="hidden"
             onChange={(e) => handleImportFiles(e.target.files)}

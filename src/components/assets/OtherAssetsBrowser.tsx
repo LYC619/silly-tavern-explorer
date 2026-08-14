@@ -45,6 +45,7 @@ type BrowserSection = 'overview' | OtherAssetCategoryId;
 const SECTION_ICONS: Record<BrowserSection, typeof Archive> = {
   overview: LayoutGrid,
   extensions: Code2,
+  assets: Folder,
   'quick-replies': MessageSquareReply,
   personas: UserRound,
   backgrounds: ImageIcon,

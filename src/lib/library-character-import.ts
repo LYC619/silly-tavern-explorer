@@ -8,11 +8,13 @@ import {
 } from '@/lib/library-tag-preferences';
 import {
   extractCharacterFromPngBuffer,
+  isMissingCardMetadataError,
   parseCharacterCardJson,
   type STCharacterCard,
 } from '@/lib/png-parser';
 import { embedCharaInPng } from '@/lib/png-writer';
 import { TAG_CATEGORIES, makeTag, validateUserTagInput, type TagCategory } from '@/lib/tag-taxonomy';
+import { bytesToBase64 } from '@/lib/utils';
 import type { ArchiveCharacter, CharacterType } from '@/types/archive';
 
 export interface PreparedLibraryCharacterImport {
@@ -42,14 +44,6 @@ function stem(fileName: string): string {
   const trimmed = fileName.trim();
   const withoutExtension = trimmed.replace(/\.[^.]+$/, '').trim();
   return withoutExtension || '未命名角色';
-}
-
-function bytesToBase64(bytes: Uint8Array): string {
-  let binary = '';
-  for (let index = 0; index < bytes.length; index += 1) {
-    binary += String.fromCharCode(bytes[index]);
-  }
-  return btoa(binary);
 }
 
 async function readFileBuffer(file: File): Promise<ArrayBuffer> {
@@ -144,13 +138,10 @@ export function createBlankImageCard(fileName: string): STCharacterCard {
   };
 }
 
-function isMissingCardMetadata(error: unknown): boolean {
-  return error instanceof Error && error.message.includes('缺少 chara / ccv3');
-}
-
 export async function prepareLibraryCharacterFile(file: File): Promise<PreparedLibraryCharacterImport> {
   const lowerName = file.name.toLowerCase();
-  if (lowerName.endsWith('.png')) {
+  // .png/.jpg/.jpeg 都按内容签名分流：真 PNG 走卡提取，其余光栅图（含改名伪装）转 PNG 空白卡。
+  if (/\.(png|jpe?g)$/.test(lowerName)) {
     let buffer = await readFileBuffer(file);
     const actualMime = detectRasterImageMime(buffer);
     if (actualMime && actualMime !== 'image/png') {
@@ -171,7 +162,7 @@ export async function prepareLibraryCharacterFile(file: File): Promise<PreparedL
         character: buildCharacterFromCard(card, bytesToBase64(new Uint8Array(buffer))),
       };
     } catch (error) {
-      if (!isMissingCardMetadata(error)) throw error;
+      if (!isMissingCardMetadataError(error)) throw error;
       const card = createBlankImageCard(file.name);
       const embedded = embedCharaInPng(buffer, card);
       return {

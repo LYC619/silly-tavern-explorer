@@ -124,6 +124,13 @@ describe('library character import preparation', () => {
       spec: 'chara_card_v2',
       data: { name: 'card_03_conquer' },
     });
+
+    // 真实 .jpg 扩展名走同一条按内容分流的转换链
+    const jpgPrepared = await prepareLibraryCharacterFile(
+      new File([jpegBytes.buffer as ArrayBuffer], '角色卡.jpg', { type: 'image/jpeg' }),
+    );
+    expect(jpgPrepared.kind).toBe('blank-image');
+    expect(jpgPrepared.character.name).toBe('角色卡');
   });
 
   it('扩展名为 PNG 的未知或损坏内容仍拒绝导入', async () => {

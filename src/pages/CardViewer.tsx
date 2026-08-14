@@ -8,6 +8,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { ToastAction } from '@/components/ui/toast';
 import { useToast } from '@/hooks/use-toast';
+import { bytesToBase64 } from '@/lib/utils';
 import { CharacterCardEditor } from '@/components/CharacterCardViewer';
 import {
   extractCharacterFromPng, parseCharacterCardJson, normalizeCharacterCard,
@@ -46,10 +47,7 @@ function download(content: BlobPart, filename: string, mime: string) {
 
 /** ArrayBuffer → 纯 base64（无 data: 前缀） */
 function abToBase64(buf: ArrayBuffer): string {
-  const bytes = new Uint8Array(buf);
-  let binary = '';
-  for (let i = 0; i < bytes.length; i++) binary += String.fromCharCode(bytes[i]);
-  return btoa(binary);
+  return bytesToBase64(buf);
 }
 /** 纯 base64 → ArrayBuffer */
 function base64ToAb(b64: string): ArrayBuffer {

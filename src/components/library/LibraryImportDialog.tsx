@@ -183,7 +183,7 @@ export function LibraryImportDialog({
                     </button>
                   )}
                 </div>
-                <p className="mt-0.5 text-[10px] text-[color:var(--text-muted)]">每张角色只能选择一种类型；不选择则保持未分类。</p>
+                <p className="mt-0.5 text-[10px] text-[color:var(--text-muted)]">类型会统一应用到本批全部卡片，不受下方标签开关影响；不选择则保持未分类。</p>
                 <div className="mt-2 grid grid-cols-5 gap-1.5">
                   {CHARACTER_TYPES.map((option) => (
                     <button
