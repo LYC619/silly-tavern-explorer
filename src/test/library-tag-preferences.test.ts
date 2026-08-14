@@ -6,7 +6,6 @@ import {
   buildLibraryFilterSections,
   buildManagedTagOptions,
   getTagCategories,
-  moveCategory,
   moveTag,
   normalizeLibraryTagPreferences,
   removeCustomTagDefinition,
@@ -142,7 +141,7 @@ describe('library tag preferences', () => {
     expect(() => addCustomTagDefinition(base, '人物', '少女')).toThrow('标签已存在');
   });
 
-  it('支持自定义一级标签、子标签和一级标签排序', () => {
+  it('支持自定义一级标签与子标签，排序草稿由标签管理拖拽持久化', () => {
     const base = normalizeLibraryTagPreferences(undefined);
     const withCategory = addCustomCategory(base, '历史');
     const withChildren = addCustomTagDefinition(withCategory, '历史', '三国');
@@ -153,8 +152,8 @@ describe('library tag preferences', () => {
     expect(buildManagedTagOptions([], withSecondChild).filter((option) => option.category === '历史'))
       .toHaveLength(2);
 
-    const moved = moveCategory(withSecondChild, getTagCategories(withSecondChild), '历史', 0);
-    expect(getTagCategories(moved)[0]).toBe('历史');
+    const reordered = { ...withSecondChild, categoryOrder: ['历史'] };
+    expect(getTagCategories(reordered)[0]).toBe('历史');
   });
 
   it('新建但尚未添加子标签的一级标签仍保留在筛选栏分组中', () => {

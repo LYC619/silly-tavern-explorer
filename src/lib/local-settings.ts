@@ -34,6 +34,7 @@ export function getHideUnusedLibraryTags(): boolean {
 export function setHideUnusedLibraryTags(on: boolean): void {
   try {
     localStorage.setItem(HIDE_UNUSED_LIBRARY_TAGS_KEY, on ? '1' : '0');
-    window.dispatchEvent(new Event(LIBRARY_DISPLAY_SETTINGS_EVENT));
   } catch { /* 隐私模式存不了就用默认值 */ }
+  // 事件派发不依赖存储成功：即使 localStorage 不可用，设置页开关与角色库也要同步本次会话状态。
+  window.dispatchEvent(new Event(LIBRARY_DISPLAY_SETTINGS_EVENT));
 }

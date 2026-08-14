@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { GripVertical, HelpCircle, Plus } from 'lucide-react';
 import {
   Dialog,
@@ -27,6 +27,7 @@ import { CHARACTER_TYPES, updateCharacter } from '@/lib/archive-db';
 import { applyCharacterTagPatch, applyCharacterTypePatch } from '@/lib/character-tag-domain';
 import {
   CATEGORY_HELP,
+  validateUserTagInput,
   type TagCategory,
 } from '@/lib/tag-taxonomy';
 import {
@@ -122,7 +123,7 @@ export function TagManagerDialog({
     return previewInsertion(activeOptions, pointerDragging.raw, pointerDropTarget.raw, pointerDropTarget.edge, (option) => option.raw);
   }, [activeOptions, pointerDragging, pointerDropTarget]);
 
-  const savePreferences = async (next: LibraryTagPreferences, message?: string) => {
+  const savePreferences = useCallback(async (next: LibraryTagPreferences, message?: string) => {
     setBusy(true);
     try {
       await onPreferencesChange(next);
@@ -132,7 +133,7 @@ export function TagManagerDialog({
     } finally {
       setBusy(false);
     }
-  };
+  }, [onPreferencesChange, toast]);
 
   const handleAdd = async () => {
     if (activeCategory === '类型') return;
@@ -165,15 +166,15 @@ export function TagManagerDialog({
     await savePreferences(moveTag(preferences, allRaws, raw, targetIndex));
   };
 
-  const handleDrop = async (draggedRaw: string, targetRaw: string, edge: DropEdge) => {
+  const handleDrop = useCallback(async (draggedRaw: string, targetRaw: string, edge: DropEdge) => {
     if (!draggedRaw || draggedRaw === targetRaw) return;
     const allRaws = options.map((option) => option.raw);
     const ordered = previewInsertion(allRaws, draggedRaw, targetRaw, edge, String);
     const leftovers = preferences.order.filter((raw) => !ordered.includes(raw));
     await savePreferences({ ...preferences, order: [...ordered, ...leftovers] });
-  };
+  }, [options, preferences, savePreferences]);
 
-  const handleDropCategory = async (draggedCategory: string, targetCategory: string, edge: DropEdge) => {
+  const handleDropCategory = useCallback(async (draggedCategory: string, targetCategory: string, edge: DropEdge) => {
     if (!draggedCategory || draggedCategory === targetCategory || targetCategory === '未分类') return;
     const ordered = previewInsertion(
       categories.filter((category) => category !== '未分类'),
@@ -183,9 +184,9 @@ export function TagManagerDialog({
       String,
     );
     await savePreferences({ ...preferences, categoryOrder: ordered });
-  };
+  }, [categories, preferences, savePreferences]);
 
-  const clearPointerDrag = () => {
+  const clearPointerDrag = useCallback(() => {
     const drag = pointerDragRef.current;
     if (drag) {
       try {
@@ -200,7 +201,7 @@ export function TagManagerDialog({
     setPointerDropTarget(null);
     document.body.style.userSelect = '';
     document.body.style.cursor = '';
-  };
+  }, []);
 
   const startPointerDrag = (
     drag: { kind: 'tag' | 'category'; raw: string },
@@ -262,10 +263,16 @@ export function TagManagerDialog({
       window.removeEventListener('pointercancel', cancelPointerDrag);
       if (pointerDragRef.current) clearPointerDrag();
     };
-  }, [activeOptions, categories, preferences, busy]);
+  }, [activeOptions, clearPointerDrag, handleDrop, handleDropCategory]);
 
   const assignSelectedTag = async () => {
     if (!assignmentOption || selectedCharacters.length === 0) return;
+    // 类型/评价档位不允许当普通标签分配：类型走类型面板，档位随评分自动。
+    const rejected = validateUserTagInput(assignmentOption.raw);
+    if (rejected) {
+      toast({ title: rejected, variant: 'destructive' });
+      return;
+    }
     const targets = selectedCharacters.filter((character) => !character.tags.includes(assignmentOption.raw));
     if (targets.length === 0) {
       toast({ title: `所选角色卡都已有「${assignmentOption.label}」` });
@@ -292,8 +299,12 @@ export function TagManagerDialog({
           ? `${selectedCharacters.length - targets.length} 张卡原本已有该标签，已跳过。`
           : undefined,
       });
-    } catch {
-      toast({ title: '批量添加标签失败', variant: 'destructive' });
+    } catch (error) {
+      toast({
+        title: '批量添加标签失败',
+        description: error instanceof Error ? error.message : undefined,
+        variant: 'destructive',
+      });
     } finally {
       setBusy(false);
     }

@@ -63,4 +63,22 @@ describe('archive metadata library tag preferences', () => {
     expect((await getLibraryTagPreferences()).customTags).toEqual(['私人']);
     expect((await getLibraryTagPreferences()).hidden).toEqual([]);
   });
+
+  it('schema 版本与标签偏好并发写入串行落盘，不互相覆盖', async () => {
+    const fs = createMemFs();
+    setActiveVault(createVault(fs));
+    await Promise.all([
+      setArchiveSchemaVersion(21),
+      saveLibraryTagPreferences(normalizeLibraryTagPreferences({
+        version: 1,
+        customTags: ['我的收藏'],
+        order: [],
+        hidden: [],
+      })),
+    ]);
+
+    const raw = JSON.parse(await fs.readText('库信息.json'));
+    expect(raw.schemaVersion).toBe(21);
+    expect(raw.libraryTags.customTags).toEqual(['我的收藏']);
+  });
 });

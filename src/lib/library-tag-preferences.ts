@@ -184,20 +184,6 @@ export function addCustomCategory(
   };
 }
 
-export function moveCategory(
-  preferences: LibraryTagPreferences,
-  currentCategories: string[],
-  category: string,
-  targetIndex: number,
-): LibraryTagPreferences {
-  const ordered = uniqueStrings(currentCategories).filter((item) => item !== '未分类');
-  const sourceIndex = ordered.indexOf(category);
-  if (sourceIndex < 0) return preferences;
-  const [moved] = ordered.splice(sourceIndex, 1);
-  ordered.splice(Math.max(0, Math.min(targetIndex, ordered.length)), 0, moved);
-  return { ...preferences, categoryOrder: ordered };
-}
-
 export function setTagVisibility(
   preferences: LibraryTagPreferences,
   raw: string,

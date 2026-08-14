@@ -9,6 +9,7 @@ import { normalizeCharacterCard } from '@/lib/png-parser';
 import { createRepo, getCurrentRepo } from '@/lib/repo';
 import { extractModels, estimatePlayTime, computeStoryProps } from '@/lib/story-meta';
 import { KeyedSerialQueue } from '@/lib/keyed-serial-queue';
+import { bytesToBase64 } from '@/lib/utils';
 import {
   normalizeLibraryTagPreferences,
   type LibraryTagPreferences,
@@ -87,18 +88,22 @@ export async function deleteArchiveStory(id: string): Promise<void> {
 }
 
 const ARCHIVE_SCHEMA_META_ID = 'archive-schema';
+/** 元信息记录是 read-modify-write，统一排队防止 schemaVersion 与标签偏好并发互相覆盖。 */
+const metaWrites = new KeyedSerialQueue();
 
 export async function getArchiveSchemaVersion(): Promise<number> {
   return (await archiveMetaRepo.get(ARCHIVE_SCHEMA_META_ID))?.schemaVersion ?? 1;
 }
 
 export async function setArchiveSchemaVersion(schemaVersion: number): Promise<void> {
-  const current = await archiveMetaRepo.get(ARCHIVE_SCHEMA_META_ID);
-  await archiveMetaRepo.put({
-    ...current,
-    id: ARCHIVE_SCHEMA_META_ID,
-    schemaVersion,
-    updatedAt: Date.now(),
+  return metaWrites.enqueue(ARCHIVE_SCHEMA_META_ID, async () => {
+    const current = await archiveMetaRepo.get(ARCHIVE_SCHEMA_META_ID);
+    await archiveMetaRepo.put({
+      ...current,
+      id: ARCHIVE_SCHEMA_META_ID,
+      schemaVersion,
+      updatedAt: Date.now(),
+    });
   });
 }
 
@@ -108,13 +113,15 @@ export async function getLibraryTagPreferences(): Promise<LibraryTagPreferences>
 }
 
 export async function saveLibraryTagPreferences(preferences: LibraryTagPreferences): Promise<void> {
-  const current = await archiveMetaRepo.get(ARCHIVE_SCHEMA_META_ID);
-  await archiveMetaRepo.put({
-    ...current,
-    id: ARCHIVE_SCHEMA_META_ID,
-    schemaVersion: current?.schemaVersion ?? 1,
-    libraryTags: normalizeLibraryTagPreferences(preferences),
-    updatedAt: Date.now(),
+  return metaWrites.enqueue(ARCHIVE_SCHEMA_META_ID, async () => {
+    const current = await archiveMetaRepo.get(ARCHIVE_SCHEMA_META_ID);
+    await archiveMetaRepo.put({
+      ...current,
+      id: ARCHIVE_SCHEMA_META_ID,
+      schemaVersion: current?.schemaVersion ?? 1,
+      libraryTags: normalizeLibraryTagPreferences(preferences),
+      updatedAt: Date.now(),
+    });
   });
 }
 
@@ -298,8 +305,5 @@ export const STORY_STATUSES: StoryStatus[] = ['未开始', '进行中', '已完�
 
 /** ArrayBuffer → 纯 base64（无 data: 前缀），导入 PNG 卡时存原图用 */
 export function abToBase64(buf: ArrayBuffer): string {
-  const bytes = new Uint8Array(buf);
-  let binary = '';
-  for (let i = 0; i < bytes.length; i++) binary += String.fromCharCode(bytes[i]);
-  return btoa(binary);
+  return bytesToBase64(buf);
 }
