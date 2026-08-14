@@ -342,12 +342,13 @@ const NovelView = ({
     toast({ title: '已永久保存为自定义记录' });
   };
 
-  // Esc 关闭（无弹窗时）
+  // Esc 关闭（无弹窗时）；不接管交互控件与上层弹窗的按键（弹窗 Esc 只关弹窗、滑块方向键自步进、按钮空格应触发点击）
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
-      if (chapterDialogOpen || polishChapter) return;
+      if (e.defaultPrevented || chapterDialogOpen || polishChapter) return;
       const target = e.target instanceof HTMLElement ? e.target : null;
-      if (target?.closest('input, textarea, [contenteditable="true"]')) return;
+      if (target?.closest('input, textarea, [contenteditable="true"], [role="dialog"], [role="menu"], [role="listbox"], [role="slider"]')) return;
+      if (e.key === ' ' && target?.closest('button, a[href], select, summary')) return;
       if (e.key === 'Escape') {
         goToPage(currentPageRef.current);
         onClose();

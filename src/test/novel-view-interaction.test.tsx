@@ -67,6 +67,56 @@ describe('小说视图翻页交互', () => {
     expect(container.textContent).toMatch(/3–4 \/ \d+/);
   });
 
+  it('按键已被处理或来自弹窗/交互控件时，阅读器不接管翻页与关闭', async () => {
+    const onClose = vi.fn();
+    await act(async () => {
+      root.render(
+        <NovelView
+          session={session}
+          markers={[]}
+          regexRules={[]}
+          onClose={onClose}
+          readOnly
+          embedded
+        />,
+      );
+    });
+    expect(container.textContent).toMatch(/1–2 \/ \d+/);
+
+    // 已被上层处理（defaultPrevented）的按键不翻页
+    await act(async () => {
+      const handled = new KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true, cancelable: true });
+      handled.preventDefault();
+      window.dispatchEvent(handled);
+    });
+    expect(container.textContent).toMatch(/1–2 \/ \d+/);
+
+    // 上层弹窗内按 Esc 只关弹窗，不连带关闭阅读器
+    const dialog = document.createElement('div');
+    dialog.setAttribute('role', 'dialog');
+    document.body.appendChild(dialog);
+    await act(async () => {
+      dialog.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true }));
+    });
+    expect(onClose).not.toHaveBeenCalled();
+    dialog.remove();
+
+    // 焦点在按钮上按空格留给按钮点击，不翻页
+    const button = document.createElement('button');
+    document.body.appendChild(button);
+    await act(async () => {
+      button.dispatchEvent(new KeyboardEvent('keydown', { key: ' ', bubbles: true, cancelable: true }));
+    });
+    expect(container.textContent).toMatch(/1–2 \/ \d+/);
+    button.remove();
+
+    // 无弹窗时 Esc 仍正常关闭
+    await act(async () => {
+      window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true }));
+    });
+    expect(onClose).toHaveBeenCalledTimes(1);
+  });
+
   it('小说正文段落连续排版，叙述和对白均使用首行缩进', async () => {
     await act(async () => {
       root.render(
