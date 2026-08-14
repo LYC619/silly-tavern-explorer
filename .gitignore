@@ -50,3 +50,4 @@ scripts/*
 .worktrees/
 *测试清单*.md
 *复测清单*.md
+*.tsbuildinfo
