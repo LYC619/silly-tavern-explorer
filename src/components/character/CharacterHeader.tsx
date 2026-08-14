@@ -90,8 +90,8 @@ export function CharacterHeader({ character, norm, onPatch, collapsed, onCollaps
   }, [character.tags]);
 
   const quickTagOptions = useMemo(
-    () => buildManagedTagOptions(tagDraft, tagPreferences)
-      .filter((option) => option.visible),
+    // 「隐藏」是角色库筛选栏的显示偏好，不限制这里的添加菜单；评价档位保留以走评分确认流程。
+    () => buildManagedTagOptions(tagDraft, tagPreferences),
     [tagDraft, tagPreferences],
   );
   const quickTagCategories = useMemo(

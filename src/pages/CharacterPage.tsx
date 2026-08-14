@@ -30,7 +30,7 @@ import {
   markCharacterViewed,
 } from '@/lib/archive-db';
 import { normalizeCharacterCard } from '@/lib/adapters/st';
-import { applyCharacterTagPatch } from '@/lib/character-tag-domain';
+import { applyCharacterTagPatch, applyCharacterTypePatch } from '@/lib/character-tag-domain';
 import { importEmbeddedAssets } from '@/lib/card-embedded-assets';
 import { downloadCharacterFile } from '@/lib/character-file';
 import { editsFromNormalized, exportCardJson, type CardEdits } from '@/lib/card-export';
@@ -110,6 +110,8 @@ const CharacterPage = () => {
     if (!character) return;
     setCardEdits(editsFromNormalized(normalizeCharacterCard(character.card)));
     setDisplayNameDraft(character.displayMeta?.name ?? '');
+    // 有意只按 id 重置：页内整理（评分/标签）更新 character 时不能清掉未保存的卡编辑草稿。
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [character?.id]);
 
   // 展示名有两个编辑入口（头部铅笔弹窗 / 卡编辑页签）：档案值变化时同步草稿，防止旧草稿把另一入口刚保存的值回写掉。
@@ -130,9 +132,13 @@ const CharacterPage = () => {
         async (current) => {
           const requested = typeof patch === 'function' ? await patch(current) : patch;
           if (!requested) return undefined;
-          const effective = ('rating' in requested || 'tags' in requested || 'nsfw' in requested)
+          let effective = ('rating' in requested || 'tags' in requested || 'nsfw' in requested)
             ? { ...requested, ...applyCharacterTagPatch(current, requested) }
             : requested;
+          // 设类型统一走域函数，顺带清理历史误写的「类型/*」标签（与标签管理、导入两条路径一致）。
+          if ('type' in requested && requested.type) {
+            effective = { ...effective, ...applyCharacterTypePatch({ ...current, ...effective }, requested.type) };
+          }
           return { ...effective, updatedAt: Date.now() };
         },
         updateCharacter,
@@ -148,17 +154,19 @@ const CharacterPage = () => {
     }
   }, [id, toast]);
 
-  const saveCardEdits = useCallback(async () => {
+  const saveCardEdits = useCallback(async (): Promise<boolean> => {
     // 直跳到另一角色而新档案尚未加载完成时，character 仍是旧卡；禁止把旧卡整卡写进新 id。
-    if (!character || character.id !== id || !cardEdits || cardSaving) return;
+    if (!character || character.id !== id || !cardEdits || cardSaving) return false;
     setCardSaving(true);
     try {
       const next = applyCharacterPageCardEdits(character, cardEdits);
       await patchCharacter({ name: next.name, subtitle: next.subtitle, card: next.card, pngBase64: next.pngBase64 });
       setCardEdits(editsFromNormalized(normalizeCharacterCard(next.card)));
       toast({ title: '角色卡已保存', description: '实际名、核心字段和开场白已更新。' });
+      return true;
     } catch (error) {
       toast({ title: '角色卡保存失败', description: error instanceof Error ? error.message : '请检查内容后重试', variant: 'destructive' });
+      return false;
     } finally {
       setCardSaving(false);
     }
@@ -166,6 +174,8 @@ const CharacterPage = () => {
 
   const saveDisplayName = useCallback(async () => {
     if (!character || character.id !== id) return;
+    // 与档案值相同则跳过：避免多余写入和「已保存」噪音提示。
+    if ((displayNameDraft.trim() || undefined) === character.displayMeta?.name) return;
     try {
       const next = applyCharacterPageDisplayMeta(character, { name: displayNameDraft });
       await patchCharacter({ displayMeta: next.displayMeta });
@@ -509,8 +519,8 @@ const CharacterPage = () => {
                    onEditChange={(key, value) => setCardEdits((current) => (current ? { ...current, [key]: value } : current))}
                    onDisplayNameChange={setDisplayNameDraft}
                    onSave={async () => {
-                     await saveCardEdits();
-                     await saveDisplayName();
+                     // 卡片保存失败时不再继续保存展示名，避免「失败+已保存」两条矛盾提示。
+                     if (await saveCardEdits()) await saveDisplayName();
                    }}
                    saving={cardSaving}
                  />

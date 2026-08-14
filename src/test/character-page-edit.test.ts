@@ -79,6 +79,16 @@ describe('Character Page card editing', () => {
     expect(out.card.data?.name).toBe('新实际名');
   });
 
+  it('保存时过滤空白备选开场白，不把空串写入卡片', () => {
+    const edits = {
+      ...editsFromNormalized(normalizeCharacterCard(raw)),
+      alternateGreetings: ['新备选', '   ', ''],
+    };
+    const out = applyCharacterPageCardEdits(character(), edits);
+
+    expect(out.card.data?.alternate_greetings).toEqual(['新备选']);
+  });
+
   it('保存带 PNG 原图的卡时同步回写 chara 元数据', () => {
     const source = embedCharaInPng(minimalPng(), raw);
     const edits = { ...editsFromNormalized(normalizeCharacterCard(raw)), name: '新实际名', firstMessage: '新开场白' };

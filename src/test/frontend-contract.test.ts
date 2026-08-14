@@ -207,6 +207,10 @@ describe('阶段 D 外壳与 NSFW 契约', () => {
     expect(batchDialog).toContain('validateUserTagInput');
     const libraryImport = read('src/lib/library-character-import.ts');
     expect(libraryImport).toContain('validateUserTagInput');
+    const tagManager = read('src/components/library/TagManagerDialog.tsx');
+    expect(tagManager).toContain('validateUserTagInput');
+    // 角色页设类型也走域函数清理「类型/*」污染（与标签管理、导入两条路径一致）。
+    expect(characterPage).toContain('applyCharacterTypePatch');
   });
 
   it('无 tab 的其他资产入口显示真实归档浏览器，不再重复三类既有资产', () => {

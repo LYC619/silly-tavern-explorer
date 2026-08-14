@@ -1,21 +1,7 @@
 import { applyEditsToCard, type CardEdits } from '@/lib/card-export';
 import type { ArchiveCharacter, DisplayMeta } from '@/types/archive';
-import { normalizeCharacterCard } from '@/lib/png-parser';
-import { embedCharaInPng } from '@/lib/png-writer';
-
-function base64ToArrayBuffer(value: string): ArrayBuffer {
-  const binary = atob(value);
-  const bytes = new Uint8Array(binary.length);
-  for (let index = 0; index < binary.length; index += 1) bytes[index] = binary.charCodeAt(index);
-  return bytes.buffer;
-}
-
-function arrayBufferToBase64(value: ArrayBuffer): string {
-  const bytes = new Uint8Array(value);
-  let binary = '';
-  for (const byte of bytes) binary += String.fromCharCode(byte);
-  return btoa(binary);
-}
+import { embedCharaInPng, normalizeCharacterCard } from '@/lib/adapters/st';
+import { base64ToBytes, bytesToBase64 } from '@/lib/utils';
 
 /** 详情页保存 ST 卡字段：实际名称是卡片与 STE 档案的共同主名称。 */
 export function applyCharacterPageCardEdits(
@@ -24,7 +10,12 @@ export function applyCharacterPageCardEdits(
 ): ArchiveCharacter {
   const name = edits.name.trim();
   if (!name) throw new Error('实际名称不能为空');
-  const card = applyEditsToCard(character.card, { ...edits, name });
+  const card = applyEditsToCard(character.card, {
+    ...edits,
+    name,
+    // 空白备选开场白不写入卡片（编辑器里新增后未填写的行）。
+    alternateGreetings: edits.alternateGreetings.filter((greeting) => greeting.trim() !== ''),
+  });
   const normalized = normalizeCharacterCard(card);
   return {
     ...character,
@@ -32,7 +23,7 @@ export function applyCharacterPageCardEdits(
     subtitle: normalized.creatorNotes.split('\n')[0]?.trim().slice(0, 80) || undefined,
     card,
     pngBase64: character.pngBase64
-      ? arrayBufferToBase64(embedCharaInPng(base64ToArrayBuffer(character.pngBase64), card).buffer as ArrayBuffer)
+      ? bytesToBase64(embedCharaInPng(base64ToBytes(character.pngBase64).buffer as ArrayBuffer, card))
       : character.pngBase64,
     updatedAt: Date.now(),
   };
