@@ -18,6 +18,14 @@ function variable(block: string, name: string): string {
   return match[1].trim();
 }
 
+function resolvedVariable(block: string, name: string, seen = new Set<string>()): string {
+  if (seen.has(name)) throw new Error(`cyclic variable reference: ${name}`);
+  const value = variable(block, name);
+  const reference = value.match(/^var\((--[^)]+)\)$/)?.[1];
+  if (!reference) return value;
+  return resolvedVariable(block, reference, new Set([...seen, name]));
+}
+
 function hex(value: string): Rgb {
   const match = value.match(/^#([0-9a-f]{6})$/i);
   if (!match) throw new Error(`expected hex color, received ${value}`);
@@ -42,10 +50,24 @@ function contrast(a: Rgb, b: Rgb): number {
 }
 
 describe('主题活动文字对比度', () => {
+  it.each(['cocoa', 'ink', 'midnight', 'cream'])('%s 的角色页辅助文字使用正文级 token', (theme) => {
+    const block = themeBlock(theme);
+    expect(resolvedVariable(block, '--character-label')).toBe(resolvedVariable(block, '--text-body'));
+  });
+
   it.each(['cocoa', 'ink', 'midnight', 'cream'])('%s 的活动文字在侧栏底色上达到 4.5:1', (theme) => {
     const block = themeBlock(theme);
     const text = hex(variable(block, '--brand-text'));
     const chrome = hex(variable(block, '--bg-chrome'));
+    expect(contrast(text, chrome)).toBeGreaterThanOrEqual(4.5);
+  });
+
+  it.each(['cocoa', 'ink', 'midnight', 'cream'])('%s 的侧栏辅助文字在页面与侧栏底色上均达到 4.5:1', (theme) => {
+    const block = themeBlock(theme);
+    const text = hex(resolvedVariable(block, '--sidebar-text-faint'));
+    const canvas = hex(resolvedVariable(block, '--bg-canvas'));
+    const chrome = hex(resolvedVariable(block, '--bg-chrome'));
+    expect(contrast(text, canvas)).toBeGreaterThanOrEqual(4.5);
     expect(contrast(text, chrome)).toBeGreaterThanOrEqual(4.5);
   });
 });

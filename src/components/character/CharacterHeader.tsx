@@ -6,7 +6,7 @@
  * + creator_notes 原文折叠进「⋯」。
  * 标签编辑与评价档位确认逻辑从页面收进本组件。
  */
-import { useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Pencil, ChevronDown, HelpCircle, Plus, X, MoreHorizontal,
@@ -15,7 +15,9 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Switch } from '@/components/ui/switch';
+import { Checkbox } from '@/components/ui/checkbox';
 import { Label } from '@/components/ui/label';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import {
   Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle,
 } from '@/components/ui/dialog';
@@ -23,19 +25,21 @@ import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
-import {
-  DropdownMenu, DropdownMenuContent, DropdownMenuItem,
-  DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
 import { useToast } from '@/hooks/use-toast';
 import type { ArchiveCharacter } from '@/types/archive';
 import type { CharacterPatch } from '@/lib/character-write';
 import type { NormalizedCharacterCard } from '@/lib/png-parser';
 import { introOf } from '@/lib/character-intro';
 import {
-  TAG_CATEGORIES, BUILTIN_TAGS, makeTag,
-  RATING_TIER_LABELS, RATING_TIER_PREFILL, type RatingTier,
+  RATING_TIER_LABELS, RATING_TIER_PREFILL, type RatingTier, type TagCategory,
 } from '@/lib/tag-taxonomy';
+import { getLibraryTagPreferences } from '@/lib/archive-db';
+import {
+  buildManagedTagOptions,
+  getTagCategories,
+  normalizeLibraryTagPreferences,
+  type LibraryTagPreferences,
+} from '@/lib/library-tag-preferences';
 import { IntroSection } from '@/components/character/IntroSection';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 
@@ -59,11 +63,46 @@ export function CharacterHeader({ character, norm, onPatch, collapsed, onCollaps
   const [notesOpen, setNotesOpen] = useState(false);
   const [newTag, setNewTag] = useState('');
   const [tierConfirm, setTierConfirm] = useState<{ tier: RatingTier; value: number } | null>(null);
+  const [tagPreferences, setTagPreferences] = useState<LibraryTagPreferences>(() => normalizeLibraryTagPreferences(undefined));
+  const [tagDraft, setTagDraft] = useState(character.tags);
+  const tagDraftRef = useRef(character.tags);
 
   const displayName = character.displayMeta?.name || character.name;
   const creator = character.displayMeta?.creator || norm.creator;
   const source = character.displayMeta?.source;
   const intro = introOf(character);
+
+  const refreshTagPreferences = async () => {
+    try {
+      setTagPreferences(await getLibraryTagPreferences());
+    } catch {
+      // 标签快捷菜单仍可使用手动输入，不因偏好读取失败阻断角色页。
+    }
+  };
+
+  useEffect(() => {
+    void refreshTagPreferences();
+  }, []);
+
+  useEffect(() => {
+    tagDraftRef.current = character.tags;
+    setTagDraft(character.tags);
+  }, [character.tags]);
+
+  const quickTagOptions = useMemo(
+    () => buildManagedTagOptions(tagDraft, tagPreferences)
+      .filter((option) => option.visible),
+    [tagDraft, tagPreferences],
+  );
+  const quickTagCategories = useMemo(
+    () => {
+      const categories: TagCategory[] = getTagCategories(tagPreferences)
+        .filter((category) => quickTagOptions.some((option) => option.category === category));
+      if (quickTagOptions.some((option) => option.category === '未分类')) categories.push('未分类');
+      return categories;
+    },
+    [quickTagOptions, tagPreferences],
+  );
 
   const openMeta = () => {
     setMetaDraft({
@@ -89,13 +128,31 @@ export function CharacterHeader({ character, norm, onPatch, collapsed, onCollaps
     }
   };
 
-  const addTag = async (raw: string) => {
-    if (!raw || character.tags.includes(raw)) return;
+  const setTagChecked = async (raw: string, checked: boolean): Promise<boolean> => {
+    if (!raw) return false;
+    const current = tagDraftRef.current;
+    const next = checked
+      ? (current.includes(raw) ? current : [...current, raw])
+      : current.filter((tag) => tag !== raw);
+    if (next === current || next.length === current.length && next.every((tag, index) => tag === current[index])) {
+      return true;
+    }
+    tagDraftRef.current = next;
+    setTagDraft(next);
     try {
-      await onPatch({ tags: [...character.tags, raw] });
-      setNewTag((current) => (current.trim() === raw ? '' : current));
+      await onPatch({ tags: next });
+      return true;
     } catch {
-      // 父层已提示失败；保留输入供修正或重试。
+      tagDraftRef.current = character.tags;
+      setTagDraft(character.tags);
+      return false;
+    }
+  };
+
+  const addTag = async (raw: string) => {
+    if (!raw || tagDraftRef.current.includes(raw)) return;
+    if (await setTagChecked(raw, true)) {
+      setNewTag((current) => (current.trim() === raw ? '' : current));
     }
   };
 
@@ -140,11 +197,11 @@ export function CharacterHeader({ character, norm, onPatch, collapsed, onCollaps
             className="overflow-hidden"
           >
             {(creator || source) && (
-              <p className="text-xs text-[color:var(--text-faint)] mt-1">
+              <p className="text-sm text-[color:var(--character-label)] mt-1">
                 {[creator, source].filter(Boolean).join(' · ')}
               </p>
             )}
-            <p className={`text-sm leading-relaxed mt-2 max-w-3xl ${intro ? 'text-[color:var(--text-body)]' : 'text-[color:var(--text-faint)]'}`}>
+            <p className={`text-sm leading-relaxed mt-2 max-w-3xl ${intro ? 'text-[color:var(--text-body)]' : 'text-[color:var(--character-label)]'}`}>
               {intro ?? '暂无简介 — 点标题旁的铅笔编辑，或在弹窗里用 AI 生成'}
             </p>
 
@@ -153,7 +210,7 @@ export function CharacterHeader({ character, norm, onPatch, collapsed, onCollaps
               <div className="mt-1.5">
                 <button
                   onClick={() => setNotesOpen((v) => !v)}
-                  className="text-xs text-[color:var(--text-faint)] hover:text-[color:var(--text-muted)] flex items-center gap-1"
+                  className="text-sm text-[color:var(--character-label)] hover:text-[color:var(--text-body)] flex items-center gap-1"
                 >
                   <MoreHorizontal className="w-3.5 h-3.5" />
                   创作者备注原文
@@ -189,48 +246,57 @@ export function CharacterHeader({ character, norm, onPatch, collapsed, onCollaps
                   </Tooltip>
                 </TooltipProvider>
               </div>
-              {character.tags.map((t) => (
+              {tagDraft.map((t) => (
                 <Badge key={t} variant="secondary" className="gap-1 font-normal">
                   {t}
                   <button
-                    onClick={() => { void onPatch({ tags: character.tags.filter((x) => x !== t) }).catch(() => {}); }}
+                    onClick={() => { void setTagChecked(t, false); }}
                     aria-label={`删除标签 ${t}`}
                   >
                     <X className="w-3 h-3" />
                   </button>
                 </Badge>
               ))}
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
+              <Popover onOpenChange={(open) => { if (open) void refreshTagPreferences(); }}>
+                <PopoverTrigger asChild>
                   <Button variant="outline" size="sm" className="h-6 px-1.5 text-xs text-muted-foreground">
                     <Plus className="w-3 h-3 mr-0.5" />标签
                   </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="start" className="max-h-80 overflow-y-auto">
-                  {TAG_CATEGORIES.filter((cat) => BUILTIN_TAGS[cat].length > 0).map((cat, i) => (
-                    <div key={cat}>
-                      {i > 0 && <DropdownMenuSeparator />}
-                      <DropdownMenuLabel className="text-[11px] text-muted-foreground py-1">{cat}</DropdownMenuLabel>
-                      {BUILTIN_TAGS[cat].map((label) => {
-                        const raw = makeTag(cat, label);
-                        const has = character.tags.includes(raw);
+                </PopoverTrigger>
+                <PopoverContent
+                  align="start"
+                  className="w-[min(760px,calc(100vw-2rem))] max-h-[min(70vh,36rem)] overflow-y-auto p-3"
+                >
+                  <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
+                  {quickTagCategories.map((cat) => (
+                    <section key={cat} className="min-w-0 rounded-md border border-[color:var(--hairline-inner)] p-2">
+                      <p className="mb-1.5 truncate text-xs font-semibold text-[color:var(--text-primary)]" title={cat}>{cat}</p>
+                      <div className="space-y-0.5">
+                      {quickTagOptions.filter((option) => option.category === cat).map((option) => {
+                        const raw = option.raw;
+                        const has = tagDraft.includes(raw);
                         // 评价档位不直接打标签：走评分确认（评分→标签单向自动）
-                        const isTier = cat === '评价' && (RATING_TIER_LABELS as readonly string[]).includes(label);
+                        const isTier = cat === '评价' && (RATING_TIER_LABELS as readonly string[]).includes(option.label);
                         return (
-                          <DropdownMenuItem
-                            key={raw}
-                            disabled={has}
-                            onClick={() => (isTier ? handleTierTagClick(label as RatingTier) : addTag(raw))}
-                          >
-                            {label}
-                            {has && <span className="ml-auto text-[10px] text-muted-foreground">已加</span>}
-                          </DropdownMenuItem>
+                          <label key={raw} className="flex min-w-0 cursor-pointer items-center gap-2 rounded px-1.5 py-1 text-xs text-[color:var(--text-body)] hover:bg-[var(--hover-overlay)]">
+                            <Checkbox
+                              checked={has}
+                              aria-label={`${has ? '移除' : '添加'}标签 ${raw}`}
+                              onCheckedChange={(checked) => {
+                                if (isTier) handleTierTagClick(option.label as RatingTier);
+                                else void setTagChecked(raw, checked === true);
+                              }}
+                            />
+                            <span className="min-w-0 flex-1 truncate" title={option.label}>{option.label}</span>
+                          </label>
                         );
                       })}
-                    </div>
+                      </div>
+                    </section>
                   ))}
-                </DropdownMenuContent>
-              </DropdownMenu>
+                  </div>
+                </PopoverContent>
+              </Popover>
               <Input
                 value={newTag}
                 onChange={(e) => setNewTag(e.target.value)}

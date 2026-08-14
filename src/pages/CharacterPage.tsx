@@ -33,7 +33,8 @@ import { normalizeCharacterCard } from '@/lib/adapters/st';
 import { applyCharacterTagPatch } from '@/lib/character-tag-domain';
 import { importEmbeddedAssets } from '@/lib/card-embedded-assets';
 import { downloadCharacterFile } from '@/lib/character-file';
-import { exportCardJson } from '@/lib/card-export';
+import { editsFromNormalized, exportCardJson, type CardEdits } from '@/lib/card-export';
+import { applyCharacterPageCardEdits, applyCharacterPageDisplayMeta } from '@/lib/character-page-edit';
 import { setPendingToolFile } from '@/lib/tool-handoff';
 import { cn } from '@/lib/utils';
 import { IMPORT_KINDS, type CharacterImportKind, type CharacterImportResult } from '@/lib/character-import';
@@ -48,6 +49,8 @@ import { CharacterImportDialog } from '@/components/character/CharacterImportDia
 import { StoryListSection } from '@/components/character/StoryListSection';
 import { InlineStoryReader } from '@/components/character/InlineStoryReader';
 import { StoryRecordsView, type RecordViewKind } from '@/components/character/StoryRecordsView';
+import { CharacterCardEditSection } from '@/components/character/CharacterCardEditSection';
+import { GreetingsSection } from '@/components/character/GreetingsSection';
 
 /** 故事 tab 内的子视图：列表 | 总结/日记/故事树查看视图 */
 type StorySubView = 'list' | RecordViewKind;
@@ -83,6 +86,9 @@ const CharacterPage = () => {
   // 统一导入弹窗（10.3c）：按当前 tab 预选类型
   const [activeTab, setActiveTab] = useState('stories');
   const [importOpen, setImportOpen] = useState(false);
+  const [cardEdits, setCardEdits] = useState<CardEdits | null>(null);
+  const [displayNameDraft, setDisplayNameDraft] = useState('');
+  const [cardSaving, setCardSaving] = useState(false);
 
   const load = useCallback(async () => {
     if (!id) return;
@@ -99,6 +105,17 @@ const CharacterPage = () => {
   useEffect(() => {
     load();
   }, [load]);
+
+  useEffect(() => {
+    if (!character) return;
+    setCardEdits(editsFromNormalized(normalizeCharacterCard(character.card)));
+    setDisplayNameDraft(character.displayMeta?.name ?? '');
+  }, [character?.id]);
+
+  // 展示名有两个编辑入口（头部铅笔弹窗 / 卡编辑页签）：档案值变化时同步草稿，防止旧草稿把另一入口刚保存的值回写掉。
+  useEffect(() => {
+    setDisplayNameDraft(character?.displayMeta?.name ?? '');
+  }, [character?.displayMeta?.name]);
 
   const norm = useMemo(() => (character ? normalizeCharacterCard(character.card) : null), [character]);
 
@@ -130,6 +147,33 @@ const CharacterPage = () => {
       throw error;
     }
   }, [id, toast]);
+
+  const saveCardEdits = useCallback(async () => {
+    // 直跳到另一角色而新档案尚未加载完成时，character 仍是旧卡；禁止把旧卡整卡写进新 id。
+    if (!character || character.id !== id || !cardEdits || cardSaving) return;
+    setCardSaving(true);
+    try {
+      const next = applyCharacterPageCardEdits(character, cardEdits);
+      await patchCharacter({ name: next.name, subtitle: next.subtitle, card: next.card, pngBase64: next.pngBase64 });
+      setCardEdits(editsFromNormalized(normalizeCharacterCard(next.card)));
+      toast({ title: '角色卡已保存', description: '实际名、核心字段和开场白已更新。' });
+    } catch (error) {
+      toast({ title: '角色卡保存失败', description: error instanceof Error ? error.message : '请检查内容后重试', variant: 'destructive' });
+    } finally {
+      setCardSaving(false);
+    }
+  }, [cardEdits, cardSaving, character, id, patchCharacter, toast]);
+
+  const saveDisplayName = useCallback(async () => {
+    if (!character || character.id !== id) return;
+    try {
+      const next = applyCharacterPageDisplayMeta(character, { name: displayNameDraft });
+      await patchCharacter({ displayMeta: next.displayMeta });
+      toast({ title: '展示名已保存' });
+    } catch (error) {
+      toast({ title: '展示名保存失败', description: error instanceof Error ? error.message : '请重试', variant: 'destructive' });
+    }
+  }, [character, displayNameDraft, id, patchCharacter, toast]);
 
   /** 统一导入完成（10.3c）：patch 落库；故事导入后刷列表；弹窗保持打开可继续导 */
   const handleImport = async (kind: CharacterImportKind, files: File[]) => {
@@ -316,7 +360,7 @@ const CharacterPage = () => {
         </Button>
       }
     >
-      <div className="h-full flex overflow-hidden">
+       <div className="character-page h-full flex overflow-hidden">
         {/* ===== 左信息栏 272px ===== */}
         <CharacterInfoRail
           character={character}
@@ -341,16 +385,20 @@ const CharacterPage = () => {
           <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1 flex flex-col px-6 pt-3 pb-6">
             {/* TabsList 用 flex（布局铁律：防插件包裹破坏 grid）；行右侧=统一导入钮（10.3c） */}
             <div className="flex items-center gap-2">
-              <TabsList className="flex w-fit gap-1">
-                <TabsTrigger value="stories">故事 {stories.length > 0 && <span className="ml-1 text-[10px] opacity-70">{stories.length}</span>}</TabsTrigger>
-                <TabsTrigger value="notes">备注 {(character.notes?.length ?? 0) > 0 && <span className="ml-1 text-[10px] opacity-70">{character.notes!.length}</span>}</TabsTrigger>
-                <TabsTrigger value="assets">关联资产 {assetCount > 0 && <span className="ml-1 text-[10px] opacity-70">{assetCount}</span>}</TabsTrigger>
-                <TabsTrigger value="portraits">立绘 {portraitCount > 0 && <span className="ml-1 text-[10px] opacity-70">{portraitCount}</span>}</TabsTrigger>
-              </TabsList>
-              <Button variant="outline" size="sm" className="ml-auto h-8" onClick={() => setImportOpen(true)}>
-                <Upload className="w-3.5 h-3.5 mr-1" />
-                导入
-              </Button>
+               <TabsList className="flex w-fit flex-wrap gap-1">
+                 <TabsTrigger value="stories">故事 {stories.length > 0 && <span className="ml-1 text-[10px] opacity-70">{stories.length}</span>}</TabsTrigger>
+                 <TabsTrigger value="notes">备注 {(character.notes?.length ?? 0) > 0 && <span className="ml-1 text-[10px] opacity-70">{character.notes!.length}</span>}</TabsTrigger>
+                 <TabsTrigger value="assets">关联资产 {assetCount > 0 && <span className="ml-1 text-[10px] opacity-70">{assetCount}</span>}</TabsTrigger>
+                 <TabsTrigger value="portraits">立绘 {portraitCount > 0 && <span className="ml-1 text-[10px] opacity-70">{portraitCount}</span>}</TabsTrigger>
+                 <TabsTrigger value="card-edit">角色卡编辑</TabsTrigger>
+                 <TabsTrigger value="greetings">开场白</TabsTrigger>
+               </TabsList>
+               {TAB_IMPORT_KIND[activeTab] && (
+                 <Button variant="outline" size="sm" className="ml-auto h-8" onClick={() => setImportOpen(true)}>
+                   <Upload className="w-3.5 h-3.5 mr-1" />
+                   导入
+                 </Button>
+               )}
             </div>
 
             {/* 故事 tab：就地阅读 / 列表+子视图（总结/日记/故事树，10.3b） */}
@@ -445,13 +493,45 @@ const CharacterPage = () => {
             </TabsContent>
 
             {/* 立绘 tab（10.3c 分行式，网页版 IDB 与客户端行文件夹同构） */}
-            <TabsContent value="portraits" className="mt-3">
+             <TabsContent value="portraits" className="mt-3">
               <PortraitSection
                 character={character}
                 onPatch={patchCharacter}
                 onOpenImport={() => setImportOpen(true)}
               />
-            </TabsContent>
+             </TabsContent>
+
+             <TabsContent value="card-edit" className="mt-3">
+               {cardEdits && (
+                 <CharacterCardEditSection
+                   edits={cardEdits}
+                   displayName={displayNameDraft}
+                   onEditChange={(key, value) => setCardEdits((current) => (current ? { ...current, [key]: value } : current))}
+                   onDisplayNameChange={setDisplayNameDraft}
+                   onSave={async () => {
+                     await saveCardEdits();
+                     await saveDisplayName();
+                   }}
+                   saving={cardSaving}
+                 />
+               )}
+             </TabsContent>
+
+             <TabsContent value="greetings" className="mt-3">
+               {cardEdits && (
+                 <div className="space-y-3">
+                   <GreetingsSection
+                     edits={cardEdits}
+                     onEditChange={(key, value) => setCardEdits((current) => (current ? { ...current, [key]: value } : current))}
+                   />
+                   <div className="flex justify-end">
+                     <Button onClick={() => void saveCardEdits()} disabled={cardSaving}>
+                       保存开场白
+                     </Button>
+                   </div>
+                 </div>
+               )}
+             </TabsContent>
           </Tabs>
         </div>
       </div>

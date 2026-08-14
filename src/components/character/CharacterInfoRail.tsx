@@ -37,9 +37,9 @@ interface CharacterInfoRailProps {
 
 function InfoRow({ label, value, title }: { label: string; value: React.ReactNode; title?: string }) {
   return (
-    <div className="flex items-center justify-between gap-2 py-1.5 border-b border-[color:var(--hairline-inner)] last:border-0">
-      <span className="text-xs text-[color:var(--text-faint)] shrink-0">{label}</span>
-      <span className="text-xs text-[color:var(--text-body)] text-right min-w-0 truncate" title={title}>
+    <div className="flex items-center justify-between gap-3 py-2.5 border-b border-[color:var(--hairline-inner)] last:border-0">
+      <span className="text-sm text-[color:var(--character-label)] shrink-0">{label}</span>
+      <span className="text-sm text-[color:var(--text-primary)] text-right min-w-0 truncate" title={title}>
         {value}
       </span>
     </div>
@@ -77,7 +77,7 @@ export function CharacterInfoRail({
   }, [stories]);
 
   return (
-    <aside className="w-[272px] shrink-0 border-r border-[color:var(--hairline-inner)] px-5 py-5 overflow-y-auto scrollbar-thin">
+    <aside className="w-[304px] shrink-0 border-r border-[color:var(--hairline-inner)] px-6 py-6 overflow-y-auto scrollbar-thin">
       {/* 立绘 3:4（设计稿），点击放大 */}
       <button
         className="block w-full aspect-[3/4] rounded-xl overflow-hidden bg-elevated border border-[color:var(--border-subtle)]"
@@ -109,8 +109,8 @@ export function CharacterInfoRail({
       {/* 信息行 */}
       <div className="mt-4">
         <InfoRow label="名称" value={character.name} title={character.name} />
-        <div className="flex items-center justify-between gap-2 py-1.5 border-b border-[color:var(--hairline-inner)]">
-          <span className="text-xs text-[color:var(--text-faint)] shrink-0">类型</span>
+        <div className="flex items-center justify-between gap-3 py-2.5 border-b border-[color:var(--hairline-inner)]">
+          <span className="text-sm text-[color:var(--character-label)] shrink-0">类型</span>
           <Select
             value={character.type ?? 'none'}
             onValueChange={(v) => { void onPatch({ type: v === 'none' ? undefined : (v as CharacterType) }).catch(() => {}); }}
@@ -127,7 +127,7 @@ export function CharacterInfoRail({
           </Select>
         </div>
         <div className="flex items-center justify-between gap-2 py-1.5 border-b border-[color:var(--hairline-inner)]">
-          <span className="text-xs text-[color:var(--text-faint)] shrink-0">评分</span>
+          <span className="text-sm text-[color:var(--character-label)] shrink-0">评分</span>
           <RatingPanel character={character} norm={norm} stories={stories} onPatch={onPatch} />
         </div>
         <InfoRow
