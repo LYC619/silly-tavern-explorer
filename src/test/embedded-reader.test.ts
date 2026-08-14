@@ -44,6 +44,15 @@ describe('角色卡页内嵌阅读器契约', () => {
     expect(workbench).toContain('scrollPaddingStart={readerMode ? readerStickyTop + toolbarHeight + 8 : 0}');
   });
 
+  it('搜索导航每次点击都执行定位，并在虚拟楼层渲染后对准实际高亮词', () => {
+    const preview = read('src/components/chat/ChatPreview.tsx');
+
+    expect(preview).toContain('matchPosRef');
+    expect(preview).toContain('scrollToSearchMatch');
+    expect(preview).toContain('data-search-match="true"');
+    expect(preview).not.toContain('setMatchPos(p =>');
+  });
+
   it('小说视图提供嵌入模式，角色卡页不会使用全屏 fixed 根节点', () => {
     const novel = read('src/components/reader/NovelView.tsx');
     const inline = read('src/components/character/InlineStoryReader.tsx');

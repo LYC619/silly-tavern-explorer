@@ -1,10 +1,11 @@
-import { forwardRef, useMemo, useState, useEffect, useLayoutEffect, useRef, useImperativeHandle, memo } from 'react';
+import { forwardRef, useMemo, useState, useEffect, useLayoutEffect, useRef, useImperativeHandle, useCallback, memo } from 'react';
 import { useVirtualizer } from '@tanstack/react-virtual';
 import { User, Bot, Bookmark, BookmarkPlus, Pencil, EyeOff, MessageSquareDashed, ChevronLeft, ChevronRight } from 'lucide-react';
 import type { ChatSession, ThemeStyle, RegexRule, ChapterMarker } from '@/types/chat';
 import { applyRegexRules, parseRegex } from '@/lib/regex-processor';
 import { parseSTDate } from '@/lib/adapters/st/chat-jsonl';
 import { swipeCount, currentSwipeId, isOOCMessage, isSteEditedSwipe } from '@/lib/chat-edit';
+import { calculateSearchRevealScrollTop, cycleSearchPosition, type SearchDirection } from '@/lib/chat-navigation';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 
 /**
@@ -106,7 +107,11 @@ function renderTextWithSearch(text: string, query: string): React.ReactNode {
   while (idx !== -1) {
     if (idx > from) nodes.push(text.slice(from, idx));
     nodes.push(
-      <mark key={`s${key}`} className="rounded-sm bg-yellow-200 px-0.5 text-inherit dark:bg-yellow-500/40">
+      <mark
+        key={`s${key}`}
+        data-search-match="true"
+        className="rounded-sm bg-yellow-200 px-0.5 text-inherit dark:bg-yellow-500/40"
+      >
         {text.slice(idx, idx + query.length)}
       </mark>
     );
@@ -560,14 +565,65 @@ export const ChatPreview = memo(forwardRef<ChatPreviewHandle, ChatPreviewProps>(
     // （问题1），且任何会改变 processedMessages 的操作（如新增正则）都会重算 matchIndices 触发误滚
     // （问题3）。滚动只发生在用户主动按 Enter / 上一个 / 下一个时（见 nextMatch/prevMatch）。
     const [matchPos, setMatchPos] = useState(-1);
+    const matchPosRef = useRef(-1);
+    const searchScrollFrameRef = useRef<number | null>(null);
     useEffect(() => {
+      matchPosRef.current = -1;
       setMatchPos(-1);
       onSearchResult?.(matchIndices.length, 0);
       // 仅在搜索词/命中集合变化时触发；不滚动，不入 virtualizer 依赖
       // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [matchIndices]);
 
+    useEffect(() => () => {
+      if (searchScrollFrameRef.current !== null) cancelAnimationFrame(searchScrollFrameRef.current);
+    }, []);
+
     const activeMatchIndex = matchPos >= 0 && matchPos < matchIndices.length ? matchIndices[matchPos] : -1;
+
+    /**
+     * 先让虚拟列表渲染命中楼层，再对准该楼内第一个实际高亮词。
+     * 直接按楼层居中会在单楼很长时把命中词留在 sticky 工具栏后面。
+     */
+    const scrollToSearchMatch = useCallback((position: number) => {
+      const messageIndex = matchIndices[position];
+      if (messageIndex === undefined) return;
+
+      matchPosRef.current = position;
+      setMatchPos(position);
+      onSearchResult?.(matchIndices.length, position + 1);
+      virtualizer.scrollToIndex(messageIndex, { align: 'start' });
+
+      if (searchScrollFrameRef.current !== null) cancelAnimationFrame(searchScrollFrameRef.current);
+      const reveal = (attemptsLeft: number) => {
+        searchScrollFrameRef.current = requestAnimationFrame(() => {
+          const row = listRef.current?.querySelector<HTMLElement>(`[data-index="${messageIndex}"]`);
+          const target = row?.querySelector<HTMLElement>('mark[data-search-match="true"]');
+          if (!target || !scrollElement) {
+            if (attemptsLeft > 0) reveal(attemptsLeft - 1);
+            return;
+          }
+          const scrollRect = scrollElement.getBoundingClientRect();
+          const targetRect = target.getBoundingClientRect();
+          scrollElement.scrollTo({
+            top: calculateSearchRevealScrollTop({
+              scrollTop: scrollElement.scrollTop,
+              containerTop: scrollRect.top,
+              targetTop: targetRect.top,
+              stickyOffset: scrollPaddingStart,
+            }),
+            behavior: 'auto',
+          });
+          searchScrollFrameRef.current = null;
+        });
+      };
+      reveal(4);
+    }, [matchIndices, onSearchResult, scrollElement, scrollPaddingStart, virtualizer]);
+
+    const moveSearchMatch = useCallback((direction: SearchDirection) => {
+      const next = cycleSearchPosition(matchPosRef.current, matchIndices.length, direction);
+      if (next >= 0) scrollToSearchMatch(next);
+    }, [matchIndices.length, scrollToSearchMatch]);
 
     // 暴露命令式句柄给跳转条/收藏列表
     useImperativeHandle(ref, () => ({
@@ -580,27 +636,9 @@ export const ChatPreview = memo(forwardRef<ChatPreviewHandle, ChatPreviewProps>(
         if (idx !== undefined) virtualizer.scrollToIndex(idx, { align: 'start' });
       },
       getFloorCount: () => processedMessages.length,
-      nextMatch: () => {
-        if (matchIndices.length === 0) return;
-        setMatchPos(p => {
-          // 从「尚未定位」(-1) 起按下一个，跳到第一个命中
-          const next = p < 0 ? 0 : (p + 1) % matchIndices.length;
-          virtualizer.scrollToIndex(matchIndices[next], { align: 'center' });
-          onSearchResult?.(matchIndices.length, next + 1);
-          return next;
-        });
-      },
-      prevMatch: () => {
-        if (matchIndices.length === 0) return;
-        setMatchPos(p => {
-          // 从「尚未定位」(-1) 起按上一个，跳到最后一个命中
-          const prev = p < 0 ? matchIndices.length - 1 : (p - 1 + matchIndices.length) % matchIndices.length;
-          virtualizer.scrollToIndex(matchIndices[prev], { align: 'center' });
-          onSearchResult?.(matchIndices.length, prev + 1);
-          return prev;
-        });
-      },
-    }), [virtualizer, idToIndex, processedMessages.length, matchIndices, onSearchResult]);
+      nextMatch: () => moveSearchMatch(1),
+      prevMatch: () => moveSearchMatch(-1),
+    }), [virtualizer, idToIndex, processedMessages.length, moveSearchMatch]);
 
     // 上报顶部可见楼层：用 virtualizer.range.startIndex（已排除 overscan，
     // 是真正的首个可见行；virtualItems[0] 含 overscan 会偏上约 6 楼）。
