@@ -8,10 +8,12 @@
  */
 
 export const TAG_CATEGORIES = ['人物', '剧情', '玩法', '世界观', '卡面', '评价', '未分类'] as const;
-export type TagCategory = (typeof TAG_CATEGORIES)[number];
+export type BuiltinTagCategory = (typeof TAG_CATEGORIES)[number];
+/** 标签组名称允许来自当前文件库的本地自定义定义。 */
+export type TagCategory = BuiltinTagCategory | (string & {});
 
 /** 内置基础子标签（打底；用户输入任意「类别/xx」即为自建子标签，进入同类筛选） */
-export const BUILTIN_TAGS: Record<TagCategory, string[]> = {
+export const BUILTIN_TAGS: Record<BuiltinTagCategory, string[]> = {
   人物: ['少女', '成女', '非人', '群像'],
   剧情: ['悬疑', '恋爱', '冒险', '历史'],
   玩法: ['模拟', 'RPG', '解谜', '经营', '养成'],
@@ -22,7 +24,7 @@ export const BUILTIN_TAGS: Record<TagCategory, string[]> = {
 };
 
 /** 每组的问号悬浮说明（0801 反馈：内置标签右上角问号） */
-export const CATEGORY_HELP: Record<TagCategory, string> = {
+export const CATEGORY_HELP: Record<BuiltinTagCategory, string> = {
   人物: '卡里角色的人物构成，如少女、群像（可多选）',
   剧情: '故事题材走向，如悬疑、恋爱（可多选）',
   玩法: '卡的玩法机制，如模拟、RPG（可多选）',
@@ -39,11 +41,11 @@ export interface ParsedTag {
   raw: string;
 }
 
-export function parseTag(raw: string): ParsedTag {
+export function parseTag(raw: string, customCategories: readonly string[] = []): ParsedTag {
   const i = raw.indexOf('/');
   if (i > 0) {
     const cat = raw.slice(0, i);
-    if ((TAG_CATEGORIES as readonly string[]).includes(cat)) {
+    if ((TAG_CATEGORIES as readonly string[]).includes(cat) || customCategories.includes(cat)) {
       return { category: cat as TagCategory, label: raw.slice(i + 1) || raw, raw };
     }
   }
@@ -56,7 +58,7 @@ export function makeTag(category: TagCategory, label: string): string {
 }
 
 /** 每个类别的可选项 = 内置子标签 ∪ 库里已出现的标签（按 raw 去重，中文序） */
-export function tagOptionsByCategory(allRawTags: string[]): Record<TagCategory, ParsedTag[]> {
+export function tagOptionsByCategory(allRawTags: string[]): Record<BuiltinTagCategory, ParsedTag[]> {
   const maps = new Map<TagCategory, Map<string, ParsedTag>>(TAG_CATEGORIES.map((c) => [c, new Map()]));
   for (const c of TAG_CATEGORIES) {
     for (const label of BUILTIN_TAGS[c]) {
@@ -115,6 +117,20 @@ export function applyRatingTierTag(tags: string[], rating: number | undefined): 
   const tierRaws = RATING_TIER_LABELS.map((l) => `评价/${l}`);
   const rest = tags.filter((t) => !tierRaws.includes(t));
   return rating === undefined ? rest : [...rest, `评价/${ratingTier(rating)}`];
+}
+
+/**
+ * 用户手输标签入口（导入自定义标签、批量打标签自建）的统一拒收，返回错误文案或 null。
+ * 「类型」是独立互斥字段不进 tags；评价四档随评分单向自动，手输会与各卡评分打架。
+ */
+export function validateUserTagInput(raw: string): string | null {
+  if (raw === '类型' || raw.startsWith('类型/')) {
+    return '「类型」是独立字段，请使用类型选择维护，不能作为标签';
+  }
+  if (RATING_TIER_LABELS.some((label) => raw === `评价/${label}`)) {
+    return '评价档位随评分自动维护，请通过评分调整';
+  }
+  return null;
 }
 
 // ---------- v1 → v2 迁移（archive-migrate 调用；幂等） ----------

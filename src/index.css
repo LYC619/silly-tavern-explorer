@@ -361,6 +361,22 @@
     border-radius: 3px;
   }
 
+  .library-scrollbar-auto-hide {
+    scrollbar-color: transparent transparent;
+  }
+
+  .library-scrollbar-auto-hide::-webkit-scrollbar-thumb {
+    background: transparent;
+  }
+
+  .library-scrollbar-auto-hide[data-scrolling='true'] {
+    scrollbar-color: hsl(var(--muted-foreground) / 0.3) transparent;
+  }
+
+  .library-scrollbar-auto-hide[data-scrolling='true']::-webkit-scrollbar-thumb {
+    background: hsl(var(--muted-foreground) / 0.3);
+  }
+
   .animate-fade-in {
     animation: fadeIn 0.4s ease-out;
   }

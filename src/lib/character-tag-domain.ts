@@ -1,4 +1,4 @@
-import type { ArchiveCharacter } from '@/types/archive';
+import type { ArchiveCharacter, CharacterType } from '@/types/archive';
 import {
   applyRatingTierTag,
   NSFW_TAG,
@@ -56,5 +56,16 @@ export function applyCharacterTagPatch(
     ...patch,
     ...(hasTags || hasNsfw || hasRating || current.rating !== undefined ? { tags } : {}),
     ...(hasTags || hasNsfw ? { nsfw } : {}),
+  };
+}
+
+/** 类型是独立互斥字段；同时清理早期误写进普通标签的 `类型/*`。 */
+export function applyCharacterTypePatch(
+  current: Pick<ArchiveCharacter, 'tags' | 'type'>,
+  type: CharacterType,
+): Pick<ArchiveCharacter, 'tags' | 'type'> {
+  return {
+    type,
+    tags: current.tags.filter((raw) => !raw.startsWith('类型/')),
   };
 }

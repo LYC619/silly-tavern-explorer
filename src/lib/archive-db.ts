@@ -9,6 +9,10 @@ import { normalizeCharacterCard } from '@/lib/png-parser';
 import { createRepo, getCurrentRepo } from '@/lib/repo';
 import { extractModels, estimatePlayTime, computeStoryProps } from '@/lib/story-meta';
 import { KeyedSerialQueue } from '@/lib/keyed-serial-queue';
+import {
+  normalizeLibraryTagPreferences,
+  type LibraryTagPreferences,
+} from '@/lib/library-tag-preferences';
 
 // ---------- 仓库 ----------
 
@@ -18,6 +22,8 @@ interface ArchiveMetaRecord {
   id: string;
   schemaVersion: number;
   updatedAt: number;
+  libraryTags?: LibraryTagPreferences;
+  [key: string]: unknown;
 }
 const archiveMetaRepo = createRepo<ArchiveMetaRecord>('archiveMeta');
 const characterWrites = new KeyedSerialQueue();
@@ -87,7 +93,29 @@ export async function getArchiveSchemaVersion(): Promise<number> {
 }
 
 export async function setArchiveSchemaVersion(schemaVersion: number): Promise<void> {
-  await archiveMetaRepo.put({ id: ARCHIVE_SCHEMA_META_ID, schemaVersion, updatedAt: Date.now() });
+  const current = await archiveMetaRepo.get(ARCHIVE_SCHEMA_META_ID);
+  await archiveMetaRepo.put({
+    ...current,
+    id: ARCHIVE_SCHEMA_META_ID,
+    schemaVersion,
+    updatedAt: Date.now(),
+  });
+}
+
+export async function getLibraryTagPreferences(): Promise<LibraryTagPreferences> {
+  const current = await archiveMetaRepo.get(ARCHIVE_SCHEMA_META_ID);
+  return normalizeLibraryTagPreferences(current?.libraryTags);
+}
+
+export async function saveLibraryTagPreferences(preferences: LibraryTagPreferences): Promise<void> {
+  const current = await archiveMetaRepo.get(ARCHIVE_SCHEMA_META_ID);
+  await archiveMetaRepo.put({
+    ...current,
+    id: ARCHIVE_SCHEMA_META_ID,
+    schemaVersion: current?.schemaVersion ?? 1,
+    libraryTags: normalizeLibraryTagPreferences(preferences),
+    updatedAt: Date.now(),
+  });
 }
 
 /** 某角色名下的全部故事（未排序，展示排序用 sortStoriesForDisplay） */

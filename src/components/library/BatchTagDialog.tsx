@@ -15,7 +15,7 @@ import type { ArchiveCharacter } from '@/types/archive';
 import { updateCharacter } from '@/lib/archive-db';
 import { applyCharacterTagPatch } from '@/lib/character-tag-domain';
 import {
-  TAG_CATEGORIES, tagOptionsByCategory, parseTag, type TagCategory,
+  TAG_CATEGORIES, tagOptionsByCategory, parseTag, validateUserTagInput,
 } from '@/lib/tag-taxonomy';
 
 interface BatchTagDialogProps {
@@ -37,7 +37,7 @@ export function BatchTagDialog({ open, onOpenChange, targets, allCharacters, onD
     [allCharacters],
   );
   /** 评价档位随评分自动维护，批量不提供 */
-  const cats = TAG_CATEGORIES.filter((c): c is TagCategory => c !== '评价');
+  const cats = TAG_CATEGORIES.filter((c) => c !== '评价');
 
   const togglePick = (raw: string) => {
     setPicked((prev) => {
@@ -51,7 +51,15 @@ export function BatchTagDialog({ open, onOpenChange, targets, allCharacters, onD
   const handleApply = async () => {
     const tags = new Set(picked);
     const c = custom.trim();
-    if (c) tags.add(parseTag(c).raw);
+    if (c) {
+      const raw = parseTag(c).raw;
+      const rejected = validateUserTagInput(raw);
+      if (rejected) {
+        toast({ title: rejected, variant: 'destructive' });
+        return;
+      }
+      tags.add(raw);
+    }
     if (tags.size === 0 || targets.length === 0) return;
     setBusy(true);
     try {

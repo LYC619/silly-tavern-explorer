@@ -12,13 +12,19 @@ import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Plus, Trash2, Search, MessageSquare, BookOpen, MoreVertical, ExternalLink,
-  LayoutGrid, List as ListIcon, ChevronLeft, ChevronRight, HelpCircle,
+  LayoutGrid, List as ListIcon, ChevronLeft, ChevronRight,
   ArrowDownWideNarrow, ArrowUpNarrowWide, SlidersHorizontal, Tags, Download, X,
 } from 'lucide-react';
 import { HelpCard } from '@/components/HelpCard';
 import { AppLayout } from '@/components/AppLayout';
 import { TagManagerDialog } from '@/components/library/TagManagerDialog';
 import { BatchTagDialog } from '@/components/library/BatchTagDialog';
+import { LibraryFilterRail } from '@/components/library/LibraryFilterRail';
+import {
+  LibraryImportDialog,
+  type LibraryImportTagSelection,
+} from '@/components/library/LibraryImportDialog';
+import { LibraryListHeader, libraryListColumns } from '@/components/library/LibraryListHeader';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -51,8 +57,14 @@ import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
 import { introOf } from '@/lib/character-intro';
 import { formatListTime, formatFullTime } from '@/lib/time-display';
-import { getNsfwBlur } from '@/lib/local-settings';
+import {
+  getHideUnusedLibraryTags,
+  getNsfwBlur,
+  LIBRARY_DISPLAY_SETTINGS_EVENT,
+} from '@/lib/local-settings';
 import { downloadCharacterFile } from '@/lib/character-file';
+import { exportCharactersToDirectory } from '@/lib/character-batch-export';
+import { createTauriFs, isTauri, pickDirectory } from '@/lib/vault/tauri-fs';
 import type { ArchiveCharacter, CharacterType } from '@/types/archive';
 import {
   CHARACTER_TYPES,
@@ -60,15 +72,26 @@ import {
   saveCharacter,
   deleteCharacter,
   getAllArchiveStories,
+  getLibraryTagPreferences,
+  saveLibraryTagPreferences,
   saveArchiveStory,
-  buildCharacterFromCard,
-  abToBase64,
 } from '@/lib/archive-db';
-import { extractCharacterFromPng, parseCharacterCardJson } from '@/lib/adapters/st';
 import { importEmbeddedAssets } from '@/lib/card-embedded-assets';
 import {
-  TAG_CATEGORIES, CATEGORY_HELP, tagOptionsByCategory, type TagCategory,
-} from '@/lib/tag-taxonomy';
+  applyLibraryImportType,
+  applyLibraryImportTags,
+  prepareLibraryCharacterFile,
+  registerLibraryImportCustomTag,
+  type PreparedLibraryCharacterImport,
+} from '@/lib/library-character-import';
+import { type TagCategory } from '@/lib/tag-taxonomy';
+import {
+  buildLibraryFilterSections,
+  buildManagedTagOptions,
+  getTagCategories,
+  normalizeLibraryTagPreferences,
+  type LibraryTagPreferences,
+} from '@/lib/library-tag-preferences';
 import {
   displayCharacterName,
   filterCharacters,
@@ -77,17 +100,11 @@ import {
   toggleTagFilter as toggleLibraryTagFilter,
   type LibrarySortKey,
 } from '@/lib/library-query';
-
-/** 类别 → 交接包分类色点（--tag-*）；分类法 v2（10.0），「未分类」用背景色点 */
-const CATEGORY_DOT: Record<TagCategory, string> = {
-  人物: 'var(--tag-people)',
-  剧情: 'var(--tag-review)',
-  玩法: 'var(--tag-play)',
-  世界观: 'var(--tag-scene)',
-  卡面: 'var(--tag-nsfw)',
-  评价: 'var(--tag-review)',
-  未分类: 'var(--tag-scene)',
-};
+import {
+  buildLibraryGroups,
+  LIBRARY_GROUP_BY_OPTIONS,
+  type LibraryGroupBy,
+} from '@/lib/library-grouping';
 
 function hashName(name: string): number {
   let hash = 0;
@@ -141,37 +158,6 @@ function lsSet(key: string, value: string) {
   }
 }
 
-/** 二级筛选栏条目（demo .f-item） */
-function FilterItem({
-  label, count, active, dot, onClick,
-}: {
-  label: string;
-  count?: number;
-  active?: boolean;
-  dot?: string;
-  onClick: () => void;
-}) {
-  return (
-    <button
-      onClick={onClick}
-      className={cn(
-        'w-full flex items-center justify-between gap-1.5 px-2.5 py-1.5 rounded-md text-[13px] mb-px text-left',
-        active
-          ? 'bg-[var(--brand-active-bg)] text-brand'
-          : 'text-[color:var(--sidebar-text-muted)] hover:bg-[var(--hover-overlay)] hover:text-[color:var(--sidebar-text)]',
-      )}
-    >
-      <span className="flex items-center min-w-0">
-        {dot && <span className="inline-block w-1.5 h-1.5 rounded-full mr-1.5 shrink-0" style={{ background: dot }} />}
-        <span className="truncate">{label}</span>
-      </span>
-      {count !== undefined && (
-        <span className={cn('text-[11px] shrink-0', active ? 'opacity-90' : 'opacity-50')}>{count}</span>
-      )}
-    </button>
-  );
-}
-
 /** 逐卡导出原件：见 lib/character-file（10.3a 起与角色页操作抽屉共用） */
 
 const Library = () => {
@@ -187,9 +173,19 @@ const Library = () => {
   /** 分级标签筛选：类型单选，其余类别组内多选 OR，类别间取交集 */
   const [tagFilters, setTagFilters] = useState<Partial<Record<TagCategory, string[]>>>({});
   const [typeFilter, setTypeFilter] = useState<TypeFilter>('all');
+  const [tagPreferences, setTagPreferences] = useState<LibraryTagPreferences>(() =>
+    normalizeLibraryTagPreferences(undefined),
+  );
+  const [uncategorizedExpanded, setUncategorizedExpanded] = useState(false);
   const [sortKey, setSortKey] = useState<SortKey>('recent');
   const [sortAsc, setSortAsc] = useState(false);
   const [batchMode, setBatchMode] = useState(false);
+  const [batchExporting, setBatchExporting] = useState(false);
+  const [importBusy, setImportBusy] = useState(false);
+  const [pendingImport, setPendingImport] = useState<{
+    items: PreparedLibraryCharacterImport[];
+    failures: string[];
+  } | null>(null);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   /** Shift 范围选锚点：filtered 里的下标 */
   const anchorRef = useRef<number | null>(null);
@@ -201,6 +197,13 @@ const Library = () => {
   const [viewMode, setViewMode] = useState<ViewMode>(() =>
     lsGet('ste-library-view') === 'list' ? 'list' : 'grid',
   );
+  const [groupBy, setGroupBy] = useState<LibraryGroupBy>(() => {
+    const saved = lsGet('ste-library-group-by');
+    return LIBRARY_GROUP_BY_OPTIONS.some((option) => option.value === saved)
+      ? saved as LibraryGroupBy
+      : 'none';
+  });
+  const [groupTagCategory, setGroupTagCategory] = useState(() => lsGet('ste-library-group-tag-category') ?? '人物');
   const [cardWidth, setCardWidth] = useState<number>(() => {
     const n = Number(lsGet('ste-library-card-width'));
     return n >= CARD_W_MIN && n <= CARD_W_MAX ? n : CARD_W_DEFAULT;
@@ -215,16 +218,30 @@ const Library = () => {
   });
   const [page, setPage] = useState(1);
   const nsfwBlur = useMemo(() => getNsfwBlur(), []);
+  const [hideUnusedTags, setHideUnusedTags] = useState(() => getHideUnusedLibraryTags());
+
+  useEffect(() => {
+    const syncDisplaySettings = () => setHideUnusedTags(getHideUnusedLibraryTags());
+    window.addEventListener(LIBRARY_DISPLAY_SETTINGS_EVENT, syncDisplaySettings);
+    return () => window.removeEventListener(LIBRARY_DISPLAY_SETTINGS_EVENT, syncDisplaySettings);
+  }, []);
 
   useEffect(() => lsSet('ste-library-view', viewMode), [viewMode]);
+  useEffect(() => lsSet('ste-library-group-by', groupBy), [groupBy]);
+  useEffect(() => lsSet('ste-library-group-tag-category', groupTagCategory), [groupTagCategory]);
   useEffect(() => lsSet('ste-library-card-width', String(cardWidth)), [cardWidth]);
   useEffect(() => lsSet('ste-library-font-scale', String(fontScale)), [fontScale]);
   useEffect(() => lsSet('ste-library-page-size', pageSize), [pageSize]);
 
   const load = useCallback(async () => {
     try {
-      const [chars, stories] = await Promise.all([getAllCharacters(), getAllArchiveStories()]);
+      const [chars, stories, preferences] = await Promise.all([
+        getAllCharacters(),
+        getAllArchiveStories(),
+        getLibraryTagPreferences(),
+      ]);
       setCharacters(chars);
+      setTagPreferences(preferences);
       const counts: Record<string, number> = {};
       const played: Record<string, number> = {};
       for (const s of stories) {
@@ -247,34 +264,91 @@ const Library = () => {
     load();
   }, [load]);
 
+  const handleTagPreferencesChange = useCallback(async (next: LibraryTagPreferences) => {
+    const normalized = normalizeLibraryTagPreferences(next);
+    await saveLibraryTagPreferences(normalized);
+    setTagPreferences(normalized);
+  }, []);
+
   const handleImportFiles = async (files: FileList | null) => {
     if (!files || files.length === 0) return;
-    let ok = 0;
-    let fail = 0;
-    for (const file of Array.from(files)) {
-      try {
-        let character;
-        if (file.name.toLowerCase().endsWith('.png')) {
-          const [card, buf] = await Promise.all([extractCharacterFromPng(file), file.arrayBuffer()]);
-          character = buildCharacterFromCard(card, abToBase64(buf));
-        } else {
-          character = buildCharacterFromCard(parseCharacterCardJson(await file.text()));
-        }
-        // 卡内嵌世界书/正则自动入库并挂关联（阶段9.5）
-        const refs = await importEmbeddedAssets(character);
-        if (refs.length > 0) character.assets = refs;
-        await saveCharacter(character);
-        ok++;
-      } catch {
-        fail++;
-      }
-    }
+    const selectedFiles = Array.from(files);
     if (fileInputRef.current) fileInputRef.current.value = '';
-    await load();
-    toast({
-      title: `导入完成：成功 ${ok} 张${fail ? `，失败 ${fail} 张` : ''}`,
-      variant: fail && !ok ? 'destructive' : undefined,
+    const results = await Promise.allSettled(selectedFiles.map(prepareLibraryCharacterFile));
+    const items: PreparedLibraryCharacterImport[] = [];
+    const failures: string[] = [];
+    results.forEach((result, index) => {
+      if (result.status === 'fulfilled') items.push(result.value);
+      else {
+        const reason = result.reason instanceof Error ? result.reason.message : String(result.reason);
+        failures.push(`${selectedFiles[index].name}：${reason}`);
+      }
     });
+    if (items.length === 0) {
+      toast({
+        title: '没有可导入的角色卡',
+        description: failures.slice(0, 3).join('\n'),
+        variant: 'destructive',
+      });
+      return;
+    }
+    setPendingImport({ items, failures });
+  };
+
+  const handleConfirmImport = async (selection: LibraryImportTagSelection) => {
+    if (!pendingImport || importBusy) return;
+    setImportBusy(true);
+    try {
+      const tags = new Set(selection.tags);
+      let nextPreferences = tagPreferences;
+      if (selection.applyTags && selection.customTag) {
+        const registered = registerLibraryImportCustomTag(nextPreferences, selection.customTag);
+        nextPreferences = registered.preferences;
+        tags.add(registered.raw);
+      }
+      if (nextPreferences !== tagPreferences) await handleTagPreferencesChange(nextPreferences);
+
+      let ok = 0;
+      let failedDuringSave = 0;
+      let firstSaveError: string | undefined;
+      for (const prepared of pendingImport.items) {
+        try {
+          let character = selection.applyTags
+            ? applyLibraryImportTags(prepared.character, tags)
+            : prepared.character;
+          if (selection.type) character = applyLibraryImportType(character, selection.type);
+          // 卡内嵌世界书/正则自动入库并挂关联（阶段9.5）
+          const refs = await importEmbeddedAssets(character);
+          if (refs.length > 0) character = { ...character, assets: refs };
+          await saveCharacter(character);
+          ok += 1;
+        } catch (error) {
+          failedDuringSave += 1;
+          if (!firstSaveError) firstSaveError = error instanceof Error ? error.message : String(error);
+        }
+      }
+
+      const failed = pendingImport.failures.length + failedDuringSave;
+      const blankCount = pendingImport.items.filter((item) => item.kind === 'blank-image').length;
+      await load();
+      setPendingImport(null);
+      toast({
+        title: `导入完成：成功 ${ok} 张${failed ? `，失败 ${failed} 张` : ''}`,
+        description: [
+          blankCount > 0 ? `其中 ${blankCount} 张普通图片已创建为空白 V2 角色卡。` : undefined,
+          firstSaveError ? `失败原因：${firstSaveError}` : undefined,
+        ].filter(Boolean).join(' ') || undefined,
+        variant: failed > 0 && ok === 0 ? 'destructive' : undefined,
+      });
+    } catch (error) {
+      toast({
+        title: '无法开始导入',
+        description: error instanceof Error ? error.message : String(error),
+        variant: 'destructive',
+      });
+    } finally {
+      setImportBusy(false);
+    }
   };
 
   const handleConfirmDelete = async () => {
@@ -299,18 +373,117 @@ const Library = () => {
     }
   };
 
-  /** 逐卡导出所选（间隔触发下载，避免浏览器拦截连发） */
-  const handleBatchExport = () => {
+  /** 客户端选择一个目录后等待真实写入结果；网页版保留浏览器下载降级。 */
+  const handleBatchExport = async () => {
     const targets = characters.filter((c) => selected.has(c.id));
-    targets.forEach((c, i) => setTimeout(() => downloadCharacterFile(c), i * 200));
-    toast({ title: `开始导出 ${targets.length} 张卡（PNG 原件 / JSON）` });
+    if (targets.length === 0 || batchExporting) return;
+    if (!isTauri()) {
+      targets.forEach((character, index) => {
+        window.setTimeout(() => downloadCharacterFile(character), index * 200);
+      });
+      toast({
+        title: `网页版已请求下载 ${targets.length} 张角色卡`,
+        description: '浏览器可能会询问是否允许多个下载文件。',
+      });
+      return;
+    }
+
+    setBatchExporting(true);
+    try {
+      const root = await pickDirectory('选择角色卡导出文件夹');
+      if (!root) {
+        toast({ title: '已取消导出', description: '没有写入任何文件。' });
+        return;
+      }
+      const result = await exportCharactersToDirectory(targets, createTauriFs(root));
+      if (result.failed.length === 0) {
+        toast({
+          title: `已导出 ${result.exported.length} 张角色卡`,
+          description: `保存到：${root}`,
+        });
+        return;
+      }
+      const detail = result.failed
+        .slice(0, 3)
+        .map((item) => `${item.fileName}：${item.error}`)
+        .join('\n');
+      toast({
+        title: result.exported.length > 0
+          ? `已导出 ${result.exported.length} 张，${result.failed.length} 张失败`
+          : `导出失败：${result.failed.length} 张均未写入`,
+        description: detail,
+        variant: 'destructive',
+      });
+    } catch (error) {
+      toast({
+        title: '导出失败',
+        description: error instanceof Error ? error.message : String(error),
+        variant: 'destructive',
+      });
+    } finally {
+      setBatchExporting(false);
+    }
   };
 
-  /** 分类下的可选项：内置子标签 ∪ 库里已出现的 STE 标签（卡内原始 tags 不参与） */
-  const tagOptions = useMemo(
-    () => tagOptionsByCategory(characters.flatMap((c) => c.tags)),
-    [characters],
+  const handleSingleExport = async (character: ArchiveCharacter) => {
+    if (!isTauri()) {
+      downloadCharacterFile(character);
+      toast({ title: `已请求下载「${displayCharacterName(character)}」` });
+      return;
+    }
+    try {
+      const root = await pickDirectory('选择角色卡导出文件夹');
+      if (!root) {
+        toast({ title: '已取消导出', description: '没有写入任何文件。' });
+        return;
+      }
+      const result = await exportCharactersToDirectory([character], createTauriFs(root));
+      if (result.failed.length === 0) {
+        toast({ title: `已导出「${displayCharacterName(character)}」`, description: `保存到：${root}` });
+      } else {
+        toast({ title: '导出失败', description: result.failed[0]?.error, variant: 'destructive' });
+      }
+    } catch (error) {
+      toast({
+        title: '导出失败',
+        description: error instanceof Error ? error.message : String(error),
+        variant: 'destructive',
+      });
+    }
+  };
+
+  const managedTagOptions = useMemo(
+    () => buildManagedTagOptions(characters.flatMap((character) => character.tags), tagPreferences),
+    [characters, tagPreferences],
   );
+  const groupTagCategories = useMemo(() => getTagCategories(tagPreferences), [tagPreferences]);
+  useEffect(() => {
+    if (!groupTagCategories.includes(groupTagCategory)) {
+      setGroupTagCategory(groupTagCategories[0] ?? '人物');
+    }
+  }, [groupTagCategories, groupTagCategory]);
+  const filterSections = useMemo(
+    () => buildLibraryFilterSections(managedTagOptions, uncategorizedExpanded, tagPreferences, hideUnusedTags),
+    [managedTagOptions, uncategorizedExpanded, tagPreferences, hideUnusedTags],
+  );
+
+  useEffect(() => {
+    const visible = new Set(
+      managedTagOptions
+        .filter((option) => option.visible)
+        .map((option) => option.raw),
+    );
+    setTagFilters((current) => {
+      let changed = false;
+      const next: Partial<Record<TagCategory, string[]>> = {};
+      for (const [category, tags] of Object.entries(current)) {
+        const kept = (tags ?? []).filter((raw) => visible.has(raw));
+        if (kept.length !== (tags ?? []).length) changed = true;
+        if (kept.length > 0) next[category as TagCategory] = kept;
+      }
+      return changed ? next : current;
+    });
+  }, [managedTagOptions]);
 
   /** 筛选栏计数：类型按 type 字段，标签按 raw 出现次数 */
   const typeCounts = useMemo(() => {
@@ -318,12 +491,6 @@ const Library = () => {
     for (const c of characters) m[c.type ?? 'none'] = (m[c.type ?? 'none'] ?? 0) + 1;
     return m;
   }, [characters]);
-  const tagCounts = useMemo(() => {
-    const m: Record<string, number> = {};
-    for (const c of characters) for (const t of c.tags) m[t] = (m[t] ?? 0) + 1;
-    return m;
-  }, [characters]);
-
   const filtered = useMemo(() => {
     const list = filterCharacters(characters, { search: searchQuery, type: typeFilter, tags: tagFilters });
     return sortCharacters(list, sortKey, sortAsc, lastPlayed);
@@ -353,6 +520,10 @@ const Library = () => {
     const n = Number(pageSize);
     return filtered.slice((page - 1) * n, page * n);
   }, [filtered, page, pageSize]);
+  const groupedPageItems = useMemo(
+    () => buildLibraryGroups(pageItems, groupBy, { tagCategory: groupTagCategory }),
+    [pageItems, groupBy, groupTagCategory],
+  );
 
   /** 批量点选：普通/Ctrl 点=切换并记锚点；Shift 点=从锚点到当前的范围全选（filtered 顺序） */
   const batchClick = (c: ArchiveCharacter, e: React.MouseEvent) => {
@@ -412,12 +583,32 @@ const Library = () => {
           <div className="relative">
             <Search className="absolute left-2 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
             <Input
-              placeholder="搜索角色..."
+              placeholder="搜索角色或标签"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               className="h-8 w-40 pl-7 text-sm"
             />
           </div>
+          <Button
+            aria-label="标签管理"
+            variant="outline"
+            size="sm"
+            className="h-8"
+            onClick={() => setTagManagerOpen(true)}
+          >
+            <Tags className="w-3.5 h-3.5 mr-1.5" />
+            标签管理
+          </Button>
+          {characters.length > 1 && (
+            <Button
+              variant={batchMode ? 'default' : 'outline'}
+              size="sm"
+              className="h-8"
+              onClick={() => (batchMode ? exitBatch() : setBatchMode(true))}
+            >
+              {batchMode ? '退出批量' : '批量管理'}
+            </Button>
+          )}
           {/* 激活筛选 chip + 一键清除 */}
           {activeFilterChips.map((chip) => (
             <button
@@ -459,15 +650,37 @@ const Library = () => {
           >
             {sortAsc ? <ArrowUpNarrowWide className="w-4 h-4" /> : <ArrowDownWideNarrow className="w-4 h-4" />}
           </Button>
-          {characters.length > 1 && (
-            <Button
-              variant={batchMode ? 'default' : 'outline'}
-              size="sm"
-              className="h-8"
-              onClick={() => (batchMode ? exitBatch() : setBatchMode(true))}
-            >
-              {batchMode ? '退出批量' : '批量管理'}
-            </Button>
+          {viewMode === 'grid' && (
+            <>
+            <Select value={groupBy} onValueChange={(value) => setGroupBy(value as LibraryGroupBy)}>
+              <SelectTrigger
+                aria-label="分组方式"
+                title="像资料库一样按字段分组展示；按多选标签分组时，一张卡可能出现在多个标签组"
+                className="h-8 w-28 text-[13px]"
+              >
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {LIBRARY_GROUP_BY_OPTIONS.map((option) => (
+                  <SelectItem key={option.value} value={option.value}>
+                    {option.value === 'none' ? option.label : `按${option.label}`}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            {groupBy === 'tag' && (
+              <Select value={groupTagCategory} onValueChange={setGroupTagCategory}>
+                <SelectTrigger aria-label="标签分组分类" className="h-8 w-28 text-[13px]">
+                  <SelectValue placeholder="选择一级标签" />
+                </SelectTrigger>
+                <SelectContent>
+                  {groupTagCategories.map((category) => (
+                    <SelectItem key={category} value={category}>{category}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            )}
+            </>
           )}
           {/* 外观（B2：替代右上滑块）：视图/卡片大小/字体大小 */}
           <Popover>
@@ -547,79 +760,25 @@ const Library = () => {
           />
         </div>
 
-        {/* ===== 内容区：176px 标签筛选栏 + 卡墙 ===== */}
+        {/* ===== 内容区：标签筛选栏 + 卡墙 ===== */}
         <div className="flex-1 min-h-0 flex">
-          <aside className="w-[var(--filter-side-width)] shrink-0 overflow-y-auto scrollbar-thin py-3 pl-6 pr-2.5 border-r border-[color:var(--hairline-inner)]">
-            {/* 标签管理（B1：左上角） */}
-            <Button
-              variant="outline"
-              size="sm"
-              className="w-full h-8 mb-3 text-xs"
-              onClick={() => setTagManagerOpen(true)}
-            >
-              <Tags className="w-3.5 h-3.5 mr-1.5" />
-              标签管理
-            </Button>
-            {/* 类型（互斥，置顶；替代旧五档游玩状态） */}
-            <div>
-              <div className="text-[10px] tracking-[1.5px] text-[color:var(--sidebar-text-faint)] mb-2 pl-1.5 flex items-center gap-1">
-                类型
-                <span title="每张卡只归一类（人物/剧情/玩法/综合/同人），替代旧版的游玩状态；状态改到每个故事上维护" className="cursor-help">
-                  <HelpCircle className="w-3 h-3" />
-                </span>
-              </div>
-              <FilterItem
-                label="全部"
-                count={characters.length}
-                active={typeFilter === 'all'}
-                onClick={() => setTypeFilter('all')}
-              />
-              {CHARACTER_TYPES.map((t) => (
-                <FilterItem
-                  key={t}
-                  label={t}
-                  count={typeCounts[t] ?? 0}
-                  active={typeFilter === t}
-                  onClick={() => setTypeFilter(typeFilter === t ? 'all' : t)}
-                />
-              ))}
-              {(typeCounts['none'] ?? 0) > 0 && (
-                <FilterItem
-                  label="未分类"
-                  count={typeCounts['none']}
-                  active={typeFilter === 'none'}
-                  onClick={() => setTypeFilter(typeFilter === 'none' ? 'all' : 'none')}
-                />
-              )}
-            </div>
-            {/* 分类法 v2 各组：内置打底常显 + 库内自建；点选即筛（再点取消），类别间交集 */}
-            {TAG_CATEGORIES.map((cat) => {
-              const options = tagOptions[cat].filter(
-                (o) => cat !== '未分类' || (tagCounts[o.raw] ?? 0) > 0 || tagFilters[cat]?.includes(o.raw),
-              );
-              if (options.length === 0) return null;
-              return (
-                <div key={cat} className="mt-4 pt-3.5 border-t border-[color:var(--hairline-inner)]">
-                  <div className="text-[10px] tracking-[1.5px] text-[color:var(--sidebar-text-faint)] mb-2 pl-1.5 flex items-center gap-1">
-                    <span className="inline-block w-1.5 h-1.5 rounded-full shrink-0" style={{ background: CATEGORY_DOT[cat] }} />
-                    {cat}
-                    <span title={CATEGORY_HELP[cat]} className="cursor-help">
-                      <HelpCircle className="w-3 h-3" />
-                    </span>
-                  </div>
-                  {options.map((o) => (
-                    <FilterItem
-                      key={o.raw}
-                      label={o.label}
-                      count={tagCounts[o.raw] ?? 0}
-                      active={tagFilters[cat]?.includes(o.raw)}
-                      onClick={() => toggleTagFilter(cat, o.raw)}
-                    />
-                  ))}
-                </div>
-              );
-            })}
-          </aside>
+          <LibraryFilterRail
+            typeOptions={[
+              ...CHARACTER_TYPES.map((type) => ({
+                value: type,
+                label: type,
+                count: typeCounts[type] ?? 0,
+              })),
+            ]}
+            unclassifiedCount={typeCounts.none ?? 0}
+            activeType={typeFilter}
+            sections={filterSections}
+            activeTags={tagFilters}
+            uncategorizedExpanded={uncategorizedExpanded}
+            onTypeChange={(value) => setTypeFilter(value as TypeFilter)}
+            onTagToggle={toggleTagFilter}
+            onUncategorizedExpandedChange={setUncategorizedExpanded}
+          />
 
           <div className="flex-1 min-w-0 overflow-y-auto scrollbar-thin px-6 py-3">
             {loading ? (
@@ -648,11 +807,26 @@ const Library = () => {
                 )}
                 {viewMode === 'grid' ? (
                   /* 卡墙：auto-fill 按卡宽自动分列；卡图 2:3（ST 标准比例；红线：比例不可改、不加编号） */
-                  <div
-                    className="grid gap-3.5 content-start"
-                    style={{ gridTemplateColumns: `repeat(auto-fill, minmax(${cardWidth}px, 1fr))` }}
-                  >
-                    {pageItems.map((c) => {
+                  <div className="space-y-7">
+                    {groupedPageItems.map((group) => (
+                      <section key={group.key} aria-label={`${group.label}分组`}>
+                        {groupBy !== 'none' && (
+                          <div className="mb-3 flex items-center gap-2.5">
+                            <span className="h-4 w-1 rounded-full bg-brand" aria-hidden="true" />
+                            <h2 className="font-serif text-base font-semibold text-[color:var(--text-primary)]">
+                              {group.label}
+                            </h2>
+                            <span className="rounded-full bg-[var(--brand-active-bg)] px-2 py-0.5 text-[11px] text-brand">
+                              {group.items.length} 张
+                            </span>
+                            <span className="h-px flex-1 bg-[color:var(--hairline-inner)]" aria-hidden="true" />
+                          </div>
+                        )}
+                        <div
+                          className="grid gap-3.5 content-start"
+                          style={{ gridTemplateColumns: `repeat(auto-fill, minmax(${cardWidth}px, 1fr))` }}
+                        >
+                    {group.items.map((c) => {
                       const isSelected = selected.has(c.id);
                       const intro = introOf(c);
                       const timeTs = lastPlayed[c.id] ?? c.updatedAt;
@@ -729,6 +903,10 @@ const Library = () => {
                                       <ExternalLink className="w-3.5 h-3.5 mr-2" />
                                       打开角色主页
                                     </DropdownMenuItem>
+                                    <DropdownMenuItem onClick={() => void handleSingleExport(c)}>
+                                      <Download className="w-3.5 h-3.5 mr-2" />
+                                      导出角色卡
+                                    </DropdownMenuItem>
                                     <DropdownMenuItem
                                       className="text-destructive focus:text-destructive"
                                       onClick={() => setPendingDelete([c])}
@@ -759,10 +937,15 @@ const Library = () => {
                         </div>
                       );
                     })}
+                        </div>
+                      </section>
+                    ))}
                   </div>
                 ) : (
                   /* 列表视图：小缩略图 + 名字/简介 + 评分/故事数/时间 */
-                  <div className="rounded-xl border border-border overflow-hidden divide-y divide-[color:var(--hairline-inner)]">
+                  <div className="rounded-xl border border-border bg-[var(--bg-canvas)]">
+                    <LibraryListHeader batchMode={batchMode} />
+                    <div className="divide-y divide-[color:var(--hairline-inner)]">
                     {pageItems.map((c) => {
                       const isSelected = selected.has(c.id);
                       const intro = introOf(c);
@@ -773,9 +956,10 @@ const Library = () => {
                           role="button"
                           tabIndex={0}
                           className={cn(
-                            'flex items-center gap-3.5 px-3.5 py-2.5 cursor-pointer transition-colors hover:bg-[var(--hover-overlay)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--bg-canvas)]',
+                            'grid items-center gap-3.5 px-3.5 py-2.5 cursor-pointer transition-colors hover:bg-[var(--hover-overlay)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--bg-canvas)]',
                             batchMode && isSelected && 'bg-[var(--brand-active-bg)]',
                           )}
+                          style={{ gridTemplateColumns: libraryListColumns(batchMode) }}
                           onClick={(e) => (batchMode ? batchClick(c, e) : navigate(`/character/${c.id}`))}
                           onKeyDown={(e) => {
                             if (e.target !== e.currentTarget) return;
@@ -787,11 +971,11 @@ const Library = () => {
                           }}
                         >
                           {batchMode && (
-                            <span onClick={(e) => e.stopPropagation()}>
+                            <span className="justify-self-center" onClick={(e) => e.stopPropagation()}>
                               <Checkbox checked={isSelected} onCheckedChange={() => batchClick(c, {} as React.MouseEvent)} />
                             </span>
                           )}
-                          <div className="w-[42px] h-[63px] shrink-0 rounded-md overflow-hidden bg-elevated relative">
+                          <div className="h-[63px] w-[42px] rounded-md overflow-hidden bg-elevated relative">
                             {c.pngBase64 ? (
                               <img
                                 src={`data:image/png;base64,${c.pngBase64}`}
@@ -806,7 +990,7 @@ const Library = () => {
                               <div className={`absolute inset-0 art art-placeholder-${(hashName(c.name) % 13) + 1}`} />
                             )}
                           </div>
-                          <div className="flex-1 min-w-0">
+                          <div className="min-w-0">
                             <p className="font-medium text-[color:var(--text-primary)] truncate" style={{ fontSize: Math.round(14 * fontScale) }} title={displayCharacterName(c)}>{displayCharacterName(c)}</p>
                             <p
                               className={cn(
@@ -818,20 +1002,21 @@ const Library = () => {
                               {intro ?? '暂无简介'}
                             </p>
                           </div>
-                          <span className="shrink-0 text-xs font-semibold text-[color:var(--brand-hi)]">
+                          <span className="text-right text-xs font-semibold text-[color:var(--brand-hi)]">
                             {c.rating !== undefined ? c.rating : <span className="font-normal text-[color:var(--text-faint)]">未评分</span>}
                           </span>
-                          <span className="shrink-0 w-16 text-right text-xs text-[color:var(--text-muted)]">
+                          <span className="text-right text-xs text-[color:var(--text-muted)]">
                             {(storyCounts[c.id] ?? 0) > 0 ? `${storyCounts[c.id]} 段故事` : '—'}
                           </span>
-                          <span className="shrink-0 w-20 text-right text-xs text-[color:var(--text-faint)]" title={formatFullTime(timeTs)}>
+                          <span className="text-right text-xs text-[color:var(--text-faint)]" title={formatFullTime(timeTs)}>
                             {formatListTime(timeTs)}
                           </span>
+                          <div className="flex justify-end">
                           <DropdownMenu>
                             <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
                               <button
                                 aria-label="更多操作"
-                                className="shrink-0 w-7 h-7 rounded-md flex items-center justify-center text-muted-foreground hover:bg-[var(--hover-overlay)] hover:text-[color:var(--text-body)]"
+                                className="w-7 h-7 rounded-md flex items-center justify-center text-muted-foreground hover:bg-[var(--hover-overlay)] hover:text-[color:var(--text-body)]"
                               >
                                 <MoreVertical className="w-4 h-4" />
                               </button>
@@ -840,6 +1025,10 @@ const Library = () => {
                               <DropdownMenuItem onClick={() => navigate(`/character/${c.id}`)}>
                                 <ExternalLink className="w-3.5 h-3.5 mr-2" />
                                 打开角色主页
+                              </DropdownMenuItem>
+                              <DropdownMenuItem onClick={() => void handleSingleExport(c)}>
+                                <Download className="w-3.5 h-3.5 mr-2" />
+                                导出角色卡
                               </DropdownMenuItem>
                               <DropdownMenuItem
                                 className="text-destructive focus:text-destructive"
@@ -850,9 +1039,11 @@ const Library = () => {
                               </DropdownMenuItem>
                             </DropdownMenuContent>
                           </DropdownMenu>
+                          </div>
                         </div>
                       );
                     })}
+                    </div>
                   </div>
                 )}
 
@@ -943,11 +1134,11 @@ const Library = () => {
             variant="outline"
             size="sm"
             className="h-7 px-3 text-xs"
-            disabled={selected.size === 0}
-            onClick={handleBatchExport}
+            disabled={selected.size === 0 || batchExporting}
+            onClick={() => void handleBatchExport()}
           >
             <Download className="w-3.5 h-3.5 mr-1" />
-            导出
+            {batchExporting ? '导出中…' : '导出'}
           </Button>
           <Button
             variant="destructive"
@@ -965,10 +1156,22 @@ const Library = () => {
         </div>
       )}
 
+      <LibraryImportDialog
+        open={pendingImport !== null}
+        onOpenChange={(open) => !open && setPendingImport(null)}
+        items={pendingImport?.items ?? []}
+        failures={pendingImport?.failures ?? []}
+        tagOptions={managedTagOptions}
+        busy={importBusy}
+        onConfirm={handleConfirmImport}
+      />
       <TagManagerDialog
         open={tagManagerOpen}
         onOpenChange={setTagManagerOpen}
         characters={characters}
+        selectedCharacters={characters.filter((character) => selected.has(character.id))}
+        preferences={tagPreferences}
+        onPreferencesChange={handleTagPreferencesChange}
         onChanged={() => void load()}
       />
       <BatchTagDialog

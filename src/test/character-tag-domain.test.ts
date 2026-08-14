@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { ArchiveCharacter } from '@/types/archive';
 import type { STCharacterCard } from '@/lib/png-parser';
-import { applyCharacterTagPatch } from '@/lib/character-tag-domain';
+import { applyCharacterTagPatch, applyCharacterTypePatch } from '@/lib/character-tag-domain';
 
 const card = {} as STCharacterCard;
 
@@ -33,5 +33,12 @@ describe('character tag domain', () => {
 
   it('rejects unknown rating tiers instead of storing an invalid label', () => {
     expect(() => applyCharacterTagPatch(character(), { tags: ['评价/神作'] })).toThrow('评价档位');
+  });
+
+  it('stores Type in the mutually exclusive field and removes malformed legacy Type tags', () => {
+    expect(applyCharacterTypePatch(
+      character({ tags: ['类型/剧情', '人物/少女'], type: '剧情' }),
+      '人物',
+    )).toEqual({ type: '人物', tags: ['人物/少女'] });
   });
 });

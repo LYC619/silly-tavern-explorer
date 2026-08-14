@@ -1,5 +1,9 @@
 import { beforeEach, describe, expect, it } from 'vitest';
-import { getNsfwBlur } from '@/lib/local-settings';
+import {
+  getHideUnusedLibraryTags,
+  getNsfwBlur,
+  setHideUnusedLibraryTags,
+} from '@/lib/local-settings';
 import { shouldBlurNsfw } from '@/lib/nsfw-display';
 
 describe('NSFW 卡面展示规则', () => {
@@ -15,5 +19,17 @@ describe('NSFW 卡面展示规则', () => {
   it('关闭全局设置时三处图片都不应模糊', () => {
     localStorage.setItem('ste-nsfw-blur', '0');
     expect(shouldBlurNsfw(true, getNsfwBlur(), false)).toBe(false);
+  });
+});
+
+describe('角色库标签显示偏好', () => {
+  beforeEach(() => localStorage.clear());
+
+  it('默认显示未使用标签，并可持久化隐藏选项', () => {
+    expect(getHideUnusedLibraryTags()).toBe(false);
+    setHideUnusedLibraryTags(true);
+    expect(getHideUnusedLibraryTags()).toBe(true);
+    setHideUnusedLibraryTags(false);
+    expect(getHideUnusedLibraryTags()).toBe(false);
   });
 });

@@ -24,6 +24,7 @@ export function filterCharacters(
   if (query) {
     result = result.filter((character) => (
       [character.name, displayCharacterName(character), character.subtitle ?? '']
+        .concat(character.tags)
         .some((value) => value.toLocaleLowerCase().includes(query))
     ));
   }

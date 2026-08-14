@@ -45,6 +45,14 @@ describe('library query rules', () => {
     expect(filterCharacters(chars, { ...baseFilters, search: '原始' })).toHaveLength(1);
   });
 
+  it('matches local tags when searching roles or tags', () => {
+    const chars = [
+      character('历史角色', { tags: ['历史/三国'] }),
+      character('现代角色', { tags: ['世界观/现代'] }),
+    ];
+    expect(filterCharacters(chars, { ...baseFilters, search: '三国' }).map((c) => c.id)).toEqual(['历史角色']);
+  });
+
   it('keeps missing numeric values at the end in both directions', () => {
     const chars = [
       character('未评分'),
