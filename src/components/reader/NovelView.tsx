@@ -107,7 +107,6 @@ const NovelView = ({
   const [currentPage, setCurrentPage] = useState(0);
   const currentPageRef = useRef(0);
   const touchStartX = useRef<number | null>(null);
-  const rootRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     try {
@@ -346,17 +345,16 @@ const NovelView = ({
   // Esc 关闭（无弹窗时）
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
-      if (!rootRef.current?.contains(e.target as Node)) return;
       if (chapterDialogOpen || polishChapter) return;
-      const target = e.target as HTMLElement | null;
+      const target = e.target instanceof HTMLElement ? e.target : null;
       if (target?.closest('input, textarea, [contenteditable="true"]')) return;
       if (e.key === 'Escape') {
         goToPage(currentPageRef.current);
         onClose();
-      } else if (e.key === 'ArrowLeft' || e.key === 'PageUp') {
+      } else if (e.key === 'ArrowLeft' || e.key === 'ArrowUp' || e.key === 'PageUp') {
         e.preventDefault();
         goToPage(currentPageRef.current - 2);
-      } else if (e.key === 'ArrowRight' || e.key === 'PageDown' || e.key === ' ') {
+      } else if (e.key === 'ArrowRight' || e.key === 'ArrowDown' || e.key === 'PageDown' || e.key === ' ') {
         e.preventDefault();
         goToPage(currentPageRef.current + 2);
       }
@@ -417,8 +415,8 @@ const NovelView = ({
               <p
                 key={blockIndex}
                 className={cn(
-                  'mb-2 whitespace-pre-wrap',
-                  block.type === 'narration' && 'indent-8',
+                  'mb-0 whitespace-pre-wrap',
+                  block.type !== 'user' && !block.continuedFromPrevious && 'indent-[2em]',
                   block.type === 'user' && 'border-l-2 border-border pl-3 text-[0.9em] text-muted-foreground/75 indent-0',
                   block.hidden && 'border-l-2 border-dashed border-primary/40 pl-3',
                 )}
@@ -445,7 +443,6 @@ const NovelView = ({
 
   return (
     <div
-      ref={rootRef}
       className={embedded
         ? 'relative z-0 flex h-[min(78vh,900px)] min-h-[560px] flex-col overflow-hidden rounded-lg border border-border bg-canvas text-[color:var(--text-body)] shadow-sm'
         : 'fixed inset-0 z-50 flex flex-col bg-canvas text-[color:var(--text-body)]'}

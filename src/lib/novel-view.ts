@@ -51,6 +51,8 @@ export interface NovelBlock {
   floor: number;
   /** 来源楼层在 ST 中被标记为 Hide；仍显示时只做视觉标识 */
   hidden?: boolean;
+  /** 本块是同一原始段落跨页后的续文；续文不重复首行缩进。 */
+  continuedFromPrevious?: boolean;
 }
 
 export interface NovelChapter {
@@ -227,7 +229,7 @@ export function buildNovelDocument(
 }
 
 const DEFAULT_PAGE_WEIGHT = 220;
-const BLOCK_SPACING_WEIGHT = 6;
+const BLOCK_SPACING_WEIGHT = 2;
 
 function blockWeight(block: NovelBlock): number {
   return block.type === 'scene-break'
@@ -235,19 +237,58 @@ function blockWeight(block: NovelBlock): number {
     : Math.max(block.text.length, 1) + BLOCK_SPACING_WEIGHT;
 }
 
-function splitOversizedBlock(block: NovelBlock, limit: number): NovelBlock[] {
-  const chunkLength = Math.max(1, limit - BLOCK_SPACING_WEIGHT);
-  if (block.type === 'scene-break' || block.text.length <= chunkLength) return [block];
-  const chunks: NovelBlock[] = [];
-  for (let start = 0; start < block.text.length; start += chunkLength) {
-    chunks.push({ ...block, text: block.text.slice(start, start + chunkLength) });
-  }
-  return chunks;
+const STRONG_PAGE_BREAK = /[。！？!?…]/u;
+const WEAK_PAGE_BREAK = /[，、；：,;:]/u;
+const TRAILING_PUNCTUATION = /[，。！？；：、,.!?）》】」』”’]/u;
+
+interface TextPageSplit {
+  head: string;
+  tail: string;
+  naturalBoundary: boolean;
 }
 
 /**
- * 把章节切成稳定的实体书页。一般楼层保持完整；只有单楼本身超过一页容量时，
- * 才按正文片段续到后页，避免任何页面依赖内部滚动才能读完。
+ * 在可用字符数内优先寻找句末，其次寻找逗号等短停顿；没有自然边界时才硬切。
+ * 硬切后会把紧跟着的标点/闭引号留在前页，绝不让新页从孤立标点开始。
+ */
+function splitTextForPage(text: string, maxChars: number): TextPageSplit {
+  if (text.length <= maxChars) return { head: text, tail: '', naturalBoundary: true };
+  const safeMax = Math.max(1, maxChars);
+  const preferredMin = Math.max(1, Math.floor(safeMax * 0.45));
+  let strong = -1;
+  let weak = -1;
+  let whitespace = -1;
+
+  for (let index = 0; index < Math.min(text.length, safeMax); index += 1) {
+    const char = text[index];
+    const end = index + 1;
+    if (STRONG_PAGE_BREAK.test(char)) strong = end;
+    else if (WEAK_PAGE_BREAK.test(char)) weak = end;
+    else if (/\s/u.test(char)) whitespace = end;
+  }
+
+  let splitAt = strong >= preferredMin
+    ? strong
+    : weak >= preferredMin
+      ? weak
+      : whitespace >= preferredMin
+        ? whitespace
+        : safeMax;
+  const naturalBoundary = splitAt !== safeMax || strong === safeMax || weak === safeMax || whitespace === safeMax;
+
+  // 标点和闭引号属于前面的语句；允许页容量轻微超出，也不要让它成为下一页首字。
+  while (splitAt < text.length && TRAILING_PUNCTUATION.test(text[splitAt])) splitAt += 1;
+
+  return {
+    head: text.slice(0, splitAt),
+    tail: text.slice(splitAt),
+    naturalBoundary,
+  };
+}
+
+/**
+ * 把章节切成稳定的实体书页。正文按阅读边界流入剩余空间；段落确实放不下时优先
+ * 在句末续页，避免页面大块留白，也避免从标点或半句话的错误位置开页。
  */
 export function paginateNovelDocument(
   chapters: NovelChapter[],
@@ -275,29 +316,59 @@ export function paginateNovelDocument(
       pageNumber += 1;
     };
 
-    const floorGroups: NovelBlock[][] = [];
     for (const block of chapter.blocks) {
-      const last = floorGroups[floorGroups.length - 1];
-      if (!last || last[0].floor !== block.floor) floorGroups.push([block]);
-      else last.push(block);
-    }
-
-    for (const group of floorGroups) {
-      const groupWeight = group.reduce((sum, block) => sum + blockWeight(block), 0);
-      if (groupWeight <= limit) {
-        if (pageBlocks.length > 0 && pageWeight + groupWeight > limit) flush();
-        pageBlocks.push(...group);
-        pageWeight += groupWeight;
-        continue;
-      }
-
-      if (pageBlocks.length > 0) flush();
-      for (const block of group.flatMap((item) => splitOversizedBlock(item, limit))) {
+      if (block.type === 'scene-break') {
         const weight = blockWeight(block);
         if (pageBlocks.length > 0 && pageWeight + weight > limit) flush();
         pageBlocks.push(block);
         pageWeight += weight;
-        if (pageWeight >= limit) flush();
+        continue;
+      }
+
+      let remaining = block.text;
+      let continued = Boolean(block.continuedFromPrevious);
+      while (remaining.length > 0) {
+        let available = Math.max(0, limit - pageWeight - BLOCK_SPACING_WEIGHT);
+        if (available <= 0) {
+          if (pageBlocks.length > 0) {
+            flush();
+            continue;
+          }
+          // 极端的小容量参数仍需保证前进，不能在空页上反复 flush 形成死循环。
+          available = 1;
+        }
+
+        if (remaining.length <= available) {
+          const nextBlock = {
+            ...block,
+            text: remaining,
+            continuedFromPrevious: continued || undefined,
+          };
+          pageBlocks.push(nextBlock);
+          pageWeight += blockWeight(nextBlock);
+          remaining = '';
+          continue;
+        }
+
+        const split = splitTextForPage(remaining, available);
+        const fullPageTextCapacity = Math.max(1, limit - BLOCK_SPACING_WEIGHT);
+        // 小段能完整放到下一页、当前余量内又没有自然停顿时，宁可整段换页，
+        // 不制造截图中那种莫名其妙的半句话断裂。
+        if (pageBlocks.length > 0 && !split.naturalBoundary && remaining.length <= fullPageTextCapacity) {
+          flush();
+          continue;
+        }
+
+        const nextBlock = {
+          ...block,
+          text: split.head,
+          continuedFromPrevious: continued || undefined,
+        };
+        pageBlocks.push(nextBlock);
+        pageWeight += blockWeight(nextBlock);
+        remaining = split.tail;
+        continued = true;
+        flush();
       }
     }
     flush();

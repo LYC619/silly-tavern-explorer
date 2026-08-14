@@ -182,6 +182,49 @@ describe('小说翻页与书签联动', () => {
     expect(pages.flatMap((page) => page.blocks).map((block) => block.text).join('')).toBe(text);
   });
 
+  it('超长段落优先在完整句子后分页，不从标点或半句话开始新页', () => {
+    const first = `${'甲'.repeat(8)}。`;
+    const second = `${'乙'.repeat(8)}。`;
+    const pages = paginateNovelDocument([{
+      startFloor: 0,
+      endFloor: 0,
+      blocks: [{ type: 'narration', text: first + second, floor: 0 }],
+    }], 16);
+
+    expect(pages.flatMap((page) => page.blocks).map((block) => block.text)).toEqual([first, second]);
+  });
+
+  it('分页边界不会把逗号、句号或闭引号孤零零留到下一页开头', () => {
+    const text = `${'甲'.repeat(10)}，${'乙'.repeat(10)}。」${'丙'.repeat(8)}！`;
+    const pages = paginateNovelDocument([{
+      startFloor: 0,
+      endFloor: 0,
+      blocks: [{ type: 'dialogue', text, floor: 0 }],
+    }], 16);
+    const chunks = pages.flatMap((page) => page.blocks).map((block) => block.text);
+
+    expect(chunks.join('')).toBe(text);
+    expect(chunks.slice(1).every((chunk) => !/^[，。！？；：、,.!?）》】」』”’]/u.test(chunk))).toBe(true);
+  });
+
+  it('下一段放不下整段时会按句子续到本页，避免留下大块空白', () => {
+    const pages = paginateNovelDocument([{
+      startFloor: 0,
+      endFloor: 0,
+      blocks: [
+        { type: 'narration', text: '甲甲甲甲甲甲甲甲。', floor: 0 },
+        { type: 'dialogue', text: '乙乙乙乙乙乙。丙丙丙丙丙丙。', floor: 0 },
+      ],
+    }], 24);
+
+    expect(pages[0].blocks).toHaveLength(2);
+    expect(pages[0].blocks[1].text).toBe('乙乙乙乙乙乙。');
+    expect(pages[1].blocks[0]).toMatchObject({
+      text: '丙丙丙丙丙丙。',
+      continuedFromPrevious: true,
+    });
+  });
+
   it('阅读位置总是归一到双页书籍的左页，末页也不会越界', () => {
     expect(normalizeNovelSpreadStart(0, 5)).toBe(0);
     expect(normalizeNovelSpreadStart(1, 5)).toBe(0);
