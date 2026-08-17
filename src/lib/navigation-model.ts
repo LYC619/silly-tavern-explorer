@@ -22,6 +22,10 @@ export interface NavDestination {
   path: string;
   prefixes?: string[];
   query?: Record<string, string | null>;
+  activeMatches?: Array<{
+    prefix: string;
+    query?: Record<string, string | null>;
+  }>;
 }
 
 export interface NavArea extends NavDestination {
@@ -63,9 +67,17 @@ export const NAV_AREAS: NavArea[] = [
       { key: 'chat', label: '聊天处理', description: '正则清理、转换与导出', icon: MessageSquare, path: '/chat', prefixes: ['/chat'] },
       { key: 'summary', label: '总结', description: '生成分卷、日记和自定义记录', icon: BookOpen, path: '/tools?focus=summary', prefixes: ['/tools'], query: { focus: 'summary' } },
       { key: 'story-tree', label: '故事树', description: '整理人物与事件脉络', icon: Network, path: '/tools?focus=story-tree', prefixes: ['/tools'], query: { focus: 'story-tree' } },
-      { key: 'worldbook', label: '世界书', description: '编辑世界设定条目', icon: BookOpen, path: '/worldbook', prefixes: ['/worldbook'] },
+      {
+        key: 'worldbook', label: '世界书', description: '编辑世界设定条目', icon: BookOpen,
+        path: '/tools?focus=worldbook', prefixes: ['/worldbook'],
+        activeMatches: [{ prefix: '/tools', query: { focus: 'worldbook' } }, { prefix: '/worldbook' }],
+      },
       { key: 'card', label: '角色卡', description: '查看和处理卡片字段', icon: IdCard, path: '/card-viewer', prefixes: ['/card-viewer'] },
-      { key: 'preset', label: '预设', description: '编辑提示词与生成配置', icon: SlidersHorizontal, path: '/preset', prefixes: ['/preset'] },
+      {
+        key: 'preset', label: '预设', description: '编辑提示词与生成配置', icon: SlidersHorizontal,
+        path: '/tools?focus=preset', prefixes: ['/preset'],
+        activeMatches: [{ prefix: '/tools', query: { focus: 'preset' } }, { prefix: '/preset' }],
+      },
     ],
   },
   {
@@ -84,16 +96,22 @@ export const NAV_AREAS: NavArea[] = [
   },
 ];
 
-function queryMatches(item: NavDestination, search: string): boolean {
-  if (!item.query) return true;
+function queryMatches(query: Record<string, string | null> | undefined, search: string): boolean {
+  if (!query) return true;
   const params = new URLSearchParams(search);
-  return Object.entries(item.query).every(([key, expected]) => params.get(key) === expected);
+  return Object.entries(query).every(([key, expected]) => params.get(key) === expected);
 }
 
 export function matchesNavDestination(item: NavDestination, pathname: string, search: string): boolean {
+  if (item.activeMatches) {
+    return item.activeMatches.some(({ prefix, query }) => (
+      (prefix === '/' ? pathname === '/' : pathname.startsWith(prefix))
+        && queryMatches(query, search)
+    ));
+  }
   const prefixes = item.prefixes ?? [item.path.split('?')[0]];
   const pathMatches = prefixes.some((prefix) => prefix === '/' ? pathname === '/' : pathname.startsWith(prefix));
-  return pathMatches && queryMatches(item, search);
+  return pathMatches && queryMatches(item.query, search);
 }
 
 export function findNavArea(pathname: string, search: string): NavArea | undefined {

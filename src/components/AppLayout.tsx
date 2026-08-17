@@ -30,6 +30,7 @@ import { ThemeSwitcher } from '@/components/ThemeSwitcher';
 import { GlobalSearch } from '@/components/GlobalSearch';
 import { ClientTitleBar } from '@/components/ClientTitleBar';
 import { VaultSwitcher } from '@/components/vault/VaultSwitcher';
+import { EditorRail } from '@/components/EditorRail';
 import { shouldAutoCollapse, useSidenavState } from '@/hooks/use-sidenav-state';
 import { APP_VERSION } from '@/components/GlobalSettings';
 import { isTauri } from '@/lib/vault/tauri-fs';
@@ -213,8 +214,11 @@ function PersistentAppLayout({ children, titleBarContent, actions, leftActions }
         </header>
       )}
 
-      {/* ===== 主体：侧栏 + 主区 ===== */}
-      <div className="flex-1 flex min-h-0">
+      {/* ===== 主体：侧栏 + 主区 =====（--sidenav-w 把侧栏实际宽度暴露给主区内 fixed 悬浮元素，0816 反馈） */}
+      <div
+        className="flex-1 flex min-h-0"
+        style={{ '--sidenav-w': expanded ? 'var(--sidenav-expanded)' : 'var(--sidenav-collapsed)' } as React.CSSProperties}
+      >
         <nav
           className={cn(
             'shrink-0 bg-chrome border-r border-[color:var(--border-subtle)] flex flex-col px-1.5 py-2 transition-[width] duration-200 overflow-hidden',
@@ -309,6 +313,9 @@ function PersistentAppLayout({ children, titleBarContent, actions, leftActions }
             />
           </div>
         </nav>
+
+        {/* 编辑区窄工具栏（0816 反馈）：固定在全局侧栏右侧，编辑区内所有页面共用 */}
+        <EditorRail />
 
         {/* 主区：页面操作条（契约保留）+ 内容滚动区（入场 fade+slide，A7） */}
         <div className="flex-1 min-w-0 flex flex-col">

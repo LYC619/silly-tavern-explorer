@@ -1,5 +1,6 @@
 /** 首页首屏的空间约束，集中维护，避免 JSX 中散落难以复验的魔法数字。 */
 import type { ArchiveCharacter, ArchiveStory } from '@/types/archive';
+import { computeStoryTimeRange } from '@/lib/story-meta';
 
 /** 首页最近故事默认保留的可滚动数量。 */
 export const HOME_RECENT_STORY_VISIBLE_COUNT = 12;
@@ -32,11 +33,16 @@ export function storyWorkspaceViewForEditorFocus(focus: string | null): StoryWor
 export interface EditorStoryPickerItem {
   story: ArchiveStory;
   characterName: string;
+  floorCount: number;
+  startedAt?: number;
+  endedAt?: number;
 }
 
+export const EDITOR_STORY_PICKER_VISIBLE_COUNT = 10;
+
 /**
- * 整理工作台的故事选择模型：保留全集，排序与筛选集中处理，避免页面把“最近三条”
- * 误用成唯一可达集合。角色名作为副标题，帮助用户区分常见的重名故事。
+ * 整理工作台的故事选择模型：空查询只返回最近 10 条，搜索时在全集中匹配。
+ * 角色、楼层和起止时间集中计算，避免总结/故事树选择页出现两套展示逻辑。
  */
 export function buildEditorStoryPickerItems(
   stories: ArchiveStory[],
@@ -45,18 +51,25 @@ export function buildEditorStoryPickerItems(
 ): EditorStoryPickerItem[] {
   const characterNames = new Map(characters.map((character) => [character.id, character.name]));
   const normalizedQuery = query.trim().toLocaleLowerCase();
-  return [...stories]
+  const items = [...stories]
     .sort((a, b) => (b.lastViewedAt ?? b.updatedAt) - (a.lastViewedAt ?? a.updatedAt))
-    .map((story) => ({
-      story,
-      characterName: story.characterId
-        ? (characterNames.get(story.characterId) ?? '未知角色')
-        : '未绑定角色',
-    }))
+    .map((story) => {
+      const timeRange = computeStoryTimeRange(story.session.messages);
+      return {
+        story,
+        characterName: story.characterId
+          ? (characterNames.get(story.characterId) ?? '未知角色')
+          : '未绑定角色',
+        floorCount: story.session.messages.length,
+        startedAt: timeRange.startedAt ?? story.createdAt,
+        endedAt: timeRange.endedAt ?? story.lastMessageAt ?? story.updatedAt,
+      };
+    })
     .filter(({ story, characterName }) => {
       if (!normalizedQuery) return true;
       return `${story.title} ${characterName}`.toLocaleLowerCase().includes(normalizedQuery);
     });
+  return normalizedQuery ? items : items.slice(0, EDITOR_STORY_PICKER_VISIBLE_COUNT);
 }
 
 /** 只从有真实查看记录的故事中取最近条目；未查看的新导入内容留给完整选择器。 */

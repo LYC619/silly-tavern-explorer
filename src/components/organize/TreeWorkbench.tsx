@@ -4,7 +4,7 @@
  * 树列表的新建/删除/导入/导出在整理与记录的左栏与右栏（OrganizePanel/ContextRail）。
  * 父组件用 key={tree.id} 重挂来切树；保存防抖 600ms + 卸载兜底。
  */
-import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
+import { useState, useEffect, useMemo, useCallback, useRef, type ReactNode } from 'react';
 import {
   Plus, ChevronsDownUp, ChevronsUpDown, Archive, Sparkles, Undo2, Redo2, Search, X,
 } from 'lucide-react';
@@ -39,9 +39,11 @@ interface TreeWorkbenchProps {
   session: ChatSession | null;
   /** 保存落库后通知父组件刷新索引 */
   onChanged: () => void;
+  /** 页面级包装器可把选树、重命名和文件操作恢复到旧版同一工具行。 */
+  renderHeader?: (props: { title: string; onTitleChange: (value: string) => void }) => ReactNode;
 }
 
-export function TreeWorkbench({ tree, session, onChanged }: TreeWorkbenchProps) {
+export function TreeWorkbench({ tree, session, onChanged, renderHeader }: TreeWorkbenchProps) {
   const [nodes, setNodes] = useState<StoryNode[]>(tree.nodes);
   const [treeTitle, setTreeTitle] = useState(tree.title);
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -217,12 +219,14 @@ export function TreeWorkbench({ tree, session, onChanged }: TreeWorkbenchProps) 
 
   return (
     <div className="space-y-4">
-      <Input
-        value={treeTitle}
-        onChange={(e) => handleTitleChange(e.target.value)}
-        className="h-8"
-        placeholder="故事树名称"
-      />
+      {renderHeader ? renderHeader({ title: treeTitle, onTitleChange: handleTitleChange }) : (
+        <Input
+          value={treeTitle}
+          onChange={(e) => handleTitleChange(e.target.value)}
+          className="h-8"
+          placeholder="故事树名称"
+        />
+      )}
 
       <div className="flex flex-wrap gap-4 items-start">
         {/* 布局铁律：flex-wrap + 行内 flex-basis，禁视口断点（同原故事树页） */}

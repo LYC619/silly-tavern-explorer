@@ -55,6 +55,19 @@ function messageTime(msg: ChatMessage): number | undefined {
   return msg.timestamp;
 }
 
+/** 故事消息的起止时间；容忍消息乱序和缺失时间。 */
+export function computeStoryTimeRange(messages: ChatMessage[]): { startedAt?: number; endedAt?: number } {
+  let startedAt: number | undefined;
+  let endedAt: number | undefined;
+  for (const message of messages) {
+    const timestamp = messageTime(message);
+    if (timestamp === undefined) continue;
+    if (startedAt === undefined || timestamp < startedAt) startedAt = timestamp;
+    if (endedAt === undefined || timestamp > endedAt) endedAt = timestamp;
+  }
+  return { startedAt, endedAt };
+}
+
 export interface PlayTimeEstimate {
   /** 总游玩时长（各时段跨度之和，毫秒） */
   totalMs: number;

@@ -1,0 +1,135 @@
+import { useEffect, useMemo, useState } from 'react';
+import { BookOpen, Copy, PanelLeftClose, PanelLeftOpen, Pencil, Upload } from 'lucide-react';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent } from '@/components/ui/card';
+import { DiaryView } from '@/components/summary/DiaryView';
+import { MarkdownLite } from '@/components/MarkdownLite';
+import { useToast } from '@/hooks/use-toast';
+import { getAllSummaries } from '@/lib/summary-db';
+import { SUMMARY_KIND_LABELS, type SummaryItem, type SummaryKind } from '@/types/summary';
+
+interface SummaryGalleryProps {
+  currentBookId: string | null;
+  refreshKey: number;
+  charName?: string;
+  onEdit?: (item: SummaryItem) => void;
+}
+
+type KindFilter = SummaryKind | 'all';
+const FILTERS: KindFilter[] = ['all', 'volume', 'diary', 'diy'];
+
+export function SummaryGallery({ currentBookId, refreshKey, charName, onEdit }: SummaryGalleryProps) {
+  const { toast } = useToast();
+  const [all, setAll] = useState<SummaryItem[]>([]);
+  const [scope, setScope] = useState<'book' | 'all'>('book');
+  const [kindFilter, setKindFilter] = useState<KindFilter>('all');
+  const [activeId, setActiveId] = useState<string | null>(null);
+  const [listOpen, setListOpen] = useState(true);
+
+  useEffect(() => { getAllSummaries().then(setAll).catch(() => setAll([])); }, [refreshKey]);
+
+  const filtered = useMemo(() => all.filter((item) => {
+    if (scope === 'book' && currentBookId && item.bookId !== currentBookId) return false;
+    return kindFilter === 'all' || item.kind === kindFilter;
+  }).sort((a, b) => {
+    if (a.kind === 'volume' && b.kind === 'volume') return (a.volumeNumber ?? 0) - (b.volumeNumber ?? 0);
+    if (a.kind === 'volume') return -1;
+    if (b.kind === 'volume') return 1;
+    return b.updatedAt - a.updatedAt;
+  }), [all, currentBookId, kindFilter, scope]);
+
+  const active = filtered.find((item) => item.id === activeId) ?? filtered[0];
+
+  const copyActive = async () => {
+    if (!active) return;
+    await navigator.clipboard.writeText(active.content);
+    toast({ title: '已复制到剪贴板' });
+  };
+
+  const downloadActive = () => {
+    if (!active) return;
+    const safeName = (active.title || SUMMARY_KIND_LABELS[active.kind]).replace(/[\\/:*?"<>|]/g, '_');
+    const url = URL.createObjectURL(new Blob([active.content], { type: 'text/markdown;charset=utf-8' }));
+    const anchor = document.createElement('a');
+    anchor.href = url;
+    anchor.download = `${safeName}.md`;
+    document.body.appendChild(anchor);
+    anchor.click();
+    anchor.remove();
+    URL.revokeObjectURL(url);
+  };
+
+  return (
+    <div className="flex flex-wrap gap-4 items-start">
+      {listOpen && (
+        <Card className="min-w-0" style={{ flex: '3 1 210px' }}>
+          <CardContent className="p-3 space-y-2">
+            <div className="flex items-center gap-1 flex-wrap text-xs">
+              <Button variant={scope === 'book' ? 'default' : 'ghost'} size="sm" className="h-6 px-2" onClick={() => setScope('book')}>当前书</Button>
+              <Button variant={scope === 'all' ? 'default' : 'ghost'} size="sm" className="h-6 px-2" onClick={() => setScope('all')}>全部</Button>
+              <span className="text-muted-foreground">·</span>
+              {FILTERS.map((filter) => (
+                <Button key={filter} variant={kindFilter === filter ? 'default' : 'ghost'} size="sm" className="h-6 px-2" onClick={() => setKindFilter(filter)}>
+                  {filter === 'all' ? '全部类型' : SUMMARY_KIND_LABELS[filter]}
+                </Button>
+              ))}
+            </div>
+            {filtered.length === 0 ? (
+              <p className="text-sm text-muted-foreground py-6 text-center">暂无可展示的总结。先到“生成工作台”生成或手动添加。</p>
+            ) : (
+              <div className="space-y-1 max-h-[65vh] overflow-y-auto pr-1">
+                {filtered.map((item) => (
+                  <button
+                    key={item.id}
+                    type="button"
+                    onClick={() => setActiveId(item.id)}
+                    className={active?.id === item.id
+                      ? 'w-full flex items-center gap-2 rounded-md border border-primary/60 bg-primary/5 px-2 py-1.5 text-left text-sm'
+                      : 'w-full flex items-center gap-2 rounded-md border border-border px-2 py-1.5 text-left text-sm hover:bg-accent/40'}
+                  >
+                    <Badge variant="outline" className="text-[10px] px-1 py-0 shrink-0">{SUMMARY_KIND_LABELS[item.kind]}</Badge>
+                    {item.volumeNumber != null && <span className="text-xs text-muted-foreground shrink-0">第{item.volumeNumber}卷</span>}
+                    <span className="truncate flex-1">{item.title || '（无标题）'}</span>
+                  </button>
+                ))}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      )}
+
+      <Card className="min-w-0" style={{ flex: '9 1 280px' }}>
+        <CardContent className="p-4 sm:p-6">
+          {!active ? (
+            <div className="flex items-center justify-center min-h-[40vh] text-sm text-muted-foreground"><BookOpen className="w-4 h-4 mr-2" />选择一条总结开始阅读</div>
+          ) : (
+            <div className="space-y-4">
+              <div className="flex items-start justify-between gap-2 flex-wrap">
+                <div className="min-w-0 flex items-start gap-1.5">
+                  <Button variant="ghost" size="icon" className="h-7 w-7 shrink-0 mt-0.5" onClick={() => setListOpen((open) => !open)} title={listOpen ? '收起列表' : '展开列表'}>
+                    {listOpen ? <PanelLeftClose className="w-4 h-4" /> : <PanelLeftOpen className="w-4 h-4" />}
+                  </Button>
+                  <div className="min-w-0">
+                    <h2 className="font-display text-xl font-semibold truncate">{active.title || SUMMARY_KIND_LABELS[active.kind]}</h2>
+                    <p className="text-xs text-muted-foreground mt-0.5">{active.bookTitle} · 楼层 {active.floorStart}~{active.floorEnd} · {new Date(active.updatedAt).toLocaleDateString()}</p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-1 shrink-0">
+                  <Button variant="ghost" size="sm" className="h-7 gap-1" onClick={copyActive}><Copy className="w-3.5 h-3.5" />复制</Button>
+                  <Button variant="ghost" size="sm" className="h-7 gap-1" onClick={downloadActive}><Upload className="w-3.5 h-3.5" />.md</Button>
+                  {onEdit && <Button variant="outline" size="sm" className="h-7 gap-1" onClick={() => onEdit(active)}><Pencil className="w-3.5 h-3.5" />去编辑</Button>}
+                </div>
+              </div>
+              {active.kind === 'diary' ? (
+                <DiaryView content={active.content} charName={charName} />
+              ) : (
+                <MarkdownLite text={active.content} className="rounded-lg border paper-bg px-5 sm:px-8 py-6 font-serif text-[15px] max-w-[75ch] mx-auto" />
+              )}
+            </div>
+          )}
+        </CardContent>
+      </Card>
+    </div>
+  );
+}

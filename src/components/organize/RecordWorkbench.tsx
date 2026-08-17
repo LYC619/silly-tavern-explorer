@@ -5,7 +5,16 @@
  * 卷号逻辑照旧：默认已有最大卷号+1，可手改；生成时盖章，保存用盖章值。
  * 父组件用 key 重挂来切换记录（key = record.id 或 'new-<kind>'）。
  */
-import { useState, useEffect, useMemo, useRef, useCallback, forwardRef, useImperativeHandle } from 'react';
+import {
+  useState,
+  useEffect,
+  useMemo,
+  useRef,
+  useCallback,
+  forwardRef,
+  useImperativeHandle,
+  type ReactNode,
+} from 'react';
 import { Sparkles, Square, Loader2, BookOpen, Pencil } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
@@ -54,15 +63,32 @@ interface RecordWorkbenchProps {
   defaultBranchId: string | null;
   /** 保存/自动暂存落库后通知（父组件刷新索引并选中该条） */
   onSaved: (item: SummaryItem) => void;
+  /** 旧版总结页右栏顶部的已存记录列表。 */
+  sidePanel?: ReactNode;
+  /** 旧版总结页左栏顶部的类型切换。 */
+  configurationHeader?: ReactNode;
+  /** 默认沿用整理面板行为；旧版总结页无结果时不渲染空编辑器。 */
+  showEmptyEditor?: boolean;
 }
 
 export interface RecordWorkbenchHandle {
   /** 右栏「重新生成」：按记录的 genParams 回填挂载并转为生成新条目 */
   regenerate: () => void;
+  /** 旧版总结页的“手动添加总结”：展开一份空白草稿。 */
+  startManual: () => void;
 }
 
 export const RecordWorkbench = forwardRef<RecordWorkbenchHandle, RecordWorkbenchProps>(
-  function RecordWorkbench({ story, kind, record, defaultBranchId, onSaved }, ref) {
+  function RecordWorkbench({
+    story,
+    kind,
+    record,
+    defaultBranchId,
+    onSaved,
+    sidePanel,
+    configurationHeader,
+    showEmptyEditor = true,
+  }, ref) {
     const { toast } = useToast();
 
     // 脉络选择：记录带 branchId 用记录的；新建默认工作区当前分支。分支被删则回落主线
@@ -91,6 +117,7 @@ export const RecordWorkbench = forwardRef<RecordWorkbenchHandle, RecordWorkbench
     const [savedPermanent, setSavedPermanent] = useState(record ? !record.autoSaved : false);
     // 当前结果所属卷号（生成时盖章/载入回填）；保存用它而非实时 nextVolumeNumber，防 priors 变化顶号
     const [resultVolume, setResultVolume] = useState<number | null>(record?.volumeNumber ?? null);
+    const [manualDraft, setManualDraft] = useState(false);
     // 预览模式：MD 排版阅读（日记用日记本）；编辑回 textarea
     const [preview, setPreview] = useState(false);
 
@@ -242,6 +269,7 @@ export const RecordWorkbench = forwardRef<RecordWorkbenchHandle, RecordWorkbench
       setSavedPermanent(false);
       setResultVolume(null);
       setPreview(false);
+      setManualDraft(false);
       scrollEditorIntoView();
       toast({ title: '已送入结果编辑器', description: '可继续编辑后保存' });
     };
@@ -305,6 +333,7 @@ export const RecordWorkbench = forwardRef<RecordWorkbenchHandle, RecordWorkbench
       const vol = kind === 'volume' ? effectiveVolume : undefined;
       setResultVolume(vol ?? null);
       setPreview(false);
+      setManualDraft(false);
       setStreaming(true);
       setResultContent('');
       setResultTitle('');
@@ -360,6 +389,16 @@ export const RecordWorkbench = forwardRef<RecordWorkbenchHandle, RecordWorkbench
 
     // 右栏「重新生成」：按记录 genParams 回填挂载，转为生成新条目
     useImperativeHandle(ref, () => ({
+      startManual() {
+        setResultTitle('');
+        setResultContent('');
+        setCurrentSummaryId(null);
+        setSavedPermanent(false);
+        setResultVolume(null);
+        setPreview(false);
+        setManualDraft(true);
+        scrollEditorIntoView();
+      },
       regenerate() {
         const gp = record?.genParams;
         if (gp) {
@@ -377,9 +416,10 @@ export const RecordWorkbench = forwardRef<RecordWorkbenchHandle, RecordWorkbench
           setVolumeOverride(record.volumeNumber); // 重做该卷：沿用原卷号（可再改）
         }
         setSavedPermanent(false);
+        setManualDraft(false);
         toast({ title: '已回填设置', description: '楼层/挂载/模板已按原条目填好，点「生成」即可重做' });
       },
-    }), [record, kind, toast]);
+    }), [record, kind, scrollEditorIntoView, toast]);
 
     const charName = session.character?.name;
     const branchName = branchId ? story.branches?.find((b) => b.id === branchId)?.name : null;
@@ -391,6 +431,7 @@ export const RecordWorkbench = forwardRef<RecordWorkbenchHandle, RecordWorkbench
           {/* 布局铁律：flex-wrap + 行内 flex-basis，禁视口断点（同原总结页） */}
           {/* 左：生成配置 */}
           <div className="min-w-0 space-y-4" style={{ flex: '5 1 240px' }}>
+            {configurationHeader}
             {(story.branches?.length ?? 0) > 0 && (
               <Card>
                 <CardContent className="p-3 flex items-center gap-2">
@@ -507,6 +548,7 @@ export const RecordWorkbench = forwardRef<RecordWorkbenchHandle, RecordWorkbench
 
           {/* 右：结果（编辑 / MD 排版预览） */}
           <div className="min-w-0 space-y-3" style={{ flex: '7 1 260px' }} ref={editorRef}>
+            {sidePanel}
             {!streaming && resultContent && (
               <div className="flex justify-end">
                 <Button variant="outline" size="sm" className="h-7 gap-1" onClick={() => setPreview((v) => !v)}>
@@ -529,7 +571,7 @@ export const RecordWorkbench = forwardRef<RecordWorkbenchHandle, RecordWorkbench
                   )}
                 </CardContent>
               </Card>
-            ) : (
+            ) : (showEmptyEditor || streaming || resultContent || manualDraft) ? (
               <SummaryResultEditor
                 kind={kind}
                 title={resultTitle}
@@ -541,7 +583,7 @@ export const RecordWorkbench = forwardRef<RecordWorkbenchHandle, RecordWorkbench
                 savedPermanent={savedPermanent}
                 charName={charName}
               />
-            )}
+            ) : null}
           </div>
         </div>
       </div>

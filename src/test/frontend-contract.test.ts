@@ -85,14 +85,15 @@ describe('前端状态刷新契约', () => {
     expect(layout).toContain('shouldAutoCollapse(previousPathRef.current, location.pathname)');
   });
 
-  it('STImportCard 暴露变更通知，首页和编辑区接入刷新；首页仅未接入时显示', () => {
+  it('STImportCard 只保留首页入口，整理故事选择页不再重复扫描 ST', () => {
     const card = read('src/components/tools/STImportCard.tsx');
     const home = read('src/pages/Home.tsx');
     const tools = read('src/pages/Tools.tsx');
     expect(card).toContain('onChanged?: () => void');
     expect(home).toContain('onChanged={handleSTChanged}');
     expect(home).toContain("stConnected === false");
-    expect(tools).toContain('onChanged={handleSTChanged}');
+    expect(tools).not.toContain('STImportCard');
+    expect(tools).not.toContain('重新扫描 ST');
   });
 
   it('首页欢迎语只报归档数，不再堆书名+楼层+时间', () => {
@@ -139,11 +140,11 @@ describe('卡片键盘操作契约', () => {
     expect(home).not.toContain('丢进来，不用先建档');
   });
 
-  it('编辑区使用紧凑 ST 扫描入口', () => {
+  it('编辑区不重复提供紧凑 ST 扫描入口', () => {
     const card = read('src/components/tools/STImportCard.tsx');
     const tools = read('src/pages/Tools.tsx');
     expect(card).toContain("variant?: 'full' | 'compact'");
-    expect(tools).toContain('variant="compact"');
+    expect(tools).not.toContain('variant="compact"');
   });
 
   it('首页表面和编辑区搜索焦点使用实际生成的语义样式', () => {

@@ -5,7 +5,7 @@
  * 布局铁律：分栏用 flex-wrap + 行内 basis，禁视口断点。
  */
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { useParams, useNavigate, useLocation } from 'react-router-dom';
+import { useParams, useNavigate, useLocation, useSearchParams } from 'react-router-dom';
 import {
   ArrowLeft, BookOpen, BookOpenCheck, BookOpenText, ArrowDownUp, MessageSquare, Cpu,
   ScrollText, NotebookPen, PenLine, Network, Link2,
@@ -19,11 +19,9 @@ import { IOPanel } from '@/components/workspace/IOPanel';
 import { STUpdateHint } from '@/components/workspace/STUpdateHint';
 import { BranchPanel } from '@/components/workspace/BranchPanel';
 import { OutlinePanel } from '@/components/workspace/OutlinePanel';
-import {
-  OrganizePanel,
-  type OrganizeFixedKind,
-  type OrganizeTarget,
-} from '@/components/organize/OrganizePanel';
+import type { OrganizeFixedKind, OrganizeTarget } from '@/components/organize/OrganizePanel';
+import { SummaryWorkspace } from '@/components/organize/SummaryWorkspace';
+import { StoryTreeWorkspace } from '@/components/organize/StoryTreeWorkspace';
 import { BindStoryDialog } from '@/components/chat/BindStoryDialog';
 import ReaderView from '@/components/reader/ReaderView';
 import NovelView from '@/components/reader/NovelView';
@@ -31,6 +29,7 @@ import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
 import type { ArchiveCharacter, ArchiveStory } from '@/types/archive';
 import type { ChatSession } from '@/types/chat';
+import type { SummaryKind } from '@/types/summary';
 import {
   getArchiveStory,
   saveArchiveStory,
@@ -42,6 +41,7 @@ import {
 } from '@/lib/archive-db';
 import { parseJsonl, parseJson } from '@/lib/adapters/st';
 import { getDefaultExportSettings } from '@/lib/session-storage';
+import { setEditorStoryId } from '@/lib/editor-story-context';
 
 /** 阶段9.6：整理与记录拆成四个子页面（参照 2.0 前 /summary /story-tree 独立页的架构） */
 type WorkspaceView = 'read' | OrganizeFixedKind | 'io';
@@ -67,15 +67,17 @@ const StoryWorkspace = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const location = useLocation();
+  const [searchParams, setSearchParams] = useSearchParams();
   const { toast } = useToast();
   const [story, setStory] = useState<ArchiveStory | null>(null);
   const [character, setCharacter] = useState<ArchiveCharacter | null>(null);
   const [loading, setLoading] = useState(true);
   const [branchId, setBranchId] = useState<string | null>(null);
   const locationState = location.state as StoryWorkspaceLocationState | null;
+  const queryView = searchParams.get('view');
   // 角色页「导出/去处理区生成」带初始视图和来源脉络跳入（10.3b）
   const [view, setView] = useState<WorkspaceView>(() => {
-    const v = locationState?.view;
+    const v = queryView ?? locationState?.view;
     return v && VIEW_ITEMS.some((item) => item.key === v) ? (v as WorkspaceView) : 'read';
   });
   const initialTarget = locationState?.view === view ? locationState.initialTarget : undefined;
@@ -83,15 +85,29 @@ const StoryWorkspace = () => {
   const [novelOpen, setNovelOpen] = useState(false);
   const [bindOpen, setBindOpen] = useState(false);
   const workbenchRef = useRef<ChatWorkbenchHandle>(null);
-  // 从整理子页面跳回聊天时待滚动的楼层
-  const pendingJumpRef = useRef<number | null>(null);
 
   useEffect(() => {
-    const requestedView = (location.state as StoryWorkspaceLocationState | null)?.view;
+    const stateView = (location.state as StoryWorkspaceLocationState | null)?.view;
+    const requestedView = searchParams.get('view') ?? stateView;
     if (requestedView && VIEW_ITEMS.some((item) => item.key === requestedView)) {
       setView(requestedView as WorkspaceView);
+      if (!searchParams.get('view') && stateView) {
+        setSearchParams((current) => {
+          current.set('view', stateView);
+          return current;
+        }, { replace: true });
+      }
     }
-  }, [location.state]);
+  }, [location.state, searchParams, setSearchParams]);
+
+  const changeView = useCallback((next: WorkspaceView) => {
+    setView(next);
+    setSearchParams((current) => {
+      current.set('view', next);
+      return current;
+    }, { replace: true });
+  }, [setSearchParams]);
+  const changeSummaryKind = useCallback((kind: SummaryKind) => changeView(kind), [changeView]);
 
   // 持久化：只有真实修改（dirty）才落库，防抖 600ms；离开页面前有脏数据立即补存
   const dirtyRef = useRef(false);
@@ -131,6 +147,7 @@ const StoryWorkspace = () => {
           setStory(null);
           return;
         }
+        setEditorStoryId(s.id);
         const requestedBranchId = (location.state as { branchId?: string | null } | null)?.branchId;
         const restoredBranchId = resolveInitialBranchId(s, requestedBranchId);
         setBranchId(restoredBranchId);
@@ -190,22 +207,6 @@ const StoryWorkspace = () => {
       return { ...cur, lastViewedBranchId: nextBranchId ?? undefined };
     });
   }, [mutateStory]);
-
-  // 整理与记录「跳回聊天对应楼层」：切分支（保留分支上下文）+ 回阅读视图，
-  // 等 ChatWorkbench（按脉络 key 重挂）挂载渲染后再滚到楼层
-  const handleJumpToChat = useCallback((bid: string | null, floor: number) => {
-    pendingJumpRef.current = floor;
-    handleSwitchBranch(bid);
-    setView('read');
-  }, [handleSwitchBranch]);
-
-  useEffect(() => {
-    if (view !== 'read' || pendingJumpRef.current === null) return;
-    const floor = pendingJumpRef.current;
-    pendingJumpRef.current = null;
-    const t = setTimeout(() => workbenchRef.current?.scrollToFloor(floor), 120);
-    return () => clearTimeout(t);
-  }, [view, branchId]);
 
   // ---- 分支操作 ----
 
@@ -298,13 +299,15 @@ const StoryWorkspace = () => {
   const settings = story.settings ?? getDefaultExportSettings();
   const backTarget = story.characterId ? `/character/${story.characterId}` : '/chat';
   const backLabel = character?.name ?? (story.characterId ? '角色库' : '聊天处理');
+  const organizeView = ORGANIZE_VIEWS.includes(view as OrganizeFixedKind);
 
   return (
     <AppLayout>
-      <div className="flex items-start flex-wrap">
+      <div className={organizeView ? 'min-h-full' : 'flex items-start flex-wrap'}>
         {/* ===== 左侧二级栏：故事上下文 + 三组导航 + 分支/章节/书签 ===== */}
         {/* 新外壳（2.1-P1）主区内滚动：sticky 仍生效，高度上限改为主区可视高（标题栏36+状态栏26=62px） */}
-        <aside className="w-56 basis-56 shrink-0 grow-0 border-r border-border bg-card/40 sticky top-0 max-h-[calc(100vh-62px)] overflow-y-auto p-3 space-y-4">
+        {/* 整理视图（0816）：不再渲染宽二级栏，编辑区切换交给 AppLayout 的全局窄工具栏 */}
+        {!organizeView && <aside className="w-56 basis-56 shrink-0 grow-0 border-r border-border bg-card/40 sticky top-0 max-h-[calc(100vh-62px)] overflow-y-auto p-3 space-y-4">
           <div>
             <Button variant="ghost" size="sm" className="px-1.5 -ml-1 text-muted-foreground" onClick={() => navigate(backTarget)}>
               <ArrowLeft className="w-4 h-4 mr-1" />
@@ -347,7 +350,7 @@ const StoryWorkspace = () => {
                   )}
                   {groupEnd && <div className="pt-1" />}
                   <button
-                    onClick={() => setView(item.key)}
+                    onClick={() => changeView(item.key)}
                     className={cn(
                       'w-full flex items-center gap-2 rounded-md px-2 py-1.5 text-sm transition-colors',
                       item.group && 'pl-3',
@@ -385,10 +388,10 @@ const StoryWorkspace = () => {
               />
             </>
           )}
-        </aside>
+        </aside>}
 
         {/* ===== 主区 ===== */}
-        <div className="flex-1 min-w-[24rem]">
+        <div className={organizeView ? 'min-w-0' : 'flex-1 min-w-[24rem]'}>
           {view === 'read' && (
             <div className="flex items-start flex-wrap">
               <div className="flex-1 min-w-[20rem]">
@@ -406,7 +409,7 @@ const StoryWorkspace = () => {
                   onSettingsChange={handleSettingsChange}
                   onFloorChange={handleFloorChange}
                   initialFloor={line.lastFloor}
-                  navBarLeftClass="left-[20.75rem]"
+                  navBarLeftClass="left-[calc(var(--sidenav-w)+20.75rem)] transition-[left] duration-200"
                   titleBadge={
                     branchId !== null ? (
                       <Badge variant="secondary" className="shrink-0">
@@ -431,17 +434,22 @@ const StoryWorkspace = () => {
             </div>
           )}
 
-          {/* 整理与记录四个子页面（阶段9.6）：按类型独立，key 按视图重挂 */}
-          {ORGANIZE_VIEWS.includes(view as OrganizeFixedKind) && (
-            <OrganizePanel
-              key={`${view}:${initialTarget?.type ?? ''}:${initialTarget?.id ?? ''}`}
+          {(view === 'volume' || view === 'diary' || view === 'diy') && (
+            <SummaryWorkspace
               story={story}
               characterName={character?.name}
-              coverDataUrl={character?.pngBase64 ? `data:image/png;base64,${character.pngBase64}` : undefined}
               currentBranchId={branchId}
-              fixedKind={view as OrganizeFixedKind}
+              kind={view as SummaryKind}
               initialTarget={initialTarget}
-              onJumpToChat={handleJumpToChat}
+              onKindChange={changeSummaryKind}
+            />
+          )}
+
+          {view === 'tree' && (
+            <StoryTreeWorkspace
+              story={story}
+              currentBranchId={branchId}
+              initialTarget={initialTarget}
             />
           )}
 

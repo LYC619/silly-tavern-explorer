@@ -14,7 +14,7 @@ describe('editor entry restoration', () => {
     expect(editorArea?.path).toBe('/chat');
     expect(home).toMatch(/label="进入编辑区"[^\n]*navigate\('\/chat'\)/);
     expect(tools).toContain("import { Navigate, useNavigate, useSearchParams } from 'react-router-dom'");
-    expect(tools).toContain('if (!focusView) return <Navigate to="/chat" replace />;');
+    expect(tools).toContain('if (!focusView && !assetFocus) return <Navigate to="/chat" replace />;');
     expect(tools).not.toContain('if (!focus) return <Navigate to="/chat" replace />;');
   });
 
@@ -22,6 +22,17 @@ describe('editor entry restoration', () => {
     const navigation = read('src/lib/navigation-model.ts');
     expect(navigation).toContain("path: '/tools?focus=summary'");
     expect(navigation).toContain("path: '/tools?focus=story-tree'");
+    expect(navigation).toContain("path: '/tools?focus=worldbook'");
+    expect(navigation).toContain("path: '/tools?focus=preset'");
+  });
+
+  it('uses one story context for the organizer views', () => {
+    const workspace = read('src/pages/StoryWorkspace.tsx');
+    const tools = read('src/pages/Tools.tsx');
+    expect(workspace).toContain('setEditorStoryId');
+    expect(tools).toContain('buildEditorStoryPath');
+    expect(tools).not.toContain('STImportCard');
+    expect(tools).not.toContain('进入分卷总结');
   });
 
   it('keeps the SillyTavern directory entry reachable after retiring the tools landing page', () => {

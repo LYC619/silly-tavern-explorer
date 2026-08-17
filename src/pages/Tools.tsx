@@ -1,14 +1,7 @@
-/**
- * 编辑区入口页（2.1-P3，按新前端交接包 demo ③ 重做外壳；原"处理区"仅标签改名）：
- * - 左侧 220px 二级列表：工作类型（五工具+计数）/ 最近打开（最近查看的故事）
- * - 右侧画布：大拖放区 + 类型确认弹窗（复用既有逻辑，"虚线占位=复用现有布局"）
- * 丢文件后弹类型选择（程序给默认猜测，用户确认），随后分流到对应工具页。
- */
+/** 聊天处理外的编辑区入口选择页：总结/故事树选故事，世界书/预设选资产；全局编辑区导航由 AppLayout 唯一提供。 */
 import { useState, useEffect, useCallback } from 'react';
 import { Navigate, useNavigate, useSearchParams } from 'react-router-dom';
-import {
-  UploadCloud, ScrollText, Globe, IdCard, SlidersHorizontal, Regex, BookOpenText, Network,
-} from 'lucide-react';
+import { CalendarRange, MessageSquare, Search, UploadCloud } from 'lucide-react';
 import { AppLayout } from '@/components/AppLayout';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
@@ -21,91 +14,126 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
-import { cn } from '@/lib/utils';
 import { guessFileType, TOOL_TYPE_LABELS, type ToolFileType } from '@/lib/file-type-guess';
 import { setPendingToolFile } from '@/lib/tool-handoff';
-import { STImportCard } from '@/components/tools/STImportCard';
 import { getAllCharacters, getAllArchiveStories } from '@/lib/archive-db';
 import { getAllWorldBooks } from '@/lib/worldbook-db';
 import { getAllPresets } from '@/lib/preset-db';
-import { getAllRegexCollections } from '@/lib/regex-db';
 import type { ArchiveCharacter, ArchiveStory } from '@/types/archive';
 import {
   buildEditorStoryPickerItems,
   EDITOR_TOOL_COPY,
-  pickRecentlyViewedStories,
   storyWorkspaceViewForEditorFocus,
 } from '@/lib/home-layout';
+import { buildEditorStoryPath, getEditorStoryId, setEditorStoryId } from '@/lib/editor-story-context';
 
 interface ToolEntry {
   type: ToolFileType;
   label: string;
-  desc: string;
-  icon: typeof ScrollText;
   path: string;
 }
 
 const TOOLS: ToolEntry[] = [
-  { type: 'chat', label: '聊天处理', desc: '正则清理、编辑、章节、导出与阅读', icon: ScrollText, path: '/chat' },
-  { type: 'worldbook', label: '世界书', desc: '条目浏览、编辑、批量整理、AI 追加', icon: Globe, path: '/worldbook' },
-  { type: 'card', label: '角色卡', desc: '查看与编辑卡内字段，PNG/JSON 回写', icon: IdCard, path: '/card-viewer' },
-  { type: 'preset', label: '预设', desc: '提示词块可视化编辑与导出', icon: SlidersHorizontal, path: '/preset' },
-  { type: 'regex', label: '正则', desc: '规则管理、批量导入、可视化生效预览', icon: Regex, path: '/regex' },
+  { type: 'chat', label: '聊天处理', path: '/chat' },
+  { type: 'worldbook', label: '世界书', path: '/worldbook' },
+  { type: 'card', label: '角色卡', path: '/card-viewer' },
+  { type: 'preset', label: '预设', path: '/preset' },
+  { type: 'regex', label: '正则', path: '/regex' },
 ];
 
-const ORGANIZE_ENTRIES = [
-  { focus: 'summary', label: '总结', desc: EDITOR_TOOL_COPY.summary, icon: BookOpenText },
-  { focus: 'story-tree', label: '故事树', desc: EDITOR_TOOL_COPY.storyTree, icon: Network },
-] as const;
+/** 左侧介绍栏的分工具卖点（0816 反馈：选择页左介绍右选择） */
+const FOCUS_COPY: Record<string, { title: string; description: string; points: string[]; importLabel: string }> = {
+  summary: {
+    title: '总结',
+    description: EDITOR_TOOL_COPY.summary,
+    points: ['分卷总结：按楼层范围提炼剧情', '角色日记：以角色视角回顾经历', 'DIY 创作：用自定义提示词自由生成'],
+    importLabel: '导入新聊天',
+  },
+  'story-tree': {
+    title: '故事树',
+    description: EDITOR_TOOL_COPY.storyTree,
+    points: ['把人物、事件和伏笔整理成脉络', '支持 JSON / Markdown 导入导出', '与聊天处理、总结共用当前故事'],
+    importLabel: '导入新聊天',
+  },
+  worldbook: {
+    title: '世界书',
+    description: EDITOR_TOOL_COPY.worldbook,
+    points: ['编辑条目内容与触发关键词', '导入的世界书自动暂存，可随时切换', '支持 ST 世界书 JSON'],
+    importLabel: '导入世界书',
+  },
+  preset: {
+    title: '预设',
+    description: EDITOR_TOOL_COPY.preset,
+    points: ['调整提示词块与插入顺序', '编辑生成参数与正则规则', '支持 ST 预设 JSON'],
+    importLabel: '导入预设',
+  },
+};
+
+/** 资产选择卡的统一展示模型（世界书/预设共用一套卡片渲染） */
+interface AssetPickerItem {
+  id: string;
+  title: string;
+  meta: string;
+  updatedAt: number;
+  autoSaved?: boolean;
+}
+
+function formatStoryDate(value?: number): string {
+  if (!value || !Number.isFinite(value)) return '时间未知';
+  return new Date(value).toLocaleDateString('zh-CN', { year: 'numeric', month: '2-digit', day: '2-digit' });
+}
 
 const Tools = () => {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const focus = searchParams.get('focus');
   const focusView = storyWorkspaceViewForEditorFocus(focus);
-  const focusCopy = focus === 'summary'
-    ? { title: '总结', description: EDITOR_TOOL_COPY.summary, action: '进入分卷总结' }
-    : focus === 'story-tree'
-      ? { title: '故事树', description: EDITOR_TOOL_COPY.storyTree, action: '打开故事树' }
-      : null;
+  // 世界书/预设走资产选择（0816 二轮反馈：不用再去附属库里找）
+  const assetFocus = focus === 'worldbook' || focus === 'preset' ? focus : null;
+  const focusCopy = focus ? FOCUS_COPY[focus] ?? null : null;
   const [dragOver, setDragOver] = useState(false);
   // 待确认的文件 + 程序猜测（null = 没猜出来，让用户自己选）
   const [pending, setPending] = useState<{ file: File; guess: ToolFileType | null } | null>(null);
   const [chosenType, setChosenType] = useState<ToolFileType>('chat');
-  /** 二级列表计数与最近打开（加载失败静默为 0/空，不挡工具入口） */
-  const [counts, setCounts] = useState<Partial<Record<ToolFileType, number>>>({});
   const [stories, setStories] = useState<ArchiveStory[]>([]);
   const [characters, setCharacters] = useState<ArchiveCharacter[]>([]);
-  const [recent, setRecent] = useState<ArchiveStory[]>([]);
-  const [storyQuery, setStoryQuery] = useState('');
+  const [assetItems, setAssetItems] = useState<AssetPickerItem[]>([]);
+  const [query, setQuery] = useState('');
 
   const loadData = useCallback(async () => {
-    const [stories, wbs, cards, presets, regexes] = await Promise.all([
+    if (assetFocus === 'worldbook') {
+      const items = await getAllWorldBooks().catch(() => []);
+      setAssetItems(items.map((item) => ({
+        id: item.id,
+        title: item.title,
+        meta: `${Object.keys(item.worldbook.entries).length} 个条目`,
+        updatedAt: item.updatedAt,
+        autoSaved: item.autoSaved,
+      })));
+      return;
+    }
+    if (assetFocus === 'preset') {
+      const items = await getAllPresets().catch(() => []);
+      setAssetItems(items.map((item) => ({
+        id: item.id,
+        title: item.title,
+        meta: `${item.preset.prompts.length} 个提示词`,
+        updatedAt: item.updatedAt,
+        autoSaved: item.autoSaved,
+      })));
+      return;
+    }
+    const [stories, cards] = await Promise.all([
       getAllArchiveStories().catch(() => []),
-      getAllWorldBooks().catch(() => []),
       getAllCharacters().catch(() => []),
-      getAllPresets().catch(() => []),
-      getAllRegexCollections().catch(() => []),
     ]);
-    setCounts({
-      chat: stories.length,
-      worldbook: wbs.length,
-      card: cards.length,
-      preset: presets.length,
-      regex: regexes.length,
-    });
     const sortedStories = [...stories]
       .sort((a, b) => (b.lastViewedAt ?? b.updatedAt) - (a.lastViewedAt ?? a.updatedAt));
     setStories(sortedStories);
     setCharacters(cards);
-    setRecent(pickRecentlyViewedStories(sortedStories));
-  }, []);
+  }, [assetFocus]);
 
   useEffect(() => { void loadData(); }, [loadData]);
-
-  const handleSTChanged = useCallback(() => {
-    void loadData();
-  }, [loadData]);
 
   const handleFile = useCallback(async (file: File) => {
     // .json 需要读内容嗅探；其他类型看扩展名即可
@@ -137,190 +165,218 @@ const Tools = () => {
   };
 
   const openStory = useCallback((storyId: string) => {
-    navigate(`/story/${storyId}`, focusView ? { state: { view: focusView } } : undefined);
+    if (!focusView) return;
+    setEditorStoryId(storyId);
+    navigate(buildEditorStoryPath(storyId, focusView));
   }, [focusView, navigate]);
 
-  const storyPickerItems = buildEditorStoryPickerItems(stories, characters, storyQuery);
+  // 资产用附属库同款 ?assetId= 深链打开编辑器
+  const openAsset = useCallback((assetId: string) => {
+    if (!assetFocus) return;
+    const toolPath = assetFocus === 'worldbook' ? '/worldbook' : '/preset';
+    navigate(`${toolPath}?assetId=${encodeURIComponent(assetId)}`);
+  }, [assetFocus, navigate]);
 
-  // 编辑区一级入口沿用 7 月 26 日前的直接工作台模式；本页仅承载整理类选择器。
-  if (!focusView) return <Navigate to="/chat" replace />;
+  const storyPickerItems = buildEditorStoryPickerItems(stories, characters, query);
+  const normalizedQuery = query.trim().toLocaleLowerCase();
+  const filteredAssetItems = normalizedQuery
+    ? assetItems.filter((item) => item.title.toLocaleLowerCase().includes(normalizedQuery))
+    : assetItems;
+  // 「继续上次」：故事入口共用同一个当前故事，进来先给一键续接（0816 反馈）
+  const currentStoryId = getEditorStoryId();
+  const lastStory = !assetFocus && currentStoryId ? stories.find((story) => story.id === currentStoryId) : undefined;
+  const listTotal = assetFocus ? assetItems.length : stories.length;
+
+  // 编辑区一级入口沿用 7 月 26 日前的直接工作台模式；本页仅承载正式入口的选择器。
+  if (!focusView && !assetFocus) return <Navigate to="/chat" replace />;
 
   return (
     <AppLayout>
-      <div className="h-full flex overflow-hidden">
-        {/* ===== 左侧 220px 二级列表（demo .editor-sublist）===== */}
-        <aside className="w-[var(--editor-sublist-width)] shrink-0 overflow-y-auto scrollbar-thin py-3 px-2 border-r border-[color:var(--border-subtle)]">
-          <div>
-            <div className="text-[10px] tracking-[1.2px] text-[color:var(--text-muted)] px-2.5 pt-1 pb-1.5">工作类型</div>
-            {TOOLS.map((tool) => {
-              const Icon = tool.icon;
-              return (
-                <button
-                  key={tool.type}
-                  onClick={() => navigate(tool.path)}
-                  title={tool.desc}
-                  className="w-full flex items-center gap-2 px-2.5 py-1.5 rounded-md text-xs text-[color:var(--text-muted)] hover:bg-[var(--hover-overlay)] hover:text-[color:var(--text-body)] transition-colors"
-                >
-                  <Icon className="w-3.5 h-3.5 opacity-70 shrink-0" />
-                  <span className="flex-1 text-left">{tool.label}</span>
-                  {counts[tool.type] !== undefined && (
-                    <span className="text-[10px] opacity-50">{counts[tool.type]}</span>
-                  )}
-                </button>
-              );
-            })}
-          </div>
-          <div className="mt-2.5 border-t border-[color:var(--hairline-inner)] pt-2.5">
-            <div className="px-2.5 pb-1.5 text-[10px] tracking-[1.2px] text-[color:var(--text-muted)]">整理与记录</div>
-            {ORGANIZE_ENTRIES.map((entry) => {
-              const Icon = entry.icon;
-              const active = focus === entry.focus;
-              return (
-                <button
-                  key={entry.focus}
+      <div
+        className="relative h-full min-h-0 overflow-hidden px-5 py-4"
+        onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
+        onDragLeave={(e) => { if (!e.currentTarget.contains(e.relatedTarget as Node | null)) setDragOver(false); }}
+        onDrop={handleDrop}
+      >
+        <input
+          id="tools-file-input"
+          type="file"
+          accept=".jsonl,.json,.txt,.png"
+          className="hidden"
+          onChange={(e) => { const f = e.target.files?.[0]; if (f) handleFile(f); e.target.value = ''; }}
+        />
+
+        {focusCopy && (
+          <div className="mx-auto flex h-full min-h-0 max-w-6xl flex-wrap items-stretch gap-4 animate-fade-in">
+            {/* ===== 左：功能介绍与导入说明 ===== */}
+            <aside className="flex min-h-0 basis-[16.5rem] grow-0 shrink-0 flex-col gap-3 rounded-lg border border-[color:var(--border-normal)] bg-elevated p-4">
+              <div className="shrink-0">
+                <h1 className="font-serif text-[22px] font-semibold tracking-wide text-[color:var(--text-primary)]">
+                  {focusCopy.title}
+                </h1>
+                <p className="mt-1 text-xs leading-relaxed text-[color:var(--text-muted)]">
+                  {focusCopy.description}
+                </p>
+              </div>
+              <ul className="space-y-1.5 text-xs text-[color:var(--text-body)]">
+                {focusCopy.points.map((point) => (
+                  <li key={point} className="flex items-start gap-2">
+                    <span className="mt-1.5 h-1 w-1 shrink-0 rounded-full bg-brand-accent" />
+                    <span>{point}</span>
+                  </li>
+                ))}
+              </ul>
+              <div className="mt-auto shrink-0 rounded-md bg-chrome p-3">
+                <p className="text-xs font-medium text-[color:var(--text-primary)]">支持导入</p>
+                <p className="mt-1 text-[11px] leading-relaxed text-[color:var(--text-muted)]">
+                  聊天记录 (.jsonl/.json/.txt) · 角色卡 (.png/.json) · 世界书 / 预设 / 正则 (.json)
+                </p>
+                <p className="mt-1 text-[11px] text-[color:var(--text-muted)]">把文件拖进本页任意位置即可开始。</p>
+              </div>
+            </aside>
+
+            {/* ===== 右：选择或导入 ===== */}
+            <section
+              className="flex min-h-0 min-w-[24rem] flex-1 flex-col rounded-lg border border-[color:var(--border-normal)] bg-elevated p-4"
+              data-editor-story-picker
+              data-editor-focus={focus}
+            >
+              <div className="flex shrink-0 items-start justify-between gap-3">
+                <div>
+                  <h2 className="font-serif text-base font-semibold text-[color:var(--text-primary)]">
+                    {assetFocus ? `选择要编辑的${focusCopy.title}` : '选择要处理的故事'}
+                  </h2>
+                  <p className="mt-1 text-xs text-[color:var(--text-muted)]">
+                    {assetFocus ? '按最近更新排序，点击直接进入编辑器。' : '默认显示最近 10 个故事，更早内容可通过搜索找到。'}
+                  </p>
+                </div>
+                {/* 0816 反馈：导入直接选文件（也可整页拖入），不再跳走 */}
+                <Button
                   type="button"
-                  aria-current={active ? 'page' : undefined}
-                  onClick={() => navigate(`/tools?focus=${entry.focus}`)}
-                  title={entry.desc}
-                  className={cn(
-                    'flex w-full items-center gap-2 rounded-md px-2.5 py-1.5 text-xs transition-colors',
-                    active
-                      ? 'bg-[var(--brand-active-bg)] text-brand'
-                      : 'text-[color:var(--text-muted)] hover:bg-[var(--hover-overlay)] hover:text-[color:var(--text-body)]',
-                  )}
+                  variant="outline"
+                  size="sm"
+                  data-tour="tools-dropzone"
+                  onClick={() => document.getElementById('tools-file-input')?.click()}
                 >
-                  <Icon className="h-3.5 w-3.5 shrink-0 opacity-70" />
-                  <span className="flex-1 text-left">{entry.label}</span>
-                </button>
-              );
-            })}
-          </div>
-          {recent.length > 0 && (
-            <div className="mt-2.5 pt-2.5 border-t border-[color:var(--hairline-inner)]">
-              <div className="text-[10px] tracking-[1.2px] text-[color:var(--text-muted)] px-2.5 pb-1.5">最近故事</div>
-              {recent.map((s) => (
+                  <UploadCloud className="mr-1.5 h-4 w-4" />
+                  {focusCopy.importLabel}
+                </Button>
+              </div>
+              {lastStory && !normalizedQuery && (
                 <button
-                  key={s.id}
-                  onClick={() => openStory(s.id)}
-                  className="w-full flex items-center gap-2 px-2.5 py-1.5 rounded-md text-xs text-[color:var(--text-muted)] hover:bg-[var(--hover-overlay)] hover:text-[color:var(--text-body)] transition-colors"
+                  type="button"
+                  onClick={() => openStory(lastStory.id)}
+                  className="mt-3 flex w-full shrink-0 items-center gap-2 rounded-md border border-[color:var(--brand-hairline)] bg-chrome px-3 py-2 text-left transition-colors hover:bg-elevated-strong focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                 >
-                  <BookOpenText className="w-3.5 h-3.5 opacity-70 shrink-0" />
-                  <span className="flex-1 text-left truncate" title={s.title}>{s.title}</span>
+                  <span className="shrink-0 rounded bg-[var(--brand-active-bg)] px-1.5 py-0.5 text-[11px] text-brand">继续上次</span>
+                  <span className="min-w-0 flex-1 truncate text-sm text-[color:var(--text-body)]" title={lastStory.title}>{lastStory.title}</span>
+                  <span className="shrink-0 text-[11px] text-[color:var(--text-muted)]">{lastStory.session.messages.length} 楼</span>
                 </button>
-              ))}
-            </div>
-          )}
-        </aside>
-
-        {/* ===== 右侧画布：拖放区 + ST 接入卡（客户端） ===== */}
-        <div className="flex-1 min-w-0 overflow-y-auto scrollbar-thin px-6 py-4">
-          <div className="max-w-3xl mx-auto space-y-5 animate-fade-in">
-            <div>
-              <h1 className="font-serif text-[22px] font-semibold tracking-wide text-[color:var(--text-primary)]">
-                {focusCopy ? `${focusCopy.title} · 编辑区` : '编辑区'}
-              </h1>
-              <p className="text-[11px] text-[color:var(--text-muted)] mt-1">
-                {focusCopy?.description ?? '丢进来一个文件，或从左侧打开工具。处理完可入库归档，也可以只导出、不留档。'}
-              </p>
-              {focusCopy && (
-                <div className="mt-3 rounded-lg border border-[color:var(--brand-hairline)] bg-[var(--brand-active-bg)] px-3 py-2 text-xs text-[color:var(--text-body)]" data-editor-focus={focus}>
-                  选择一个故事后会直接进入对应工作台，不再先落到阅读页。
-                </div>
               )}
-            </div>
-
-            {focusCopy && (
-              <section className="rounded-xl border border-[color:var(--border-normal)] bg-elevated p-4" data-editor-story-picker>
-                <div className="flex items-start justify-between gap-3">
-                  <div>
-                    <h2 className="font-serif text-base font-semibold text-[color:var(--text-primary)]">选择要处理的故事</h2>
-                    <p className="mt-1 text-xs text-[color:var(--text-muted)]">从全部故事中选择后，直接打开「{focusCopy.title}」视图。</p>
-                  </div>
-                  <Button type="button" variant="outline" size="sm" onClick={() => navigate('/chat')}>导入新聊天</Button>
-                </div>
-                {stories.length > 0 && (
-                  <div className="mt-3 flex flex-wrap items-center gap-2">
+              {listTotal > 0 && (
+                <div className="mt-3 flex shrink-0 items-center gap-2">
+                  <div className="relative min-w-0 flex-1">
+                    <Search className="pointer-events-none absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-[color:var(--text-muted)]" />
                     <input
                       type="search"
-                      value={storyQuery}
-                      onChange={(event) => setStoryQuery(event.target.value)}
-                      placeholder="搜索故事或角色"
-                      aria-label="搜索故事或角色"
-                      className="min-w-0 flex-1 rounded-md border border-[color:var(--border-normal)] bg-chrome px-2.5 py-1.5 text-xs text-[color:var(--text-body)] outline-none placeholder:text-[color:var(--text-muted)] focus:border-brand focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring"
+                      value={query}
+                      onChange={(event) => setQuery(event.target.value)}
+                      placeholder={assetFocus ? `搜索${focusCopy.title}标题` : '搜索故事或角色'}
+                      aria-label={assetFocus ? `搜索${focusCopy.title}标题` : '搜索故事或角色'}
+                      className="w-full rounded-md border border-[color:var(--border-normal)] bg-chrome py-2 pl-9 pr-3 text-xs text-[color:var(--text-body)] outline-none placeholder:text-[color:var(--text-muted)] focus:border-brand focus-visible:ring-2 focus-visible:ring-ring"
                     />
-                    <span className="shrink-0 text-[11px] text-[color:var(--text-muted)]">
-                      {storyPickerItems.length}/{stories.length} 个故事
-                    </span>
                   </div>
-                )}
-                {storyPickerItems.length > 0 ? (
-                  <div className="mt-3 max-h-[24rem] overflow-y-auto pr-1 scrollbar-thin">
-                    <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
-                    {storyPickerItems.map(({ story, characterName }) => (
+                  <span className="shrink-0 text-[11px] text-[color:var(--text-muted)]">
+                    {assetFocus
+                      ? (normalizedQuery ? `${filteredAssetItems.length}/${assetItems.length}` : `共 ${assetItems.length}`) + ` 份${focusCopy.title}`
+                      : (normalizedQuery ? `${storyPickerItems.length}/${stories.length}` : `最近 ${storyPickerItems.length}`) + ' 个故事'}
+                  </span>
+                </div>
+              )}
+
+              {assetFocus ? (
+                filteredAssetItems.length > 0 ? (
+                  <div className="mt-3 min-h-0 flex-1 overflow-y-auto pr-1 scrollbar-thin">
+                    <div className="grid grid-cols-[repeat(auto-fit,minmax(17rem,1fr))] gap-2">
+                    {filteredAssetItems.map((item) => (
                       <button
-                        key={story.id}
+                        key={item.id}
                         type="button"
-                        onClick={() => openStory(story.id)}
-                        aria-label={`${story.title} · ${characterName}`}
-                        className="flex min-w-0 flex-col items-start rounded-lg bg-chrome px-3 py-3 text-left transition-colors hover:bg-elevated-strong"
+                        onClick={() => openAsset(item.id)}
+                        aria-label={item.title}
+                        className="flex min-w-0 flex-col items-start rounded-md border border-transparent bg-chrome px-3 py-2.5 text-left transition-colors hover:border-[color:var(--brand-hairline)] hover:bg-elevated-strong focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                       >
-                        <span className="w-full truncate text-sm font-medium text-[color:var(--text-body)]" title={story.title}>{story.title}</span>
-                        <span className="mt-1 w-full truncate text-[11px] text-[color:var(--text-muted)]" title={characterName}>
-                          {characterName} · {story.session.messages.length} 楼 · {focusCopy.action}
+                        <span className="flex w-full items-center gap-2">
+                          <span className="min-w-0 flex-1 truncate text-sm font-medium text-[color:var(--text-body)]" title={item.title}>{item.title}</span>
+                          {item.autoSaved && (
+                            <span className="shrink-0 rounded bg-chrome px-1.5 py-0.5 text-[10px] text-[color:var(--text-muted)] ring-1 ring-[color:var(--border-normal)]">历史</span>
+                          )}
+                        </span>
+                        <span className="mt-1 flex w-full items-center gap-3 text-[11px] text-[color:var(--text-muted)]">
+                          <span>{item.meta}</span>
+                          <span className="flex min-w-0 items-center gap-1 truncate">
+                            <CalendarRange className="h-3 w-3 shrink-0" />
+                            <span className="truncate">{formatStoryDate(item.updatedAt)}</span>
+                          </span>
                         </span>
                       </button>
                     ))}
                     </div>
                   </div>
                 ) : (
-                  <div className="mt-3 rounded-lg bg-chrome px-4 py-5 text-center">
-                    <p className="text-sm text-[color:var(--text-body)]">{stories.length > 0 ? '没有匹配的故事' : '还没有可以整理的故事'}</p>
+                  <div className="mt-3 flex min-h-0 flex-1 flex-col items-center justify-center rounded-lg bg-chrome px-4 py-5 text-center">
+                    <p className="text-sm text-[color:var(--text-body)]">{assetItems.length > 0 ? '没有匹配的结果' : `还没有保存的${focusCopy.title}`}</p>
                     <p className="mt-1 text-xs text-[color:var(--text-muted)]">
-                      {stories.length > 0 ? '换一个标题或角色关键词试试。' : `先导入一份聊天记录，再回来生成${focusCopy.title}。`}
+                      {assetItems.length > 0 ? '换一个标题关键词试试。' : `点「${focusCopy.importLabel}」，或把 JSON 文件直接拖进本页。`}
                     </p>
                   </div>
-                )}
-              </section>
-            )}
-
-            {/* 大拖放区 */}
-            <div
-              className={cn(
-                'relative rounded-xl border-[1.5px] border-dashed p-10 transition-all duration-300 cursor-pointer bg-elevated',
-                dragOver ? 'border-brand bg-[var(--brand-active-bg)] scale-[1.01]' : 'border-[color:var(--border-normal)] hover:border-[color:var(--brand-hairline)]',
-              )}
-              onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
-              onDragLeave={() => setDragOver(false)}
-              onDrop={handleDrop}
-              onClick={() => document.getElementById('tools-file-input')?.click()}
-              data-tour="tools-dropzone"
-            >
-              <input
-                id="tools-file-input"
-                type="file"
-                accept=".jsonl,.json,.txt,.png"
-                className="hidden"
-                onChange={(e) => { const f = e.target.files?.[0]; if (f) handleFile(f); e.target.value = ''; }}
-              />
-              <div className="flex flex-col items-center gap-3 text-center">
-                <div className={cn('w-12 h-12 rounded-full flex items-center justify-center transition-colors bg-[var(--brand-active-bg)] text-brand')}>
-                  <UploadCloud className="w-6 h-6" />
+                )
+              ) : storyPickerItems.length > 0 ? (
+                <div className="mt-3 min-h-0 flex-1 overflow-y-auto pr-1 scrollbar-thin">
+                  <div className="grid grid-cols-[repeat(auto-fit,minmax(17rem,1fr))] gap-2">
+                  {storyPickerItems.map(({ story, characterName, floorCount, startedAt, endedAt }) => (
+                    <button
+                      key={story.id}
+                      type="button"
+                      onClick={() => openStory(story.id)}
+                      aria-label={`${story.title} · ${characterName}`}
+                      className="flex min-w-0 flex-col items-start rounded-md border border-transparent bg-chrome px-3 py-2.5 text-left transition-colors hover:border-[color:var(--brand-hairline)] hover:bg-elevated-strong focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                    >
+                      <span className="w-full truncate text-sm font-medium text-[color:var(--text-body)]" title={story.title}>{story.title}</span>
+                      <span className="mt-1 w-full truncate text-xs text-[color:var(--text-muted)]" title={characterName}>所属角色：{characterName}</span>
+                      <span className="mt-1 flex w-full items-center gap-3 text-[11px] text-[color:var(--text-muted)]">
+                        <span className="flex items-center gap-1"><MessageSquare className="h-3 w-3" />{floorCount} 楼</span>
+                        <span className="flex min-w-0 items-center gap-1 truncate" title={`${formatStoryDate(startedAt)} - ${formatStoryDate(endedAt)}`}>
+                          <CalendarRange className="h-3 w-3 shrink-0" />
+                          <span className="truncate">{formatStoryDate(startedAt)} - {formatStoryDate(endedAt)}</span>
+                        </span>
+                      </span>
+                    </button>
+                  ))}
+                  </div>
                 </div>
-                <div>
-                  <h2 className="font-serif text-base font-semibold text-[color:var(--text-primary)]">拖入文件开始处理</h2>
-                  <p className="text-xs text-[color:var(--text-muted)] mt-1">
-                    聊天记录 (.jsonl/.json/.txt) · 角色卡 (.png/.json) · 世界书 / 预设 / 正则 (.json)
+              ) : (
+                <div className="mt-3 flex min-h-0 flex-1 flex-col items-center justify-center rounded-lg bg-chrome px-4 py-5 text-center">
+                  <p className="text-sm text-[color:var(--text-body)]">{stories.length > 0 ? '没有匹配的故事' : '还没有可以处理的故事'}</p>
+                  <p className="mt-1 text-xs text-[color:var(--text-muted)]">
+                    {stories.length > 0 ? '换一个标题或角色关键词试试。' : '点右上角「导入新聊天」，或把文件直接拖进本页。'}
                   </p>
                 </div>
-              </div>
-            </div>
+              )}
+            </section>
+          </div>
+        )}
 
-            {/* 客户端专属：复用首页的 ST 扫描与导入逻辑，仅收紧为命令入口 */}
-            <div className="flex justify-end">
-              <STImportCard variant="compact" onChanged={handleSTChanged} />
+        {/* 整页拖入的落点提示（视觉层不吃事件，drop 由外层容器处理） */}
+        {dragOver && (
+          <div className="pointer-events-none absolute inset-0 z-50 flex items-center justify-center border-2 border-dashed border-brand bg-[var(--brand-active-bg)]">
+            <div className="rounded-lg bg-elevated px-6 py-4 text-center shadow-lg">
+              <UploadCloud className="mx-auto h-7 w-7 text-brand" />
+              <p className="mt-2 text-sm font-medium text-[color:var(--text-primary)]">松开导入文件</p>
+              <p className="mt-1 text-[11px] text-[color:var(--text-muted)]">聊天记录 · 角色卡 · 世界书 / 预设 / 正则</p>
             </div>
           </div>
-        </div>
+        )}
       </div>
 
       {/* 类型确认：程序猜测 + 用户拍板（选择器即适配层） */}

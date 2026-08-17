@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { THEMES, themeSwatchBackground } from '@/lib/theme';
-import { NAV_AREAS, findNavArea } from '@/lib/navigation-model';
+import { NAV_AREAS, findNavArea, matchesNavDestination } from '@/lib/navigation-model';
 import {
   EDITOR_TOOL_COPY,
   horizontalWheelDelta,
@@ -27,6 +27,21 @@ describe('维护阶段 UX 规则模型', () => {
     expect(labels).toEqual(expect.arrayContaining(['聊天处理', '总结', '故事树', '角色卡', '预设', '正则', '其他']));
     expect(findNavArea('/assets', '?tab=worldbook')?.key).toBe('assets');
     expect(findNavArea('/library', '')?.key).toBe('characters');
+  });
+
+  it('世界书和预设在选择页与具体编辑器页都保持正确高亮', () => {
+    const editor = NAV_AREAS.find((area) => area.key === 'editor');
+    const worldbook = editor?.children.find((item) => item.key === 'worldbook');
+    const preset = editor?.children.find((item) => item.key === 'preset');
+
+    expect(worldbook).toBeDefined();
+    expect(preset).toBeDefined();
+    expect(matchesNavDestination(worldbook!, '/tools', '?focus=worldbook')).toBe(true);
+    expect(matchesNavDestination(worldbook!, '/worldbook', '?assetId=demo')).toBe(true);
+    expect(matchesNavDestination(worldbook!, '/tools', '?focus=preset')).toBe(false);
+    expect(matchesNavDestination(preset!, '/tools', '?focus=preset')).toBe(true);
+    expect(matchesNavDestination(preset!, '/preset', '?assetId=demo')).toBe(true);
+    expect(matchesNavDestination(preset!, '/tools', '?focus=worldbook')).toBe(false);
   });
 
   it('离开首页才触发自动折叠，非首页之间切换不强制覆盖用户选择', () => {
