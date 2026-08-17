@@ -15,7 +15,8 @@ describe('角色卡页内嵌阅读器契约', () => {
   it('阅读模式隐藏冗余的会话标题统计行，并把导航栏置于阅读器内部', () => {
     const source = read('src/components/chat/ChatWorkbench.tsx');
     expect(source).toContain('readerMode ?');
-    expect(source).toContain("position={readerMode ? 'sticky' : 'fixed'}");
+    expect(source).toContain('data-chat-preview-shell');
+    expect(source).not.toContain("position={readerMode ? 'sticky' : 'fixed'}");
     expect(source).not.toContain('navBarLeftClass="left-[29.5rem]"');
   });
 
@@ -30,7 +31,7 @@ describe('角色卡页内嵌阅读器契约', () => {
     expect(workbench).toContain('readerStickyTop?: number');
     expect(workbench).toContain('readerStickyTop + toolbarHeight + 8');
     expect(nav).toContain('stickyTop?: number');
-    expect(nav).toContain('style={position ===');
+    expect(nav).toContain('style={{ top: stickyTop }}');
     expect(workbench).not.toContain("readerMode ? 'top-10'");
     expect(nav).not.toContain("'sticky top-16 self-start'");
   });

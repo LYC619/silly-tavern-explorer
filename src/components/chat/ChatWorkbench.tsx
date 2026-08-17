@@ -50,8 +50,6 @@ interface ChatWorkbenchProps {
   toolbarExtras?: React.ReactNode;
   /** 重新导入（清空当前记录）；不传则不显示 */
   onReset?: () => void;
-  /** 悬浮跳转条距视口左缘的定位类（工作区多一条二级栏时传更大值） */
-  navBarLeftClass?: string;
   /** 就地阅读模式（10.3b）：只保留阅读增强和非破坏性操作 */
   readerMode?: boolean;
   /** 就地阅读返回栏的实测高度；工作台工具栏与楼层栏按此向下堆叠。 */
@@ -62,7 +60,7 @@ export const ChatWorkbench = forwardRef<ChatWorkbenchHandle, ChatWorkbenchProps>
   {
     session, markers, favorites, settings,
     onSessionChange, onMarkersChange, onFavoritesChange, onSettingsChange,
-    onFloorChange, initialFloor, titleBadge, toolbarExtras, onReset, navBarLeftClass, readerMode,
+    onFloorChange, initialFloor, titleBadge, toolbarExtras, onReset, readerMode,
     readerStickyTop = 0,
   },
   ref,
@@ -115,7 +113,6 @@ export const ChatWorkbench = forwardRef<ChatWorkbenchHandle, ChatWorkbenchProps>
   const [toolbarHeight, setToolbarHeight] = useState(0);
 
   useLayoutEffect(() => {
-    if (!readerMode) return;
     const toolbar = toolbarRef.current;
     if (!toolbar) return;
     const measure = () => setToolbarHeight(toolbar.getBoundingClientRect().height);
@@ -123,7 +120,7 @@ export const ChatWorkbench = forwardRef<ChatWorkbenchHandle, ChatWorkbenchProps>
     const observer = new ResizeObserver(measure);
     observer.observe(toolbar);
     return () => observer.disconnect();
-  }, [readerMode]);
+  }, []);
   // 正在主界面原地预览的正则规则（点侧栏「预览」时设置，再次点取消）
   const [previewRule, setPreviewRule] = useState<RegexRule | null>(null);
 
@@ -501,8 +498,12 @@ export const ChatWorkbench = forwardRef<ChatWorkbenchHandle, ChatWorkbenchProps>
               )}
             </div>}
 
-            <div className={`rounded-lg border border-border bg-card/50 ${readerMode ? 'flex items-start gap-3 p-3' : ''}`} data-tour="chat-preview">
-              {/* 左侧悬浮竖向跳转条（fixed 自定位，不随滚动消失、不压缩阅读区） */}
+            <div
+              data-chat-preview-shell
+              className="flex items-start gap-3 rounded-lg border border-border bg-card/50 p-3"
+              data-tour="chat-preview"
+            >
+              {/* 楼层工具由正文卡片持有，不再依赖全局侧栏宽度计算视口坐标。 */}
               <MessageNavBar
                 floorCount={floorCount}
                 currentFloor={currentFloor}
@@ -513,11 +514,9 @@ export const ChatWorkbench = forwardRef<ChatWorkbenchHandle, ChatWorkbenchProps>
                 onNext={() => previewRef.current?.scrollToFloor(currentFloor + 1)}
                 onToggleFavorite={handleToggleFavorite}
                 onJumpToMessageId={(id) => previewRef.current?.scrollToMessageId(id)}
-                leftClass={navBarLeftClass}
-                position={readerMode ? 'sticky' : 'fixed'}
                 stickyTop={readerStickyTop + toolbarHeight + 8}
               />
-              <div className={`flex min-w-0 flex-1 justify-center ${readerMode ? 'py-3 px-1' : 'py-6 px-4'}`}>
+              <div className={`flex min-w-0 flex-1 justify-center py-3 ${readerMode ? 'px-1' : 'pr-3'}`}>
                 <div
                   style={{ width: settings.paperWidth, maxWidth: '100%' }}
                   className="shadow-warm rounded-lg overflow-hidden animate-fade-in"

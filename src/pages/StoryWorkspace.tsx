@@ -409,7 +409,6 @@ const StoryWorkspace = () => {
                   onSettingsChange={handleSettingsChange}
                   onFloorChange={handleFloorChange}
                   initialFloor={line.lastFloor}
-                  navBarLeftClass="left-[calc(var(--sidenav-w)+20.75rem)] transition-[left] duration-200"
                   titleBadge={
                     branchId !== null ? (
                       <Badge variant="secondary" className="shrink-0">

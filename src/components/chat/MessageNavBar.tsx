@@ -28,16 +28,12 @@ interface MessageNavBarProps {
   onNext: () => void;
   onToggleFavorite: (messageId: string) => void;
   onJumpToMessageId: (messageId: string) => void;
-  /** 悬浮条距视口左缘的定位类；默认避开全局导航（left-24），工作区多一条二级栏时传更大值 */
-  leftClass?: string;
-  /** 默认悬浮在窗口左侧；嵌入阅读器时改为跟随正文的 sticky 布局。 */
-  position?: 'fixed' | 'sticky' | 'static';
-  /** sticky 模式下避开上方实际占用的返回栏与工具栏。 */
+  /** 避开上方实际占用的返回栏与工具栏。 */
   stickyTop?: number;
 }
 
 /**
- * 左侧悬浮竖向跳转条（fixed，不随整页滚动消失、不压缩主阅读区）：
+ * 正文左侧的竖向跳转条，由预览容器提供本地 sticky 定位：
  * - 上/下一层
  * - 楼层号输入跳转 + 当前楼/总楼
  * - 收藏/取消当前顶部楼层（轻量书签，不进导出）
@@ -53,8 +49,6 @@ export function MessageNavBar({
   onNext,
   onToggleFavorite,
   onJumpToMessageId,
-  leftClass = 'left-24',
-  position = 'fixed',
   stickyTop = 0,
 }: MessageNavBarProps) {
   const [floorInput, setFloorInput] = useState(String(currentFloor));
@@ -83,8 +77,8 @@ export function MessageNavBar({
   return (
     <TooltipProvider>
       <div
-        className={`${position === 'fixed' ? `fixed ${leftClass} top-1/2 -translate-y-1/2` : position === 'sticky' ? 'sticky self-start' : 'relative'} z-30 flex shrink-0 flex-col items-center gap-1.5 rounded-xl border border-border bg-card/90 px-1.5 py-2 shadow-md backdrop-blur-sm`}
-        style={position === 'sticky' ? { top: stickyTop } : undefined}
+        className="sticky self-start z-30 flex shrink-0 flex-col items-center gap-1.5 rounded-xl border border-border bg-card/90 px-1.5 py-2 shadow-md backdrop-blur-sm"
+        style={{ top: stickyTop }}
       >
         {/* 上一层 */}
         <Tooltip>
