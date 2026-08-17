@@ -7,6 +7,7 @@ import { DiaryView } from '@/components/summary/DiaryView';
 import { MarkdownLite } from '@/components/MarkdownLite';
 import { useToast } from '@/hooks/use-toast';
 import { getAllSummaries } from '@/lib/summary-db';
+import { exportTextFile } from '@/lib/text-file-export';
 import { SUMMARY_KIND_LABELS, type SummaryItem, type SummaryKind } from '@/types/summary';
 
 interface SummaryGalleryProps {
@@ -47,25 +48,22 @@ export function SummaryGallery({ currentBookId, refreshKey, charName, onEdit }: 
     toast({ title: '已复制到剪贴板' });
   };
 
-  const downloadActive = () => {
+  const downloadActive = async () => {
     if (!active) return;
-    const safeName = (active.title || SUMMARY_KIND_LABELS[active.kind]).replace(/[\\/:*?"<>|]/g, '_');
-    const url = URL.createObjectURL(new Blob([active.content], { type: 'text/markdown;charset=utf-8' }));
-    const anchor = document.createElement('a');
-    anchor.href = url;
-    anchor.download = `${safeName}.md`;
-    document.body.appendChild(anchor);
-    anchor.click();
-    anchor.remove();
-    URL.revokeObjectURL(url);
+    const result = await exportTextFile({
+      suggestedName: active.title || SUMMARY_KIND_LABELS[active.kind],
+      content: active.content,
+    });
+    if (result === 'failed') toast({ title: '导出失败', variant: 'destructive' });
+    else if (result !== 'cancelled') toast({ title: '导出完成' });
   };
 
   return (
-    <div className="flex flex-wrap gap-4 items-start">
+    <div className="flex h-full min-h-0 gap-4 overflow-hidden">
       {listOpen && (
-        <Card className="min-w-0" style={{ flex: '3 1 210px' }}>
-          <CardContent className="p-3 space-y-2">
-            <div className="flex items-center gap-1 flex-wrap text-xs">
+        <Card className="h-full min-w-0" style={{ flex: '3 1 210px' }}>
+          <CardContent className="flex h-full min-h-0 flex-col gap-2 p-3">
+            <div className="flex shrink-0 items-center gap-1 flex-wrap text-xs">
               <Button variant={scope === 'book' ? 'default' : 'ghost'} size="sm" className="h-6 px-2" onClick={() => setScope('book')}>当前书</Button>
               <Button variant={scope === 'all' ? 'default' : 'ghost'} size="sm" className="h-6 px-2" onClick={() => setScope('all')}>全部</Button>
               <span className="text-muted-foreground">·</span>
@@ -78,7 +76,7 @@ export function SummaryGallery({ currentBookId, refreshKey, charName, onEdit }: 
             {filtered.length === 0 ? (
               <p className="text-sm text-muted-foreground py-6 text-center">暂无可展示的总结。先到“生成工作台”生成或手动添加。</p>
             ) : (
-              <div className="space-y-1 max-h-[65vh] overflow-y-auto pr-1">
+              <div className="min-h-0 flex-1 space-y-1 overflow-y-auto pr-1 scrollbar-thin">
                 {filtered.map((item) => (
                   <button
                     key={item.id}
@@ -99,13 +97,13 @@ export function SummaryGallery({ currentBookId, refreshKey, charName, onEdit }: 
         </Card>
       )}
 
-      <Card className="min-w-0" style={{ flex: '9 1 280px' }}>
-        <CardContent className="p-4 sm:p-6">
+      <Card className="h-full min-w-0" style={{ flex: '9 1 280px' }}>
+        <CardContent className="h-full min-h-0 p-4 sm:p-6">
           {!active ? (
             <div className="flex items-center justify-center min-h-[40vh] text-sm text-muted-foreground"><BookOpen className="w-4 h-4 mr-2" />选择一条总结开始阅读</div>
           ) : (
-            <div className="space-y-4">
-              <div className="flex items-start justify-between gap-2 flex-wrap">
+            <div className="flex h-full min-h-0 flex-col gap-4">
+              <div className="flex shrink-0 items-start justify-between gap-2 flex-wrap">
                 <div className="min-w-0 flex items-start gap-1.5">
                   <Button variant="ghost" size="icon" className="h-7 w-7 shrink-0 mt-0.5" onClick={() => setListOpen((open) => !open)} title={listOpen ? '收起列表' : '展开列表'}>
                     {listOpen ? <PanelLeftClose className="w-4 h-4" /> : <PanelLeftOpen className="w-4 h-4" />}
@@ -117,15 +115,17 @@ export function SummaryGallery({ currentBookId, refreshKey, charName, onEdit }: 
                 </div>
                 <div className="flex items-center gap-1 shrink-0">
                   <Button variant="ghost" size="sm" className="h-7 gap-1" onClick={copyActive}><Copy className="w-3.5 h-3.5" />复制</Button>
-                  <Button variant="ghost" size="sm" className="h-7 gap-1" onClick={downloadActive}><Upload className="w-3.5 h-3.5" />.md</Button>
+                  <Button variant="ghost" size="sm" className="h-7 gap-1" onClick={() => void downloadActive()}><Upload className="w-3.5 h-3.5" />.md</Button>
                   {onEdit && <Button variant="outline" size="sm" className="h-7 gap-1" onClick={() => onEdit(active)}><Pencil className="w-3.5 h-3.5" />去编辑</Button>}
                 </div>
               </div>
-              {active.kind === 'diary' ? (
-                <DiaryView content={active.content} charName={charName} />
-              ) : (
-                <MarkdownLite text={active.content} className="rounded-lg border paper-bg px-5 sm:px-8 py-6 font-serif text-[15px] max-w-[75ch] mx-auto" />
-              )}
+              <div data-summary-content-scroll className="min-h-0 flex-1 overflow-y-auto pr-1 scrollbar-thin">
+                {active.kind === 'diary' ? (
+                  <DiaryView content={active.content} charName={charName} />
+                ) : (
+                  <MarkdownLite text={active.content} className="rounded-lg border paper-bg px-5 sm:px-8 py-6 font-serif text-[15px] max-w-[75ch] mx-auto" />
+                )}
+              </div>
             </div>
           )}
         </CardContent>

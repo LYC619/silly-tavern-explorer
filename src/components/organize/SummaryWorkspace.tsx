@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { BookOpen, NotebookText, Wrench } from 'lucide-react';
+import { ArrowLeft, BookOpen, NotebookText, Wrench } from 'lucide-react';
+import { ApiStatusLine } from '@/components/ai-tools/ApiStatusLine';
 import { HelpCard } from '@/components/HelpCard';
 import { RecordWorkbench, type RecordWorkbenchHandle } from '@/components/organize/RecordWorkbench';
 import { SavedSummaryList } from '@/components/summary/SavedSummaryList';
@@ -35,6 +36,7 @@ export function SummaryWorkspace({
   const [refreshKey, setRefreshKey] = useState(0);
   const [draftNonce, setDraftNonce] = useState(0);
   const [pendingAction, setPendingAction] = useState<'manual' | 'regenerate' | null>(null);
+  const [detailMode, setDetailMode] = useState(false);
   const workbenchRef = useRef<RecordWorkbenchHandle>(null);
 
   const currentLine = getBranchLine(story, currentBranchId) ?? getBranchLine(story, null)!;
@@ -44,6 +46,7 @@ export function SummaryWorkspace({
     const item = (await getAllSummaries()).find((summary) => summary.id === initialTarget.id && summary.bookId === story.id);
     if (!item) return;
     setSelectedRecord(item);
+    setDetailMode(true);
     onKindChange(item.kind);
   }, [initialTarget, onKindChange, story.id]);
 
@@ -60,18 +63,21 @@ export function SummaryWorkspace({
 
   const handleSaved = useCallback((item: SummaryItem) => {
     setSelectedRecord(item);
+    setDetailMode(true);
     setRefreshKey((value) => value + 1);
   }, []);
 
   const openRecord = useCallback((item: SummaryItem) => {
     setView('workshop');
     setSelectedRecord(item);
+    setDetailMode(true);
     onKindChange(item.kind);
   }, [onKindChange]);
 
   const regenerateRecord = useCallback((item: SummaryItem) => {
     setView('workshop');
     setSelectedRecord(item);
+    setDetailMode(true);
     onKindChange(item.kind);
     setPendingAction('regenerate');
   }, [onKindChange]);
@@ -79,45 +85,64 @@ export function SummaryWorkspace({
   const startManual = () => {
     setView('workshop');
     setSelectedRecord(null);
+    setDetailMode(true);
     setDraftNonce((value) => value + 1);
     setPendingAction('manual');
   };
 
   const changeKind = (next: SummaryKind) => {
     setSelectedRecord(null);
+    setDetailMode(false);
     setDraftNonce((value) => value + 1);
     onKindChange(next);
   };
 
+  const backToList = () => {
+    setSelectedRecord(null);
+    setDetailMode(false);
+    setDraftNonce((value) => value + 1);
+  };
+
   return (
-    <div className="container mx-auto px-4 py-5">
-      <div className="max-w-7xl mx-auto space-y-4">
-        <div className="flex items-start justify-between gap-3 flex-wrap">
-          <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-lg gold-gradient flex items-center justify-center shadow-card">
-              <NotebookText className="w-5 h-5 text-primary-foreground" />
+    <div data-summary-workspace className="h-full min-h-0 overflow-hidden px-4 py-3">
+      <div className="mx-auto flex h-full min-h-0 max-w-7xl flex-col">
+        <header className="flex shrink-0 items-center gap-3 border-b border-[color:var(--border-subtle)] pb-3">
+          <div className="flex min-w-0 shrink-0 items-center gap-2">
+            <div className="flex h-8 w-8 items-center justify-center rounded-md gold-gradient shadow-card">
+              <NotebookText className="h-4 w-4 text-primary-foreground" />
             </div>
-            <div>
-              <div className="flex items-center gap-1">
-                <h1 className="font-display text-xl font-semibold">总结</h1>
-                <HelpCard>左侧选择楼层、挂载和模板后生成；右侧管理已存总结，查看后才在列表下方展开编辑。</HelpCard>
-              </div>
-              <p className="text-xs text-muted-foreground">把聊天记录沉淀为可归档的总结</p>
+            <div className="flex items-center gap-1">
+              <h1 className="font-display text-lg font-semibold">总结</h1>
+              <HelpCard>左侧配置生成范围和挂载，右侧在已生成列表与当前详情之间切换。</HelpCard>
             </div>
           </div>
-          <div className="text-xs text-muted-foreground text-right pt-1">
-            <span className="font-medium text-foreground">{story.title}</span>
-            <span> · {currentLine.session.messages.length} 楼</span>
+
+          <Tabs value={view} onValueChange={(value) => setView(value as 'workshop' | 'gallery')}>
+            <TabsList className="flex h-8 w-fit">
+              <TabsTrigger value="workshop" className="h-7 gap-1.5 whitespace-nowrap px-3"><Wrench className="h-3.5 w-3.5" />生成工作台</TabsTrigger>
+              <TabsTrigger value="gallery" className="h-7 gap-1.5 whitespace-nowrap px-3"><BookOpen className="h-3.5 w-3.5" />展示页</TabsTrigger>
+            </TabsList>
+          </Tabs>
+
+          <span className="h-6 w-px shrink-0 bg-[color:var(--border-subtle)]" />
+          <Tabs value={kind} onValueChange={(value) => { setView('workshop'); changeKind(value as SummaryKind); }}>
+            <TabsList className="flex h-8 w-fit">
+              {KINDS.map((item) => (
+                <TabsTrigger key={item} value={item} className="h-7 whitespace-nowrap px-3 text-xs">{SUMMARY_KIND_LABELS[item]}</TabsTrigger>
+              ))}
+            </TabsList>
+          </Tabs>
+
+          <div className="ml-auto hidden min-w-0 items-center gap-3 xl:flex">
+            <div className="max-w-72 truncate text-xs text-muted-foreground" title={story.title}>
+              <span className="font-medium text-foreground">{story.title}</span>
+              <span> · {currentLine.session.messages.length} 楼</span>
+            </div>
+            <ApiStatusLine />
           </div>
-        </div>
+        </header>
 
-        <Tabs value={view} onValueChange={(value) => setView(value as 'workshop' | 'gallery')}>
-          <TabsList className="flex w-fit">
-            <TabsTrigger value="workshop" className="gap-1.5 whitespace-nowrap"><Wrench className="w-3.5 h-3.5" />生成工作台</TabsTrigger>
-            <TabsTrigger value="gallery" className="gap-1.5 whitespace-nowrap"><BookOpen className="w-3.5 h-3.5" />展示页</TabsTrigger>
-          </TabsList>
-        </Tabs>
-
+        <div className="mt-3 min-h-0 flex-1">
         {view === 'gallery' ? (
           <SummaryGallery
             currentBookId={story.id}
@@ -135,18 +160,18 @@ export function SummaryWorkspace({
             defaultBranchId={currentBranchId}
             onSaved={handleSaved}
             showEmptyEditor={false}
-            configurationHeader={
-              <Tabs value={kind} onValueChange={(value) => changeKind(value as SummaryKind)}>
-                <TabsList className="flex w-full">
-                  {KINDS.map((item) => (
-                    <TabsTrigger key={item} value={item} className="flex-1 whitespace-nowrap">{SUMMARY_KIND_LABELS[item]}</TabsTrigger>
-                  ))}
-                </TabsList>
-              </Tabs>
-            }
+            showApiStatus={false}
             sidePanel={
-              <div className="space-y-4">
-                <div className="flex justify-end">
+              detailMode ? (
+                <div className="flex shrink-0 items-center justify-between border-b border-[color:var(--border-subtle)] pb-2">
+                  <Button variant="ghost" size="sm" className="h-7 gap-1.5" onClick={backToList}>
+                    <ArrowLeft className="h-3.5 w-3.5" />返回已生成总结
+                  </Button>
+                  <span className="text-xs text-muted-foreground">{selectedRecord?.title || '新总结'}</span>
+                </div>
+              ) : (
+              <div className="flex h-full min-h-0 flex-col gap-3">
+                <div className="flex shrink-0 justify-end">
                   <Button variant="outline" size="sm" className="gap-1.5" onClick={startManual}>
                     <NotebookText className="w-3.5 h-3.5" />手动添加总结
                   </Button>
@@ -160,9 +185,11 @@ export function SummaryWorkspace({
                   onChanged={refresh}
                 />
               </div>
+              )
             }
           />
         )}
+        </div>
       </div>
     </div>
   );

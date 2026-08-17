@@ -16,7 +16,8 @@ import {
 import { MiniSummaryPanel } from '@/components/summary/MiniSummaryPanel';
 import { useToast } from '@/hooks/use-toast';
 import { deleteSummary, getAllSummaries } from '@/lib/summary-db';
-import { downloadMarkdown, summaryToObsidian } from '@/lib/obsidian-export';
+import { summaryToObsidian } from '@/lib/obsidian-export';
+import { exportTextFile, type TextFileExportResult } from '@/lib/text-file-export';
 import type { ChatSession } from '@/types/chat';
 import { SUMMARY_KIND_LABELS, type SummaryItem, type SummaryKind } from '@/types/summary';
 
@@ -69,21 +70,38 @@ export function SavedSummaryList({
     toast({ title: '已删除' });
   };
 
-  const handleExport = (item: SummaryItem) => {
-    downloadMarkdown(item.title || SUMMARY_KIND_LABELS[item.kind], summaryToObsidian(item));
+  const notifyExport = (result: TextFileExportResult, count = 1) => {
+    if (result === 'cancelled') return;
+    if (result === 'failed') {
+      toast({ title: '导出失败', description: '没有写入任何文件，请重新选择位置后再试。', variant: 'destructive' });
+      return;
+    }
+    toast({ title: count > 1 ? `已导出 ${count} 份总结` : '导出完成' });
   };
 
-  const handleExportAll = () => {
-    filtered.forEach(handleExport);
-    toast({ title: `已导出 ${filtered.length} 份`, description: 'Obsidian 友好 Markdown（含 frontmatter）' });
+  const handleExport = async (item: SummaryItem) => {
+    const result = await exportTextFile({
+      suggestedName: item.title || SUMMARY_KIND_LABELS[item.kind],
+      content: summaryToObsidian(item),
+    });
+    notifyExport(result);
+  };
+
+  const handleExportAll = async () => {
+    if (filtered.length === 0) return;
+    const result = await exportTextFile({
+      suggestedName: `${filtered[0]?.bookTitle || '故事'}-总结合集`,
+      content: filtered.map(summaryToObsidian).join('\n\n---\n\n'),
+    });
+    notifyExport(result, filtered.length);
   };
 
   const isMini = kindFilter === 'mini';
 
   return (
-    <Card>
-      <CardContent className="p-4 space-y-3">
-        <div className="flex items-center gap-2 flex-wrap text-xs">
+    <Card className="h-full min-h-0">
+      <CardContent className="flex h-full min-h-0 flex-col gap-3 p-4">
+        <div className="flex shrink-0 items-center gap-2 flex-wrap text-xs">
           <span className={isMini ? 'text-sm font-medium mr-1 opacity-40' : 'text-sm font-medium mr-1'}>
             共 {filtered.length} 条
           </span>
@@ -106,7 +124,7 @@ export function SavedSummaryList({
             ))}
           </div>
           {filtered.length > 0 && (
-            <Button variant="outline" size="sm" className="h-6 px-2 gap-1 ml-auto" disabled={isMini} onClick={handleExportAll}>
+            <Button variant="outline" size="sm" className="h-6 px-2 gap-1 ml-auto" disabled={isMini} onClick={() => void handleExportAll()}>
               <Upload className="w-3 h-3" />导出全部
             </Button>
           )}
@@ -117,7 +135,7 @@ export function SavedSummaryList({
         ) : filtered.length === 0 ? (
           <p className="text-sm text-muted-foreground py-8 text-center">暂无总结</p>
         ) : (
-          <div className="space-y-1.5 max-h-[44vh] overflow-y-auto pr-1">
+          <div className="min-h-0 flex-1 space-y-1.5 overflow-y-auto pr-1 scrollbar-thin">
             {filtered.map((item) => (
               <div key={item.id} className="flex items-center gap-2 p-2 rounded-md border hover:bg-accent/40 text-sm">
                 <Badge variant="outline" className="text-[10px] px-1 py-0 shrink-0">{SUMMARY_KIND_LABELS[item.kind]}</Badge>
@@ -128,7 +146,7 @@ export function SavedSummaryList({
                 <div className="flex items-center gap-0.5 shrink-0">
                   <Button variant="ghost" size="icon" className="h-7 w-7" title="查看或编辑" onClick={() => onView(item)}><Eye className="w-3.5 h-3.5" /></Button>
                   <Button variant="ghost" size="icon" className="h-7 w-7" title="用相同设置重新生成" onClick={() => onRegenerate(item)}><RotateCcw className="w-3.5 h-3.5" /></Button>
-                  <Button variant="ghost" size="icon" className="h-7 w-7" title="导出 Markdown" onClick={() => handleExport(item)}><Upload className="w-3.5 h-3.5" /></Button>
+                  <Button variant="ghost" size="icon" className="h-7 w-7" title="导出 Markdown" onClick={() => void handleExport(item)}><Upload className="w-3.5 h-3.5" /></Button>
                   <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" title="删除" onClick={() => setDeleteId(item.id)}><Trash2 className="w-3.5 h-3.5" /></Button>
                 </div>
               </div>
@@ -136,7 +154,7 @@ export function SavedSummaryList({
           </div>
         )}
 
-        {!isMini && <p className="text-xs text-muted-foreground">标“永久”的是手动保存记录；其他为自动暂存。点“查看”后在列表下方展开编辑。</p>}
+        {!isMini && <p className="shrink-0 text-xs text-muted-foreground">标“永久”的是手动保存记录；其他为自动暂存。查看后会切换到详情编辑。</p>}
       </CardContent>
 
       <AlertDialog open={deleteId !== null} onOpenChange={(open) => { if (!open) setDeleteId(null); }}>

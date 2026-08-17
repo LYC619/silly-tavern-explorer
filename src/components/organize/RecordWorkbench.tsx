@@ -69,6 +69,8 @@ interface RecordWorkbenchProps {
   configurationHeader?: ReactNode;
   /** 默认沿用整理面板行为；旧版总结页无结果时不渲染空编辑器。 */
   showEmptyEditor?: boolean;
+  /** 上层把 API 状态并入紧凑标题栏时关闭本行。 */
+  showApiStatus?: boolean;
 }
 
 export interface RecordWorkbenchHandle {
@@ -88,6 +90,7 @@ export const RecordWorkbench = forwardRef<RecordWorkbenchHandle, RecordWorkbench
     sidePanel,
     configurationHeader,
     showEmptyEditor = true,
+    showApiStatus = true,
   }, ref) {
     const { toast } = useToast();
 
@@ -425,12 +428,12 @@ export const RecordWorkbench = forwardRef<RecordWorkbenchHandle, RecordWorkbench
     const branchName = branchId ? story.branches?.find((b) => b.id === branchId)?.name : null;
 
     return (
-      <div className="space-y-4">
-        <ApiStatusLine />
-        <div className="flex flex-wrap gap-4 items-start">
+      <div className="flex h-full min-h-0 flex-col gap-3">
+        {showApiStatus && <ApiStatusLine />}
+        <div className="grid min-h-0 flex-1 grid-cols-[minmax(0,5fr)_minmax(0,7fr)] gap-4 overflow-hidden">
           {/* 布局铁律：flex-wrap + 行内 flex-basis，禁视口断点（同原总结页） */}
           {/* 左：生成配置 */}
-          <div className="min-w-0 space-y-4" style={{ flex: '5 1 240px' }}>
+          <div className="min-h-0 min-w-0 space-y-4 overflow-y-auto pr-1 scrollbar-thin">
             {configurationHeader}
             {(story.branches?.length ?? 0) > 0 && (
               <Card>
@@ -547,7 +550,7 @@ export const RecordWorkbench = forwardRef<RecordWorkbenchHandle, RecordWorkbench
           </div>
 
           {/* 右：结果（编辑 / MD 排版预览） */}
-          <div className="min-w-0 space-y-3" style={{ flex: '7 1 260px' }} ref={editorRef}>
+          <div className="min-h-0 min-w-0 space-y-3 overflow-y-auto pr-1 scrollbar-thin" ref={editorRef}>
             {sidePanel}
             {!streaming && resultContent && (
               <div className="flex justify-end">
