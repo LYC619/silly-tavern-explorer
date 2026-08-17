@@ -40,6 +40,12 @@ import { cn } from '@/lib/utils';
 import { IMPORT_KINDS, type CharacterImportKind, type CharacterImportResult } from '@/lib/character-import';
 import { importFilesForCharacter } from '@/lib/character-import';
 import { commitCharacterPatch, type CharacterPatch } from '@/lib/character-write';
+import {
+  buildEditorChatPath,
+  buildEditorStoryPath,
+  setEditorStoryId,
+  type EditorStoryView,
+} from '@/lib/editor-story-context';
 import { CharacterInfoRail } from '@/components/character/CharacterInfoRail';
 import { CharacterHeader } from '@/components/character/CharacterHeader';
 import { AssetSection } from '@/components/character/AssetSection';
@@ -328,13 +334,15 @@ const CharacterPage = () => {
     await load();
   }, [load]);
 
-  /** 处理/导出/去生成：进故事工作区（编辑器），带上初始视图 */
-  const goWorkspace = useCallback((storyId: string, view?: string, branchId?: string | null) => {
-    const hasBranchRequest = branchId !== undefined;
-    const state = view || hasBranchRequest
-      ? { state: { ...(view ? { view } : {}), ...(hasBranchRequest ? { branchId } : {}) } }
-      : undefined;
-    navigate(`/story/${storyId}`, state);
+  /** 普通处理进入聊天工作台；整理/导出进入同一故事的明确子视图。 */
+  const goWorkspace = useCallback((storyId: string, view?: EditorStoryView, branchId?: string | null) => {
+    setEditorStoryId(storyId);
+    if (!view || view === 'read') {
+      navigate(buildEditorChatPath(storyId));
+      return;
+    }
+    const state = branchId !== undefined ? { state: { branchId } } : undefined;
+    navigate(buildEditorStoryPath(storyId, view), state);
   }, [navigate]);
 
   if (loading) {

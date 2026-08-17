@@ -1,7 +1,6 @@
 /**
  * 编辑区窄工具栏（0816 反馈）：固定在全局侧栏右侧，编辑区内所有页面共用。
- * 聊天处理直接进 /chat 工作台（0816 二轮：故事工作台阅读视图不再作为聊天处理入口）；
- * 总结/故事树命中当前故事时深链进对应视图，否则回落到故事选择页。
+ * 聊天处理、总结和故事树共享当前故事；没有记忆时分别回落到各自选择/导入页。
  */
 import { useEffect, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
@@ -34,7 +33,7 @@ interface RailItem {
 }
 
 const RAIL_ITEMS: RailItem[] = [
-  { key: 'chat', label: '聊天处理', icon: MessageSquare, fallbackPath: '/chat', prefix: '/chat' },
+  { key: 'chat', label: '聊天处理', icon: MessageSquare, fallbackPath: '/chat', storyNav: true, prefix: '/chat' },
   { key: 'summary', label: '总结', icon: ScrollText, fallbackPath: '/tools?focus=summary', storyNav: true, focus: 'summary' },
   { key: 'story-tree', label: '故事树', icon: Network, fallbackPath: '/tools?focus=story-tree', storyNav: true, focus: 'story-tree' },
   { key: 'worldbook', label: '世界书', icon: BookOpen, fallbackPath: '/tools?focus=worldbook', prefix: '/worldbook', focus: 'worldbook' },

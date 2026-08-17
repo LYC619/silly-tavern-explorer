@@ -15,6 +15,7 @@ type StoryPickerApi = typeof pickerModule & {
     endedAt?: number;
   }>;
   pickRecentlyViewedStories: (stories: ArchiveStory[], limit?: number) => ArchiveStory[];
+  pickRecentEditorStories: (stories: ArchiveStory[], limit?: number) => ArchiveStory[];
 };
 
 const picker = pickerModule as StoryPickerApi;
@@ -103,5 +104,16 @@ describe('编辑区故事选择器模型', () => {
       makeStory(`s${index}`, `故事 ${index}`, undefined, index + 1));
 
     expect(picker.pickRecentlyViewedStories(stories)).toHaveLength(12);
+  });
+
+  it('聊天最近故事同时包含绑定和未绑定记录，并按查看或更新时间排序', () => {
+    const stories = [
+      { ...makeStory('bound', '绑定故事', 'alice', 10), updatedAt: 1 },
+      { ...makeStory('unbound', '未绑定故事', undefined, 0), lastViewedAt: undefined, updatedAt: 20 },
+      { ...makeStory('older', '更早故事', 'bob', 5), updatedAt: 30 },
+    ];
+
+    expect(picker.pickRecentEditorStories(stories, 2).map((story) => story.id))
+      .toEqual(['unbound', 'bound']);
   });
 });

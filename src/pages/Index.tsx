@@ -4,14 +4,15 @@
  * 导入落地、自动落库、跨页指针、引导教程，以及「未绑定 → 绑定到角色」升级。
  * 阶段5 书架退役：未绑定聊天直接存为归档故事（characterId 为空），本页空态列出暂存记录。
  */
-import { useState, useEffect, useRef, useCallback } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Link2, MessageSquare, Trash2, Clock, BookOpenCheck } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { AppLayout } from '@/components/AppLayout';
 import { ChatImporter, type ImportStats } from '@/components/chat/ChatImporter';
 import { ChatWorkbench } from '@/components/chat/ChatWorkbench';
+import { RecentStoryBar } from '@/components/chat/RecentStoryBar';
 import NovelView from '@/components/reader/NovelView';
 import { BindStoryDialog } from '@/components/chat/BindStoryDialog';
 import { GuidedTour } from '@/components/GuidedTour';
@@ -32,17 +33,24 @@ import { takePendingToolFile } from '@/lib/tool-handoff';
 import {
   saveSessionPointer,
   loadSessionPointer,
-  loadActiveSession,
   clearSessionState,
   getDefaultExportSettings,
   saveSettings,
 } from '@/lib/session-storage';
-import { APP_VERSION } from '@/components/GlobalSettings';
 import { useToast } from '@/hooks/use-toast';
+import {
+  buildEditorChatPath,
+  getEditorStoryId,
+  resolveEditorStoryId,
+  setEditorStoryId,
+} from '@/lib/editor-story-context';
+import { pickRecentEditorStories } from '@/lib/home-layout';
 
 const Index = () => {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const { toast } = useToast();
+  const routeStoryId = searchParams.get('storyId');
   const [showTour, setShowTour] = useState(false);
   const [session, setSession] = useState<ChatSession | null>(null);
   const [settings, setSettings] = useState<ExportSettings>(getDefaultExportSettings);
@@ -52,58 +60,76 @@ const Index = () => {
   const [currentFloor, setCurrentFloor] = useState(0);
   // 从指针恢复会话时要跳回的楼层，交给 ChatWorkbench 挂载后消费
   const [restoreFloor, setRestoreFloor] = useState<number | undefined>(undefined);
-  // 当前会话对应的未绑定归档故事 id（沿用旧称 bookId 的指针字段）
+  // 当前会话对应的归档故事 id（兼容旧指针字段 currentBookId）。
   const [currentStoryId, setCurrentStoryId] = useState<string | null>(null);
   const [bindDialogOpen, setBindDialogOpen] = useState(false);
   // 小说视图（阶段6）：未绑定聊天也可用；润色上下文用当前暂存的归档故事
   const [novelStory, setNovelStory] = useState<ArchiveStory | null>(null);
   const [novelOpen, setNovelOpen] = useState(false);
-  // 空态展示的未绑定暂存列表（书架退役后临时聊天的家）
-  const [unboundStories, setUnboundStories] = useState<ArchiveStory[]>([]);
+  const [allStories, setAllStories] = useState<ArchiveStory[]>([]);
   // 处理区入口交接来的文件（挂载时取一次，交给 ChatImporter 自动解析）
   const [handoffFile] = useState<File | null>(() => takePendingToolFile('chat'));
 
-  // Auto-start tour for first-time visitors
+  const recentStories = useMemo(() => pickRecentEditorStories(allStories), [allStories]);
+  const unboundStories = useMemo(() => allStories.filter((story) => !story.characterId), [allStories]);
+  const currentStory = useMemo(
+    () => allStories.find((story) => story.id === currentStoryId) ?? null,
+    [allStories, currentStoryId],
+  );
+
+  const refreshStories = useCallback(async () => {
+    try {
+      setAllStories(await getAllArchiveStories());
+    } catch {
+      setAllStories([]);
+    }
+  }, []);
+
+  const hydrateStory = useCallback((story: ArchiveStory, pointer = loadSessionPointer()) => {
+    setSession(story.session);
+    setMarkers(story.markers ?? []);
+    setFavorites(story.favorites ?? []);
+    if (story.settings) setSettings(story.settings);
+    setCurrentStoryId(story.id);
+    setEditorStoryId(story.id);
+    const lastFloor = pointer?.currentBookId === story.id ? pointer.lastFloor : story.lastFloor;
+    setRestoreFloor(typeof lastFloor === 'number' && lastFloor > 0 ? lastFloor : undefined);
+  }, []);
+
+  // Auto-start tour for first-time visitors; an explicit or remembered story always wins.
   useEffect(() => {
-    if (!isTourCompleted('home') && !handoffFile) {
+    const hasRememberedStory = !!(routeStoryId || getEditorStoryId() || loadSessionPointer()?.currentBookId);
+    if (!isTourCompleted('home') && !handoffFile && !hasRememberedStory) {
       // Load demo data and start tour
       setSession(demoSession);
       // Delay tour start to let DOM render
       const timer = setTimeout(() => setShowTour(true), 1000);
       return () => clearTimeout(timer);
     }
-  }, [handoffFile]);
+  }, [handoffFile, routeStoryId]);
 
-  // 凭跨页指针恢复上次的会话（session 本体在 IndexedDB 的未绑定归档故事里）
+  // 显式 storyId > 编辑区共享记忆 > 旧聊天指针；三种入口最终加载同一条归档故事。
   useEffect(() => {
     if (showTour || handoffFile) return; // Don't override demo data during tour
     const pointer = loadSessionPointer();
-    if (pointer?.currentBookId) {
-      let cancelled = false;
-      loadActiveSession().then(active => {
-        if (cancelled || !active) return;
-        setSession(active);
-        setMarkers(pointer.markers ?? []);
-        setFavorites(pointer.favorites ?? []);
-        setCurrentStoryId(pointer.currentBookId);
-        // 记下离开时的楼层，等虚拟列表挂载后恢复一次（切路由页面整棵卸载，滚动必回顶）
-        if (typeof pointer.lastFloor === 'number' && pointer.lastFloor > 0) {
-          setRestoreFloor(pointer.lastFloor);
-        }
-      });
-      return () => { cancelled = true; };
-    }
-  }, [showTour, handoffFile]);
-
-  // 空态时列出未绑定暂存（最近修改在前，repo 已按 updatedAt 降序）
-  useEffect(() => {
-    if (session) return;
+    const targetId = resolveEditorStoryId(routeStoryId, pointer?.currentBookId);
+    if (!targetId) return;
     let cancelled = false;
-    getAllArchiveStories().then(all => {
-      if (!cancelled) setUnboundStories(all.filter(s => !s.characterId));
-    }).catch(() => {});
+    getArchiveStory(targetId).then((story) => {
+      if (cancelled) return;
+      if (!story) {
+        if (getEditorStoryId() === targetId) setEditorStoryId(null);
+        if (routeStoryId) toast({ title: '找不到这条故事', variant: 'destructive' });
+        return;
+      }
+      hydrateStory(story, pointer);
+    }).catch(() => {
+      if (!cancelled && routeStoryId) toast({ title: '故事加载失败', variant: 'destructive' });
+    });
     return () => { cancelled = true; };
-  }, [session]);
+  }, [handoffFile, hydrateStory, routeStoryId, showTour, toast]);
+
+  useEffect(() => { void refreshStories(); }, [refreshStories]);
 
   // 检测 AI 生成的章节标记
   useEffect(() => {
@@ -151,24 +177,27 @@ const Index = () => {
   // 自动落库：正则规则/楼层编辑/章节标记等处理状态随未绑定故事保存（防抖），
   // 否则暂存的记录永远停留在导入时的快照，重新打开会丢失之后的全部处理。
   const storySyncTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const persistCurrentStory = useCallback(async () => {
+    if (!session || !currentStoryId) return;
+    const existing = await getArchiveStory(currentStoryId);
+    if (!existing) return;
+    let updated = updateBranchLine(existing, null, { session, markers, favorites });
+    updated = {
+      ...updated,
+      title: session.title || existing.title,
+      settings,
+    };
+    await saveArchiveStory(updated);
+  }, [currentStoryId, favorites, markers, session, settings]);
+
   useEffect(() => {
     if (!session || !currentStoryId) return;
     if (storySyncTimerRef.current) clearTimeout(storySyncTimerRef.current);
-    storySyncTimerRef.current = setTimeout(async () => {
-      try {
-        const existing = await getArchiveStory(currentStoryId);
-        if (!existing) return; // 故事已被删除，不复活
-        let updated = updateBranchLine(existing, null, { session, markers, favorites });
-        updated = {
-          ...updated,
-          title: session.title || existing.title,
-          settings,
-        };
-        await saveArchiveStory(updated);
-      } catch { /* 自动同步失败不打扰用户，下次修改会重试 */ }
+    storySyncTimerRef.current = setTimeout(() => {
+      void persistCurrentStory().catch(() => { /* 自动同步失败不打扰用户，下次修改会重试 */ });
     }, 800);
     return () => { if (storySyncTimerRef.current) clearTimeout(storySyncTimerRef.current); };
-  }, [session, markers, favorites, settings, currentStoryId]);
+  }, [currentStoryId, persistCurrentStory, session]);
 
   const handleImport = async (newSession: ChatSession, stats?: ImportStats) => {
     setSession(newSession);
@@ -180,7 +209,10 @@ const Index = () => {
       story.settings = settings;
       await saveArchiveStory(story);
       setCurrentStoryId(story.id);
+      setEditorStoryId(story.id);
       setFavorites([]);
+      await refreshStories();
+      navigate(buildEditorChatPath(story.id), { replace: true });
 
       // Build description with swipes stats
       let description = '已自动暂存，绑定角色后进入故事工作区';
@@ -204,24 +236,27 @@ const Index = () => {
     setMarkers([]);
     setFavorites([]);
     setCurrentStoryId(null);
+    setEditorStoryId(null);
     setRestoreFloor(undefined);
     clearSessionState();
   };
 
-  // 打开一条未绑定暂存记录
-  const handleOpenUnbound = (story: ArchiveStory) => {
-    setSession(story.session);
-    setMarkers(story.markers ?? []);
-    setFavorites(story.favorites ?? []);
-    if (story.settings) setSettings(story.settings);
-    setCurrentStoryId(story.id);
-    setRestoreFloor(story.lastFloor && story.lastFloor > 0 ? story.lastFloor : undefined);
+  const handleOpenStory = async (story: ArchiveStory) => {
+    try {
+      await persistCurrentStory();
+    } catch {
+      toast({ title: '当前故事保存失败，已取消切换', variant: 'destructive' });
+      return;
+    }
+    hydrateStory(story);
+    navigate(buildEditorChatPath(story.id));
   };
 
   const handleDeleteUnbound = async (id: string) => {
     try {
       await deleteArchiveStory(id);
-      setUnboundStories(prev => prev.filter(s => s.id !== id));
+      setAllStories((current) => current.filter((story) => story.id !== id));
+      if (id === currentStoryId) handleReset();
       toast({ title: '已删除暂存记录' });
     } catch {
       toast({ title: '删除失败', variant: 'destructive' });
@@ -240,12 +275,14 @@ const Index = () => {
         favorites,
         settings,
       });
-      clearSessionState();
+      setCurrentStoryId(story.id);
+      setEditorStoryId(story.id);
+      setAllStories((current) => [story, ...current.filter((item) => item.id !== story.id)]);
       toast({
         title: `已绑定到「${character.name}」`,
         description: carried > 0 ? `${carried} 条总结/故事树已一并带走` : undefined,
       });
-      navigate(`/story/${story.id}`);
+      navigate(buildEditorChatPath(story.id), { replace: true });
     } catch (error) {
       console.error('Bind failed:', error);
       toast({ title: '绑定失败', variant: 'destructive' });
@@ -272,8 +309,11 @@ const Index = () => {
   return (
     <AppLayout>
       {!session ? (
-        <div className="container mx-auto px-4 py-6">
-          <div className="max-w-xl mx-auto animate-fade-in">
+        <div className="flex h-full min-h-0 flex-col">
+          <RecentStoryBar stories={recentStories} activeStoryId={currentStoryId} onSelect={(story) => void handleOpenStory(story)} />
+          <div className="min-h-0 flex-1 overflow-y-auto">
+            <div className="container mx-auto px-4 py-6">
+              <div className="max-w-xl mx-auto animate-fade-in">
             {/* Tour replaces old onboarding */}
             <div className="text-center mb-8">
               <h2 className="font-display text-3xl mb-3 text-gradient">处理你的对话记录</h2>
@@ -296,7 +336,7 @@ const Index = () => {
                     <div
                       key={story.id}
                       className="flex items-center gap-3 p-3 rounded-lg bg-card border border-border card-elevated cursor-pointer hover:border-primary/50 transition-colors"
-                      onClick={() => handleOpenUnbound(story)}
+                      onClick={() => void handleOpenStory(story)}
                     >
                       <MessageSquare className="w-4 h-4 text-muted-foreground shrink-0" />
                       <div className="flex-1 min-w-0">
@@ -338,44 +378,52 @@ const Index = () => {
                 </div>
               ))}
             </div>
+              </div>
+            </div>
           </div>
         </div>
       ) : (
-        <ChatWorkbench
-          session={session}
-          markers={markers}
-          favorites={favorites}
-          settings={settings}
-          onSessionChange={setSession}
-          onMarkersChange={setMarkers}
-          onFavoritesChange={setFavorites}
-          onSettingsChange={setSettings}
-          onFloorChange={handleFloorChange}
-          initialFloor={restoreFloor}
-          onReset={handleReset}
-          titleBadge={
-            <Badge
-              variant="outline"
-              className="shrink-0 cursor-pointer text-muted-foreground hover:text-foreground"
-              onClick={() => setBindDialogOpen(true)}
-              title="这份记录还没有归属的角色卡；绑定后升级为故事工作区，整理成果一并带走"
-            >
-              未绑定
-            </Badge>
-          }
-          toolbarExtras={
-            <>
-              <Button variant="outline" size="sm" onClick={handleOpenNovel} title="小说视图：拆句重排+用户楼层弱化/隐藏+场景分隔（Esc 退出）">
-                <BookOpenCheck className="w-4 h-4 mr-1.5" />
-                小说视图
-              </Button>
-              <Button variant="outline" size="sm" onClick={() => setBindDialogOpen(true)}>
-                <Link2 className="w-4 h-4 mr-1.5" />
-                绑定到角色
-              </Button>
-            </>
-          }
-        />
+        <div className="flex h-full min-h-0 flex-col overflow-hidden">
+          <RecentStoryBar stories={recentStories} activeStoryId={currentStoryId} onSelect={(story) => void handleOpenStory(story)} />
+          <div className="min-h-0 flex-1 overflow-y-auto">
+            <ChatWorkbench
+              session={session}
+              markers={markers}
+              favorites={favorites}
+              settings={settings}
+              onSessionChange={setSession}
+              onMarkersChange={setMarkers}
+              onFavoritesChange={setFavorites}
+              onSettingsChange={setSettings}
+              onFloorChange={handleFloorChange}
+              initialFloor={restoreFloor}
+              onReset={handleReset}
+              titleBadge={
+                <Badge
+                  variant="outline"
+                  className="shrink-0 text-muted-foreground"
+                  title={currentStory?.characterId ? '这条故事已经绑定角色卡' : '这条故事尚未绑定角色卡'}
+                >
+                  {currentStory?.characterId ? '已绑定' : '未绑定'}
+                </Badge>
+              }
+              toolbarExtras={
+                <>
+                  <Button variant="outline" size="sm" onClick={handleOpenNovel} title="小说视图：拆句重排+用户楼层弱化/隐藏+场景分隔（Esc 退出）">
+                    <BookOpenCheck className="w-4 h-4 mr-1.5" />
+                    小说视图
+                  </Button>
+                  {!currentStory?.characterId && (
+                    <Button variant="outline" size="sm" onClick={() => setBindDialogOpen(true)}>
+                      <Link2 className="w-4 h-4 mr-1.5" />
+                      绑定到角色
+                    </Button>
+                  )}
+                </>
+              }
+            />
+          </div>
+        </div>
       )}
 
       {/* 小说视图（未绑定模式；成果挂当前暂存故事，绑定时随 id 带走） */}
@@ -414,14 +462,6 @@ const Index = () => {
         />
       )}
 
-      {/* Footer */}
-      <footer className="border-t border-border py-6 text-center text-sm text-muted-foreground flex-shrink-0">
-        <p>ST 聊天记录处理器 {APP_VERSION}</p>
-        <p className="mt-1">
-          <a href="https://github.com/LYC619/silly-tavern-explorer" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">GitHub</a>
-          {' · MIT License'}
-        </p>
-      </footer>
     </AppLayout>
   );
 };

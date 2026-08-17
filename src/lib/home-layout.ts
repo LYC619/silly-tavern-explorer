@@ -84,6 +84,14 @@ export function pickRecentlyViewedStories(
     .slice(0, count);
 }
 
+/** 聊天处理的快速切换列表：绑定和未绑定故事一视同仁，未查看记录以更新时间补位。 */
+export function pickRecentEditorStories(stories: ArchiveStory[], limit = 8): ArchiveStory[] {
+  const count = Math.max(0, Math.floor(limit));
+  return [...stories]
+    .sort((a, b) => (b.lastViewedAt ?? b.updatedAt) - (a.lastViewedAt ?? a.updatedAt))
+    .slice(0, count);
+}
+
 export const EDITOR_TOOL_COPY = {
   chat: '处理你的聊天文件，支持正则处理、txt 转换、瘦身导出',
   summary: '按楼层范围生成分卷总结、日记或自定义记录',

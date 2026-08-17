@@ -2,7 +2,7 @@ export const EDITOR_STORY_CHANGE_EVENT = 'ste-editor-story-change';
 
 const STORAGE_KEY = 'ste-current-editor-story-id';
 
-export type EditorStoryView = 'read' | 'volume' | 'tree';
+export type EditorStoryView = 'read' | 'io' | 'volume' | 'diary' | 'diy' | 'tree';
 
 function normalizeStoryId(value: string | null | undefined): string | null {
   const id = value?.trim();
@@ -38,15 +38,34 @@ export function buildEditorStoryPath(storyId: string, view: EditorStoryView): st
   return `/story/${encodeURIComponent(id)}?view=${view}`;
 }
 
+export function buildEditorChatPath(storyId: string): string {
+  const id = normalizeStoryId(storyId);
+  if (!id) throw new Error('故事 ID 无效');
+  return `/chat?storyId=${encodeURIComponent(id)}`;
+}
+
+/** 显式路由最高优先；共享记忆其次；旧聊天指针只作为迁移兜底。 */
+export function resolveEditorStoryId(
+  explicitId: string | null | undefined,
+  legacyId: string | null | undefined,
+): string | null {
+  return normalizeStoryId(explicitId) ?? getEditorStoryId() ?? normalizeStoryId(legacyId);
+}
+
 export function editorStoryPathForNavKey(key: string, storyId: string | null): string | null {
   if (!storyId) return null;
-  if (key === 'chat') return buildEditorStoryPath(storyId, 'read');
+  if (key === 'chat') return buildEditorChatPath(storyId);
   if (key === 'summary') return buildEditorStoryPath(storyId, 'volume');
   if (key === 'story-tree') return buildEditorStoryPath(storyId, 'tree');
   return null;
 }
 
+export function editorDestinationPath(key: string, storyId: string | null, fallback: string): string {
+  return editorStoryPathForNavKey(key, storyId) ?? fallback;
+}
+
 export function matchesEditorStoryNav(key: string, pathname: string, search: string): boolean {
+  if (key === 'chat' && pathname.startsWith('/chat')) return true;
   if (!pathname.startsWith('/story/')) return false;
   const view = new URLSearchParams(search).get('view') ?? 'read';
   if (key === 'story-tree') return view === 'tree';

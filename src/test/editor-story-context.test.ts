@@ -1,10 +1,13 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
   EDITOR_STORY_CHANGE_EVENT,
+  buildEditorChatPath,
   buildEditorStoryPath,
+  editorDestinationPath,
   editorStoryPathForNavKey,
   getEditorStoryId,
   matchesEditorStoryNav,
+  resolveEditorStoryId,
   setEditorStoryId,
 } from '@/lib/editor-story-context';
 
@@ -33,10 +36,23 @@ describe('当前编辑故事上下文', () => {
   });
 
   it('为全局编辑区导航提供同一故事的三个视图', () => {
-    expect(editorStoryPathForNavKey('chat', 'abc')).toBe('/story/abc?view=read');
+    expect(buildEditorChatPath('abc')).toBe('/chat?storyId=abc');
+    expect(editorStoryPathForNavKey('chat', 'abc')).toBe('/chat?storyId=abc');
     expect(editorStoryPathForNavKey('summary', 'abc')).toBe('/story/abc?view=volume');
     expect(editorStoryPathForNavKey('story-tree', 'abc')).toBe('/story/abc?view=tree');
+    expect(editorDestinationPath('summary', 'abc', '/tools?focus=summary')).toBe('/story/abc?view=volume');
+    expect(editorDestinationPath('worldbook', 'abc', '/tools?focus=worldbook')).toBe('/tools?focus=worldbook');
+    expect(matchesEditorStoryNav('chat', '/chat', '?storyId=abc')).toBe(true);
     expect(matchesEditorStoryNav('summary', '/story/abc', '?view=diary')).toBe(true);
     expect(matchesEditorStoryNav('story-tree', '/story/abc', '?view=volume')).toBe(false);
+  });
+
+  it('显式故事优先，其次共享记忆，最后兼容旧聊天指针', () => {
+    setEditorStoryId('remembered');
+    expect(resolveEditorStoryId('explicit', 'legacy')).toBe('explicit');
+    expect(resolveEditorStoryId(null, 'legacy')).toBe('remembered');
+    setEditorStoryId(null);
+    expect(resolveEditorStoryId(null, 'legacy')).toBe('legacy');
+    expect(resolveEditorStoryId('bad/id', 'legacy')).toBe('legacy');
   });
 });

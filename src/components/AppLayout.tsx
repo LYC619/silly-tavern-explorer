@@ -37,6 +37,11 @@ import { isTauri } from '@/lib/vault/tauri-fs';
 import { cn } from '@/lib/utils';
 import { getEditorOpen, setEditorOpenState } from '@/lib/editor-open-state';
 import { NAV_AREAS, matchesNavDestination, type NavAreaKey, type NavDestination } from '@/lib/navigation-model';
+import {
+  editorDestinationPath,
+  getEditorStoryId,
+  matchesEditorStoryNav,
+} from '@/lib/editor-story-context';
 
 interface AppLayoutProps {
   children?: React.ReactNode;
@@ -282,8 +287,8 @@ function PersistentAppLayout({ children, titleBarContent, actions, leftActions }
                           <SideSubItem
                             key={`${area.key}-${child.key}`}
                             item={child}
-                            active={isActive(child)}
-                            onClick={() => navigate(child.path)}
+                            active={isActive(child) || matchesEditorStoryNav(child.key, location.pathname, location.search)}
+                            onClick={() => navigate(editorDestinationPath(child.key, getEditorStoryId(), child.path))}
                           />
                         ))}
                       </motion.div>
