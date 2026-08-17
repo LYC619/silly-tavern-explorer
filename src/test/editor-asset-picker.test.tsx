@@ -14,4 +14,13 @@ describe('编辑区资产选择器滚动边界', () => {
     expect(tools).toContain('overflow-y-scroll');
     expect(tools).toContain('overscroll-contain');
   });
+
+  it('分别标明源文件修改时间和 STE 导入时间', () => {
+    const tools = read('src/pages/Tools.tsx');
+
+    expect(tools).toContain('sourceModifiedAt');
+    expect(tools).toContain('item.sourceModifiedAt !== undefined');
+    expect(tools).toContain('源文件');
+    expect(tools).toContain('导入');
+  });
 });

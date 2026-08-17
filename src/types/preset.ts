@@ -72,6 +72,8 @@ export interface PresetItem {
   derived?: import('@/types/archive').DerivedAssetMeta;
   /** 从 ST 目录导入时的来源绝对路径（阶段9.11，重复导入判定） */
   sourcePath?: string;
+  /** ST 源文件最后修改时间（Unix epoch 毫秒），与 STE 导入/编辑时间分开保存。 */
+  sourceModifiedAt?: number;
 }
 
 /** prompt 块的 role 中文标签 */

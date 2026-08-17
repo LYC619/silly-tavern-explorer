@@ -12,6 +12,8 @@ export interface VaultEntry {
   /** 递归导入必须跳过，防止链接越出用户选择的根目录。 */
   isSymlink?: boolean;
   size: number;
+  /** 源文件最后修改时间（Unix epoch 毫秒）；内存文件系统和不支持的平台可省略。 */
+  modifiedAt?: number;
 }
 
 export interface VaultStat {

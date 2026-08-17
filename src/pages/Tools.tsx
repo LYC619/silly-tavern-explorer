@@ -74,7 +74,9 @@ interface AssetPickerItem {
   id: string;
   title: string;
   meta: string;
+  importedAt: number;
   updatedAt: number;
+  sourceModifiedAt?: number;
   autoSaved?: boolean;
 }
 
@@ -107,7 +109,9 @@ const Tools = () => {
         id: item.id,
         title: item.title,
         meta: `${Object.keys(item.worldbook.entries).length} 个条目`,
+        importedAt: item.createdAt,
         updatedAt: item.updatedAt,
+        sourceModifiedAt: item.sourceModifiedAt,
         autoSaved: item.autoSaved,
       })));
       return;
@@ -118,7 +122,9 @@ const Tools = () => {
         id: item.id,
         title: item.title,
         meta: `${item.preset.prompts.length} 个提示词`,
+        importedAt: item.createdAt,
         updatedAt: item.updatedAt,
+        sourceModifiedAt: item.sourceModifiedAt,
         autoSaved: item.autoSaved,
       })));
       return;
@@ -315,12 +321,15 @@ const Tools = () => {
                             <span className="shrink-0 rounded bg-chrome px-1.5 py-0.5 text-[10px] text-[color:var(--text-muted)] ring-1 ring-[color:var(--border-normal)]">历史</span>
                           )}
                         </span>
-                        <span className="mt-1 flex w-full items-center gap-3 text-[11px] text-[color:var(--text-muted)]">
+                        <span className="mt-1 flex w-full flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-[color:var(--text-muted)]">
                           <span>{item.meta}</span>
                           <span className="flex min-w-0 items-center gap-1 truncate">
                             <CalendarRange className="h-3 w-3 shrink-0" />
-                            <span className="truncate">{formatStoryDate(item.updatedAt)}</span>
+                            <span className="truncate">
+                              {item.sourceModifiedAt !== undefined ? `源文件 ${formatStoryDate(item.sourceModifiedAt)}` : `STE 更新 ${formatStoryDate(item.updatedAt)}`}
+                            </span>
                           </span>
+                          {item.sourceModifiedAt !== undefined && <span>导入 {formatStoryDate(item.importedAt)}</span>}
                         </span>
                       </button>
                     ))}

@@ -196,13 +196,14 @@ describe('vault 资产映射（__ste 往返）', () => {
   it('世界书：ST 兼容顶层 + entries + __ste，回读无损', async () => {
     const { fs, vault } = setup();
     const wbs = vault.repo<WorldBookItem>('worldbooks');
-    const wb = makeWorldbook('wb1', '魔法世界', 1);
+    const wb = { ...makeWorldbook('wb1', '魔法世界', 1), sourceModifiedAt: 1_725_000_000_123 };
     await wbs.put(wb);
     expect(await wbs.get('wb1')).toEqual(wb);
     const file = JSON.parse(await fs.readText('资产/世界书/魔法世界.json'));
     expect(file.description).toBe('原顶层键'); // originalData 键直接在顶层（ST 可导入）
     expect(file.entries['0'].comment).toBe('设定');
     expect(file.__ste.id).toBe('wb1');
+    expect(file.__ste.sourceModifiedAt).toBe(1_725_000_000_123);
   });
 
   it('预设：exportPreset 全量 ST JSON + __ste，回读经 parsePreset 重建无损', async () => {
@@ -214,13 +215,21 @@ describe('vault 资产映射（__ste 往返）', () => {
       temperature: 0.7,
       未知顶层: { a: 1 },
     };
-    const item: PresetItem = { id: 'p1', title: '默认预设', preset: parsePreset(stJson), createdAt: 1, updatedAt: 1 };
+    const item: PresetItem = {
+      id: 'p1',
+      title: '默认预设',
+      preset: parsePreset(stJson),
+      createdAt: 1,
+      updatedAt: 1,
+      sourceModifiedAt: 1_725_000_100_456,
+    };
     await presets.put(item);
     expect(await presets.get('p1')).toEqual(item);
     const file = JSON.parse(await fs.readText('资产/预设/默认预设.json'));
     expect(file.temperature).toBe(0.7); // originalData 拼回顶层
     expect(file.prompts[0].自定义字段).toBe(1);
     expect(file.__ste.title).toBe('默认预设');
+    expect(file.__ste.sourceModifiedAt).toBe(1_725_000_100_456);
   });
 
   it('正则：{ __ste, rules } 往返无损', async () => {

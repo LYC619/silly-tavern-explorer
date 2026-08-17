@@ -16,6 +16,7 @@ interface RawEntry {
   is_dir: boolean;
   is_symlink: boolean;
   size: number;
+  modified_at: number | null;
 }
 
 interface RawStat {
@@ -36,7 +37,13 @@ export function createTauriFs(root: string): VaultFs {
   return {
     async list(dir): Promise<VaultEntry[]> {
       const entries = await invoke<RawEntry[]>('vault_list_dir', args(dir));
-      return entries.map((e) => ({ name: e.name, isDir: e.is_dir, isSymlink: e.is_symlink, size: e.size }));
+      return entries.map((e) => ({
+        name: e.name,
+        isDir: e.is_dir,
+        isSymlink: e.is_symlink,
+        size: e.size,
+        ...(e.modified_at == null ? {} : { modifiedAt: e.modified_at }),
+      }));
     },
     readText: (path) => invoke('vault_read_text', args(path)),
     writeText: (path, content) => invoke('vault_write_text', { ...args(path), content }),

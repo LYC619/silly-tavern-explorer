@@ -305,6 +305,26 @@ function setupVault() {
 }
 
 describe('importSelected', () => {
+  it('把世界书和预设的源文件修改时间从扫描结果保存到资产记录', async () => {
+    const st = createMemFs();
+    await seedSTTree(st);
+    const list = st.list.bind(st);
+    st.list = async (dir) => (await list(dir)).map((entry) => {
+      if (entry.name === '魔法界.json') return { ...entry, modifiedAt: 1_725_000_000_123 };
+      if (entry.name === '我的预设.json') return { ...entry, modifiedAt: 1_725_000_100_456 };
+      return entry;
+    });
+    setupVault();
+
+    const scan = await scanSTUserDir(st);
+    expect(scan.worldbooks[0].modifiedAt).toBe(1_725_000_000_123);
+    expect(scan.presets[0].modifiedAt).toBe(1_725_000_100_456);
+
+    await importSelected(st, selectAll(scan));
+    expect((await getAllWorldBooks())[0].sourceModifiedAt).toBe(1_725_000_000_123);
+    expect((await getAllPresets())[0].sourceModifiedAt).toBe(1_725_000_100_456);
+  });
+
   it('全选导入：卡建角色并记 sourcePath，聊天绑定落角色文件夹，散聊天进临时，世界书入库', async () => {
     const st = createMemFs();
     await seedSTTree(st);

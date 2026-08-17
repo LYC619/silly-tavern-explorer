@@ -14,6 +14,7 @@ pub struct DirEntryInfo {
     pub is_dir: bool,
     pub is_symlink: bool,
     pub size: u64,
+    pub modified_at: Option<u64>,
 }
 
 fn list_dir_impl(path: &Path) -> Result<Vec<DirEntryInfo>, String> {
@@ -23,6 +24,11 @@ fn list_dir_impl(path: &Path) -> Result<Vec<DirEntryInfo>, String> {
         let entry = entry.map_err(|e| e.to_string())?;
         let meta = fs::symlink_metadata(entry.path()).map_err(|e| e.to_string())?;
         let is_symlink = meta.file_type().is_symlink();
+        let modified_at = meta
+            .modified()
+            .ok()
+            .and_then(|value| value.duration_since(std::time::UNIX_EPOCH).ok())
+            .and_then(|duration| u64::try_from(duration.as_millis()).ok());
         out.push(DirEntryInfo {
             name: entry.file_name().to_string_lossy().into_owned(),
             is_dir: !is_symlink && meta.is_dir(),
@@ -32,6 +38,7 @@ fn list_dir_impl(path: &Path) -> Result<Vec<DirEntryInfo>, String> {
             } else {
                 meta.len()
             },
+            modified_at,
         });
     }
     out.sort_by(|a, b| (b.is_dir, a.name.to_lowercase()).cmp(&(a.is_dir, b.name.to_lowercase())));
@@ -419,6 +426,7 @@ mod tests {
         assert!(entries[0].is_dir);
         assert_eq!(entries[1].name, "聊天.jsonl");
         assert_eq!(entries[1].size, 3);
+        assert!(entries[1].modified_at.is_some());
         let _ = fs::remove_dir_all(&root);
     }
 

@@ -30,4 +30,24 @@ describe('Tauri 文件系统状态转换', () => {
     });
     expect(stat).toEqual({ exists: true, isDir: true });
   });
+
+  it('把 Rust 的修改时间毫秒值映射到目录项', async () => {
+    tauriMocks.invoke.mockResolvedValue([{
+      name: '世界书.json',
+      is_dir: false,
+      is_symlink: false,
+      size: 12,
+      modified_at: 1_725_000_000_123,
+    }]);
+
+    const entries = await createTauriFs('D:/ST').list('worlds');
+
+    expect(entries).toEqual([{
+      name: '世界书.json',
+      isDir: false,
+      isSymlink: false,
+      size: 12,
+      modifiedAt: 1_725_000_000_123,
+    }]);
+  });
 });

@@ -101,7 +101,7 @@ function steMeta(rec: BaseRecord): Record<string, unknown> {
   const src = rec as unknown as Record<string, unknown>;
   const out: Record<string, unknown> = {};
   // sourcePath：阶段7.3 从 ST 目录导入的资产记来源路径（重复导入判定），须随 __ste 往返存活
-  for (const k of ['id', 'title', 'createdAt', 'updatedAt', 'autoSaved', 'derived', 'sourcePath', 'embedded', 'stGlobal', 'stGlobalSources']) {
+  for (const k of ['id', 'title', 'createdAt', 'updatedAt', 'autoSaved', 'derived', 'sourcePath', 'sourceModifiedAt', 'embedded', 'stGlobal', 'stGlobalSources']) {
     if (src[k] !== undefined) out[k] = src[k];
   }
   return out;

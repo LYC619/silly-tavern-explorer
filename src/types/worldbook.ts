@@ -50,6 +50,8 @@ export interface WorldBookItem {
   derived?: import('@/types/archive').DerivedAssetMeta;
   /** 客户端：来源文件绝对路径（阶段7.3 从 ST 目录导入时记录，重复导入判定用）；手动导入为空 */
   sourcePath?: string;
+  /** ST 源文件最后修改时间（Unix epoch 毫秒），与 STE 导入/编辑时间分开保存。 */
+  sourceModifiedAt?: number;
   /** 从角色卡内置世界书提取时记录，用于按角色+内容哈希幂等导入。 */
   embedded?: import('@/types/archive').EmbeddedAssetMeta;
   /** 导入时在 settings.json -> globalSelect 中启用。 */

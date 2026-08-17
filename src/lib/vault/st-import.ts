@@ -70,6 +70,7 @@ export interface STScanWorldbook {
   name: string;
   path: string;
   size: number;
+  modifiedAt?: number;
 }
 
 /** 预设：ST 的聊天补全预设在 OpenAI Settings/*.json（TextGen 等其他后端预设 STE 不认，不扫） */
@@ -77,6 +78,7 @@ export interface STScanPreset {
   name: string;
   path: string;
   size: number;
+  modifiedAt?: number;
 }
 
 /** 全局正则：ST 不单独存文件，在 settings.json 的 extensions.regex 里（整组导入为一套规则集） */
@@ -169,14 +171,19 @@ async function listFiles(
   dir: string,
   ext: string,
   warnings: STScanWarning[],
-): Promise<{ name: string; path: string; size: number }[]> {
-  const out: { name: string; path: string; size: number }[] = [];
+): Promise<Array<{ name: string; path: string; size: number; modifiedAt?: number }>> {
+  const out: Array<{ name: string; path: string; size: number; modifiedAt?: number }> = [];
   for (const e of await fs.list(dir)) {
     const path = entryPath(dir, e.name);
     if (!safeEntryName(e.name)) warnings.push({ path, reason: 'unsafe-path' });
     else if (e.isSymlink) warnings.push({ path, reason: 'symlink' });
     else if (!e.isDir && e.name.toLowerCase().endsWith(ext)) {
-      out.push({ name: e.name.slice(0, -ext.length), path, size: e.size });
+      out.push({
+        name: e.name.slice(0, -ext.length),
+        path,
+        size: e.size,
+        ...(e.modifiedAt === undefined ? {} : { modifiedAt: e.modifiedAt }),
+      });
     }
   }
   return out;
@@ -542,8 +549,8 @@ export interface STImportPlan {
   characters: Array<Pick<STScanCharacter, 'name' | 'pngPath'> & { chats: Array<Pick<STScanChat, 'name' | 'path'>> }>;
   /** 勾选的散聊天 → 未绑定故事（进 临时/） */
   strayChats: Array<Pick<STScanChat, 'name' | 'path'>>;
-  worldbooks: Array<Pick<STScanWorldbook, 'name' | 'path'>>;
-  presets: Array<Pick<STScanPreset, 'name' | 'path'>>;
+  worldbooks: Array<Pick<STScanWorldbook, 'name' | 'path' | 'modifiedAt'>>;
+  presets: Array<Pick<STScanPreset, 'name' | 'path' | 'modifiedAt'>>;
   /** 勾选了全局正则时传入（一套规则集整组导入） */
   regex?: STScanRegex | null;
   /** 勾选的扩展/媒体目录，内部文件保持相对路径原样复制。 */
@@ -731,6 +738,7 @@ export async function importSelected(stFs: VaultFs, plan: STImportPlan): Promise
         title: wb.name,
         worldbook: parseWorldBook(json),
         sourcePath: src,
+        ...(wb.modifiedAt === undefined ? {} : { sourceModifiedAt: wb.modifiedAt }),
         createdAt: now,
         updatedAt: now,
       };
@@ -1032,6 +1040,7 @@ export async function importSelected(stFs: VaultFs, plan: STImportPlan): Promise
         title: p.name,
         preset,
         sourcePath: src,
+        ...(p.modifiedAt === undefined ? {} : { sourceModifiedAt: p.modifiedAt }),
         createdAt: now,
         updatedAt: now,
       };
