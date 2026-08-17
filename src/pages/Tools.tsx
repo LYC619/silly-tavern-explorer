@@ -237,7 +237,7 @@ const Tools = () => {
 
             {/* ===== 右：选择或导入 ===== */}
             <section
-              className="flex min-h-0 min-w-[24rem] flex-1 flex-col rounded-lg border border-[color:var(--border-normal)] bg-elevated p-4"
+              className="flex min-h-0 min-w-[24rem] flex-1 flex-col overflow-hidden rounded-lg border border-[color:var(--border-normal)] bg-elevated p-4"
               data-editor-story-picker
               data-editor-focus={focus}
             >
@@ -296,7 +296,10 @@ const Tools = () => {
 
               {assetFocus ? (
                 filteredAssetItems.length > 0 ? (
-                  <div className="mt-3 min-h-0 flex-1 overflow-y-auto pr-1 scrollbar-thin">
+                  <div
+                    data-asset-scroll-region
+                    className="mt-3 min-h-0 flex-1 overflow-y-scroll overscroll-contain pr-1 scrollbar-thin"
+                  >
                     <div className="grid grid-cols-[repeat(auto-fit,minmax(17rem,1fr))] gap-2">
                     {filteredAssetItems.map((item) => (
                       <button
