@@ -213,7 +213,7 @@ const Tools = () => {
         />
 
         {focusCopy && (
-          <div className="mx-auto flex h-full min-h-0 max-w-6xl flex-wrap items-stretch gap-4 animate-fade-in">
+          <div className="mx-auto flex h-full min-h-0 max-w-6xl flex-nowrap overflow-hidden items-stretch gap-4 animate-fade-in">
             {/* ===== 左：功能介绍与导入说明 ===== */}
             <aside className="flex min-h-0 basis-[16.5rem] grow-0 shrink-0 flex-col gap-3 rounded-lg border border-[color:var(--border-normal)] bg-elevated p-4">
               <div className="shrink-0">

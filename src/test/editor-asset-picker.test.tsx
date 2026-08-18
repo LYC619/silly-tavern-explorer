@@ -9,6 +9,8 @@ describe('编辑区资产选择器滚动边界', () => {
     const tools = read('src/pages/Tools.tsx');
 
     expect(tools).toContain('data-editor-story-picker');
+    expect(tools).toContain('max-w-6xl flex-nowrap overflow-hidden');
+    expect(tools).not.toContain('max-w-6xl flex-wrap');
     expect(tools).toContain('className="flex min-h-0 min-w-[24rem] flex-1 flex-col overflow-hidden');
     expect(tools).toContain('data-asset-scroll-region');
     expect(tools).toContain('overflow-y-scroll');
