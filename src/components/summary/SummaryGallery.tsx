@@ -13,32 +13,29 @@ import { SUMMARY_KIND_LABELS, type SummaryItem, type SummaryKind } from '@/types
 interface SummaryGalleryProps {
   currentBookId: string | null;
   refreshKey: number;
+  kind: SummaryKind;
   charName?: string;
   onEdit?: (item: SummaryItem) => void;
 }
 
-type KindFilter = SummaryKind | 'all';
-const FILTERS: KindFilter[] = ['all', 'volume', 'diary', 'diy'];
-
-export function SummaryGallery({ currentBookId, refreshKey, charName, onEdit }: SummaryGalleryProps) {
+export function SummaryGallery({ currentBookId, refreshKey, kind, charName, onEdit }: SummaryGalleryProps) {
   const { toast } = useToast();
   const [all, setAll] = useState<SummaryItem[]>([]);
-  const [scope, setScope] = useState<'book' | 'all'>('book');
-  const [kindFilter, setKindFilter] = useState<KindFilter>('all');
   const [activeId, setActiveId] = useState<string | null>(null);
   const [listOpen, setListOpen] = useState(true);
 
   useEffect(() => { getAllSummaries().then(setAll).catch(() => setAll([])); }, [refreshKey]);
+  useEffect(() => { setActiveId(null); }, [currentBookId, kind]);
 
   const filtered = useMemo(() => all.filter((item) => {
-    if (scope === 'book' && currentBookId && item.bookId !== currentBookId) return false;
-    return kindFilter === 'all' || item.kind === kindFilter;
+    if (currentBookId && item.bookId !== currentBookId) return false;
+    return item.kind === kind;
   }).sort((a, b) => {
     if (a.kind === 'volume' && b.kind === 'volume') return (a.volumeNumber ?? 0) - (b.volumeNumber ?? 0);
     if (a.kind === 'volume') return -1;
     if (b.kind === 'volume') return 1;
     return b.updatedAt - a.updatedAt;
-  }), [all, currentBookId, kindFilter, scope]);
+  }), [all, currentBookId, kind]);
 
   const active = filtered.find((item) => item.id === activeId) ?? filtered[0];
 
@@ -63,15 +60,9 @@ export function SummaryGallery({ currentBookId, refreshKey, charName, onEdit }: 
       {listOpen && (
         <Card className="h-full min-w-0" style={{ flex: '3 1 210px' }}>
           <CardContent className="flex h-full min-h-0 flex-col gap-2 p-3">
-            <div className="flex shrink-0 items-center gap-1 flex-wrap text-xs">
-              <Button variant={scope === 'book' ? 'default' : 'ghost'} size="sm" className="h-6 px-2" onClick={() => setScope('book')}>当前书</Button>
-              <Button variant={scope === 'all' ? 'default' : 'ghost'} size="sm" className="h-6 px-2" onClick={() => setScope('all')}>全部</Button>
-              <span className="text-muted-foreground">·</span>
-              {FILTERS.map((filter) => (
-                <Button key={filter} variant={kindFilter === filter ? 'default' : 'ghost'} size="sm" className="h-6 px-2" onClick={() => setKindFilter(filter)}>
-                  {filter === 'all' ? '全部类型' : SUMMARY_KIND_LABELS[filter]}
-                </Button>
-              ))}
+            <div className="flex shrink-0 items-center justify-between gap-2 text-xs">
+              <span className="font-medium">{SUMMARY_KIND_LABELS[kind]}</span>
+              <span className="text-muted-foreground">共 {filtered.length} 条</span>
             </div>
             {filtered.length === 0 ? (
               <p className="text-sm text-muted-foreground py-6 text-center">暂无可展示的总结。先到“生成工作台”生成或手动添加。</p>

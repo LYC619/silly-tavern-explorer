@@ -1,10 +1,11 @@
 import { useEffect, useState } from 'react';
-import { Bookmark } from 'lucide-react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Bookmark, ChevronDown } from 'lucide-react';
+import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 
 /** 书签锚点：聊天页的章节标记 / 收藏楼层，供快速填入起止 */
 export interface FloorAnchor {
@@ -72,16 +73,17 @@ export function FloorRangePicker({ total, start, end, onChange, suggestedStart, 
   };
 
   return (
-    <Card>
-      <CardHeader className="pb-3">
-        <div className="flex items-center justify-between">
-          <CardTitle className="text-base">选择楼层范围</CardTitle>
+    <Collapsible defaultOpen>
+      <Card>
+        <CollapsibleTrigger className="group flex w-full items-center justify-between gap-3 px-4 py-3 text-left hover:bg-accent/30">
+          <span className="text-base font-semibold">选择楼层范围</span>
           <span className="text-sm text-muted-foreground">
             共 {count} 楼 · 全书 {total} 楼（第 0 ~ {maxIdx} 楼）
           </span>
-        </div>
-      </CardHeader>
-      <CardContent className="space-y-3">
+          <ChevronDown className="h-4 w-4 shrink-0 text-muted-foreground transition-transform group-data-[state=closed]:-rotate-90" />
+        </CollapsibleTrigger>
+        <CollapsibleContent>
+      <CardContent className="space-y-3 border-t pt-3">
         <div className="flex items-end gap-3 flex-wrap">
           <div className="space-y-1">
             <Label htmlFor="floor-start" className="text-xs text-muted-foreground">起始楼层</Label>
@@ -166,6 +168,8 @@ export function FloorRangePicker({ total, start, end, onChange, suggestedStart, 
         </div>
         <p className="text-xs text-muted-foreground">楼层号与聊天处理页一致（从 0 开始）。</p>
       </CardContent>
-    </Card>
+        </CollapsibleContent>
+      </Card>
+    </Collapsible>
   );
 }

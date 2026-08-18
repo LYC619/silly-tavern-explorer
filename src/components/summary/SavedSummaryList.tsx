@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Eye, RotateCcw, Trash2, Upload } from 'lucide-react';
+import { Eye, Plus, RotateCcw, Trash2, Upload } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
@@ -13,38 +13,33 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
-import { MiniSummaryPanel } from '@/components/summary/MiniSummaryPanel';
 import { useToast } from '@/hooks/use-toast';
 import { deleteSummary, getAllSummaries } from '@/lib/summary-db';
 import { summaryToObsidian } from '@/lib/obsidian-export';
 import { exportTextFile, type TextFileExportResult } from '@/lib/text-file-export';
-import type { ChatSession } from '@/types/chat';
 import { SUMMARY_KIND_LABELS, type SummaryItem, type SummaryKind } from '@/types/summary';
 
 interface SavedSummaryListProps {
   currentBookId: string | null;
   refreshKey: number;
-  session: ChatSession | null;
+  kind: SummaryKind;
+  onAdd: () => void;
   onView: (item: SummaryItem) => void;
   onRegenerate: (item: SummaryItem) => void;
   onChanged?: () => void;
 }
 
-type ViewFilter = SummaryKind | 'all' | 'mini';
-const VIEW_FILTERS: ViewFilter[] = ['all', 'mini', 'volume', 'diary', 'diy'];
-
 export function SavedSummaryList({
   currentBookId,
   refreshKey,
-  session,
+  kind,
+  onAdd,
   onView,
   onRegenerate,
   onChanged,
 }: SavedSummaryListProps) {
   const { toast } = useToast();
   const [all, setAll] = useState<SummaryItem[]>([]);
-  const [scope, setScope] = useState<'book' | 'all'>('book');
-  const [kindFilter, setKindFilter] = useState<ViewFilter>('all');
   const [deleteId, setDeleteId] = useState<string | null>(null);
 
   const load = useCallback(() => {
@@ -54,12 +49,8 @@ export function SavedSummaryList({
   useEffect(() => { load(); }, [load, refreshKey]);
 
   const filtered = useMemo(() => all
-    .filter((item) => {
-      if (scope === 'book' && currentBookId && item.bookId !== currentBookId) return false;
-      if (kindFilter !== 'all' && kindFilter !== 'mini' && item.kind !== kindFilter) return false;
-      return true;
-    })
-    .sort((a, b) => b.updatedAt - a.updatedAt), [all, currentBookId, kindFilter, scope]);
+    .filter((item) => (!currentBookId || item.bookId === currentBookId) && item.kind === kind)
+    .sort((a, b) => b.updatedAt - a.updatedAt), [all, currentBookId, kind]);
 
   const handleDelete = async () => {
     if (!deleteId) return;
@@ -96,43 +87,23 @@ export function SavedSummaryList({
     notifyExport(result, filtered.length);
   };
 
-  const isMini = kindFilter === 'mini';
-
   return (
     <Card className="h-full min-h-0">
       <CardContent className="flex h-full min-h-0 flex-col gap-3 p-4">
-        <div className="flex shrink-0 items-center gap-2 flex-wrap text-xs">
-          <span className={isMini ? 'text-sm font-medium mr-1 opacity-40' : 'text-sm font-medium mr-1'}>
-            共 {filtered.length} 条
-          </span>
-          <div className={isMini ? 'flex gap-1 opacity-40' : 'flex gap-1'}>
-            <Button variant={scope === 'book' ? 'default' : 'ghost'} size="sm" className="h-6 px-2" disabled={isMini} onClick={() => setScope('book')}>当前书</Button>
-            <Button variant={scope === 'all' ? 'default' : 'ghost'} size="sm" className="h-6 px-2" disabled={isMini} onClick={() => setScope('all')}>全部</Button>
-          </div>
-          <span className="text-muted-foreground">·</span>
-          <div className="flex gap-1 flex-wrap">
-            {VIEW_FILTERS.map((filter) => (
-              <Button
-                key={filter}
-                variant={kindFilter === filter ? 'default' : 'ghost'}
-                size="sm"
-                className="h-6 px-2"
-                onClick={() => setKindFilter(filter)}
-              >
-                {filter === 'all' ? '全部类型' : filter === 'mini' ? '小总结' : SUMMARY_KIND_LABELS[filter]}
-              </Button>
-            ))}
-          </div>
+        <div className="flex shrink-0 items-center gap-2 text-xs">
+          <span className="text-sm font-medium">{SUMMARY_KIND_LABELS[kind]}</span>
+          <span className="text-muted-foreground">共 {filtered.length} 条</span>
+          <Button variant="ghost" size="icon" className="ml-auto h-7 w-7" aria-label="手动添加总结" title="手动添加总结" onClick={onAdd}>
+            <Plus className="h-4 w-4" />
+          </Button>
           {filtered.length > 0 && (
-            <Button variant="outline" size="sm" className="h-6 px-2 gap-1 ml-auto" disabled={isMini} onClick={() => void handleExportAll()}>
+            <Button variant="outline" size="sm" className="h-7 gap-1 px-2" onClick={() => void handleExportAll()}>
               <Upload className="w-3 h-3" />导出全部
             </Button>
           )}
         </div>
 
-        {isMini ? (
-          session ? <MiniSummaryPanel session={session} /> : <p className="text-sm text-muted-foreground py-4 text-center">载入聊天记录后才能提取小总结。</p>
-        ) : filtered.length === 0 ? (
+        {filtered.length === 0 ? (
           <p className="text-sm text-muted-foreground py-8 text-center">暂无总结</p>
         ) : (
           <div className="min-h-0 flex-1 space-y-1.5 overflow-y-auto pr-1 scrollbar-thin">
@@ -154,7 +125,7 @@ export function SavedSummaryList({
           </div>
         )}
 
-        {!isMini && <p className="shrink-0 text-xs text-muted-foreground">标“永久”的是手动保存记录；其他为自动暂存。查看后会切换到详情编辑。</p>}
+        <p className="shrink-0 text-xs text-muted-foreground">标“永久”的是手动保存记录；其他为自动暂存。查看后会切换到详情编辑。</p>
       </CardContent>
 
       <AlertDialog open={deleteId !== null} onOpenChange={(open) => { if (!open) setDeleteId(null); }}>

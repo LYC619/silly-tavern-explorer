@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { SlidersHorizontal, Globe, X } from 'lucide-react';
+import { SlidersHorizontal, Globe, X, ChevronDown } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
@@ -8,6 +8,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { getAllPresets } from '@/lib/preset-db';
 import { getAllWorldBooks } from '@/lib/worldbook-db';
 import type { PresetItem } from '@/types/preset';
@@ -53,14 +54,18 @@ export function AttachPanel({ value, onChange, tokenEstimate }: AttachPanelProps
   };
 
   return (
-    <Card>
-      <CardContent className="p-4 space-y-4">
-        <div className="flex items-center justify-between">
-          <Label className="text-sm font-medium">挂载设定（可选）</Label>
+    <Collapsible>
+      <Card>
+        <CollapsibleTrigger className="group flex w-full items-center gap-2 px-4 py-3 text-left hover:bg-accent/30">
+          <SlidersHorizontal className="h-4 w-4 text-muted-foreground" />
+          <span className="text-sm font-medium">挂载设定（可选）</span>
           <Badge variant="secondary" className="font-normal">
             约 {tokenEstimate.toLocaleString()} tokens
           </Badge>
-        </div>
+          <ChevronDown className="ml-auto h-4 w-4 text-muted-foreground transition-transform group-data-[state=closed]:-rotate-90" />
+        </CollapsibleTrigger>
+        <CollapsibleContent>
+      <CardContent className="space-y-4 border-t p-4">
 
         {/* 预设 */}
         <div className="space-y-1.5">
@@ -164,6 +169,8 @@ export function AttachPanel({ value, onChange, tokenEstimate }: AttachPanelProps
           </Button>
         )}
       </CardContent>
-    </Card>
+        </CollapsibleContent>
+      </Card>
+    </Collapsible>
   );
 }

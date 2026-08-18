@@ -1,8 +1,10 @@
+import { ChevronDown } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Badge } from '@/components/ui/badge';
 import type { SummaryItem } from '@/types/summary';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 
 interface PriorVolumesPanelProps {
   /** 当前书已有的分卷总结（按卷号升序） */
@@ -24,10 +26,16 @@ export function PriorVolumesPanel({ volumes, selectedIds, onChange }: PriorVolum
   };
 
   return (
-    <Card>
-      <CardContent className="p-4 space-y-2">
-        <div className="flex items-center justify-between">
-          <Label className="text-sm font-medium">前情连贯（带入已有分卷）</Label>
+    <Collapsible defaultOpen>
+      <Card>
+        <CollapsibleTrigger className="group flex w-full items-center gap-2 px-4 py-3 text-left hover:bg-accent/30">
+          <span className="text-sm font-medium">前情连贯（带入已有分卷）</span>
+          <span className="text-xs text-muted-foreground">已选 {selectedIds.length}/{volumes.length}</span>
+          <ChevronDown className="ml-auto h-4 w-4 text-muted-foreground transition-transform group-data-[state=closed]:-rotate-90" />
+        </CollapsibleTrigger>
+        <CollapsibleContent>
+      <CardContent className="space-y-2 border-t p-4">
+        <div className="flex items-center justify-end">
           <button
             className="text-xs text-muted-foreground hover:text-foreground"
             onClick={() => onChange(selectedIds.length === volumes.length ? [] : volumes.map((v) => v.id))}
@@ -51,6 +59,8 @@ export function PriorVolumesPanel({ volumes, selectedIds, onChange }: PriorVolum
           勾选的分卷会作为「前情」带进上下文，帮助 AI 保持跨卷连贯。
         </p>
       </CardContent>
-    </Card>
+        </CollapsibleContent>
+      </Card>
+    </Collapsible>
   );
 }

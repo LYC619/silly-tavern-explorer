@@ -303,7 +303,7 @@ const StoryWorkspace = () => {
 
   return (
     <AppLayout>
-      <div className={organizeView ? 'min-h-full' : 'flex items-start flex-wrap'}>
+      <div className={organizeView ? 'h-full min-h-0 overflow-hidden' : 'flex items-start flex-wrap'}>
         {/* ===== 左侧二级栏：故事上下文 + 三组导航 + 分支/章节/书签 ===== */}
         {/* 新外壳（2.1-P1）主区内滚动：sticky 仍生效，高度上限改为主区可视高（标题栏36+状态栏26=62px） */}
         {/* 整理视图（0816）：不再渲染宽二级栏，编辑区切换交给 AppLayout 的全局窄工具栏 */}
@@ -391,7 +391,7 @@ const StoryWorkspace = () => {
         </aside>}
 
         {/* ===== 主区 ===== */}
-        <div className={organizeView ? 'min-w-0' : 'flex-1 min-w-[24rem]'}>
+        <div className={organizeView ? 'h-full min-h-0 min-w-0' : 'flex-1 min-w-[24rem]'}>
           {view === 'read' && (
             <div className="flex items-start flex-wrap">
               <div className="flex-1 min-w-[20rem]">

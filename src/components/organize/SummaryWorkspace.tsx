@@ -3,6 +3,7 @@ import { ArrowLeft, BookOpen, NotebookText, Wrench } from 'lucide-react';
 import { ApiStatusLine } from '@/components/ai-tools/ApiStatusLine';
 import { HelpCard } from '@/components/HelpCard';
 import { RecordWorkbench, type RecordWorkbenchHandle } from '@/components/organize/RecordWorkbench';
+import { MiniSummaryPanel } from '@/components/summary/MiniSummaryPanel';
 import { SavedSummaryList } from '@/components/summary/SavedSummaryList';
 import { SummaryGallery } from '@/components/summary/SummaryGallery';
 import { Button } from '@/components/ui/button';
@@ -18,10 +19,12 @@ interface SummaryWorkspaceProps {
   currentBranchId: string | null;
   kind: SummaryKind;
   initialTarget?: { type: 'record' | 'tree'; id: string };
-  onKindChange: (kind: SummaryKind) => void;
+  /** 兼容旧调用方；二级类型现在由工作区本地持有，不再改路由导致整个页面重挂。 */
+  onKindChange?: (kind: SummaryKind) => void;
 }
 
-const KINDS: SummaryKind[] = ['volume', 'diary', 'diy'];
+type SummarySurfaceKind = SummaryKind | 'mini';
+const KINDS: SummarySurfaceKind[] = ['volume', 'diary', 'diy', 'mini'];
 
 export function SummaryWorkspace({
   story,
@@ -29,9 +32,9 @@ export function SummaryWorkspace({
   currentBranchId,
   kind,
   initialTarget,
-  onKindChange,
 }: SummaryWorkspaceProps) {
   const [view, setView] = useState<'workshop' | 'gallery'>('workshop');
+  const [activeKind, setActiveKind] = useState<SummarySurfaceKind>(kind);
   const [selectedRecord, setSelectedRecord] = useState<SummaryItem | null>(null);
   const [refreshKey, setRefreshKey] = useState(0);
   const [draftNonce, setDraftNonce] = useState(0);
@@ -47,17 +50,18 @@ export function SummaryWorkspace({
     if (!item) return;
     setSelectedRecord(item);
     setDetailMode(true);
-    onKindChange(item.kind);
-  }, [initialTarget, onKindChange, story.id]);
+    setActiveKind(item.kind);
+  }, [initialTarget, story.id]);
 
   useEffect(() => { void loadInitialTarget(); }, [loadInitialTarget]);
+  useEffect(() => { setActiveKind(kind); }, [kind]);
 
   useEffect(() => {
     if (!pendingAction) return;
     if (pendingAction === 'manual') workbenchRef.current?.startManual();
     else workbenchRef.current?.regenerate();
     setPendingAction(null);
-  }, [kind, pendingAction, selectedRecord, draftNonce]);
+  }, [activeKind, pendingAction, selectedRecord, draftNonce]);
 
   const refresh = useCallback(() => setRefreshKey((value) => value + 1), []);
 
@@ -69,18 +73,18 @@ export function SummaryWorkspace({
 
   const openRecord = useCallback((item: SummaryItem) => {
     setView('workshop');
+    setActiveKind(item.kind);
     setSelectedRecord(item);
     setDetailMode(true);
-    onKindChange(item.kind);
-  }, [onKindChange]);
+  }, []);
 
   const regenerateRecord = useCallback((item: SummaryItem) => {
     setView('workshop');
+    setActiveKind(item.kind);
     setSelectedRecord(item);
     setDetailMode(true);
-    onKindChange(item.kind);
     setPendingAction('regenerate');
-  }, [onKindChange]);
+  }, []);
 
   const startManual = () => {
     setView('workshop');
@@ -90,11 +94,11 @@ export function SummaryWorkspace({
     setPendingAction('manual');
   };
 
-  const changeKind = (next: SummaryKind) => {
+  const changeKind = (next: SummarySurfaceKind) => {
     setSelectedRecord(null);
     setDetailMode(false);
     setDraftNonce((value) => value + 1);
-    onKindChange(next);
+    setActiveKind(next);
   };
 
   const backToList = () => {
@@ -125,10 +129,12 @@ export function SummaryWorkspace({
           </Tabs>
 
           <span className="h-6 w-px shrink-0 bg-[color:var(--border-subtle)]" />
-          <Tabs value={kind} onValueChange={(value) => { setView('workshop'); changeKind(value as SummaryKind); }}>
+          <Tabs value={activeKind} onValueChange={(value) => changeKind(value as SummarySurfaceKind)}>
             <TabsList className="flex h-8 w-fit">
               {KINDS.map((item) => (
-                <TabsTrigger key={item} value={item} className="h-7 whitespace-nowrap px-3 text-xs">{SUMMARY_KIND_LABELS[item]}</TabsTrigger>
+                <TabsTrigger key={item} value={item} className="h-7 whitespace-nowrap px-3 text-xs">
+                  {item === 'mini' ? '小总结' : SUMMARY_KIND_LABELS[item]}
+                </TabsTrigger>
               ))}
             </TabsList>
           </Tabs>
@@ -143,20 +149,25 @@ export function SummaryWorkspace({
         </header>
 
         <div className="mt-3 min-h-0 flex-1">
-        {view === 'gallery' ? (
+        {activeKind === 'mini' ? (
+          <div className="h-full min-h-0 overflow-y-auto rounded-md border border-[color:var(--border-subtle)] bg-elevated p-4 scrollbar-thin">
+            <MiniSummaryPanel session={currentLine.session} />
+          </div>
+        ) : view === 'gallery' ? (
           <SummaryGallery
             currentBookId={story.id}
             refreshKey={refreshKey}
+            kind={activeKind}
             charName={characterName ?? currentLine.session.character?.name}
             onEdit={openRecord}
           />
         ) : (
           <RecordWorkbench
-            key={`${kind}:${selectedRecord?.id ?? `draft-${draftNonce}`}`}
+            key={`${activeKind}:${selectedRecord?.id ?? `draft-${draftNonce}`}`}
             ref={workbenchRef}
             story={story}
-            kind={kind}
-            record={selectedRecord?.kind === kind ? selectedRecord : null}
+            kind={activeKind}
+            record={selectedRecord?.kind === activeKind ? selectedRecord : null}
             defaultBranchId={currentBranchId}
             onSaved={handleSaved}
             showEmptyEditor={false}
@@ -170,16 +181,12 @@ export function SummaryWorkspace({
                   <span className="text-xs text-muted-foreground">{selectedRecord?.title || '新总结'}</span>
                 </div>
               ) : (
-              <div className="flex h-full min-h-0 flex-col gap-3">
-                <div className="flex shrink-0 justify-end">
-                  <Button variant="outline" size="sm" className="gap-1.5" onClick={startManual}>
-                    <NotebookText className="w-3.5 h-3.5" />手动添加总结
-                  </Button>
-                </div>
+              <div className="flex h-full min-h-0 flex-col">
                 <SavedSummaryList
                   currentBookId={story.id}
                   refreshKey={refreshKey}
-                  session={currentLine.session}
+                  kind={activeKind}
+                  onAdd={startManual}
                   onView={openRecord}
                   onRegenerate={regenerateRecord}
                   onChanged={refresh}

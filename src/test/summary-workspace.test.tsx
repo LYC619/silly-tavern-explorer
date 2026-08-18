@@ -19,21 +19,28 @@ vi.mock('@/components/organize/RecordWorkbench', () => ({
 }));
 
 vi.mock('@/components/summary/SavedSummaryList', () => ({
-  SavedSummaryList: ({ onView }: { onView: (item: unknown) => void }) => (
-    <button
-      type="button"
-      onClick={() => onView({
-        id: 'summary-1', bookId: 'story-1', bookTitle: '测试故事', kind: 'volume',
-        title: '第一卷', floorStart: 0, floorEnd: 1, content: '正文', createdAt: 1, updatedAt: 1,
-      })}
-    >
-      查看现有
-    </button>
+  SavedSummaryList: ({ kind, onView, onAdd }: { kind: string; onView: (item: unknown) => void; onAdd: () => void }) => (
+    <div data-testid="saved-summary-list" data-kind={kind}>
+      <button
+        type="button"
+        onClick={() => onView({
+          id: 'summary-1', bookId: 'story-1', bookTitle: '测试故事', kind: 'volume',
+          title: '第一卷', floorStart: 0, floorEnd: 1, content: '正文', createdAt: 1, updatedAt: 1,
+        })}
+      >
+        查看现有
+      </button>
+      <button type="button" onClick={onAdd}>新增总结</button>
+    </div>
   ),
 }));
 
 vi.mock('@/components/summary/SummaryGallery', () => ({
-  SummaryGallery: () => <div>展示页内容</div>,
+  SummaryGallery: ({ kind }: { kind: string }) => <div data-testid="summary-gallery" data-kind={kind}>展示页内容</div>,
+}));
+
+vi.mock('@/components/summary/MiniSummaryPanel', () => ({
+  MiniSummaryPanel: () => <div data-testid="mini-summary">小总结内容</div>,
 }));
 
 import { SummaryWorkspace } from '@/components/organize/SummaryWorkspace';
@@ -53,6 +60,10 @@ const story = {
 
 let container: HTMLDivElement;
 let root: Root;
+
+const activateTab = (button: HTMLButtonElement | undefined) => {
+  act(() => button?.dispatchEvent(new MouseEvent('mousedown', { bubbles: true, button: 0 })));
+};
 
 beforeEach(() => {
   container = document.createElement('div');
@@ -91,9 +102,59 @@ describe('总结工作台单屏交互', () => {
   it('页面和展示正文声明固定高度与内部滚动边界', () => {
     const workspace = readFileSync(resolve(process.cwd(), 'src/components/organize/SummaryWorkspace.tsx'), 'utf8');
     const gallery = readFileSync(resolve(process.cwd(), 'src/components/summary/SummaryGallery.tsx'), 'utf8');
+    const storyWorkspace = readFileSync(resolve(process.cwd(), 'src/pages/StoryWorkspace.tsx'), 'utf8');
     expect(workspace).toContain('h-full min-h-0 overflow-hidden');
     expect(workspace).toContain('data-summary-workspace');
     expect(gallery).toContain('data-summary-content-scroll');
     expect(gallery).toContain('overflow-y-auto');
+    expect(storyWorkspace).toContain("organizeView ? 'h-full min-h-0 overflow-hidden'");
+    expect(storyWorkspace).toContain("organizeView ? 'h-full min-h-0 min-w-0'");
+  });
+
+  it('一级页面与二级总结类型独立切换，展示页不会被送回生成工作台', () => {
+    const onKindChange = vi.fn();
+    act(() => {
+      root.render(
+        <MemoryRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
+          <SummaryWorkspace story={story} currentBranchId={null} kind="volume" onKindChange={onKindChange} />
+        </MemoryRouter>,
+      );
+    });
+
+    const galleryButton = [...container.querySelectorAll('button')].find((button) => button.textContent?.includes('展示页'));
+    activateTab(galleryButton);
+    expect(container.querySelector('[data-testid="summary-gallery"]')).not.toBeNull();
+
+    const diaryButton = [...container.querySelectorAll('button')].find((button) => button.textContent?.includes('角色日记'));
+    activateTab(diaryButton);
+    expect(container.querySelector('[data-testid="summary-gallery"]')?.getAttribute('data-kind')).toBe('diary');
+    expect(container.textContent).not.toContain('查看现有');
+    expect(onKindChange).not.toHaveBeenCalled();
+  });
+
+  it('小总结是首行二级类型，不再藏在右侧列表筛选里', () => {
+    act(() => {
+      root.render(
+        <MemoryRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
+          <SummaryWorkspace story={story} currentBranchId={null} kind="volume" onKindChange={() => {}} />
+        </MemoryRouter>,
+      );
+    });
+    const miniButton = [...container.querySelectorAll('button')].find((button) => button.textContent?.includes('小总结'));
+    activateTab(miniButton);
+    expect(container.querySelector('[data-testid="mini-summary"]')).not.toBeNull();
+  });
+
+  it('左侧配置块可折叠，挂载设定和批量生成默认收起', () => {
+    const floor = readFileSync(resolve(process.cwd(), 'src/components/summary/FloorRangePicker.tsx'), 'utf8');
+    const attach = readFileSync(resolve(process.cwd(), 'src/components/summary/AttachPanel.tsx'), 'utf8');
+    const prior = readFileSync(resolve(process.cwd(), 'src/components/summary/PriorVolumesPanel.tsx'), 'utf8');
+    const batch = readFileSync(resolve(process.cwd(), 'src/components/summary/BatchProcessor.tsx'), 'utf8');
+    expect(floor).toContain('<Collapsible defaultOpen>');
+    expect(prior).toContain('<Collapsible defaultOpen>');
+    expect(attach).toContain('<Collapsible>');
+    expect(attach).not.toContain('<Collapsible defaultOpen>');
+    expect(batch).toContain('<Collapsible>');
+    expect(batch).not.toContain('<Collapsible defaultOpen>');
   });
 });
