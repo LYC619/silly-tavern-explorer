@@ -5,7 +5,7 @@ import type { ChatSession, ThemeStyle, RegexRule, ChapterMarker } from '@/types/
 import { applyRegexRules, parseRegex } from '@/lib/regex-processor';
 import { parseSTDate } from '@/lib/adapters/st/chat-jsonl';
 import { swipeCount, currentSwipeId, isOOCMessage, isSteEditedSwipe } from '@/lib/chat-edit';
-import { calculateSearchRevealScrollTop, cycleSearchPosition, type SearchDirection } from '@/lib/chat-navigation';
+import { calculateSearchRevealScrollTop, cycleSearchPosition, resolveTopVisibleIndex, type SearchDirection } from '@/lib/chat-navigation';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 
 /**
@@ -672,10 +672,15 @@ export const ChatPreview = memo(forwardRef<ChatPreviewHandle, ChatPreviewProps>(
       prevMatch: () => moveSearchMatch(-1),
     }), [idToIndex, moveSearchMatch, processedMessages.length, scrollToVirtualRow]);
 
-    // 上报顶部可见楼层：用 virtualizer.range.startIndex（已排除 overscan，
-    // 是真正的首个可见行；virtualItems[0] 含 overscan 会偏上约 6 楼）。
+    // 上报顶部可见楼层：楼层判定线 = scrollPaddingStart + REVEAL_GAP，与命令跳转落点同一条线
+    // （见 resolveTopVisibleIndex 注释）。virtualItems 含 overscan 的行会被判定线过滤掉。
     const lastReportedFloorRef = useRef(-1);
-    const topVisibleIndex = virtualizer.range?.startIndex ?? -1;
+    const topVisibleIndex = resolveTopVisibleIndex(
+      virtualItems,
+      virtualizer.scrollOffset ?? 0,
+      scrollPaddingStart,
+      virtualizer.range?.startIndex ?? -1,
+    );
     useEffect(() => {
       if (!onVisibleFloorChange) return;
       if (topVisibleIndex < 0 || topVisibleIndex === lastReportedFloorRef.current) return;
