@@ -1,6 +1,6 @@
 import { act } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
-import { MemoryRouter, Route, Routes, useNavigate } from 'react-router-dom';
+import { MemoryRouter, Route, Routes, useLocation, useNavigate } from 'react-router-dom';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
@@ -21,6 +21,10 @@ vi.mock('@/lib/vault/tauri-fs', () => ({ isTauri: () => false }));
 vi.mock('@/lib/editor-open-state', () => ({
   getEditorOpen: () => false,
   setEditorOpenState: vi.fn(),
+}));
+vi.mock('@/lib/assets-open-state', () => ({
+  getAssetsOpen: () => false,
+  setAssetsOpenState: vi.fn(),
 }));
 
 vi.mock('@/lib/archive-db', () => ({ getAllArchiveStories: vi.fn().mockResolvedValue([]) }));
@@ -46,11 +50,18 @@ function TestPage({ id, target }: { id: string; target: string }) {
   );
 }
 
+function LayoutLocationProbe() {
+  const location = useLocation();
+  return <span data-testid="layout-location">{location.pathname}{location.search}</span>;
+}
+
 let container: HTMLDivElement;
 let root: Root;
 
 beforeEach(() => {
   collapseSidenav.mockClear();
+  vi.spyOn(window, 'scrollTo').mockImplementation(() => {});
+  localStorage.clear();
   container = document.createElement('div');
   document.body.appendChild(container);
   root = createRoot(container);
@@ -59,6 +70,7 @@ beforeEach(() => {
 afterEach(() => {
   act(() => root.unmount());
   container.remove();
+  vi.restoreAllMocks();
 });
 
 describe('AppLayout route transitions', () => {
@@ -96,5 +108,40 @@ describe('AppLayout route transitions', () => {
     expect(container.querySelector('[data-testid="home-page"]')).toBeNull();
     expect(container.querySelectorAll('main > div')).toHaveLength(1);
     expect(collapseSidenav).toHaveBeenCalledTimes(1);
+  });
+
+  it('附属库在新会话中默认折叠', async () => {
+    await act(async () => {
+      root.render(
+        <MemoryRouter initialEntries={['/']} future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
+          <AppLayout><LayoutLocationProbe /></AppLayout>
+        </MemoryRouter>,
+      );
+    });
+
+    expect(container.querySelector('[aria-label="展开附属库"]')).not.toBeNull();
+    expect(container.querySelector('[aria-label="收起附属库"]')).toBeNull();
+  });
+
+  it('点击附属库父项时展开子项并进入世界书', async () => {
+    localStorage.setItem('ste-assets-nav-open', 'false');
+    await act(async () => {
+      root.render(
+        <MemoryRouter initialEntries={['/']} future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
+          <AppLayout><LayoutLocationProbe /></AppLayout>
+        </MemoryRouter>,
+      );
+    });
+
+    const assetsButton = Array.from(container.querySelectorAll('button'))
+      .find((button) => button.textContent?.trim() === '附属库');
+    expect(assetsButton).toBeDefined();
+
+    await act(async () => {
+      assetsButton?.click();
+    });
+
+    expect(container.querySelector('[data-testid="layout-location"]')?.textContent).toBe('/assets?tab=worldbook');
+    expect(container.querySelector('[aria-label="收起附属库"]')).not.toBeNull();
   });
 });

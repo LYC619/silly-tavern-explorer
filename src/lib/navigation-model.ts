@@ -85,7 +85,7 @@ export const NAV_AREAS: NavArea[] = [
     label: '附属库',
     description: '管理可复用的共享资产',
     icon: Layers,
-    path: '/assets',
+    path: '/assets?tab=worldbook',
     prefixes: ['/assets'],
     children: [
       { key: 'worldbook', label: '世界书', description: '共享世界书资产', icon: BookOpen, path: '/assets?tab=worldbook', prefixes: ['/assets'], query: { tab: 'worldbook' } },

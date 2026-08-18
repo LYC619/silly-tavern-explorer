@@ -36,6 +36,7 @@ import { APP_VERSION } from '@/components/GlobalSettings';
 import { isTauri } from '@/lib/vault/tauri-fs';
 import { cn } from '@/lib/utils';
 import { getEditorOpen, setEditorOpenState } from '@/lib/editor-open-state';
+import { getAssetsOpen, setAssetsOpenState } from '@/lib/assets-open-state';
 import { NAV_AREAS, matchesNavDestination, type NavAreaKey, type NavDestination } from '@/lib/navigation-model';
 import {
   editorDestinationPath,
@@ -154,9 +155,7 @@ function PersistentAppLayout({ children, titleBarContent, actions, leftActions }
   const client = isTauri();
   const { expanded, toggle, collapse } = useSidenavState();
   const [editorOpen, setEditorOpen] = useState(() => getEditorOpen());
-  const [assetsOpen, setAssetsOpen] = useState(() => {
-    try { return localStorage.getItem('ste-assets-nav-open') !== 'false'; } catch { return true; }
-  });
+  const [assetsOpen, setAssetsOpen] = useState(() => getAssetsOpen());
   const [registration, setRegistration] = useState<LayoutRegistration | null>(null);
   const previousPathRef = useRef(location.pathname);
 
@@ -199,11 +198,19 @@ function PersistentAppLayout({ children, titleBarContent, actions, leftActions }
     if (key === 'assets') {
       setAssetsOpen((current) => {
         const next = !current;
-        try { localStorage.setItem('ste-assets-nav-open', String(next)); } catch { /* no-op */ }
+        setAssetsOpenState(next);
         return next;
       });
     }
   }, []);
+
+  const activateArea = useCallback((key: NavAreaKey, path: string) => {
+    if (key === 'assets') {
+      setAssetsOpenState(true);
+      setAssetsOpen(true);
+    }
+    navigate(path);
+  }, [navigate]);
 
   return (
     <LayoutContext.Provider value={layout}>
@@ -259,7 +266,7 @@ function PersistentAppLayout({ children, titleBarContent, actions, leftActions }
                       expanded={expanded}
                       active={activeAreaKey === area.key}
                       title={area.description}
-                      onClick={() => navigate(area.path)}
+                      onClick={() => activateArea(area.key, area.path)}
                     />
                     {expanded && hasChildren && (
                       <button
