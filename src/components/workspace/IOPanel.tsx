@@ -142,7 +142,7 @@ export function IOPanel({ story, branchId, line, settings, onStoryUpdate }: IOPa
   };
 
   return (
-    <div className="container mx-auto px-6 py-10 max-w-2xl space-y-4">
+    <div className="h-full min-h-0 overflow-y-auto container mx-auto px-6 py-10 max-w-2xl space-y-4">
       <h2 className="font-display text-xl font-semibold">导入与导出</h2>
 
       {/* 当前故事：来源路径 / 绑定状态 / 上次导入导出时间（进入不自动扫描） */}

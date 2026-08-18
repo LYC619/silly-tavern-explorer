@@ -118,7 +118,7 @@ export function StoryTreeWorkspace({ story, currentBranchId, initialTarget }: St
   };
 
   return (
-    <div className="container mx-auto px-4 py-5">
+    <div className="h-full min-h-0 overflow-y-auto container mx-auto px-4 py-5">
       <div className="max-w-7xl mx-auto space-y-4">
         <div className="flex items-start justify-between gap-3 flex-wrap">
           <div className="flex items-center gap-3">

@@ -157,4 +157,11 @@ describe('总结工作台单屏交互', () => {
     expect(batch).toContain('<Collapsible>');
     expect(batch).not.toContain('<Collapsible defaultOpen>');
   });
+
+  it('故事树和导入导出视图在整理页外壳内拥有独立滚动', () => {
+    const tree = readFileSync(resolve(process.cwd(), 'src/components/organize/StoryTreeWorkspace.tsx'), 'utf8');
+    const io = readFileSync(resolve(process.cwd(), 'src/components/workspace/IOPanel.tsx'), 'utf8');
+    expect(tree).toContain('h-full min-h-0 overflow-y-auto');
+    expect(io).toContain('h-full min-h-0 overflow-y-auto');
+  });
 });
