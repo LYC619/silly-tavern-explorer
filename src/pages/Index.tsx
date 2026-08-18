@@ -239,6 +239,8 @@ const Index = () => {
     setEditorStoryId(null);
     setRestoreFloor(undefined);
     clearSessionState();
+    // 清掉 ?storyId，否则加载 effect 在刷新/重挂时会按显式路由复活刚关闭的会话
+    navigate('/chat', { replace: true });
   };
 
   const handleOpenStory = async (story: ArchiveStory) => {
@@ -248,7 +250,20 @@ const Index = () => {
       toast({ title: '当前故事保存失败，已取消切换', variant: 'destructive' });
       return;
     }
-    hydrateStory(story);
+    // story 来自挂载时的 allStories 快照。点当前故事时路由不变、加载 effect 不重跑，
+    // 用陈旧快照 hydrate 会在 800ms 后被自动落库写回，覆盖本次会话的全部编辑；
+    // 因此必须以刚 persist 过的库内数据为准。读失败时中止切换，绝不用陈旧快照顶替。
+    let fresh: ArchiveStory | null = null;
+    try {
+      fresh = await getArchiveStory(story.id) ?? null;
+    } catch {
+      fresh = null;
+    }
+    if (!fresh) {
+      toast({ title: '故事读取失败，已取消切换', variant: 'destructive' });
+      return;
+    }
+    hydrateStory(fresh);
     navigate(buildEditorChatPath(story.id));
   };
 

@@ -25,4 +25,15 @@ describe('聊天处理共享故事会话契约', () => {
     const page = read('src/pages/Index.tsx');
     expect(page.match(/<RecentStoryBar/g)).toHaveLength(2);
   });
+
+  it('切换故事前重读库内数据，陈旧列表快照不得直接 hydrate', () => {
+    const page = read('src/pages/Index.tsx');
+    expect(page).toContain('fresh = await getArchiveStory(story.id)');
+    expect(page).not.toContain('hydrateStory(story)');
+  });
+
+  it('重置会话同时清除显式 storyId 路由，防止刷新后复活', () => {
+    const page = read('src/pages/Index.tsx');
+    expect(page).toContain("navigate('/chat', { replace: true })");
+  });
 });
