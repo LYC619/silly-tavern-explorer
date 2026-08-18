@@ -399,7 +399,7 @@ const Index = () => {
         </div>
       ) : (
         <div className="flex h-full min-h-0 flex-col overflow-hidden">
-          <RecentStoryBar stories={recentStories} activeStoryId={currentStoryId} onSelect={(story) => void handleOpenStory(story)} />
+          {/* 工作态不再放最近故事栏（用户拍板：只在导入前需要）；切故事走全局菜单/窄工具栏 */}
           <div className="min-h-0 flex-1 overflow-y-auto">
             <ChatWorkbench
               session={session}

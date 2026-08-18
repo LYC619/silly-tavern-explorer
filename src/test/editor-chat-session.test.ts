@@ -21,9 +21,9 @@ describe('聊天处理共享故事会话契约', () => {
     expect(page).toContain('setEditorStoryId(storyId)');
   });
 
-  it('空态和工作态都挂载最近故事栏', () => {
+  it('最近故事栏只在导入前空态出现，工作态不再挤占顶部（用户拍板）', () => {
     const page = read('src/pages/Index.tsx');
-    expect(page.match(/<RecentStoryBar/g)).toHaveLength(2);
+    expect(page.match(/<RecentStoryBar/g)).toHaveLength(1);
   });
 
   it('切换故事前重读库内数据，陈旧列表快照不得直接 hydrate', () => {
