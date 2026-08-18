@@ -27,6 +27,7 @@ describe('世界书直接入库', () => {
     expect(library).toContain('worldBookItemFromUpload');
     expect(library).toContain('sourceModifiedAt: w.sourceModifiedAt');
     expect(library).toContain("dateLabel: w.sourceModifiedAt !== undefined ? '源文件修改' : '最后修改'");
+    expect(library).toContain('aria-label="导入世界书"');
   });
 
   it('世界书编辑器继承应用可用高度，列表和编辑器各自滚动', () => {
@@ -34,5 +35,6 @@ describe('世界书直接入库', () => {
     expect(page).toContain('bg-background flex h-full min-h-0 flex-col overflow-hidden');
     expect(page).toContain('flex-1 min-h-0 flex overflow-hidden');
     expect(page).not.toContain('h-[calc(100vh-3.5rem)]');
+    expect(page).toContain('item.sourceModifiedAt ?? item.updatedAt');
   });
 });

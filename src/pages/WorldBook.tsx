@@ -838,7 +838,7 @@ export default function WorldBookPage() {
                         <div className="text-xs text-muted-foreground flex items-center gap-2 mt-0.5">
                           <span>{Object.keys(item.worldbook.entries).length} 条目</span>
                           <span>·</span>
-                          <span>{new Date(item.updatedAt).toLocaleString()}</span>
+                          <span>{new Date(item.sourceModifiedAt ?? item.updatedAt).toLocaleString()}</span>
                         </div>
                       </button>
                       <Button
@@ -939,7 +939,7 @@ export default function WorldBookPage() {
                                 {Object.keys(item.worldbook.entries).length} 个条目
                                 <span className="mx-1">·</span>
                                 <Clock className="w-3 h-3 inline -mt-0.5" />
-                                {' '}{new Date(item.updatedAt).toLocaleString()}
+                                {' '}{new Date(item.sourceModifiedAt ?? item.updatedAt).toLocaleString()}
                               </p>
                             </div>
                             <Button

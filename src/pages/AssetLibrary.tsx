@@ -5,7 +5,7 @@
  * `?tab=` 深链保留；点卡 → 对应工具页 `?assetId=` 打开编辑。删除有确认。
  * 不设"快照"类别（2026-07-29 拍板：设计稿误解，待对接 ST 用户目录后再扩类别）。
  */
-import { useState, useEffect, useMemo, useCallback, type ChangeEvent } from 'react';
+import { useState, useEffect, useMemo, useCallback, useRef, type ChangeEvent } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import {
   Globe, SlidersHorizontal, Regex as RegexIcon, MoreVertical, Trash2, PenSquare, Plus, Link2, Upload,
@@ -109,6 +109,7 @@ const AssetLibrary = () => {
   const [toDelete, setToDelete] = useState<AssetRow | null>(null);
   const [refFilter, setRefFilter] = useState<RefFilter>('all');
   const [sourceFilter, setSourceFilter] = useState<SourceFilter>('all');
+  const worldBookInputRef = useRef<HTMLInputElement>(null);
 
   const load = useCallback(async () => {
     try {
@@ -252,17 +253,22 @@ const AssetLibrary = () => {
           {tab === 'worldbook' && (
             <>
               <input
+                ref={worldBookInputRef}
                 id="asset-library-worldbook-import"
                 type="file"
                 accept=".json,application/json"
                 className="sr-only"
                 onChange={handleWorldBookImport}
               />
-              <Button asChild variant="outline" size="sm" className="h-8 self-center">
-                <label htmlFor="asset-library-worldbook-import" className="cursor-pointer">
-                  <Upload className="w-4 h-4 mr-1.5" />
-                  导入世界书
-                </label>
+              <Button
+                variant="outline"
+                size="sm"
+                className="h-8 self-center"
+                aria-label="导入世界书"
+                onClick={() => worldBookInputRef.current?.click()}
+              >
+                <Upload className="w-4 h-4 mr-1.5" />
+                导入世界书
               </Button>
             </>
           )}
