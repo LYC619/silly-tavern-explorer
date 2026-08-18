@@ -5,7 +5,7 @@ import type { ChatSession, ThemeStyle, RegexRule, ChapterMarker } from '@/types/
 import { applyRegexRules, parseRegex } from '@/lib/regex-processor';
 import { parseSTDate } from '@/lib/adapters/st/chat-jsonl';
 import { swipeCount, currentSwipeId, isOOCMessage, isSteEditedSwipe } from '@/lib/chat-edit';
-import { calculateSearchRevealScrollTop, cycleSearchPosition, resolveTopVisibleIndex, type SearchDirection } from '@/lib/chat-navigation';
+import { calculateSearchRevealScrollTop, cycleSearchPosition, floorJudgementLine, resolveTopVisibleIndex, type SearchDirection } from '@/lib/chat-navigation';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 
 /**
@@ -672,22 +672,31 @@ export const ChatPreview = memo(forwardRef<ChatPreviewHandle, ChatPreviewProps>(
       prevMatch: () => moveSearchMatch(-1),
     }), [idToIndex, moveSearchMatch, processedMessages.length, scrollToVirtualRow]);
 
-    // 上报顶部可见楼层：楼层判定线 = scrollPaddingStart + REVEAL_GAP，与命令跳转落点同一条线
-    // （见 resolveTopVisibleIndex 注释）。virtualItems 含 overscan 的行会被判定线过滤掉。
+    // 上报顶部可见楼层：挂在滚动容器的 scroll 事件上，用 DOM 实测行边界判楼。
+    // 跳转落点校正用的是 getBoundingClientRect（virtualizer 估算不可靠），判楼必须同源，
+    // 否则两套坐标的像素差会让命令跳转后的被动上报打回上一楼（见 resolveTopVisibleIndex）。
     const lastReportedFloorRef = useRef(-1);
-    const topVisibleIndex = resolveTopVisibleIndex(
-      virtualItems,
-      virtualizer.scrollOffset ?? 0,
-      scrollPaddingStart,
-      virtualizer.range?.startIndex ?? -1,
-    );
     useEffect(() => {
-      if (!onVisibleFloorChange) return;
-      if (topVisibleIndex < 0 || topVisibleIndex === lastReportedFloorRef.current) return;
-      lastReportedFloorRef.current = topVisibleIndex;
-      const msg = processedMessages[topVisibleIndex];
-      onVisibleFloorChange(topVisibleIndex, msg?.id ?? null);
-    }, [topVisibleIndex, processedMessages, onVisibleFloorChange]);
+      if (!onVisibleFloorChange || !scrollElement) return;
+      const report = () => {
+        const list = listRef.current;
+        if (!list) return;
+        const containerTop = scrollElement === document.scrollingElement
+          ? 0
+          : scrollElement.getBoundingClientRect().top;
+        const rows: Array<{ index: number; bottom: number }> = [];
+        list.querySelectorAll<HTMLElement>('[data-index]').forEach((el) => {
+          rows.push({ index: Number(el.dataset.index), bottom: el.getBoundingClientRect().bottom });
+        });
+        const top = resolveTopVisibleIndex(rows, floorJudgementLine(containerTop, scrollPaddingStart), -1);
+        if (top < 0 || top === lastReportedFloorRef.current) return;
+        lastReportedFloorRef.current = top;
+        onVisibleFloorChange(top, processedMessages[top]?.id ?? null);
+      };
+      report();
+      scrollElement.addEventListener('scroll', report, { passive: true });
+      return () => scrollElement.removeEventListener('scroll', report);
+    }, [onVisibleFloorChange, processedMessages, scrollElement, scrollPaddingStart]);
 
     return (
       <div

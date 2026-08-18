@@ -3,6 +3,7 @@ import {
   REVEAL_GAP,
   calculateSearchRevealScrollTop,
   cycleSearchPosition,
+  floorJudgementLine,
   resolveTopVisibleIndex,
 } from '@/lib/chat-navigation';
 
@@ -40,33 +41,45 @@ describe('聊天正文搜索导航', () => {
 });
 
 describe('顶部可见楼层判定', () => {
-  // 三行虚拟行：行高 200，列表前有 100px 标题（scrollMargin 已计入 start/end）
-  const rows = [
-    { index: 0, end: 300 },
-    { index: 1, end: 500 },
-    { index: 2, end: 700 },
-  ];
+  // 视口坐标系（getBoundingClientRect），与跳转落点校正同源；容器顶固定在 100
+  const CONTAINER_TOP = 100;
 
-  it('命令跳转落点处上一行只剩 gap 尾巴时，判定为目标行而非上一行', () => {
-    // 跳到 1 楼后 reveal 校正：scrollOffset = start1 - sticky - gap
-    const sticky = 0;
-    const scrollOffset = 300 - sticky - REVEAL_GAP;
-    // 旧逻辑 range.startIndex 会给 0（0 楼尾巴仍在视口顶端），形成"只能动一次"死循环
-    expect(resolveTopVisibleIndex(rows, scrollOffset, sticky, 0)).toBe(1);
+  it('命令跳转落点：上一行只剩 gap 尾巴留在顶端时，判定为目标行而非上一行', () => {
+    // 落点把 1 楼顶边对齐到 容器顶+gap → 0 楼底边也停在同一位置
+    const line = floorJudgementLine(CONTAINER_TOP, 0);
+    const rows = [
+      { index: 0, bottom: CONTAINER_TOP + REVEAL_GAP },
+      { index: 1, bottom: CONTAINER_TOP + REVEAL_GAP + 200 },
+    ];
+    expect(resolveTopVisibleIndex(rows, line, 0)).toBe(1);
   });
 
   it('阅读模式 sticky 遮挡下同样与落点自洽', () => {
     const sticky = 80;
-    const scrollOffset = 300 - sticky - REVEAL_GAP;
-    expect(resolveTopVisibleIndex(rows, scrollOffset, sticky, 0)).toBe(1);
+    const line = floorJudgementLine(CONTAINER_TOP, sticky);
+    const rows = [
+      { index: 0, bottom: CONTAINER_TOP + sticky + REVEAL_GAP },
+      { index: 1, bottom: CONTAINER_TOP + sticky + REVEAL_GAP + 200 },
+    ];
+    expect(resolveTopVisibleIndex(rows, line, 0)).toBe(1);
   });
 
-  it('容忍亚像素测量误差：底边只越线不足 1px 仍算已滚过', () => {
-    expect(resolveTopVisibleIndex(rows, 300 - REVEAL_GAP - 0.5, 0, 0)).toBe(1);
+  it('容忍亚像素误差：底边越线不足 1px 仍算已滚过', () => {
+    const line = floorJudgementLine(CONTAINER_TOP, 0);
+    const rows = [
+      { index: 0, bottom: CONTAINER_TOP + REVEAL_GAP + 0.5 },
+      { index: 1, bottom: CONTAINER_TOP + REVEAL_GAP + 200 },
+    ];
+    expect(resolveTopVisibleIndex(rows, line, 0)).toBe(1);
   });
 
-  it('列表顶部与空列表', () => {
-    expect(resolveTopVisibleIndex(rows, 0, 0, -1)).toBe(0);
-    expect(resolveTopVisibleIndex([], 0, 0, -1)).toBe(-1);
+  it('列表顶部返回首行；空行集返回 fallback', () => {
+    const line = floorJudgementLine(CONTAINER_TOP, 0);
+    const rows = [
+      { index: 0, bottom: CONTAINER_TOP + 200 },
+      { index: 1, bottom: CONTAINER_TOP + 400 },
+    ];
+    expect(resolveTopVisibleIndex(rows, line, -1)).toBe(0);
+    expect(resolveTopVisibleIndex([], line, -1)).toBe(-1);
   });
 });

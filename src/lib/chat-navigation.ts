@@ -38,25 +38,28 @@ export function calculateSearchRevealScrollTop({
 
 interface VirtualRowEdge {
   index: number;
-  /** 行底边在滚动内容坐标系中的位置（含 scrollMargin），与 virtualizer 的 item.end 同源。 */
-  end: number;
+  /** 行底边的视口 Y 坐标（getBoundingClientRect().bottom），与跳转落点校正同源。 */
+  bottom: number;
 }
 
 /**
- * 求"当前顶部楼层"：第一个底边越过楼层判定线（sticky 遮挡 + REVEAL_GAP + 1px 亚像素容差）的行。
- * 不能直接用 virtualizer.range.startIndex：命令跳转把目标行顶边对齐到判定线，上一行尾部
- * 恒有 gap 高度留在视口顶端，startIndex 会报成 target-1，把乐观更新的楼层计数打回去，
- * 造成"下一层只能动一次、计数停在 0"。判定线与落点同线后，被动上报与跳转目标自洽。
+ * 楼层判定线（视口坐标系）：容器顶 + sticky 遮挡 + 落点呼吸空间 + 1px 亚像素容差。
+ * 判定线必须与 calculateSearchRevealScrollTop 的落点线同源同坐标系：跳转落点是按 DOM
+ * 实测校正的，virtualizer 的估算坐标与 DOM 可差数像素，若用它判楼，命令跳转后被动
+ * 上报会把楼层打回 target-1，造成"下一层只能动一次、计数停在 0"。
  */
+export function floorJudgementLine(containerTop: number, stickyOffset: number): number {
+  return containerTop + stickyOffset + REVEAL_GAP + 1;
+}
+
+/** 求"当前顶部楼层"：第一个底边越过判定线的行；行按 index 升序传入。 */
 export function resolveTopVisibleIndex(
   rows: readonly VirtualRowEdge[],
-  scrollOffset: number,
-  stickyOffset: number,
+  judgementLine: number,
   fallback: number,
 ): number {
-  const threshold = scrollOffset + stickyOffset + REVEAL_GAP + 1;
   for (const row of rows) {
-    if (row.end > threshold) return row.index;
+    if (row.bottom > judgementLine) return row.index;
   }
   return fallback;
 }
