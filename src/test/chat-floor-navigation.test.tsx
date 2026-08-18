@@ -19,6 +19,8 @@ describe('聊天楼层工具本地定位', () => {
     expect(nav).not.toContain("position = 'fixed'");
     expect(nav).not.toContain('left-24');
     expect(nav).toContain("className=\"sticky self-start");
+    // 非阅读模式工具栏同样 sticky，落点与判定线必须避开其实高，否则跳转目标被盖住半行
+    expect(workbench).toContain('scrollPaddingStart={(readerMode ? readerStickyTop : 0) + toolbarHeight + 8}');
   });
 
   it('普通楼层和收藏跳转在虚拟定位后按真实行顶二次校正', () => {

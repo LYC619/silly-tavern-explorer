@@ -42,7 +42,8 @@ describe('角色卡页内嵌阅读器契约', () => {
 
     expect(preview).toContain('scrollPaddingStart?: number');
     expect(preview).toContain('scrollPaddingStart,');
-    expect(workbench).toContain('scrollPaddingStart={readerMode ? readerStickyTop + toolbarHeight + 8 : 0}');
+    // 普通模式工具栏同样 sticky（top-0），落点也要预留其实高，只有 readerStickyTop 是阅读模式特有
+    expect(workbench).toContain('scrollPaddingStart={(readerMode ? readerStickyTop : 0) + toolbarHeight + 8}');
   });
 
   it('搜索导航每次点击都执行定位，并在虚拟楼层渲染后对准实际高亮词', () => {
