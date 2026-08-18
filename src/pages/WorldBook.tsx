@@ -27,7 +27,7 @@ import { EntryListRow } from '@/components/worldbook/EntryListRow';
 import { EntryEditor } from '@/components/worldbook/EntryEditor';
 import { QuickCreate } from '@/components/worldbook/QuickCreate';
 import type { WorldBook, WorldBookEntry } from '@/types/worldbook';
-import { DEFAULT_ENTRY, POSITION_LABELS, generateWorldBookId, parseWorldBook } from '@/types/worldbook';
+import { DEFAULT_ENTRY, POSITION_LABELS, generateWorldBookId } from '@/types/worldbook';
 import { saveWorldBook, getAllWorldBooks, getWorldBook, deleteWorldBook, pruneAutoSavedWorldBooks } from '@/lib/worldbook-db';
 import { appendEntries } from '@/lib/worldbook-entry-copy';
 import { planCowSave, buildDerivedMeta, switchAssetRef } from '@/lib/asset-cow';
@@ -37,6 +37,7 @@ import { estimateTokens } from '@/lib/preset-parser';
 import type { WorldBookItem } from '@/types/worldbook';
 import { useToast } from '@/hooks/use-toast';
 import { ToastAction } from '@/components/ui/toast';
+import { readWorldBookUpload } from '@/lib/worldbook-file-import';
 
 type SortMode = 'order-asc' | 'order-desc' | 'title' | 'uid';
 
@@ -273,7 +274,7 @@ export default function WorldBookPage() {
     setFilterPosition('all');
   };
 
-  const handleImport = useCallback((wb: WorldBook, name: string) => {
+  const handleImport = useCallback((wb: WorldBook, name: string, sourceModifiedAt?: number) => {
     setWorldbook(wb);
     setFilename(name);
     setSelectedUid(null);
@@ -282,7 +283,15 @@ export default function WorldBookPage() {
     (async () => {
       const id = generateWorldBookId();
       const now = Date.now();
-      await saveWorldBook({ id, title: name, worldbook: wb, createdAt: now, updatedAt: now, autoSaved: true });
+      await saveWorldBook({
+        id,
+        title: name,
+        worldbook: wb,
+        createdAt: now,
+        updatedAt: now,
+        autoSaved: true,
+        ...(sourceModifiedAt === undefined ? {} : { sourceModifiedAt }),
+      });
       setCurrentItemId(id);
       await pruneAutoSavedWorldBooks(5);
       const updated = await getAllWorldBooks();
@@ -297,17 +306,15 @@ export default function WorldBookPage() {
     handoffConsumedRef.current = true;
     const file = takePendingToolFile('worldbook');
     if (!file) return;
-    file.text().then((text) => {
+    readWorldBookUpload(file).then((upload) => {
       try {
-        const wb = parseWorldBook(JSON.parse(text));
-        const count = Object.keys(wb.entries).length;
-        if (count === 0) throw new Error('empty');
-        handleImport(wb, file.name.replace(/\.json$/i, ''));
+        const count = Object.keys(upload.worldbook.entries).length;
+        handleImport(upload.worldbook, upload.title, upload.sourceModifiedAt);
         toast({ title: '导入成功', description: `已加载 ${count} 个条目` });
       } catch {
         toast({ title: '导入失败', description: '无法解析为世界书 JSON', variant: 'destructive' });
       }
-    });
+    }).catch(() => toast({ title: '导入失败', description: '无法解析为世界书 JSON', variant: 'destructive' }));
   }, [handleImport, toast]);
 
   const handleAppend = useCallback((wb: WorldBook) => {
@@ -460,6 +467,7 @@ export default function WorldBookPage() {
       updatedAt: now,
       autoSaved: false, // 手动保存 → 永久留存，不参与最近 5 份自动清理
       ...(base?.derived ? { derived: base.derived } : {}),
+      ...(base?.sourceModifiedAt === undefined ? {} : { sourceModifiedAt: base.sourceModifiedAt }),
     };
     await saveWorldBook(item);
     // 角色上下文里保存全新世界书：入库并直接挂到该角色名下
@@ -758,7 +766,7 @@ export default function WorldBookPage() {
 
   return (
     <AppLayout>
-      <div className="bg-background flex flex-col h-full">
+      <div className="bg-background flex h-full min-h-0 flex-col overflow-hidden">
       {/* 页内工具栏 */}
       <header className="border-b bg-card/80 backdrop-blur sticky top-0 z-30">
         <div className="max-w-[1600px] mx-auto px-4 h-14 flex items-center gap-2">
@@ -889,14 +897,14 @@ export default function WorldBookPage() {
 
       {/* Body */}
       {activeTab === 'quick' ? (
-        <ScrollArea className="flex-1">
+        <ScrollArea className="flex-1 min-h-0">
           <QuickCreate
             existingWorldbook={worldbook}
             onAddToWorldbook={handleQuickAddEntries}
           />
         </ScrollArea>
       ) : (
-        <div className="flex-1 flex overflow-hidden">
+        <div className="flex-1 min-h-0 flex overflow-hidden">
           {!worldbook ? (
             <div className="flex-1 flex items-center justify-center">
               <div className="text-center space-y-4 px-4 max-w-lg w-full">
@@ -960,7 +968,7 @@ export default function WorldBookPage() {
           ) : (
             <>
               {/* Left: entries */}
-              <div className="flex-1 min-w-0 md:border-r flex flex-col h-[calc(100vh-3.5rem)]">
+              <div className="flex-1 min-w-0 md:border-r flex h-full min-h-0 flex-col">
                 {/* 置顶筛选/搜索条：不随条目列表滚动，最多两行 */}
                 <div className="shrink-0 border-b bg-card/60 backdrop-blur px-4 py-2 space-y-2">
                   {batchMode ? (
@@ -1187,9 +1195,9 @@ export default function WorldBookPage() {
               </div>
 
               {/* Right: desktop editor */}
-              <div className="w-[400px] shrink-0 hidden md:block border-l bg-card/50">
+              <div className="h-full min-h-0 w-[400px] shrink-0 hidden md:block border-l bg-card/50">
                 {editorContent ? (
-                  <ScrollArea className="h-[calc(100vh-3.5rem)]">
+                  <ScrollArea className="h-full">
                     {editorContent}
                   </ScrollArea>
                 ) : (

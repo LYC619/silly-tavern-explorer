@@ -5,10 +5,10 @@
  * `?tab=` 深链保留；点卡 → 对应工具页 `?assetId=` 打开编辑。删除有确认。
  * 不设"快照"类别（2026-07-29 拍板：设计稿误解，待对接 ST 用户目录后再扩类别）。
  */
-import { useState, useEffect, useMemo, useCallback } from 'react';
+import { useState, useEffect, useMemo, useCallback, type ChangeEvent } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import {
-  Globe, SlidersHorizontal, Regex as RegexIcon, MoreVertical, Trash2, PenSquare, Plus, Link2,
+  Globe, SlidersHorizontal, Regex as RegexIcon, MoreVertical, Trash2, PenSquare, Plus, Link2, Upload,
 } from 'lucide-react';
 import { AppLayout } from '@/components/AppLayout';
 import { OtherAssetsBrowser } from '@/components/assets/OtherAssetsBrowser';
@@ -27,7 +27,8 @@ import { classifyAssetSource, type AssetSource } from '@/lib/asset-source';
 import type { WorldBookItem } from '@/types/worldbook';
 import type { PresetItem } from '@/types/preset';
 import type { RegexCollectionItem } from '@/lib/regex-db';
-import { getAllWorldBooks, deleteWorldBook } from '@/lib/worldbook-db';
+import { getAllWorldBooks, deleteWorldBook, saveWorldBook } from '@/lib/worldbook-db';
+import { readWorldBookUpload, worldBookItemFromUpload } from '@/lib/worldbook-file-import';
 import { getAllPresets, deletePreset } from '@/lib/preset-db';
 import { getAllRegexCollections, deleteRegexCollection } from '@/lib/regex-db';
 import { getAllCharacters } from '@/lib/archive-db';
@@ -59,6 +60,8 @@ interface AssetRow {
   autoSaved?: boolean;
   fromST?: boolean;
   stGlobal?: boolean;
+  sourceModifiedAt?: number;
+  dateLabel: string;
   updatedAt: number;
 }
 
@@ -142,7 +145,9 @@ const AssetLibrary = () => {
       autoSaved: w.autoSaved,
       fromST: !!w.sourcePath,
       stGlobal: w.stGlobal,
-      updatedAt: w.updatedAt,
+      sourceModifiedAt: w.sourceModifiedAt,
+      dateLabel: w.sourceModifiedAt !== undefined ? '源文件修改' : '最后修改',
+      updatedAt: w.sourceModifiedAt ?? w.updatedAt,
     })),
     preset: presets.map((p) => ({
       id: p.id,
@@ -151,6 +156,7 @@ const AssetLibrary = () => {
       derived: !!p.derived,
       autoSaved: p.autoSaved,
       fromST: !!p.sourcePath,
+      dateLabel: '最后修改',
       updatedAt: p.updatedAt,
     })),
     regex: regexes.map((r) => ({
@@ -159,6 +165,7 @@ const AssetLibrary = () => {
       itemCount: r.rules.length,
       derived: !!r.derived,
       fromST: !!r.sourcePath,
+      dateLabel: '最后修改',
       updatedAt: r.updatedAt,
     })),
   }), [worldbooks, presets, regexes]);
@@ -175,6 +182,30 @@ const AssetLibrary = () => {
       toast({ title: '删除失败', variant: 'destructive' });
     } finally {
       setToDelete(null);
+    }
+  };
+
+  const handleWorldBookImport = async (event: ChangeEvent<HTMLInputElement>) => {
+    const input = event.currentTarget;
+    const file = input.files?.[0];
+    input.value = '';
+    if (!file) return;
+
+    try {
+      const upload = await readWorldBookUpload(file);
+      const item = worldBookItemFromUpload(upload);
+      await saveWorldBook(item);
+      await load();
+      toast({
+        title: '世界书导入成功',
+        description: `「${item.title}」，共 ${Object.keys(item.worldbook.entries).length} 个条目`,
+      });
+    } catch (error) {
+      toast({
+        title: '世界书导入失败',
+        description: error instanceof Error ? error.message : '无法解析该文件',
+        variant: 'destructive',
+      });
     }
   };
 
@@ -218,6 +249,23 @@ const AssetLibrary = () => {
             世界书、预设、正则规则集的收藏馆。这里入库的资产可以在角色页「关联资产」里被引用；对共享资产的修改会生成派生副本，不影响别的角色。点卡片进入对应工具编辑。
           </HelpCard>
           <span className="flex-1" />
+          {tab === 'worldbook' && (
+            <>
+              <input
+                id="asset-library-worldbook-import"
+                type="file"
+                accept=".json,application/json"
+                className="sr-only"
+                onChange={handleWorldBookImport}
+              />
+              <Button asChild variant="outline" size="sm" className="h-8 self-center">
+                <label htmlFor="asset-library-worldbook-import" className="cursor-pointer">
+                  <Upload className="w-4 h-4 mr-1.5" />
+                  导入世界书
+                </label>
+              </Button>
+            </>
+          )}
           <Button size="sm" className="h-8 self-center" onClick={() => navigate(meta.toolPath)}>
             <Plus className="w-4 h-4 mr-1.5" />
             打开{meta.toolLabel}
@@ -367,7 +415,7 @@ const AssetLibrary = () => {
                           <span className="font-serif font-semibold text-[13px] text-[color:var(--text-primary)]">{refs.length}</span>
                         </div>
                         <div className="flex-1 flex flex-col gap-0.5">
-                          <span className="text-[9.5px] tracking-wide text-[color:var(--text-muted)]">更新于</span>
+                          <span className="text-[9.5px] tracking-wide text-[color:var(--text-muted)]">{a.dateLabel}</span>
                           <span className="font-serif font-semibold text-[13px] text-[color:var(--text-primary)]">
                             {new Date(a.updatedAt).toLocaleDateString('zh-CN')}
                           </span>

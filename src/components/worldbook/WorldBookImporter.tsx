@@ -10,11 +10,12 @@ import {
   AlertDialogFooter,
   AlertDialogCancel,
 } from '@/components/ui/alert-dialog';
-import { parseWorldBook, type WorldBook } from '@/types/worldbook';
+import type { WorldBook } from '@/types/worldbook';
 import { useToast } from '@/hooks/use-toast';
+import { readWorldBookUpload } from '@/lib/worldbook-file-import';
 
 interface Props {
-  onImport: (wb: WorldBook, filename: string) => void;
+  onImport: (wb: WorldBook, filename: string, sourceModifiedAt?: number) => void;
   onAppend?: (wb: WorldBook) => void;
   hasExisting?: boolean;
 }
@@ -22,42 +23,33 @@ interface Props {
 export function WorldBookImporter({ onImport, onAppend, hasExisting }: Props) {
   const inputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
-  const [pendingWb, setPendingWb] = useState<{ wb: WorldBook; name: string } | null>(null);
+  const [pendingWb, setPendingWb] = useState<{ wb: WorldBook; name: string; sourceModifiedAt?: number } | null>(null);
 
   const handleFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
     try {
-      const text = await file.text();
-      const json = JSON.parse(text);
-      const wb = parseWorldBook(json);
-      const count = Object.keys(wb.entries).length;
-
-      if (count === 0) {
-        toast({ title: '导入失败', description: '未找到任何世界书条目', variant: 'destructive' });
-        return;
-      }
-
-      const name = file.name.replace(/\.json$/i, '');
+      const upload = await readWorldBookUpload(file);
+      const count = Object.keys(upload.worldbook.entries).length;
 
       if (hasExisting && onAppend) {
-        setPendingWb({ wb, name });
+        setPendingWb({ wb: upload.worldbook, name: upload.title, sourceModifiedAt: upload.sourceModifiedAt });
       } else {
-        onImport(wb, name);
+        onImport(upload.worldbook, upload.title, upload.sourceModifiedAt);
         toast({ title: '导入成功', description: `已加载 ${count} 个条目` });
       }
     } catch {
       toast({ title: '导入失败', description: '无法解析 JSON 文件', variant: 'destructive' });
+    } finally {
+      if (inputRef.current) inputRef.current.value = '';
     }
-
-    if (inputRef.current) inputRef.current.value = '';
   };
 
   const handleReplace = () => {
     if (!pendingWb) return;
     const count = Object.keys(pendingWb.wb.entries).length;
-    onImport(pendingWb.wb, pendingWb.name);
+    onImport(pendingWb.wb, pendingWb.name, pendingWb.sourceModifiedAt);
     toast({ title: '导入成功', description: `已替换，加载 ${count} 个条目` });
     setPendingWb(null);
   };
