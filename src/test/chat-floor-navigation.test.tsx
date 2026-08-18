@@ -20,4 +20,14 @@ describe('聊天楼层工具本地定位', () => {
     expect(nav).not.toContain('left-24');
     expect(nav).toContain("className=\"sticky self-start");
   });
+
+  it('普通楼层和收藏跳转在虚拟定位后按真实行顶二次校正', () => {
+    const preview = read('src/components/chat/ChatPreview.tsx');
+    expect(preview).toContain('scrollToVirtualRow');
+    expect(preview).toContain('target.getBoundingClientRect()');
+    expect(preview).toContain('calculateSearchRevealScrollTop');
+    expect(preview).toContain('scrollToFloor: (floor: number) => {');
+    expect(preview).toContain('scrollToVirtualRow(idx)');
+    expect(preview).not.toContain("if (idx >= 0) virtualizer.scrollToIndex(idx, { align: 'start' });");
+  });
 });

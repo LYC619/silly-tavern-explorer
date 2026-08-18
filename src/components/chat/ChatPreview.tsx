@@ -567,6 +567,7 @@ export const ChatPreview = memo(forwardRef<ChatPreviewHandle, ChatPreviewProps>(
     const [matchPos, setMatchPos] = useState(-1);
     const matchPosRef = useRef(-1);
     const searchScrollFrameRef = useRef<number | null>(null);
+    const virtualJumpFrameRef = useRef<number | null>(null);
     useEffect(() => {
       matchPosRef.current = -1;
       setMatchPos(-1);
@@ -580,6 +581,37 @@ export const ChatPreview = memo(forwardRef<ChatPreviewHandle, ChatPreviewProps>(
     }, []);
 
     const activeMatchIndex = matchPos >= 0 && matchPos < matchIndices.length ? matchIndices[matchPos] : -1;
+
+    /**
+     * 虚拟列表先用估算高度定位，再等目标行真正渲染后按 DOM 顶部校正。
+     * 楼层正文高度差异很大，只调用 scrollToIndex 会让目标行落在可视区中间或上一行顶部。
+     */
+    const scrollToVirtualRow = useCallback((index: number) => {
+      virtualizer.scrollToIndex(index, { align: 'start' });
+      if (virtualJumpFrameRef.current !== null) cancelAnimationFrame(virtualJumpFrameRef.current);
+      const reveal = (attemptsLeft: number) => {
+        virtualJumpFrameRef.current = requestAnimationFrame(() => {
+          const target = listRef.current?.querySelector<HTMLElement>(`[data-index="${index}"]`);
+          if (!target || !scrollElement) {
+            if (attemptsLeft > 0) reveal(attemptsLeft - 1);
+            return;
+          }
+          const scrollRect = scrollElement.getBoundingClientRect();
+          const targetRect = target.getBoundingClientRect();
+          scrollElement.scrollTo({
+            top: calculateSearchRevealScrollTop({
+              scrollTop: scrollElement.scrollTop,
+              containerTop: scrollRect.top,
+              targetTop: targetRect.top,
+              stickyOffset: scrollPaddingStart,
+            }),
+            behavior: 'auto',
+          });
+          virtualJumpFrameRef.current = null;
+        });
+      };
+      reveal(5);
+    }, [scrollElement, scrollPaddingStart, virtualizer]);
 
     /**
      * 先让虚拟列表渲染命中楼层，再对准该楼内第一个实际高亮词。
@@ -629,16 +661,16 @@ export const ChatPreview = memo(forwardRef<ChatPreviewHandle, ChatPreviewProps>(
     useImperativeHandle(ref, () => ({
       scrollToFloor: (floor: number) => {
         const idx = Math.min(Math.max(floor, 0), processedMessages.length - 1);
-        if (idx >= 0) virtualizer.scrollToIndex(idx, { align: 'start' });
+        if (idx >= 0) scrollToVirtualRow(idx);
       },
       scrollToMessageId: (messageId: string) => {
         const idx = idToIndex.get(messageId);
-        if (idx !== undefined) virtualizer.scrollToIndex(idx, { align: 'start' });
+        if (idx !== undefined) scrollToVirtualRow(idx);
       },
       getFloorCount: () => processedMessages.length,
       nextMatch: () => moveSearchMatch(1),
       prevMatch: () => moveSearchMatch(-1),
-    }), [virtualizer, idToIndex, processedMessages.length, moveSearchMatch]);
+    }), [idToIndex, moveSearchMatch, processedMessages.length, scrollToVirtualRow]);
 
     // 上报顶部可见楼层：用 virtualizer.range.startIndex（已排除 overscan，
     // 是真正的首个可见行；virtualItems[0] 含 overscan 会偏上约 6 楼）。
