@@ -91,6 +91,30 @@ export const ChatWorkbench = forwardRef<ChatWorkbenchHandle, ChatWorkbenchProps>
   const [currentFloorMsgId, setCurrentFloorMsgId] = useState<string | null>(null);
   const [floorCount, setFloorCount] = useState(0);
   const [floorMap, setFloorMap] = useState<Map<string, number>>(new Map());
+  const onFloorChangeRef = useRef(onFloorChange);
+  useEffect(() => { onFloorChangeRef.current = onFloorChange; }, [onFloorChange]);
+  const floorMessageIds = useMemo(() => {
+    const ids: Array<string | undefined> = [];
+    floorMap.forEach((floor, messageId) => { ids[floor] = messageId; });
+    return ids;
+  }, [floorMap]);
+  const jumpToFloor = useCallback((floor: number) => {
+    if (floorCount <= 0) return;
+    const target = Math.min(Math.max(floor, 0), floorCount - 1);
+    setCurrentFloor(target);
+    setCurrentFloorMsgId(floorMessageIds[target] ?? null);
+    onFloorChangeRef.current?.(target);
+    previewRef.current?.scrollToFloor(target);
+  }, [floorCount, floorMessageIds]);
+  const jumpToMessageId = useCallback((messageId: string) => {
+    const target = floorMap.get(messageId);
+    if (target !== undefined) {
+      setCurrentFloor(target);
+      setCurrentFloorMsgId(messageId);
+      onFloorChangeRef.current?.(target);
+    }
+    previewRef.current?.scrollToMessageId(messageId);
+  }, [floorMap]);
   // 待恢复的楼层号；等 ChatPreview 首次上报楼层映射后消费一次
   const pendingRestoreFloorRef = useRef<number | null>(
     typeof initialFloor === 'number' && initialFloor > 0 ? initialFloor : null,
@@ -141,15 +165,15 @@ export const ChatWorkbench = forwardRef<ChatWorkbenchHandle, ChatWorkbenchProps>
     if (floor == null || floorCount === 0) return;
     pendingRestoreFloorRef.current = null;
     const t = setTimeout(() => {
-      previewRef.current?.scrollToFloor(Math.min(floor, floorCount - 1));
+      jumpToFloor(floor);
     }, 150);
     return () => clearTimeout(t);
-  }, [floorCount]);
+  }, [floorCount, jumpToFloor]);
 
   useImperativeHandle(ref, () => ({
-    scrollToFloor: (floor: number) => previewRef.current?.scrollToFloor(floor),
-    scrollToMessageId: (id: string) => previewRef.current?.scrollToMessageId(id),
-  }), []);
+    scrollToFloor: jumpToFloor,
+    scrollToMessageId: jumpToMessageId,
+  }), [jumpToFloor, jumpToMessageId]);
 
   // 章节标记模式：点任意楼弹出章节标记对话框
   const handleMessageClick = useCallback((messageId: string, messageIndex: number) => {
@@ -255,8 +279,6 @@ export const ChatWorkbench = forwardRef<ChatWorkbenchHandle, ChatWorkbenchProps>
   }, [mutateFavorites]);
 
   // ChatPreview 上报顶部可见楼层
-  const onFloorChangeRef = useRef(onFloorChange);
-  useEffect(() => { onFloorChangeRef.current = onFloorChange; }, [onFloorChange]);
   const handleVisibleFloorChange = useCallback((floor: number, messageId: string | null) => {
     setCurrentFloor(floor);
     setCurrentFloorMsgId(messageId);
@@ -509,11 +531,11 @@ export const ChatWorkbench = forwardRef<ChatWorkbenchHandle, ChatWorkbenchProps>
                 currentFloor={currentFloor}
                 currentMessageId={currentFloorMsgId}
                 favorites={favoriteItems}
-                onJumpToFloor={(n) => previewRef.current?.scrollToFloor(n)}
-                onPrev={() => previewRef.current?.scrollToFloor(currentFloor - 1)}
-                onNext={() => previewRef.current?.scrollToFloor(currentFloor + 1)}
+                onJumpToFloor={jumpToFloor}
+                onPrev={() => jumpToFloor(currentFloor - 1)}
+                onNext={() => jumpToFloor(currentFloor + 1)}
                 onToggleFavorite={handleToggleFavorite}
-                onJumpToMessageId={(id) => previewRef.current?.scrollToMessageId(id)}
+                onJumpToMessageId={jumpToMessageId}
                 stickyTop={readerStickyTop + toolbarHeight + 8}
               />
               <div className={`flex min-w-0 flex-1 justify-center py-3 ${readerMode ? 'px-1' : 'pr-3'}`}>
