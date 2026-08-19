@@ -7,12 +7,16 @@ const root = process.cwd();
 const read = (p: string) => readFileSync(resolve(root, p), 'utf-8');
 
 /**
- * 版本号有三处手工同步：package.json / GlobalSettings 的 APP_VERSION / sw.js 的 CACHE_VERSION。
- * 历史上正是它们各自漂移（README/package/APP_VERSION 三个不同值）。这里钉死三者一致，
+ * 版本号有五处手工同步：package.json / Tauri / Cargo / GlobalSettings / sw.js。
+ * 历史上正是它们各自漂移（README/package/APP_VERSION 三个不同值）。这里钉死五者一致，
  * 发布时漏改任何一处都会红。
  */
 describe('版本号单一来源一致性', () => {
   const pkgVersion = JSON.parse(read('package.json')).version as string; // 如 "0.18.0"
+  const tauriVersion = JSON.parse(read('src-tauri/tauri.conf.json')).version as string;
+  const cargo = read('src-tauri/Cargo.toml');
+  const cargoField = (name: string) => cargo.match(new RegExp(`^${name}\\s*=\\s*"([^"]*)"`, 'm'))?.[1];
+  const cargoVersion = cargoField('version');
   const appVersion = read('src/components/GlobalSettings.tsx').match(/APP_VERSION\s*=\s*'([^']+)'/)?.[1];
   const swVersion = read('public/sw.js').match(/CACHE_VERSION\s*=\s*'([^']+)'/)?.[1];
 
@@ -26,5 +30,17 @@ describe('版本号单一来源一致性', () => {
 
   it('Service Worker CACHE_VERSION 与 package.json 一致（带 v 前缀）', () => {
     expect(swVersion).toBe(`v${pkgVersion}`);
+  });
+
+  it('Tauri 与 Cargo 的正式版本都和 package.json 一致', () => {
+    expect(tauriVersion).toBe(pkgVersion);
+    expect(cargoVersion).toBe(pkgVersion);
+  });
+
+  it('Cargo 使用真实项目元数据而不是 tauri init 占位值', () => {
+    expect(cargoField('description')).toBe('SillyTavern Chat Beautifier - 聊天记录处理、世界书编辑与 AI 辅助工具');
+    expect(cargo).toMatch(/^authors\s*=\s*\["LYC619"\]$/m);
+    expect(cargoField('license')).toBe('MIT');
+    expect(cargoField('repository')).toBe('https://github.com/LYC619/silly-tavern-explorer');
   });
 });
