@@ -103,6 +103,18 @@ describe('沉浸式阅读器键盘作用域', () => {
     dialog.remove();
   });
 
+  it('按钮获得焦点后方向键和 Escape 仍由阅读器处理', async () => {
+    const onClose = await renderReader();
+    const button = document.createElement('button');
+    document.body.append(button);
+
+    await dispatchFrom(button, 'ArrowRight');
+    expect(container).toHaveTextContent('第二页正文');
+    await dispatchFrom(button, 'Escape');
+    expect(onClose).toHaveBeenCalledTimes(1);
+    button.remove();
+  });
+
   it('正文区域 Escape 仍正常关闭阅读器', async () => {
     const onClose = await renderReader();
 

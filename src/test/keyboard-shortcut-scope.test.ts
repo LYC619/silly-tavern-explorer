@@ -33,6 +33,15 @@ describe('全局快捷键作用域', () => {
     expect(shouldIgnoreGlobalShortcut(eventFrom(content, ' '))).toBe(false);
   });
 
+  it('按钮只拦截激活键，方向键和 Escape 仍交给阅读器', () => {
+    const button = document.createElement('button');
+
+    expect(shouldIgnoreGlobalShortcut(eventFrom(button, ' '))).toBe(true);
+    expect(shouldIgnoreGlobalShortcut(eventFrom(button, 'Enter'))).toBe(true);
+    expect(shouldIgnoreGlobalShortcut(eventFrom(button, 'ArrowRight'))).toBe(false);
+    expect(shouldIgnoreGlobalShortcut(eventFrom(button, 'Escape'))).toBe(false);
+  });
+
   it('忽略已经被下层处理的事件', () => {
     const event = eventFrom(document.createElement('article'), 'ArrowRight');
     event.preventDefault();

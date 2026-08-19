@@ -108,13 +108,17 @@ describe('小说视图翻页交互', () => {
       button.dispatchEvent(new KeyboardEvent('keydown', { key: ' ', bubbles: true, cancelable: true }));
     });
     expect(container.textContent).toMatch(/1–2 \/ \d+/);
-    button.remove();
 
-    // 无弹窗时 Esc 仍正常关闭
+    // 按钮获得焦点后，方向键仍应继续翻页，Escape 仍应关闭阅读器
     await act(async () => {
-      window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true }));
+      button.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true, cancelable: true }));
+    });
+    expect(container.textContent).toMatch(/3–4 \/ \d+/);
+    await act(async () => {
+      button.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true }));
     });
     expect(onClose).toHaveBeenCalledTimes(1);
+    button.remove();
   });
 
   it('小说正文段落连续排版，叙述和对白均使用首行缩进', async () => {
