@@ -5,9 +5,12 @@ import {
   buildEditorStoryPath,
   editorDestinationPath,
   editorStoryPathForNavKey,
+  getEditorSummaryKind,
   getEditorStoryId,
   matchesEditorStoryNav,
+  parseEditorStoryView,
   resolveEditorStoryId,
+  setEditorSummaryKind,
   setEditorStoryId,
 } from '@/lib/editor-story-context';
 
@@ -45,6 +48,18 @@ describe('当前编辑故事上下文', () => {
     expect(matchesEditorStoryNav('chat', '/chat', '?storyId=abc')).toBe(true);
     expect(matchesEditorStoryNav('summary', '/story/abc', '?view=diary')).toBe(true);
     expect(matchesEditorStoryNav('story-tree', '/story/abc', '?view=volume')).toBe(false);
+  });
+
+  it('记住每个故事的总结二级类型，并支持小总结深链与高亮', () => {
+    setEditorSummaryKind('abc', 'diary');
+    expect(getEditorSummaryKind('abc')).toBe('diary');
+    expect(editorStoryPathForNavKey('summary', 'abc')).toBe('/story/abc?view=diary');
+
+    setEditorSummaryKind('abc', 'mini');
+    expect(getEditorSummaryKind('abc')).toBe('mini');
+    expect(buildEditorStoryPath('abc', 'mini')).toBe('/story/abc?view=mini');
+    expect(parseEditorStoryView('mini')).toBe('mini');
+    expect(matchesEditorStoryNav('summary', '/story/abc', '?view=mini')).toBe(true);
   });
 
   it('显式故事优先，其次共享记忆，最后兼容旧聊天指针', () => {

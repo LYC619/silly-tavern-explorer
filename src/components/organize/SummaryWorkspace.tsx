@@ -8,22 +8,30 @@ import { SavedSummaryList } from '@/components/summary/SavedSummaryList';
 import { SummaryGallery } from '@/components/summary/SummaryGallery';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import { getBranchLine } from '@/lib/archive-db';
 import { getAllSummaries } from '@/lib/summary-db';
 import type { ArchiveStory } from '@/types/archive';
-import { SUMMARY_KIND_LABELS, type SummaryItem, type SummaryKind } from '@/types/summary';
+import { SUMMARY_KIND_LABELS, type SummaryItem, type SummarySurfaceKind } from '@/types/summary';
 
 interface SummaryWorkspaceProps {
   story: ArchiveStory;
   characterName?: string;
   currentBranchId: string | null;
-  kind: SummaryKind;
+  kind: SummarySurfaceKind;
   initialTarget?: { type: 'record' | 'tree'; id: string };
-  /** 兼容旧调用方；二级类型现在由工作区本地持有，不再改路由导致整个页面重挂。 */
-  onKindChange?: (kind: SummaryKind) => void;
+  onKindChange: (kind: SummarySurfaceKind) => void;
 }
 
-type SummarySurfaceKind = SummaryKind | 'mini';
 const KINDS: SummarySurfaceKind[] = ['volume', 'diary', 'diy', 'mini'];
 
 export function SummaryWorkspace({
@@ -32,14 +40,15 @@ export function SummaryWorkspace({
   currentBranchId,
   kind,
   initialTarget,
+  onKindChange,
 }: SummaryWorkspaceProps) {
   const [view, setView] = useState<'workshop' | 'gallery'>('workshop');
-  const [activeKind, setActiveKind] = useState<SummarySurfaceKind>(kind);
   const [selectedRecord, setSelectedRecord] = useState<SummaryItem | null>(null);
   const [refreshKey, setRefreshKey] = useState(0);
   const [draftNonce, setDraftNonce] = useState(0);
   const [pendingAction, setPendingAction] = useState<'manual' | 'regenerate' | null>(null);
   const [detailMode, setDetailMode] = useState(false);
+  const [pendingDiscard, setPendingDiscard] = useState<(() => void) | null>(null);
   const workbenchRef = useRef<RecordWorkbenchHandle>(null);
 
   const currentLine = getBranchLine(story, currentBranchId) ?? getBranchLine(story, null)!;
@@ -50,18 +59,17 @@ export function SummaryWorkspace({
     if (!item) return;
     setSelectedRecord(item);
     setDetailMode(true);
-    setActiveKind(item.kind);
-  }, [initialTarget, story.id]);
+    onKindChange(item.kind);
+  }, [initialTarget, onKindChange, story.id]);
 
   useEffect(() => { void loadInitialTarget(); }, [loadInitialTarget]);
-  useEffect(() => { setActiveKind(kind); }, [kind]);
 
   useEffect(() => {
     if (!pendingAction) return;
     if (pendingAction === 'manual') workbenchRef.current?.startManual();
     else workbenchRef.current?.regenerate();
     setPendingAction(null);
-  }, [activeKind, pendingAction, selectedRecord, draftNonce]);
+  }, [kind, pendingAction, selectedRecord, draftNonce]);
 
   const refresh = useCallback(() => setRefreshKey((value) => value + 1), []);
 
@@ -73,18 +81,18 @@ export function SummaryWorkspace({
 
   const openRecord = useCallback((item: SummaryItem) => {
     setView('workshop');
-    setActiveKind(item.kind);
+    onKindChange(item.kind);
     setSelectedRecord(item);
     setDetailMode(true);
-  }, []);
+  }, [onKindChange]);
 
   const regenerateRecord = useCallback((item: SummaryItem) => {
     setView('workshop');
-    setActiveKind(item.kind);
+    onKindChange(item.kind);
     setSelectedRecord(item);
     setDetailMode(true);
     setPendingAction('regenerate');
-  }, []);
+  }, [onKindChange]);
 
   const startManual = () => {
     setView('workshop');
@@ -94,17 +102,35 @@ export function SummaryWorkspace({
     setPendingAction('manual');
   };
 
-  const changeKind = (next: SummarySurfaceKind) => {
+  const resetEditor = () => {
     setSelectedRecord(null);
     setDetailMode(false);
     setDraftNonce((value) => value + 1);
-    setActiveKind(next);
+  };
+
+  const runAfterDraftCheck = (action: () => void) => {
+    if (workbenchRef.current?.hasUnsavedDraft()) {
+      setPendingDiscard(() => action);
+      return;
+    }
+    action();
+  };
+
+  const changeKind = (next: SummarySurfaceKind) => {
+    if (next === kind) return;
+    runAfterDraftCheck(() => {
+      resetEditor();
+      onKindChange(next);
+    });
+  };
+
+  const changeView = (next: 'workshop' | 'gallery') => {
+    if (next === view) return;
+    runAfterDraftCheck(() => setView(next));
   };
 
   const backToList = () => {
-    setSelectedRecord(null);
-    setDetailMode(false);
-    setDraftNonce((value) => value + 1);
+    runAfterDraftCheck(resetEditor);
   };
 
   return (
@@ -121,7 +147,7 @@ export function SummaryWorkspace({
             </div>
           </div>
 
-          <Tabs value={view} onValueChange={(value) => setView(value as 'workshop' | 'gallery')}>
+          <Tabs value={view} onValueChange={(value) => changeView(value as 'workshop' | 'gallery')}>
             <TabsList className="flex h-8 w-fit">
               <TabsTrigger value="workshop" className="h-7 gap-1.5 whitespace-nowrap px-3"><Wrench className="h-3.5 w-3.5" />生成工作台</TabsTrigger>
               <TabsTrigger value="gallery" className="h-7 gap-1.5 whitespace-nowrap px-3"><BookOpen className="h-3.5 w-3.5" />展示页</TabsTrigger>
@@ -129,7 +155,7 @@ export function SummaryWorkspace({
           </Tabs>
 
           <span className="h-6 w-px shrink-0 bg-[color:var(--border-subtle)]" />
-          <Tabs value={activeKind} onValueChange={(value) => changeKind(value as SummarySurfaceKind)}>
+          <Tabs value={kind} onValueChange={(value) => changeKind(value as SummarySurfaceKind)}>
             <TabsList className="flex h-8 w-fit">
               {KINDS.map((item) => (
                 <TabsTrigger key={item} value={item} className="h-7 whitespace-nowrap px-3 text-xs">
@@ -149,7 +175,7 @@ export function SummaryWorkspace({
         </header>
 
         <div className="mt-3 min-h-0 flex-1">
-        {activeKind === 'mini' ? (
+        {kind === 'mini' ? (
           <div className="h-full min-h-0 overflow-y-auto rounded-md border border-[color:var(--border-subtle)] bg-elevated p-4 scrollbar-thin">
             <MiniSummaryPanel session={currentLine.session} />
           </div>
@@ -157,17 +183,17 @@ export function SummaryWorkspace({
           <SummaryGallery
             currentBookId={story.id}
             refreshKey={refreshKey}
-            kind={activeKind}
+            kind={kind}
             charName={characterName ?? currentLine.session.character?.name}
             onEdit={openRecord}
           />
         ) : (
           <RecordWorkbench
-            key={`${activeKind}:${selectedRecord?.id ?? `draft-${draftNonce}`}`}
+            key={`${kind}:${selectedRecord?.id ?? `draft-${draftNonce}`}`}
             ref={workbenchRef}
             story={story}
-            kind={activeKind}
-            record={selectedRecord?.kind === activeKind ? selectedRecord : null}
+            kind={kind}
+            record={selectedRecord?.kind === kind ? selectedRecord : null}
             defaultBranchId={currentBranchId}
             onSaved={handleSaved}
             showEmptyEditor={false}
@@ -185,7 +211,7 @@ export function SummaryWorkspace({
                 <SavedSummaryList
                   currentBookId={story.id}
                   refreshKey={refreshKey}
-                  kind={activeKind}
+                  kind={kind}
                   onAdd={startManual}
                   onView={openRecord}
                   onRegenerate={regenerateRecord}
@@ -198,6 +224,25 @@ export function SummaryWorkspace({
         )}
         </div>
       </div>
+
+      <AlertDialog open={pendingDiscard !== null} onOpenChange={(open) => { if (!open) setPendingDiscard(null); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>放弃未保存的总结草稿？</AlertDialogTitle>
+            <AlertDialogDescription>当前标题或正文尚未保存，继续后无法恢复这些修改。</AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>继续编辑</AlertDialogCancel>
+            <AlertDialogAction onClick={() => {
+              const action = pendingDiscard;
+              setPendingDiscard(null);
+              action?.();
+            }}>
+              放弃草稿并切换
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

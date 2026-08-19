@@ -10,6 +10,7 @@
  */
 
 export type SummaryKind = 'volume' | 'diary' | 'diy';
+export type SummarySurfaceKind = SummaryKind | 'mini';
 
 export const SUMMARY_KIND_LABELS: Record<SummaryKind, string> = {
   volume: '分卷总结',

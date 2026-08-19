@@ -51,6 +51,7 @@ import { AttachPanel, type AttachState } from '@/components/summary/AttachPanel'
 import { PriorVolumesPanel } from '@/components/summary/PriorVolumesPanel';
 import { BatchProcessor } from '@/components/summary/BatchProcessor';
 import { substituteVars } from '@/lib/preset-parser';
+import { hasUnsavedSummaryDraft } from '@/lib/summary-draft-state';
 
 const MAIN = '__main__';
 
@@ -78,6 +79,8 @@ export interface RecordWorkbenchHandle {
   regenerate: () => void;
   /** 旧版总结页的“手动添加总结”：展开一份空白草稿。 */
   startManual: () => void;
+  /** 切换类型/页面前判断当前编辑器是否有尚未落库的内容。 */
+  hasUnsavedDraft: () => boolean;
 }
 
 export const RecordWorkbench = forwardRef<RecordWorkbenchHandle, RecordWorkbenchProps>(
@@ -422,7 +425,15 @@ export const RecordWorkbench = forwardRef<RecordWorkbenchHandle, RecordWorkbench
         setManualDraft(false);
         toast({ title: '已回填设置', description: '楼层/挂载/模板已按原条目填好，点「生成」即可重做' });
       },
-    }), [record, kind, scrollEditorIntoView, toast]);
+      hasUnsavedDraft() {
+        return hasUnsavedSummaryDraft({
+          record,
+          title: resultTitle,
+          content: resultContent,
+          streaming,
+        });
+      },
+    }), [record, kind, resultTitle, resultContent, streaming, scrollEditorIntoView, toast]);
 
     const charName = session.character?.name;
     const branchName = branchId ? story.branches?.find((b) => b.id === branchId)?.name : null;

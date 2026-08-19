@@ -1,16 +1,25 @@
-import { act, forwardRef, type ReactNode } from 'react';
+import { act, forwardRef, useImperativeHandle, useState, type ReactNode } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { MemoryRouter } from 'react-router-dom';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import type { ArchiveStory } from '@/types/archive';
+import type { SummaryKind } from '@/types/summary';
+import type { RecordWorkbenchHandle } from '@/components/organize/RecordWorkbench';
+
+const workbenchBehavior = vi.hoisted(() => ({ unsaved: false }));
 
 vi.mock('@/components/organize/RecordWorkbench', () => ({
-  RecordWorkbench: forwardRef<HTMLDivElement, Record<string, unknown>>(function MockWorkbench(props, ref) {
+  RecordWorkbench: forwardRef<RecordWorkbenchHandle, Record<string, unknown>>(function MockWorkbench(props, ref) {
     const record = props.record as { title?: string } | null;
+    useImperativeHandle(ref, () => ({
+      startManual: vi.fn(),
+      regenerate: vi.fn(),
+      hasUnsavedDraft: () => workbenchBehavior.unsaved,
+    }));
     return (
-      <div ref={ref} data-testid="record-workbench">
+      <div data-testid="record-workbench">
         {props.sidePanel as ReactNode}
         {record && <span data-testid="active-record">{record.title}</span>}
       </div>
@@ -65,7 +74,29 @@ const activateTab = (button: HTMLButtonElement | undefined) => {
   act(() => button?.dispatchEvent(new MouseEvent('mousedown', { bubbles: true, button: 0 })));
 };
 
+function ControlledWorkspace({
+  initialKind = 'volume',
+  onKindChange = () => {},
+}: {
+  initialKind?: SummaryKind | 'mini';
+  onKindChange?: (kind: SummaryKind | 'mini') => void;
+}) {
+  const [kind, setKind] = useState<SummaryKind | 'mini'>(initialKind);
+  return (
+    <SummaryWorkspace
+      story={story}
+      currentBranchId={null}
+      kind={kind}
+      onKindChange={(next) => {
+        setKind(next);
+        onKindChange(next);
+      }}
+    />
+  );
+}
+
 beforeEach(() => {
+  workbenchBehavior.unsaved = false;
   container = document.createElement('div');
   document.body.appendChild(container);
   root = createRoot(container);
@@ -113,7 +144,7 @@ describe('总结工作台单屏交互', () => {
     act(() => {
       root.render(
         <MemoryRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
-          <SummaryWorkspace story={story} currentBranchId={null} kind="volume" onKindChange={onKindChange} />
+          <ControlledWorkspace onKindChange={onKindChange} />
         </MemoryRouter>,
       );
     });
@@ -126,20 +157,44 @@ describe('总结工作台单屏交互', () => {
     activateTab(diaryButton);
     expect(container.querySelector('[data-testid="summary-gallery"]')?.getAttribute('data-kind')).toBe('diary');
     expect(container.textContent).not.toContain('查看现有');
-    expect(onKindChange).not.toHaveBeenCalled();
+    expect(onKindChange).toHaveBeenCalledWith('diary');
   });
 
   it('小总结是首行二级类型，不再藏在右侧列表筛选里', () => {
     act(() => {
       root.render(
         <MemoryRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
-          <SummaryWorkspace story={story} currentBranchId={null} kind="volume" onKindChange={() => {}} />
+          <ControlledWorkspace />
         </MemoryRouter>,
       );
     });
     const miniButton = [...container.querySelectorAll('button')].find((button) => button.textContent?.includes('小总结'));
     activateTab(miniButton);
     expect(container.querySelector('[data-testid="mini-summary"]')).not.toBeNull();
+  });
+
+  it('切换类型前确认放弃未保存草稿，取消时保留当前类型', () => {
+    const onKindChange = vi.fn();
+    workbenchBehavior.unsaved = true;
+    act(() => {
+      root.render(
+        <MemoryRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
+          <ControlledWorkspace onKindChange={onKindChange} />
+        </MemoryRouter>,
+      );
+    });
+
+    const diaryButton = [...container.querySelectorAll('button')].find((button) => button.textContent?.includes('角色日记'));
+    activateTab(diaryButton);
+
+    expect(document.querySelector('[role="alertdialog"]')).not.toBeNull();
+    expect(onKindChange).not.toHaveBeenCalled();
+    expect(container.querySelector('[data-testid="saved-summary-list"]')?.getAttribute('data-kind')).toBe('volume');
+
+    const discard = [...document.querySelectorAll('button')].find((button) => button.textContent?.includes('放弃草稿并切换'));
+    act(() => discard?.click());
+    expect(onKindChange).toHaveBeenCalledWith('diary');
+    expect(container.querySelector('[data-testid="saved-summary-list"]')?.getAttribute('data-kind')).toBe('diary');
   });
 
   it('左侧配置块可折叠，挂载设定和批量生成默认收起', () => {

@@ -20,7 +20,7 @@ import { OrganizeContextBar } from '@/components/workspace/OrganizeContextBar';
 import { STUpdateHint } from '@/components/workspace/STUpdateHint';
 import { BranchPanel } from '@/components/workspace/BranchPanel';
 import { OutlinePanel } from '@/components/workspace/OutlinePanel';
-import type { OrganizeFixedKind, OrganizeTarget } from '@/components/organize/OrganizePanel';
+import type { OrganizeTarget } from '@/components/organize/OrganizePanel';
 import { SummaryWorkspace } from '@/components/organize/SummaryWorkspace';
 import { StoryTreeWorkspace } from '@/components/organize/StoryTreeWorkspace';
 import { BindStoryDialog } from '@/components/chat/BindStoryDialog';
@@ -30,7 +30,7 @@ import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
 import type { ArchiveCharacter, ArchiveStory } from '@/types/archive';
 import type { ChatSession } from '@/types/chat';
-import type { SummaryKind } from '@/types/summary';
+import type { SummarySurfaceKind } from '@/types/summary';
 import {
   getArchiveStory,
   updateArchiveStory,
@@ -43,11 +43,17 @@ import {
 import { StoryDraftSaver } from '@/lib/story-draft-save';
 import { parseJsonl, parseJson } from '@/lib/adapters/st';
 import { getDefaultExportSettings } from '@/lib/session-storage';
-import { setEditorStoryId } from '@/lib/editor-story-context';
+import {
+  isSummarySurfaceKind,
+  parseEditorStoryView,
+  setEditorStoryId,
+  setEditorSummaryKind,
+  type EditorStoryView,
+} from '@/lib/editor-story-context';
 import { isOrganizeWorkspaceView } from '@/lib/story-workspace-layout';
 
 /** 阶段9.6：整理与记录拆成四个子页面（参照 2.0 前 /summary /story-tree 独立页的架构） */
-type WorkspaceView = 'read' | OrganizeFixedKind | 'io';
+type WorkspaceView = EditorStoryView;
 
 interface StoryWorkspaceLocationState {
   view?: string;
@@ -78,8 +84,7 @@ const StoryWorkspace = () => {
   const queryView = searchParams.get('view');
   // 角色页「导出/去处理区生成」带初始视图和来源脉络跳入（10.3b）
   const [view, setView] = useState<WorkspaceView>(() => {
-    const v = queryView ?? locationState?.view;
-    return v && VIEW_ITEMS.some((item) => item.key === v) ? (v as WorkspaceView) : 'read';
+    return parseEditorStoryView(queryView ?? locationState?.view) ?? 'read';
   });
   const initialTarget = locationState?.view === view ? locationState.initialTarget : undefined;
   const [immersive, setImmersive] = useState(false);
@@ -90,8 +95,9 @@ const StoryWorkspace = () => {
   useEffect(() => {
     const stateView = (location.state as StoryWorkspaceLocationState | null)?.view;
     const requestedView = searchParams.get('view') ?? stateView;
-    if (requestedView && VIEW_ITEMS.some((item) => item.key === requestedView)) {
-      setView(requestedView as WorkspaceView);
+    const parsedView = parseEditorStoryView(requestedView);
+    if (parsedView) {
+      setView(parsedView);
       if (!searchParams.get('view') && stateView) {
         setSearchParams((current) => {
           current.set('view', stateView);
@@ -108,7 +114,11 @@ const StoryWorkspace = () => {
       return current;
     }, { replace: true });
   }, [setSearchParams]);
-  const changeSummaryKind = useCallback((kind: SummaryKind) => changeView(kind), [changeView]);
+  const changeSummaryKind = useCallback((kind: SummarySurfaceKind) => changeView(kind), [changeView]);
+
+  useEffect(() => {
+    if (id && isSummarySurfaceKind(view)) setEditorSummaryKind(id, view);
+  }, [id, view]);
 
   // 持久化：界面立即更新，落库时在最新故事上重放 mutation，避免旧页面快照覆盖并发修改。
   const storyRef = useRef<ArchiveStory | null>(null);
@@ -443,12 +453,12 @@ const StoryWorkspace = () => {
             </div>
           )}
 
-          {(view === 'volume' || view === 'diary' || view === 'diy') && (
+          {isSummarySurfaceKind(view) && (
             <SummaryWorkspace
               story={story}
               characterName={character?.name}
               currentBranchId={branchId}
-              kind={view as SummaryKind}
+              kind={view}
               initialTarget={initialTarget}
               onKindChange={changeSummaryKind}
             />

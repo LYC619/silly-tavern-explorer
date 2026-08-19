@@ -45,6 +45,7 @@ describe('整理视图上下文栏', () => {
 
   it('导入与导出和整理页面使用同一固定高度布局', () => {
     expect(isOrganizeWorkspaceView('volume')).toBe(true);
+    expect(isOrganizeWorkspaceView('mini')).toBe(true);
     expect(isOrganizeWorkspaceView('tree')).toBe(true);
     expect(isOrganizeWorkspaceView('io')).toBe(true);
     expect(isOrganizeWorkspaceView('read')).toBe(false);
