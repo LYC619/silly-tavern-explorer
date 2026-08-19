@@ -35,6 +35,7 @@ import { planCowSave, buildDerivedMeta } from '@/lib/asset-cow';
 import { getCharacter } from '@/lib/archive-db';
 import { updateCharacterAssetReference } from '@/lib/character-asset-ref';
 import { executeDeleteAction } from '@/lib/destructive-action';
+import { shouldIgnoreGlobalShortcut } from '@/lib/keyboard-shortcuts';
 import { takePendingToolFile, peekPendingToolFile } from '@/lib/tool-handoff';
 import { estimateTokens } from '@/lib/preset-parser';
 import type { WorldBookItem } from '@/types/worldbook';
@@ -539,6 +540,7 @@ export default function WorldBookPage() {
 
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
+      if (shouldIgnoreGlobalShortcut(e)) return;
       if (e.key === 'Escape' && batchMode) exitBatchMode();
     };
     window.addEventListener('keydown', handler);

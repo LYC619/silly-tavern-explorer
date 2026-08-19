@@ -22,6 +22,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { cn } from '@/lib/utils';
 import type { ChatMessage, ChapterMarker, RegexRule } from '@/types/chat';
 import { applyRegexRules } from '@/lib/regex-processor';
+import { shouldIgnoreGlobalShortcut } from '@/lib/keyboard-shortcuts';
 
 const FONT_OPTIONS = [
   { value: 'sans-serif', label: '系统默认' },
@@ -166,6 +167,7 @@ const ReaderView = ({
   // Keyboard navigation
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
+      if (shouldIgnoreGlobalShortcut(e)) return;
       if (e.key === 'ArrowRight' || e.key === ' ') {
         e.preventDefault();
         nextPage();

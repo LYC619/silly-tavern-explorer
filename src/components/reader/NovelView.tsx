@@ -26,6 +26,7 @@ import {
 } from '@/components/ui/dialog';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
+import { shouldIgnoreGlobalShortcut } from '@/lib/keyboard-shortcuts';
 import { MarkdownLite } from '@/components/MarkdownLite';
 import { loadAPIConfig } from '@/components/ai-tools';
 import { callOpenAIMessages } from '@/components/ai-tools/useOpenAI';
@@ -345,10 +346,7 @@ const NovelView = ({
   // Esc 关闭（无弹窗时）；不接管交互控件与上层弹窗的按键（弹窗 Esc 只关弹窗、滑块方向键自步进、按钮空格应触发点击）
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
-      if (e.defaultPrevented || chapterDialogOpen || polishChapter) return;
-      const target = e.target instanceof HTMLElement ? e.target : null;
-      if (target?.closest('input, textarea, [contenteditable="true"], [role="dialog"], [role="menu"], [role="listbox"], [role="slider"]')) return;
-      if (e.key === ' ' && target?.closest('button, a[href], select, summary')) return;
+      if (shouldIgnoreGlobalShortcut(e) || chapterDialogOpen || polishChapter) return;
       if (e.key === 'Escape') {
         goToPage(currentPageRef.current);
         onClose();
