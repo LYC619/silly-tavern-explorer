@@ -47,15 +47,24 @@ export function WritebackSection({ story, onStoryUpdate }: Props) {
       if (!root) throw new Error('库未配置');
       const vaultFs = createTauriFs(root);
       if (pending.kind === 'write') {
-        const { story: updated, backedUp } = await performWriteback(vaultFs, abs, story);
+        const { story: updated, backedUp, warning } = await performWriteback(vaultFs, abs, story);
         onStoryUpdate((cur) => ({ ...cur, writebacks: updated.writebacks }));
         toast({
           title: '已写回 ST',
-          description: backedUp ? '原文件已备份到库内 .ste/，可从写回历史恢复' : '源文件当时不存在，已直接写出（无备份）',
+          description: [
+            backedUp ? '原文件已备份到库内 .ste/，可从写回历史恢复' : '源文件当时不存在，已直接写出（无备份）',
+            warning,
+          ].filter(Boolean).join('；'),
         });
       } else {
-        await restoreBackup(vaultFs, abs, story, pending.backupFile);
-        toast({ title: '已恢复该版备份到 ST', description: 'STE 库内数据未变动；需要时可再次写回覆盖' });
+        const { protectionFile } = await restoreBackup(vaultFs, abs, story, pending.backupFile);
+        toast({
+          title: '已恢复该版备份到 ST',
+          description: [
+            protectionFile ? '恢复前的当前 ST 内容已另存保护备份' : '恢复前没有可读取的当前 ST 文件',
+            'STE 库内数据未变动；需要时可再次写回覆盖',
+          ].join('；'),
+        });
       }
       setPending(null);
     } catch (err) {

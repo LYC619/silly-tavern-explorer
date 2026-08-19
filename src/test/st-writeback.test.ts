@@ -94,4 +94,96 @@ describe('写回 ST（7.5）', () => {
     await restoreBackup(vault, io, story, story.writebacks![0].backupFile!);
     expect(parseJsonl(await absFs.readText(ST_PATH)).messages).toHaveLength(2);
   });
+
+  it('备份写入失败时中止写回，不覆盖原 ST 文件', async () => {
+    const baseVault = createMemFs();
+    const vault = {
+      ...baseVault,
+      async writeText(path: string, content: string) {
+        if (path.startsWith('.ste/写回备份/')) throw new Error('库磁盘已满');
+        return baseVault.writeText(path, content);
+      },
+    };
+    const { fs: absFs, io: baseIo } = mkAbs();
+    await absFs.writeText(ST_PATH, mkJsonl(2));
+    const writes: string[] = [];
+    const io = {
+      readText: baseIo.readText,
+      async writeText(path: string, content: string) {
+        writes.push(content);
+        return baseIo.writeText(path, content);
+      },
+    };
+
+    await expect(performWriteback(vault, io, mkStory(3), 1700000000000)).rejects.toThrow('磁盘已满');
+    expect(writes).toEqual([]);
+    expect(parseJsonl(await absFs.readText(ST_PATH)).messages).toHaveLength(2);
+  });
+
+  it('源文件读取失败但并非不存在时中止写回并透传原因', async () => {
+    const vault = createMemFs();
+    const writes: string[] = [];
+    const io = {
+      async readText() { throw new Error('ST 文件权限被拒绝'); },
+      async writeText(_path: string, content: string) { writes.push(content); },
+    };
+
+    await expect(performWriteback(vault, io, mkStory(3), 1700000000000)).rejects.toThrow('权限被拒绝');
+    expect(writes).toEqual([]);
+  });
+
+  it('备份成功但修剪失败时仍写回，并返回可见警告', async () => {
+    const baseVault = createMemFs();
+    const vault = {
+      ...baseVault,
+      async list(dir: string) {
+        const entries = await baseVault.list(dir);
+        return [
+          ...entries,
+          ...Array.from({ length: WRITEBACK_KEEP }, (_, index) => ({
+            name: `old-${index}.jsonl`,
+            isDir: false,
+            size: 1,
+          })),
+        ];
+      },
+      async removeFile() { throw new Error('备份目录只读'); },
+    };
+    const { fs: absFs, io } = mkAbs();
+    await absFs.writeText(ST_PATH, mkJsonl(2));
+
+    const { story, backedUp, warning } = await performWriteback(vault, io, mkStory(3), 1700000000000);
+
+    expect(backedUp).toBe(true);
+    expect(warning).toContain('备份目录只读');
+    expect(await vault.readText(story.writebacks![0].backupFile!)).toContain('第1楼');
+    expect(parseJsonl(await absFs.readText(ST_PATH)).messages).toHaveLength(3);
+  });
+
+  it('恢复备份前先保护当前 ST 内容，保护文件写入失败时不覆盖', async () => {
+    const baseVault = createMemFs();
+    const backupFile = '.ste/写回备份/astory_wb/old.jsonl';
+    await baseVault.writeText(backupFile, mkJsonl(2));
+    const writes: string[] = [];
+    const vault = {
+      ...baseVault,
+      async writeText(path: string, content: string) {
+        if (path !== backupFile) throw new Error('保护备份失败');
+        writes.push(content);
+      },
+    };
+    const { fs: absFs, io: baseIo } = mkAbs();
+    await absFs.writeText(ST_PATH, mkJsonl(5));
+    const io = {
+      readText: baseIo.readText,
+      async writeText(path: string, content: string) {
+        writes.push(content);
+        return baseIo.writeText(path, content);
+      },
+    };
+
+    await expect(restoreBackup(vault, io, mkStory(5), backupFile, 1700000000000)).rejects.toThrow('保护备份失败');
+    expect(writes).toEqual([]);
+    expect(parseJsonl(await absFs.readText(ST_PATH)).messages).toHaveLength(5);
+  });
 });
