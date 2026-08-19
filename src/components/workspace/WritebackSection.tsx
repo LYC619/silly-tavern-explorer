@@ -19,7 +19,13 @@ import {
 } from '@/components/ui/alert-dialog';
 import { useToast } from '@/hooks/use-toast';
 import { createTauriFs, getVaultRoot, readAbsText, writeAbsText } from '@/lib/vault/tauri-fs';
-import { performWriteback, restoreBackup, writebackSummary, WRITEBACK_KEEP } from '@/lib/vault/st-writeback';
+import {
+  performWriteback,
+  recordProtectionBackup,
+  restoreBackup,
+  writebackSummary,
+  WRITEBACK_KEEP,
+} from '@/lib/vault/st-writeback';
 import type { ArchiveStory } from '@/types/archive';
 
 interface Props {
@@ -58,6 +64,9 @@ export function WritebackSection({ story, onStoryUpdate }: Props) {
         });
       } else {
         const { protectionFile } = await restoreBackup(vaultFs, abs, story, pending.backupFile);
+        if (protectionFile) {
+          onStoryUpdate((cur) => recordProtectionBackup(cur, protectionFile, Date.now()));
+        }
         toast({
           title: '已恢复该版备份到 ST',
           description: [

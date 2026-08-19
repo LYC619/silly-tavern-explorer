@@ -1,6 +1,12 @@
 import { describe, expect, it } from 'vitest';
 import { createMemFs } from '@/lib/vault/fs';
-import { performWriteback, restoreBackup, WRITEBACK_KEEP, backupFileName } from '@/lib/vault/st-writeback';
+import {
+  backupFileName,
+  performWriteback,
+  recordProtectionBackup,
+  restoreBackup,
+  WRITEBACK_KEEP,
+} from '@/lib/vault/st-writeback';
 import { parseJsonl } from '@/lib/adapters/st/chat-jsonl';
 import type { ArchiveStory } from '@/types/archive';
 
@@ -93,6 +99,43 @@ describe('写回 ST（7.5）', () => {
     const { story } = await performWriteback(vault, io, mkStory(5), 1700000000000);
     await restoreBackup(vault, io, story, story.writebacks![0].backupFile!);
     expect(parseJsonl(await absFs.readText(ST_PATH)).messages).toHaveLength(2);
+  });
+
+  it('恢复前的保护备份登记进历史，并可再次从历史恢复', async () => {
+    const vault = createMemFs();
+    const { fs: absFs, io } = mkAbs();
+    await absFs.writeText(ST_PATH, mkJsonl(2));
+    const { story } = await performWriteback(vault, io, mkStory(5), 1700000000000);
+
+    const { protectionFile } = await restoreBackup(
+      vault,
+      io,
+      story,
+      story.writebacks![0].backupFile!,
+      1700000060000,
+    );
+    const updated = recordProtectionBackup(story, protectionFile!, 1700000060000);
+
+    expect(updated.writebacks![0].backupFile).toBe(protectionFile);
+    await restoreBackup(vault, io, updated, updated.writebacks![0].backupFile!, 1700000120000);
+    expect(parseJsonl(await absFs.readText(ST_PATH)).messages).toHaveLength(5);
+  });
+
+  it('普通写回修剪时保留恢复保护备份', async () => {
+    const vault = createMemFs();
+    const { fs: absFs, io } = mkAbs();
+    await absFs.writeText(ST_PATH, mkJsonl(1));
+    const protectionFile = '.ste/写回备份/astory_wb/20240101-000000-restore.jsonl';
+    await vault.writeText(protectionFile, mkJsonl(1));
+    let story = mkStory(2);
+    for (let i = 0; i < WRITEBACK_KEEP + 2; i++) {
+      ({ story } = await performWriteback(vault, io, story, 1700000000000 + i * 60_000));
+    }
+
+    const names = (await vault.list(`.ste/写回备份/${story.id}`)).map((entry) => entry.name);
+    expect(names).toContain('20240101-000000-restore.jsonl');
+    expect(names.filter((name) => name.endsWith('.jsonl') && !name.endsWith('-restore.jsonl')))
+      .toHaveLength(WRITEBACK_KEEP);
   });
 
   it('备份写入失败时中止写回，不覆盖原 ST 文件', async () => {

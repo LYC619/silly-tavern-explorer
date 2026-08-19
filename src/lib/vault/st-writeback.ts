@@ -77,7 +77,7 @@ export async function performWriteback(
     await vaultFs.writeText(backupFile, currentST);
     try {
       const names = (await vaultFs.list(dir))
-        .filter((e) => !e.isDir && e.name.endsWith('.jsonl'))
+        .filter((e) => !e.isDir && e.name.endsWith('.jsonl') && !e.name.endsWith('-restore.jsonl'))
         .map((e) => e.name)
         .sort();
       for (const name of names.slice(0, Math.max(0, names.length - WRITEBACK_KEEP))) {
@@ -98,6 +98,23 @@ export async function performWriteback(
 
 export function restoreProtectionFileName(at: number): string {
   return backupFileName(at).replace(/\.jsonl$/, '-restore.jsonl');
+}
+
+/** 将恢复前的保护备份登记到历史，使其可从界面再次恢复。 */
+export function recordProtectionBackup(
+  story: ArchiveStory,
+  protectionFile: string,
+  at: number,
+): ArchiveStory {
+  const record: WritebackRecord = {
+    at,
+    floors: story.session.messages.length,
+    backupFile: protectionFile,
+  };
+  return {
+    ...story,
+    writebacks: [record, ...(story.writebacks ?? [])].slice(0, WRITEBACK_HISTORY_MAX),
+  };
 }
 
 /** 把某版备份恢复回 ST 原路径（覆盖 ST 侧；STE 库内数据不动） */
