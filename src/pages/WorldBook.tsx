@@ -40,6 +40,7 @@ import { takePendingToolFile, peekPendingToolFile } from '@/lib/tool-handoff';
 import { estimateTokens } from '@/lib/preset-parser';
 import type { WorldBookItem } from '@/types/worldbook';
 import { useToast } from '@/hooks/use-toast';
+import { useWorldBookDraftState } from '@/hooks/use-worldbook-draft-state';
 import { ToastAction } from '@/components/ui/toast';
 import { readWorldBookUpload } from '@/lib/worldbook-file-import';
 
@@ -65,7 +66,13 @@ export default function WorldBookPage() {
   const [cowCharacterName, setCowCharacterName] = useState('');
 
   const restored = loadWbSession();
-  const [worldbook, setWorldbook] = useState<WorldBook | null>(restored?.worldbook ?? null);
+  const {
+    worldbook,
+    setWorldbook,
+    hydrateWorldbook,
+    markWorldbookClean,
+    isDirty,
+  } = useWorldBookDraftState(restored?.worldbook ?? null);
   const [filename, setFilename] = useState(restored?.filename ?? 'worldbook');
   const [currentItemId, setCurrentItemId] = useState<string | null>(restored?.currentItemId ?? null);
   const [stagedDialogOpen, setStagedDialogOpen] = useState(false);
@@ -90,7 +97,6 @@ export default function WorldBookPage() {
   const [filterPosition, setFilterPosition] = useState<string>('all');
   const [sortMode, setSortMode] = useState<SortMode>('order-asc');
   const [showTour, setShowTour] = useState(false);
-  const [isDirty, setIsDirty] = useState(false);
   // 分页：每页条数 + 当前页(1-based)。pageSize=0 表示全部
   const [pageSize, setPageSize] = useState(25);
   const [page, setPage] = useState(1);
@@ -163,7 +169,7 @@ export default function WorldBookPage() {
       Promise.all([getWorldBook(initialAssetId), getAllWorldBooks()]).then(([item, items]) => {
         setSavedItems(items);
         if (item) {
-          setWorldbook(item.worldbook);
+          hydrateWorldbook(item.worldbook);
           setFilename(item.title);
           setCurrentItemId(item.id);
         }
@@ -177,7 +183,7 @@ export default function WorldBookPage() {
       setSavedItems(items);
       if (items.length > 0 && !worldbook && !hasHandoff) {
         const latest = items[0]; // already sorted by updatedAt desc
-        setWorldbook(latest.worldbook);
+        hydrateWorldbook(latest.worldbook);
         setFilename(latest.title);
         setCurrentItemId(latest.id);
       }
@@ -186,16 +192,6 @@ export default function WorldBookPage() {
       setTimeout(() => setShowTour(true), 500);
     }
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
-
-  // Track dirty state: mark dirty after initial load when worldbook changes
-  const isInitialLoad = useRef(true);
-  useEffect(() => {
-    if (isInitialLoad.current) {
-      isInitialLoad.current = false;
-      return;
-    }
-    if (worldbook) setIsDirty(true);
-  }, [worldbook]);
 
   const filteredEntries = useMemo(() => {
     let result = allEntries;
@@ -302,7 +298,7 @@ export default function WorldBookPage() {
       const updated = await getAllWorldBooks();
       setSavedItems(updated);
     })().catch(() => { /* 自动历史失败不阻塞导入 */ });
-  }, []);
+  }, [setWorldbook]);
 
   // 处理区入口交接来的文件：走与导入按钮相同的解析入库流程（只消费一次）
   const handoffConsumedRef = useRef(false);
@@ -343,14 +339,14 @@ export default function WorldBookPage() {
         description: `已追加 ${newCount} 个条目`,
       });
     }, 0);
-  }, [toast]);
+  }, [setWorldbook, toast]);
 
   const updateEntry = useCallback((key: string, updated: WorldBookEntry) => {
     setWorldbook(prev => {
       if (!prev) return prev;
       return { ...prev, entries: { ...prev.entries, [key]: updated } };
     });
-  }, []);
+  }, [setWorldbook]);
 
   const toggleEnabled = useCallback((key: string, enabled: boolean) => {
     setWorldbook(prev => {
@@ -358,7 +354,7 @@ export default function WorldBookPage() {
       const entry = prev.entries[key];
       return { ...prev, entries: { ...prev.entries, [key]: { ...entry, enabled } } };
     });
-  }, []);
+  }, [setWorldbook]);
 
   const addEntry = useCallback(() => {
     if (!worldbook) return;
@@ -369,7 +365,7 @@ export default function WorldBookPage() {
     setWorldbook(prev => prev ? { ...prev, entries: { ...prev.entries, [key]: newEntry } } : prev);
     setSelectedUid(key);
     if (isMobile) setMobileEditorOpen(true);
-  }, [worldbook, isMobile]);
+  }, [worldbook, isMobile, setWorldbook]);
 
   const deleteEntry = useCallback((key: string) => {
     let removed: WorldBookEntry | undefined;
@@ -395,7 +391,7 @@ export default function WorldBookPage() {
         ),
       });
     }
-  }, [selectedUid, toast]);
+  }, [selectedUid, setWorldbook, toast]);
 
   const handleSelectEntry = useCallback((key: string) => {
     setSelectedUid(key);
@@ -451,7 +447,7 @@ export default function WorldBookPage() {
       // 该角色的引用切到副本
       await updateCharacterAssetReference(cowCharacterId, 'worldbook', base.id, targetId, now);
       setCurrentItemId(targetId);
-      setIsDirty(false);
+      markWorldbookClean(worldbook);
       setSavedItems(await getAllWorldBooks());
       return;
     }
@@ -473,12 +469,12 @@ export default function WorldBookPage() {
       await updateCharacterAssetReference(cowCharacterId, 'worldbook', id, id, now);
     }
     setCurrentItemId(id);
-    setIsDirty(false);
+    markWorldbookClean(worldbook);
     // Refresh saved items list
     const updated = await getAllWorldBooks();
     setSavedItems(updated);
     toast({ title: '已保存', description: '永久留存，不会被自动清理' });
-  }, [worldbook, filename, currentItemId, savedItems, cowCharacterId, cowCharacterName, toast]);
+  }, [worldbook, filename, currentItemId, savedItems, cowCharacterId, cowCharacterName, toast, markWorldbookClean]);
 
   // Ctrl+S / Cmd+S to save (declared after handleSaveLocal to avoid TDZ)
   useEffect(() => {
@@ -506,7 +502,7 @@ export default function WorldBookPage() {
     });
     setActiveTab('edit');
     toast({ title: '已添加', description: `${newEntries.length} 个条目已添加到世界书` });
-  }, [toast]);
+  }, [setWorldbook, toast]);
 
 
   const handlePrefixCategorize = useCallback((updates: Record<string, { group: string; comment: string; order: number }>) => {
@@ -521,7 +517,7 @@ export default function WorldBookPage() {
       return { ...prev, entries: updated };
     });
     toast({ title: '归类完成', description: `已更新 ${Object.keys(updates).length} 个条目的标签、前缀和 Order` });
-  }, [toast]);
+  }, [setWorldbook, toast]);
 
   // Batch mode
   const exitBatchMode = useCallback(() => {
@@ -536,7 +532,7 @@ export default function WorldBookPage() {
       batchUndoRef.current = null;
       toast({ title: '已撤销' });
     }
-  }, [toast]);
+  }, [setWorldbook, toast]);
 
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
@@ -591,7 +587,7 @@ export default function WorldBookPage() {
       description: `已为 ${batchSelected.size} 个条目添加前缀`,
       action: <ToastAction altText="撤销" onClick={undoBatch}>撤销</ToastAction>,
     });
-  }, [batchSelected, worldbook, toast, undoBatch]);
+  }, [batchSelected, worldbook, setWorldbook, toast, undoBatch]);
 
   const handleBatchDelete = useCallback(() => {
     const count = batchSelected.size;
@@ -607,7 +603,7 @@ export default function WorldBookPage() {
     }
     setBatchSelected(new Set());
     toast({ title: '已删除', description: `已删除 ${count} 个条目` });
-  }, [batchSelected, selectedUid, toast]);
+  }, [batchSelected, selectedUid, setWorldbook, toast]);
 
   // 条目跨书复制/转移（阶段9.8 余项）：目标=资产库里另一本世界书，直接落库；
   // 「转移」再从当前书移除（当前书走正常 dirty→手动保存流程）
@@ -643,7 +639,7 @@ export default function WorldBookPage() {
     } catch {
       toast({ title: move ? '转移失败' : '复制失败', variant: 'destructive' });
     }
-  }, [worldbook, batchSelected, selectedUid, toast]);
+  }, [worldbook, batchSelected, selectedUid, setWorldbook, toast]);
 
   const handleBatchPosition = useCallback((position: number, depth?: number, role?: number) => {
     batchUndoRef.current = worldbook;
@@ -667,7 +663,7 @@ export default function WorldBookPage() {
       description: `已修改 ${batchSelected.size} 个条目的插入位置`,
       action: <ToastAction altText="撤销" onClick={undoBatch}>撤销</ToastAction>,
     });
-  }, [batchSelected, worldbook, toast, undoBatch]);
+  }, [batchSelected, worldbook, setWorldbook, toast, undoBatch]);
 
   const handleBatchStrategy = useCallback((strategy: 'keyword' | 'constant' | 'vectorized') => {
     batchUndoRef.current = worldbook;
@@ -690,7 +686,7 @@ export default function WorldBookPage() {
       description: `已修改 ${batchSelected.size} 个条目的触发策略`,
       action: <ToastAction altText="撤销" onClick={undoBatch}>撤销</ToastAction>,
     });
-  }, [batchSelected, worldbook, toast, undoBatch]);
+  }, [batchSelected, worldbook, setWorldbook, toast, undoBatch]);
 
   const handleBatchEnable = useCallback((enabled: boolean) => {
     batchUndoRef.current = worldbook;
@@ -709,20 +705,19 @@ export default function WorldBookPage() {
       description: `已${enabled ? '启用' : '停用'} ${batchSelected.size} 个条目`,
       action: <ToastAction altText="撤销" onClick={undoBatch}>撤销</ToastAction>,
     });
-  }, [batchSelected, worldbook, toast, undoBatch]);
+  }, [batchSelected, worldbook, setWorldbook, toast, undoBatch]);
 
   const hasUnsavedChanges = isDirty;
 
   const doLoadStaged = useCallback((item: WorldBookItem) => {
-    setWorldbook(item.worldbook);
+    hydrateWorldbook(item.worldbook);
     setFilename(item.title);
     setCurrentItemId(item.id);
     setSelectedUid(null);
     setStagedDialogOpen(false);
     setConfirmLoadItem(null);
-    setIsDirty(false);
     toast({ title: '已加载', description: `已加载「${item.title}」` });
-  }, [toast]);
+  }, [hydrateWorldbook, toast]);
 
   const handleLoadStaged = useCallback((item: WorldBookItem) => {
     if (hasUnsavedChanges) {
@@ -931,7 +926,7 @@ export default function WorldBookPage() {
                           key={item.id}
                           className="cursor-pointer hover:bg-accent/50 transition-colors"
                           onClick={() => {
-                            setWorldbook(item.worldbook);
+                            hydrateWorldbook(item.worldbook);
                             setFilename(item.title);
                             setCurrentItemId(item.id);
                           }}
