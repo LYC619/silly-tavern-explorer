@@ -128,7 +128,10 @@ export function DirectorySettingsPanel() {
     if (!client) return;
     setBusy('st');
     try {
-      const root = await pickDirectory('选择 SillyTavern 目录（安装根目录或 data/default-user）');
+      const root = await pickDirectory(
+        '选择 SillyTavern 目录（安装根目录或 data/default-user）',
+        { persistAuthorization: true },
+      );
       if (!root) return;
       const scan = await scanSTUserDir(createTauriFs(root));
       const counts = scanCounts(scan);

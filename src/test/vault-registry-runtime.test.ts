@@ -114,6 +114,10 @@ describe('运行中切换文件库', () => {
     const selected = await chooseForNextBoot();
 
     expect(selected?.path).toBe(demoVault.path);
+    expect(runtimeMocks.pickDirectory).toHaveBeenCalledWith(
+      '选择 STE 库文件夹（可新增演示库或打开已有库）',
+      { persistAuthorization: true },
+    );
     expect(runtimeMocks.persistVaultRegistry).toHaveBeenCalledWith(
       expect.objectContaining({ activeId: selected?.id }),
     );

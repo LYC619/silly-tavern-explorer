@@ -3,7 +3,6 @@
  * 仅此文件 import @tauri-apps/*；网页版打包也会带上这些模块但永不调用（isTauri 短路）。
  */
 import { invoke } from '@tauri-apps/api/core';
-import { open as openDialog } from '@tauri-apps/plugin-dialog';
 import type { VaultEntry, VaultFs, VaultStat } from './fs';
 
 /** 是否运行在 Tauri 客户端里（网页版为 false） */
@@ -102,7 +101,12 @@ export async function setVaultRoot(path: string): Promise<void> {
 }
 
 /** 弹系统目录选择器；用户取消返回 null */
-export async function pickDirectory(title: string): Promise<string | null> {
-  const picked = await openDialog({ directory: true, multiple: false, title });
-  return typeof picked === 'string' ? picked : null;
+export async function pickDirectory(
+  title: string,
+  options: { persistAuthorization?: boolean } = {},
+): Promise<string | null> {
+  return (await invoke<string | null>('vault_pick_authorized_directory', {
+    title,
+    persistent: options.persistAuthorization ?? false,
+  })) ?? null;
 }

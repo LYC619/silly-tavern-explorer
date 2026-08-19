@@ -58,7 +58,10 @@ export async function selectRegisteredVaultForNextBoot(id: string): Promise<Vaul
 }
 
 export async function chooseAndActivateVault(): Promise<VaultProfile | null> {
-  const path = await pickDirectory('选择 STE 库文件夹（可新增演示库或打开已有库）');
+  const path = await pickDirectory(
+    '选择 STE 库文件夹（可新增演示库或打开已有库）',
+    { persistAuthorization: true },
+  );
   return path ? registerAndActivateVault(path) : null;
 }
 
@@ -75,6 +78,9 @@ export async function registerVaultForNextBoot(path: string, name?: string): Pro
 }
 
 export async function chooseVaultForNextBoot(): Promise<VaultProfile | null> {
-  const path = await pickDirectory('选择 STE 库文件夹（可新增演示库或打开已有库）');
+  const path = await pickDirectory(
+    '选择 STE 库文件夹（可新增演示库或打开已有库）',
+    { persistAuthorization: true },
+  );
   return path ? registerVaultForNextBoot(path) : null;
 }

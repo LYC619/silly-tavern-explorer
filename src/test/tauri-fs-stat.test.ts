@@ -8,11 +8,7 @@ vi.mock('@tauri-apps/api/core', () => ({
   invoke: tauriMocks.invoke,
 }));
 
-vi.mock('@tauri-apps/plugin-dialog', () => ({
-  open: vi.fn(),
-}));
-
-import { createTauriFs } from '@/lib/vault/tauri-fs';
+import { createTauriFs, pickDirectory } from '@/lib/vault/tauri-fs';
 
 describe('Tauri 文件系统状态转换', () => {
   beforeEach(() => {
@@ -49,5 +45,16 @@ describe('Tauri 文件系统状态转换', () => {
       size: 12,
       modifiedAt: 1_725_000_000_123,
     }]);
+  });
+
+  it('目录选择由 Rust 完成，并只返回已加入授权集合的路径', async () => {
+    tauriMocks.invoke.mockResolvedValue('D:/vaults/demo');
+
+    await expect(pickDirectory('选择 STE 库')).resolves.toBe('D:/vaults/demo');
+
+    expect(tauriMocks.invoke).toHaveBeenCalledWith('vault_pick_authorized_directory', {
+      title: '选择 STE 库',
+      persistent: false,
+    });
   });
 });

@@ -49,7 +49,10 @@ export function STImportCard({ onChanged, variant = 'full', root }: STImportCard
   const handlePick = async () => {
     setScanning(true);
     try {
-      const selectedRoot = root ?? await pickDirectory('选择 SillyTavern 目录（安装根目录或 data/default-user）');
+      const selectedRoot = root ?? await pickDirectory(
+        '选择 SillyTavern 目录（安装根目录或 data/default-user）',
+        { persistAuthorization: true },
+      );
       if (!selectedRoot) return;
       const fs = createTauriFs(selectedRoot);
       const scan = await scanSTUserDir(fs);
