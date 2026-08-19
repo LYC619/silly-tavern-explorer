@@ -470,24 +470,38 @@ fn persist_authorized_roots(roots: &AuthorizedRoots, config_dir: &Path) -> Resul
 
 fn restore_authorized_roots(roots: &AuthorizedRoots, config_dir: &Path) -> Result<(), String> {
     let file = authorization_file(config_dir);
-    if !file.exists() {
-        restore_configured_roots(roots, config_dir)?;
-        return persist_authorized_roots(roots, config_dir);
+    let mut should_persist = !file.exists();
+
+    // 持久清单是历史授权，配置是当前意图。两者取并集，保证库盘暂时离线
+    // 后重新连接时能自愈；清单损坏时也不能让整个应用失去文件访问能力。
+    if file.exists() {
+        match read_config_text(&file).and_then(|text| parse_config_object(&text)) {
+            Ok(value) => {
+                if let Some(paths) = value.get("roots").and_then(serde_json::Value::as_array) {
+                    for path in paths
+                        .iter()
+                        .filter_map(serde_json::Value::as_str)
+                        .map(PathBuf::from)
+                    {
+                        if path.is_dir() {
+                            roots.authorize_persistent(&path)?;
+                        }
+                    }
+                } else {
+                    should_persist = true;
+                }
+            }
+            Err(_) => {
+                should_persist = true;
+            }
+        }
     }
 
-    let value = parse_config_object(&read_config_text(&file)?)?;
-    let paths = value
-        .get("roots")
-        .and_then(serde_json::Value::as_array)
-        .ok_or_else(|| "文件访问授权清单缺少 roots 数组".to_string())?;
-    for path in paths
-        .iter()
-        .filter_map(serde_json::Value::as_str)
-        .map(PathBuf::from)
-    {
-        if path.is_dir() {
-            roots.authorize_persistent(&path)?;
-        }
+    let before_configured = roots.persistent_roots()?;
+    restore_configured_roots(roots, config_dir)?;
+    should_persist |= roots.persistent_roots()? != before_configured;
+    if should_persist {
+        persist_authorized_roots(roots, config_dir)?;
     }
     Ok(())
 }
@@ -1043,7 +1057,7 @@ mod tests {
     }
 
     #[test]
-    fn configured_roots_are_migrated_once_then_rust_allowlist_is_authoritative() {
+    fn persisted_and_configured_roots_are_merged_on_every_start() {
         let config_dir = temp_root("authorized-migration");
         let migrated = temp_root("authorized-migration-original");
         let injected_later = temp_root("authorized-migration-injected");
@@ -1060,11 +1074,47 @@ mod tests {
         restore_authorized_roots(&second_boot, &config_dir).unwrap();
 
         assert!(authorized_rooted_path(&second_boot, migrated.to_str().unwrap(), "").is_ok());
-        assert!(
-            authorized_rooted_path(&second_boot, injected_later.to_str().unwrap(), "").is_err()
-        );
+        assert!(authorized_rooted_path(&second_boot, injected_later.to_str().unwrap(), "").is_ok());
         let _ = fs::remove_dir_all(&config_dir);
         let _ = fs::remove_dir_all(&migrated);
         let _ = fs::remove_dir_all(&injected_later);
+    }
+
+    #[test]
+    fn corrupted_authorization_file_falls_back_to_configured_roots() {
+        let config_dir = temp_root("authorized-corrupt");
+        let configured = temp_root("authorized-corrupt-configured");
+        fs::write(authorization_file(&config_dir), "{not valid json").unwrap();
+        config_set_impl(&config_dir, "vaultRoot", serde_json::json!(configured)).unwrap();
+
+        let roots = AuthorizedRoots::default();
+        restore_authorized_roots(&roots, &config_dir).unwrap();
+
+        assert!(authorized_rooted_path(&roots, configured.to_str().unwrap(), "").is_ok());
+        let persisted = fs::read_to_string(authorization_file(&config_dir)).unwrap();
+        let escaped_configured = configured.to_string_lossy().replace('\\', "\\\\");
+        assert!(persisted.contains(&escaped_configured));
+        let _ = fs::remove_dir_all(&config_dir);
+        let _ = fs::remove_dir_all(&configured);
+    }
+
+    #[test]
+    fn configured_root_that_returns_after_startup_is_authorized_and_persisted() {
+        let config_dir = temp_root("authorized-reconnect");
+        let reconnecting = config_dir.join("offline-vault");
+        config_set_impl(&config_dir, "vaultRoot", serde_json::json!(reconnecting)).unwrap();
+
+        let first_boot = AuthorizedRoots::default();
+        restore_authorized_roots(&first_boot, &config_dir).unwrap();
+        assert!(authorized_rooted_path(&first_boot, reconnecting.to_str().unwrap(), "").is_err());
+
+        fs::create_dir_all(&reconnecting).unwrap();
+        let second_boot = AuthorizedRoots::default();
+        restore_authorized_roots(&second_boot, &config_dir).unwrap();
+        assert!(authorized_rooted_path(&second_boot, reconnecting.to_str().unwrap(), "").is_ok());
+        let persisted = fs::read_to_string(authorization_file(&config_dir)).unwrap();
+        let escaped_reconnecting = reconnecting.to_string_lossy().replace('\\', "\\\\");
+        assert!(persisted.contains(&escaped_reconnecting));
+        let _ = fs::remove_dir_all(&config_dir);
     }
 }
