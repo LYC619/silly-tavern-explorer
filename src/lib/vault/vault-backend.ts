@@ -365,10 +365,12 @@ export function createVault(fs: VaultFs): VaultBackend {
     const name = await uniqueStem(parent, stem, [ext], sameParent ? [baseName(cur)] : []);
     const target = joinPath(parent, name + ext);
     if (cur && cur !== target) {
+      await fs.writeText(target, content);
       if ((await fs.stat(cur)).exists) await fs.removeFile(cur);
       if (!sameParent) await fs.removeEmptyDir(parentDir(cur));
+    } else {
+      await fs.writeText(target, content);
     }
-    await fs.writeText(target, content);
     m.set(id, target);
   }
 
@@ -454,18 +456,43 @@ export function createVault(fs: VaultFs): VaultBackend {
     const stem = safeName(rec.title, '未命名卡片');
     const name = await uniqueStem(DIR_TEMP_CARDS, stem, ['.json', '.png'], curStem !== undefined ? [curStem + '.json', curStem + '.png'] : []);
     const target = joinPath(DIR_TEMP_CARDS, name + '.json');
+    const pngPath = joinPath(DIR_TEMP_CARDS, name + '.png');
+    const sameTarget = cur === target;
+    let oldJson: string | undefined;
+    let oldPng: string | undefined;
+    if (sameTarget) {
+      oldJson = await fs.readText(target);
+      const oldPngPath = target.replace(/\.json$/, '.png');
+      if ((await fs.stat(oldPngPath)).exists) oldPng = await fs.readBinary(oldPngPath);
+    }
+    const { pngBase64, ...rest } = rec;
+    try {
+      await fs.writeText(target, toJson(rest));
+      if (pngBase64) {
+        await fs.writeBinary(pngPath, pngBase64);
+      } else if ((await fs.stat(pngPath)).exists) {
+        await fs.removeFile(pngPath);
+      }
+    } catch (error) {
+      if (sameTarget) {
+        if (oldJson !== undefined) {
+          try { await fs.writeText(target, oldJson); } catch { /* 保留原始错误 */ }
+        }
+        try {
+          if (oldPng !== undefined) await fs.writeBinary(pngPath, oldPng);
+          else await removeIfExists(pngPath);
+        } catch { /* 保留原始错误 */ }
+      } else {
+        await removeIfExists(target).catch(() => {});
+        await removeIfExists(pngPath).catch(() => {});
+      }
+      throw error;
+    }
     if (cur && cur !== target) {
       for (const p of [cur, cur.replace(/\.json$/, '.png')]) {
         if ((await fs.stat(p)).exists) await fs.removeFile(p);
       }
-    }
-    const { pngBase64, ...rest } = rec;
-    await fs.writeText(target, toJson(rest));
-    const pngPath = joinPath(DIR_TEMP_CARDS, name + '.png');
-    if (pngBase64) {
-      await fs.writeBinary(pngPath, pngBase64);
-    } else if ((await fs.stat(pngPath)).exists) {
-      await fs.removeFile(pngPath);
+      await fs.removeEmptyDir(parentDir(cur));
     }
     m.set(rec.id, target);
   }

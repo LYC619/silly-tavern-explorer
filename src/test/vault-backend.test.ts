@@ -132,6 +132,65 @@ describe('vault 角色映射', () => {
     expect(await fs.readText('角色/赫敏·格兰杰/立绘/正装.txt')).toBe('x');
     expect((await repo.get('c1'))!.name).toBe('赫敏·格兰杰');
   });
+
+  it('单文件改名写入失败时保留旧文件和旧索引', async () => {
+    const base = createMemFs();
+    let fail = false;
+    const failingFs = {
+      ...base,
+      async writeText(path: string, content: string) {
+        if (fail && path === '资产/世界书/新标题.json') throw new Error('新位置写入失败');
+        return base.writeText(path, content);
+      },
+    };
+    const worldbooks = createVault(failingFs).repo<WorldBookItem>('worldbooks');
+    await worldbooks.put(makeWorldbook('wb1', '旧标题', 1));
+    fail = true;
+    await expect(worldbooks.put(makeWorldbook('wb1', '新标题', 2))).rejects.toThrow('新位置写入失败');
+    expect((await base.stat('资产/世界书/旧标题.json')).exists).toBe(true);
+    expect((await base.stat('资产/世界书/新标题.json')).exists).toBe(false);
+    expect((await worldbooks.get('wb1'))?.title).toBe('旧标题');
+  });
+
+  it('卡片迁移时新 JSON 写入失败保留旧 JSON 与 PNG', async () => {
+    const base = createMemFs();
+    let fail = false;
+    const failingFs = {
+      ...base,
+      async writeText(path: string, content: string) {
+        if (fail && path === '临时/卡片/新卡.json') throw new Error('卡片 JSON 写入失败');
+        return base.writeText(path, content);
+      },
+    };
+    const repo = createVault(failingFs).repo<CardItem>('cards');
+    const old: CardItem = { id: 'card1', title: '旧卡', card, pngBase64: 'b2xk', createdAt: 1, updatedAt: 1 };
+    await repo.put(old);
+    fail = true;
+    await expect(repo.put({ ...old, title: '新卡', pngBase64: 'bmV3' })).rejects.toThrow('卡片 JSON 写入失败');
+    expect(await base.readText('临时/卡片/旧卡.json')).toContain('旧卡');
+    expect(await base.readBinary('临时/卡片/旧卡.png')).toBe('b2xk');
+    expect((await base.stat('临时/卡片/新卡.json')).exists).toBe(false);
+    expect((await base.stat('临时/卡片/新卡.png')).exists).toBe(false);
+  });
+
+  it('卡片同路径更新时 PNG 写入失败会回滚 JSON 与 PNG', async () => {
+    const base = createMemFs();
+    let fail = false;
+    const failingFs = {
+      ...base,
+      async writeBinary(path: string, value: string) {
+        if (fail && path === '临时/卡片/卡片.png' && value === 'bmV3') throw new Error('卡片 PNG 写入失败');
+        return base.writeBinary(path, value);
+      },
+    };
+    const repo = createVault(failingFs).repo<CardItem>('cards');
+    const old: CardItem = { id: 'card1', title: '卡片', card, pngBase64: 'b2xk', createdAt: 1, updatedAt: 1 };
+    await repo.put(old);
+    fail = true;
+    await expect(repo.put({ ...old, pngBase64: 'bmV3', updatedAt: 2 })).rejects.toThrow('卡片 PNG 写入失败');
+    expect(JSON.parse(await base.readText('临时/卡片/卡片.json')).updatedAt).toBe(1);
+    expect(await base.readBinary('临时/卡片/卡片.png')).toBe('b2xk');
+  });
 });
 
 describe('vault 故事映射', () => {
