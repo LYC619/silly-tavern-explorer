@@ -16,6 +16,7 @@ import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { ChatWorkbench, type ChatWorkbenchHandle } from '@/components/chat/ChatWorkbench';
 import { IOPanel } from '@/components/workspace/IOPanel';
+import { OrganizeContextBar } from '@/components/workspace/OrganizeContextBar';
 import { STUpdateHint } from '@/components/workspace/STUpdateHint';
 import { BranchPanel } from '@/components/workspace/BranchPanel';
 import { OutlinePanel } from '@/components/workspace/OutlinePanel';
@@ -43,6 +44,7 @@ import { StoryDraftSaver } from '@/lib/story-draft-save';
 import { parseJsonl, parseJson } from '@/lib/adapters/st';
 import { getDefaultExportSettings } from '@/lib/session-storage';
 import { setEditorStoryId } from '@/lib/editor-story-context';
+import { isOrganizeWorkspaceView } from '@/lib/story-workspace-layout';
 
 /** 阶段9.6：整理与记录拆成四个子页面（参照 2.0 前 /summary /story-tree 独立页的架构） */
 type WorkspaceView = 'read' | OrganizeFixedKind | 'io';
@@ -52,8 +54,6 @@ interface StoryWorkspaceLocationState {
   branchId?: string | null;
   initialTarget?: OrganizeTarget;
 }
-
-const ORGANIZE_VIEWS: OrganizeFixedKind[] = ['volume', 'diary', 'diy', 'tree'];
 
 const VIEW_ITEMS: { key: WorkspaceView; label: string; icon: typeof BookOpenText; group?: string }[] = [
   { key: 'read', label: '阅读与编辑', icon: BookOpenText },
@@ -300,11 +300,11 @@ const StoryWorkspace = () => {
   const settings = story.settings ?? getDefaultExportSettings();
   const backTarget = story.characterId ? `/character/${story.characterId}` : '/chat';
   const backLabel = character?.name ?? (story.characterId ? '角色库' : '聊天处理');
-  const organizeView = ORGANIZE_VIEWS.includes(view as OrganizeFixedKind);
+  const organizeView = isOrganizeWorkspaceView(view);
 
   return (
     <AppLayout>
-      <div className={organizeView ? 'h-full min-h-0 overflow-hidden' : 'flex items-start flex-wrap'}>
+      <div className={organizeView ? 'flex h-full min-h-0 flex-col overflow-hidden' : 'flex items-start flex-wrap'}>
         {/* ===== 左侧二级栏：故事上下文 + 三组导航 + 分支/章节/书签 ===== */}
         {/* 新外壳（2.1-P1）主区内滚动：sticky 仍生效，高度上限改为主区可视高（标题栏36+状态栏26=62px） */}
         {/* 整理视图（0816）：不再渲染宽二级栏，编辑区切换交给 AppLayout 的全局窄工具栏 */}
@@ -391,8 +391,17 @@ const StoryWorkspace = () => {
           )}
         </aside>}
 
+        {organizeView && (
+          <OrganizeContextBar
+            storyTitle={story.title}
+            backLabel={backLabel}
+            onBack={() => navigate(backTarget)}
+            onRead={() => changeView('read')}
+          />
+        )}
+
         {/* ===== 主区 ===== */}
-        <div className={organizeView ? 'h-full min-h-0 min-w-0' : 'flex-1 min-w-[24rem]'}>
+        <div className={organizeView ? 'min-h-0 min-w-0 flex-1' : 'flex-1 min-w-[24rem]'}>
           {view === 'read' && (
             <div className="flex items-start flex-wrap">
               <div className="flex-1 min-w-[20rem]">

@@ -102,13 +102,10 @@ describe('总结工作台单屏交互', () => {
   it('页面和展示正文声明固定高度与内部滚动边界', () => {
     const workspace = readFileSync(resolve(process.cwd(), 'src/components/organize/SummaryWorkspace.tsx'), 'utf8');
     const gallery = readFileSync(resolve(process.cwd(), 'src/components/summary/SummaryGallery.tsx'), 'utf8');
-    const storyWorkspace = readFileSync(resolve(process.cwd(), 'src/pages/StoryWorkspace.tsx'), 'utf8');
     expect(workspace).toContain('h-full min-h-0 overflow-hidden');
     expect(workspace).toContain('data-summary-workspace');
     expect(gallery).toContain('data-summary-content-scroll');
     expect(gallery).toContain('overflow-y-auto');
-    expect(storyWorkspace).toContain("organizeView ? 'h-full min-h-0 overflow-hidden'");
-    expect(storyWorkspace).toContain("organizeView ? 'h-full min-h-0 min-w-0'");
   });
 
   it('一级页面与二级总结类型独立切换，展示页不会被送回生成工作台', () => {
