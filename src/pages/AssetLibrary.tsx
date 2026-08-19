@@ -17,10 +17,7 @@ import { Button } from '@/components/ui/button';
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import {
-  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
-  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
-} from '@/components/ui/alert-dialog';
+import { DeleteConfirmDialog } from '@/components/DeleteConfirmDialog';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
 import { classifyAssetSource, type AssetSource } from '@/lib/asset-source';
@@ -33,6 +30,7 @@ import { getAllPresets, deletePreset } from '@/lib/preset-db';
 import { getAllRegexCollections, deleteRegexCollection } from '@/lib/regex-db';
 import { getAllCharacters } from '@/lib/archive-db';
 import { buildAssetLibraryRows, type AssetLibraryRow } from '@/lib/asset-library-rows';
+import { executeDeleteAction } from '@/lib/destructive-action';
 
 type AssetTab = 'worldbook' | 'preset' | 'regex';
 
@@ -130,17 +128,17 @@ const AssetLibrary = () => {
 
   const handleDelete = async () => {
     if (!toDelete) return;
-    try {
-      if (tab === 'worldbook') await deleteWorldBook(toDelete.id);
-      else if (tab === 'preset') await deletePreset(toDelete.id);
-      else await deleteRegexCollection(toDelete.id);
+    const target = toDelete;
+    const deleted = await executeDeleteAction(async () => {
+      if (tab === 'worldbook') await deleteWorldBook(target.id);
+      else if (tab === 'preset') await deletePreset(target.id);
+      else await deleteRegexCollection(target.id);
       await load();
-      toast({ title: `已删除「${toDelete.title}」` });
-    } catch {
-      toast({ title: '删除失败', variant: 'destructive' });
-    } finally {
-      setToDelete(null);
-    }
+    }, {
+      onSuccess: () => toast({ title: `已删除「${target.title}」` }),
+      onFailure: () => toast({ title: '删除失败', variant: 'destructive' }),
+    });
+    if (deleted) setToDelete(null);
   };
 
   const handleWorldBookImport = async (event: ChangeEvent<HTMLInputElement>) => {
@@ -419,23 +417,15 @@ const AssetLibrary = () => {
       </div>
       )}
 
-      <AlertDialog open={!!toDelete} onOpenChange={(open) => !open && setToDelete(null)}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>删除「{toDelete?.title}」？</AlertDialogTitle>
-            <AlertDialogDescription>
-              此操作不可恢复。
-              {(toDelete && (refNames[toDelete.id]?.length ?? 0) > 0)
-                ? `该资产被 ${refNames[toDelete.id].length} 张角色卡引用，删除后角色页会显示「引用已失效」并可一键移除。`
-                : ''}
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>取消</AlertDialogCancel>
-            <AlertDialogAction onClick={handleDelete}>删除</AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+      <DeleteConfirmDialog
+        open={!!toDelete}
+        title={`删除「${toDelete?.title ?? ''}」？`}
+        description={`此操作不可恢复。${(toDelete && (refNames[toDelete.id]?.length ?? 0) > 0)
+          ? `该资产被 ${refNames[toDelete.id].length} 张角色卡引用，删除后角色页会显示“引用已失效”并可一键移除。`
+          : '该资产当前没有角色引用。'}`}
+        onOpenChange={(open) => !open && setToDelete(null)}
+        onConfirm={() => void handleDelete()}
+      />
     </AppLayout>
   );
 };

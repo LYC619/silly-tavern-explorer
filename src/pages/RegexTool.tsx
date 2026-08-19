@@ -11,6 +11,7 @@ import { Regex as RegexIcon, Archive, Save, FolderOpen, Trash2, Eye, ChevronDown
 import { AppLayout } from '@/components/AppLayout';
 import { RegexSidebar } from '@/components/chat/RegexSidebar';
 import { HelpCard } from '@/components/HelpCard';
+import { DeleteConfirmDialog } from '@/components/DeleteConfirmDialog';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card } from '@/components/ui/card';
@@ -37,6 +38,7 @@ import {
 import { planCowSave, buildDerivedMeta } from '@/lib/asset-cow';
 import { getCharacter, getAllArchiveStories } from '@/lib/archive-db';
 import { updateCharacterAssetReference } from '@/lib/character-asset-ref';
+import { executeDeleteAction } from '@/lib/destructive-action';
 
 const RegexTool = () => {
   const { toast } = useToast();
@@ -48,6 +50,7 @@ const RegexTool = () => {
 
   const [rules, setRules] = useState<RegexRule[]>(getInitialRegexRules);
   const [collections, setCollections] = useState<RegexCollectionItem[]>([]);
+  const [deleteTarget, setDeleteTarget] = useState<RegexCollectionItem | null>(null);
   const [collectionName, setCollectionName] = useState('');
   // 当前载入的资产 id（保存回资产时用；null = 纯当前规则集）
   const [activeCollectionId, setActiveCollectionId] = useState<string | null>(null);
@@ -191,15 +194,18 @@ const RegexTool = () => {
     toast({ title: `已载入「${item.title}」`, description: `${item.rules.length} 条规则已替换当前规则集` });
   };
 
-  const handleDeleteCollection = async (item: RegexCollectionItem) => {
-    try {
-      await deleteRegexCollection(item.id);
-      if (activeCollectionId === item.id) setActiveCollectionId(null);
+  const handleDeleteCollection = async () => {
+    if (!deleteTarget) return;
+    const target = deleteTarget;
+    const deleted = await executeDeleteAction(async () => {
+      await deleteRegexCollection(target.id);
+      if (activeCollectionId === target.id) setActiveCollectionId(null);
       await refreshCollections();
-      toast({ title: `已删除规则集「${item.title}」` });
-    } catch {
-      toast({ title: '删除失败', variant: 'destructive' });
-    }
+    }, {
+      onSuccess: () => toast({ title: `已删除规则集「${target.title}」` }),
+      onFailure: () => toast({ title: '删除规则集失败', variant: 'destructive' }),
+    });
+    if (deleted) setDeleteTarget(null);
   };
 
   // ---- 可视化预览 ----
@@ -301,7 +307,7 @@ const RegexTool = () => {
                         size="icon"
                         className="h-7 w-7 text-muted-foreground hover:text-destructive"
                         title="删除"
-                        onClick={() => handleDeleteCollection(item)}
+                        onClick={() => setDeleteTarget(item)}
                       >
                         <Trash2 className="w-3.5 h-3.5" />
                       </Button>
@@ -430,6 +436,13 @@ const RegexTool = () => {
           </div>
         </div>
       </div>
+      <DeleteConfirmDialog
+        open={!!deleteTarget}
+        title={`删除规则集「${deleteTarget?.title ?? ''}」？`}
+        description="此操作不可恢复。若角色仍引用该规则集，角色页会显示引用失效。"
+        onOpenChange={(open) => !open && setDeleteTarget(null)}
+        onConfirm={() => void handleDeleteCollection()}
+      />
     </AppLayout>
   );
 };

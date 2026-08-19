@@ -13,6 +13,7 @@ import { AppLayout } from '@/components/AppLayout';
 import { ChatImporter, type ImportStats } from '@/components/chat/ChatImporter';
 import { ChatWorkbench } from '@/components/chat/ChatWorkbench';
 import { RecentStoryBar } from '@/components/chat/RecentStoryBar';
+import { DeleteConfirmDialog } from '@/components/DeleteConfirmDialog';
 import NovelView from '@/components/reader/NovelView';
 import { BindStoryDialog } from '@/components/chat/BindStoryDialog';
 import { GuidedTour } from '@/components/GuidedTour';
@@ -46,6 +47,7 @@ import {
   setEditorStoryId,
 } from '@/lib/editor-story-context';
 import { pickRecentEditorStories } from '@/lib/home-layout';
+import { executeDeleteAction } from '@/lib/destructive-action';
 
 const Index = () => {
   const navigate = useNavigate();
@@ -68,6 +70,7 @@ const Index = () => {
   const [novelStory, setNovelStory] = useState<ArchiveStory | null>(null);
   const [novelOpen, setNovelOpen] = useState(false);
   const [allStories, setAllStories] = useState<ArchiveStory[]>([]);
+  const [deleteTarget, setDeleteTarget] = useState<ArchiveStory | null>(null);
   // 处理区入口交接来的文件（挂载时取一次，交给 ChatImporter 自动解析）
   const [handoffFile] = useState<File | null>(() => takePendingToolFile('chat'));
 
@@ -267,15 +270,18 @@ const Index = () => {
     navigate(buildEditorChatPath(story.id));
   };
 
-  const handleDeleteUnbound = async (id: string) => {
-    try {
-      await deleteArchiveStory(id);
-      setAllStories((current) => current.filter((story) => story.id !== id));
-      if (id === currentStoryId) handleReset();
-      toast({ title: '已删除暂存记录' });
-    } catch {
-      toast({ title: '删除失败', variant: 'destructive' });
-    }
+  const handleDeleteUnbound = async () => {
+    if (!deleteTarget) return;
+    const target = deleteTarget;
+    const deleted = await executeDeleteAction(async () => {
+      await deleteArchiveStory(target.id);
+      setAllStories((current) => current.filter((story) => story.id !== target.id));
+      if (target.id === currentStoryId) handleReset();
+    }, {
+      onSuccess: () => toast({ title: `已删除暂存故事「${target.title}」` }),
+      onFailure: () => toast({ title: '删除暂存故事失败', variant: 'destructive' }),
+    });
+    if (deleted) setDeleteTarget(null);
   };
 
   // 绑定到角色：未绑定故事补上 characterId 原地升级，总结/故事树成果带走，跳故事工作区
@@ -369,7 +375,7 @@ const Index = () => {
                         variant="ghost"
                         size="icon"
                         className="h-8 w-8 shrink-0 text-muted-foreground hover:text-destructive"
-                        onClick={(e) => { e.stopPropagation(); handleDeleteUnbound(story.id); }}
+                        onClick={(e) => { e.stopPropagation(); setDeleteTarget(story); }}
                         aria-label="删除暂存记录"
                       >
                         <Trash2 className="w-4 h-4" />
@@ -459,6 +465,14 @@ const Index = () => {
       )}
 
       <BindStoryDialog open={bindDialogOpen} onOpenChange={setBindDialogOpen} onSelect={handleBind} />
+
+      <DeleteConfirmDialog
+        open={!!deleteTarget}
+        title={`删除暂存故事「${deleteTarget?.title ?? ''}」？`}
+        description={`此操作不可恢复，将删除正文、章节标记、收藏与处理设置。当前共 ${deleteTarget?.session.messages.length ?? 0} 楼。`}
+        onOpenChange={(open) => !open && setDeleteTarget(null)}
+        onConfirm={() => void handleDeleteUnbound()}
+      />
 
       {/* Guided Tour */}
       {showTour && (

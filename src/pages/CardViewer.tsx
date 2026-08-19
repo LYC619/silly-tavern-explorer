@@ -3,6 +3,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import { IdCard, Upload, Save, History, Download, FileJson, Image } from 'lucide-react';
 import { AppLayout } from '@/components/AppLayout';
 import { HelpCard } from '@/components/HelpCard';
+import { DeleteConfirmDialog } from '@/components/DeleteConfirmDialog';
 import { Button } from '@/components/ui/button';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -28,6 +29,7 @@ import { addRegexPreset } from '@/lib/session-storage';
 import { GuidedTour } from '@/components/GuidedTour';
 import { CARDVIEWER_TOUR_STEPS, isTourCompleted, setTourCompleted } from '@/lib/tour-steps';
 import { takePendingToolFile, peekPendingToolFile } from '@/lib/tool-handoff';
+import { executeDeleteAction } from '@/lib/destructive-action';
 
 const CARD_SESSION_KEY = 'card-active-session';
 
@@ -67,6 +69,7 @@ export default function CardViewer() {
   const [fileName, setFileName] = useState('character');
   const [currentItemId, setCurrentItemId] = useState<string | null>(null);
   const [savedItems, setSavedItems] = useState<CardItem[]>([]);
+  const [deleteTarget, setDeleteTarget] = useState<CardItem | null>(null);
   const [showTour, setShowTour] = useState(false);
   // 立绘显示用 URL：PNG 卡=原图 data URL；JSON 卡=avatar(若为 http/data URL)；否则 null（不显示）
   const [portraitUrl, setPortraitUrl] = useState<string | null>(null);
@@ -261,11 +264,19 @@ export default function CardViewer() {
     toast({ title: '已保存', description: '可在「已存角色卡」中查看；永久留存、纳入完整备份' });
   }, [buildEditedCard, currentItemId, fileName, savedItems, refreshSaved, toast]);
 
-  const handleDeleteItem = useCallback(async (id: string) => {
-    await deleteCard(id);
-    if (id === currentItemId) setCurrentItemId(null);
-    await refreshSaved();
-  }, [currentItemId, refreshSaved]);
+  const handleDeleteItem = useCallback(async () => {
+    if (!deleteTarget) return;
+    const target = deleteTarget;
+    const deleted = await executeDeleteAction(async () => {
+      await deleteCard(target.id);
+      if (target.id === currentItemId) setCurrentItemId(null);
+      await refreshSaved();
+    }, {
+      onSuccess: () => toast({ title: `已删除角色卡「${target.title}」` }),
+      onFailure: () => toast({ title: '删除角色卡失败', variant: 'destructive' }),
+    });
+    if (deleted) setDeleteTarget(null);
+  }, [currentItemId, deleteTarget, refreshSaved, toast]);
 
   const hasPng = pngBytesRef.current !== null;
 
@@ -285,7 +296,7 @@ export default function CardViewer() {
                   <button className="flex-1 min-w-0 text-left truncate" onClick={() => loadCardItem(item)}>
                     {item.title}{item.autoSaved && <span className="text-[10px] text-muted-foreground ml-1">(历史)</span>}
                   </button>
-                  <button className="text-muted-foreground hover:text-destructive text-xs shrink-0" onClick={() => handleDeleteItem(item.id)}>删除</button>
+                  <button className="text-muted-foreground hover:text-destructive text-xs shrink-0" onClick={() => setDeleteTarget(item)}>删除</button>
                 </div>
               ))}
               {savedItems.length === 0 && <p className="text-xs text-muted-foreground text-center py-4">暂无</p>}
@@ -328,6 +339,13 @@ export default function CardViewer() {
           onStashRegex={handleStashRegex}
         />
       </div>
+      <DeleteConfirmDialog
+        open={!!deleteTarget}
+        title={`删除角色卡「${deleteTarget?.title ?? ''}」？`}
+        description="此操作不可恢复。只会删除角色卡工具中的已存副本，不会删除角色库档案。"
+        onOpenChange={(open) => !open && setDeleteTarget(null)}
+        onConfirm={() => void handleDeleteItem()}
+      />
       {showTour && (
         <GuidedTour
           steps={CARDVIEWER_TOUR_STEPS}

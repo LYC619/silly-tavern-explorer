@@ -3,6 +3,7 @@ import { useSearchParams } from 'react-router-dom';
 import { SlidersHorizontal, Download, Save, History, FileJson } from 'lucide-react';
 import { AppLayout } from '@/components/AppLayout';
 import { HelpCard } from '@/components/HelpCard';
+import { DeleteConfirmDialog } from '@/components/DeleteConfirmDialog';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
@@ -30,6 +31,7 @@ import { PresetExport } from '@/components/preset/PresetExport';
 import { GuidedTour } from '@/components/GuidedTour';
 import { PRESET_TOUR_STEPS, isTourCompleted, setTourCompleted } from '@/lib/tour-steps';
 import type { RegexRule } from '@/types/chat';
+import { executeDeleteAction } from '@/lib/destructive-action';
 
 const PRESET_SESSION_KEY = 'preset-active-session';
 interface PresetSessionPtr { itemId: string | null; }
@@ -54,6 +56,7 @@ export default function Preset() {
   const [activeCharacterId, setActiveCharacterId] = useState(DEFAULT_CHARACTER_ID);
   const [currentItemId, setCurrentItemId] = useState<string | null>(null);
   const [savedItems, setSavedItems] = useState<PresetItem[]>([]);
+  const [deleteTarget, setDeleteTarget] = useState<PresetItem | null>(null);
   const [dragOver, setDragOver] = useState(false);
   const [tab, setTab] = useState('overview');
   const [showTour, setShowTour] = useState(false);
@@ -344,11 +347,19 @@ export default function Preset() {
     setTab('overview');
   }, []);
 
-  const handleDeleteItem = useCallback(async (id: string) => {
-    await deletePreset(id);
-    if (id === currentItemId) setCurrentItemId(null);
-    await refreshSaved();
-  }, [currentItemId, refreshSaved]);
+  const handleDeleteItem = useCallback(async () => {
+    if (!deleteTarget) return;
+    const target = deleteTarget;
+    const deleted = await executeDeleteAction(async () => {
+      await deletePreset(target.id);
+      if (target.id === currentItemId) setCurrentItemId(null);
+      await refreshSaved();
+    }, {
+      onSuccess: () => toast({ title: `已删除预设「${target.title}」` }),
+      onFailure: () => toast({ title: '删除预设失败', variant: 'destructive' }),
+    });
+    if (deleted) setDeleteTarget(null);
+  }, [currentItemId, deleteTarget, refreshSaved, toast]);
 
   const actions = preset && (
     <>
@@ -369,7 +380,7 @@ export default function Preset() {
                     {item.title}
                     {item.autoSaved && <span className="text-[10px] text-muted-foreground ml-1">(历史)</span>}
                   </button>
-                  <button className="text-muted-foreground hover:text-destructive text-xs shrink-0" onClick={() => handleDeleteItem(item.id)}>删除</button>
+                  <button className="text-muted-foreground hover:text-destructive text-xs shrink-0" onClick={() => setDeleteTarget(item)}>删除</button>
                 </div>
               ))}
               {savedItems.length === 0 && <p className="text-xs text-muted-foreground text-center py-4">暂无</p>}
@@ -487,6 +498,13 @@ export default function Preset() {
           </Tabs>
         )}
       </div>
+      <DeleteConfirmDialog
+        open={!!deleteTarget}
+        title={`删除预设「${deleteTarget?.title ?? ''}」？`}
+        description="此操作不可恢复。若角色仍引用该预设，角色页会显示引用失效。"
+        onOpenChange={(open) => !open && setDeleteTarget(null)}
+        onConfirm={() => void handleDeleteItem()}
+      />
       {showTour && (
         <GuidedTour
           steps={PRESET_TOUR_STEPS}

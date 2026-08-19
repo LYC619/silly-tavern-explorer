@@ -4,6 +4,7 @@ import { useIsMobile } from '@/hooks/use-mobile';
 import { Globe, LayoutGrid, List, Library, Plus, Trash2, Save, Search, X, CheckSquare, Clock, FolderOpen, Archive, SlidersHorizontal, ChevronLeft, ChevronRight, Sparkles } from 'lucide-react';
 import { GuidedTour } from '@/components/GuidedTour';
 import { AppLayout } from '@/components/AppLayout';
+import { DeleteConfirmDialog } from '@/components/DeleteConfirmDialog';
 import { WORLDBOOK_TOUR_STEPS, isTourCompleted, setTourCompleted } from '@/lib/tour-steps';
 import { PrefixCategorize } from '@/components/worldbook/PrefixCategorize';
 import { BatchOperations } from '@/components/worldbook/BatchOperations';
@@ -33,6 +34,7 @@ import { appendEntries } from '@/lib/worldbook-entry-copy';
 import { planCowSave, buildDerivedMeta } from '@/lib/asset-cow';
 import { getCharacter } from '@/lib/archive-db';
 import { updateCharacterAssetReference } from '@/lib/character-asset-ref';
+import { executeDeleteAction } from '@/lib/destructive-action';
 import { takePendingToolFile, peekPendingToolFile } from '@/lib/tool-handoff';
 import { estimateTokens } from '@/lib/preset-parser';
 import type { WorldBookItem } from '@/types/worldbook';
@@ -67,6 +69,7 @@ export default function WorldBookPage() {
   const [currentItemId, setCurrentItemId] = useState<string | null>(restored?.currentItemId ?? null);
   const [stagedDialogOpen, setStagedDialogOpen] = useState(false);
   const [confirmLoadItem, setConfirmLoadItem] = useState<WorldBookItem | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<WorldBookItem | null>(null);
   const [savedItems, setSavedItems] = useState<WorldBookItem[]>([]);
   const [selectedUid, setSelectedUid] = useState<string | null>(null);
   const [viewMode, setViewMode] = useState<'card' | 'list'>('card');
@@ -727,15 +730,19 @@ export default function WorldBookPage() {
     }
   }, [hasUnsavedChanges, doLoadStaged]);
 
-  const handleDeleteStaged = useCallback(async (id: string) => {
-    await deleteWorldBook(id);
-    const updated = await getAllWorldBooks();
-    setSavedItems(updated);
-    if (currentItemId === id) {
-      setCurrentItemId(null);
-    }
-    toast({ title: '已删除暂存' });
-  }, [currentItemId, toast]);
+  const handleDeleteStaged = useCallback(async () => {
+    if (!deleteTarget) return;
+    const target = deleteTarget;
+    const deleted = await executeDeleteAction(async () => {
+      await deleteWorldBook(target.id);
+      setSavedItems(await getAllWorldBooks());
+      if (currentItemId === target.id) setCurrentItemId(null);
+    }, {
+      onSuccess: () => toast({ title: `已删除世界书「${target.title}」` }),
+      onFailure: () => toast({ title: '删除世界书失败', variant: 'destructive' }),
+    });
+    if (deleted) setDeleteTarget(null);
+  }, [currentItemId, deleteTarget, toast]);
 
   const editorContent = selectedEntry && selectedUid ? (
     <>
@@ -832,7 +839,7 @@ export default function WorldBookPage() {
                         variant="ghost"
                         size="icon"
                         className="h-7 w-7 text-muted-foreground hover:text-destructive"
-                        onClick={(e) => { e.stopPropagation(); handleDeleteStaged(item.id); }}
+                        onClick={(e) => { e.stopPropagation(); setDeleteTarget(item); }}
                         aria-label="删除暂存"
                       >
                         <Trash2 className="w-3.5 h-3.5" />
@@ -860,6 +867,14 @@ export default function WorldBookPage() {
               </AlertDialogFooter>
             </AlertDialogContent>
           </AlertDialog>
+
+          <DeleteConfirmDialog
+            open={!!deleteTarget}
+            title={`删除世界书「${deleteTarget?.title ?? ''}」？`}
+            description="此操作不可恢复。若角色仍引用该世界书，角色页会显示引用失效。"
+            onOpenChange={(open) => !open && setDeleteTarget(null)}
+            onConfirm={() => void handleDeleteStaged()}
+          />
 
           {worldbook && activeTab === 'edit' && (
             <>
@@ -934,13 +949,7 @@ export default function WorldBookPage() {
                               size="icon"
                               className="h-7 w-7 shrink-0"
                               aria-label="删除"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                deleteWorldBook(item.id).then(() => {
-                                  setSavedItems(prev => prev.filter(s => s.id !== item.id));
-                                  toast({ title: '已删除', description: `暂存「${item.title}」已删除` });
-                                });
-                              }}
+                              onClick={(e) => { e.stopPropagation(); setDeleteTarget(item); }}
                             >
                               <Trash2 className="w-3.5 h-3.5" />
                             </Button>
