@@ -21,12 +21,12 @@ describe('世界书直接入库', () => {
     expect(Object.keys(item.worldbook.entries)).toHaveLength(1);
   });
 
-  it('附属库提供世界书直接导入，并显示源文件修改时间而非导入时间', () => {
+  it('附属库提供世界书直接导入，并区分 STE 修改与源文件修改时间', () => {
     const library = read('src/pages/AssetLibrary.tsx');
     expect(library).toContain('导入世界书');
     expect(library).toContain('worldBookItemFromUpload');
-    expect(library).toContain('sourceModifiedAt: w.sourceModifiedAt');
-    expect(library).toContain("dateLabel: w.sourceModifiedAt !== undefined ? '源文件修改' : '最后修改'");
+    expect(library).toContain('STE 最后修改');
+    expect(library).toContain('源文件最后修改');
     expect(library).toContain('aria-label="导入世界书"');
   });
 

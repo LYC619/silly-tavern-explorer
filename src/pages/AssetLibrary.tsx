@@ -32,6 +32,7 @@ import { readWorldBookUpload, worldBookItemFromUpload } from '@/lib/worldbook-fi
 import { getAllPresets, deletePreset } from '@/lib/preset-db';
 import { getAllRegexCollections, deleteRegexCollection } from '@/lib/regex-db';
 import { getAllCharacters } from '@/lib/archive-db';
+import { buildAssetLibraryRows, type AssetLibraryRow } from '@/lib/asset-library-rows';
 
 type AssetTab = 'worldbook' | 'preset' | 'regex';
 
@@ -49,21 +50,6 @@ const SOURCE_LABELS: Record<Exclude<SourceFilter, 'all'>, string> = {
   derived: '派生副本',
   autoSaved: '自动保留',
 };
-
-/** 三类资产统一到一张卡 */
-interface AssetRow {
-  id: string;
-  title: string;
-  /** 主数量（条目/提示词块/规则数） */
-  itemCount: number;
-  derived?: boolean;
-  autoSaved?: boolean;
-  fromST?: boolean;
-  stGlobal?: boolean;
-  sourceModifiedAt?: number;
-  dateLabel: string;
-  updatedAt: number;
-}
 
 /** 二级筛选栏条目（demo .f-item） */
 function FilterItem({
@@ -106,7 +92,7 @@ const AssetLibrary = () => {
   /** assetId → 引用它的角色名列表（绑定关系展示 + 删除提示） */
   const [refNames, setRefNames] = useState<Record<string, string[]>>({});
   const [loading, setLoading] = useState(true);
-  const [toDelete, setToDelete] = useState<AssetRow | null>(null);
+  const [toDelete, setToDelete] = useState<AssetLibraryRow | null>(null);
   const [refFilter, setRefFilter] = useState<RefFilter>('all');
   const [sourceFilter, setSourceFilter] = useState<SourceFilter>('all');
   const worldBookInputRef = useRef<HTMLInputElement>(null);
@@ -137,39 +123,10 @@ const AssetLibrary = () => {
     else setLoading(false);
   }, [load, tab]);
 
-  const rows: Record<AssetTab, AssetRow[]> = useMemo(() => ({
-    worldbook: worldbooks.map((w) => ({
-      id: w.id,
-      title: w.title,
-      itemCount: Object.keys(w.worldbook.entries).length,
-      derived: !!w.derived,
-      autoSaved: w.autoSaved,
-      fromST: !!w.sourcePath,
-      stGlobal: w.stGlobal,
-      sourceModifiedAt: w.sourceModifiedAt,
-      dateLabel: w.sourceModifiedAt !== undefined ? '源文件修改' : '最后修改',
-      updatedAt: w.sourceModifiedAt ?? w.updatedAt,
-    })),
-    preset: presets.map((p) => ({
-      id: p.id,
-      title: p.title,
-      itemCount: p.preset.prompts.length,
-      derived: !!p.derived,
-      autoSaved: p.autoSaved,
-      fromST: !!p.sourcePath,
-      dateLabel: '最后修改',
-      updatedAt: p.updatedAt,
-    })),
-    regex: regexes.map((r) => ({
-      id: r.id,
-      title: r.title,
-      itemCount: r.rules.length,
-      derived: !!r.derived,
-      fromST: !!r.sourcePath,
-      dateLabel: '最后修改',
-      updatedAt: r.updatedAt,
-    })),
-  }), [worldbooks, presets, regexes]);
+  const rows: Record<AssetTab, AssetLibraryRow[]> = useMemo(
+    () => buildAssetLibraryRows({ worldbooks, presets, regexes }),
+    [worldbooks, presets, regexes],
+  );
 
   const handleDelete = async () => {
     if (!toDelete) return;
@@ -215,7 +172,7 @@ const AssetLibrary = () => {
   const tabList = useMemo(() => (tab ? rows[tab] : []), [rows, tab]);
   const counts = { worldbook: worldbooks.length, preset: presets.length, regex: regexes.length };
 
-  const matchSource = useCallback((asset: AssetRow, filter: SourceFilter) => (
+  const matchSource = useCallback((asset: AssetLibraryRow, filter: SourceFilter) => (
     filter === 'all' || classifyAssetSource(asset) === filter
   ), []);
 
@@ -421,12 +378,17 @@ const AssetLibrary = () => {
                           <span className="font-serif font-semibold text-[13px] text-[color:var(--text-primary)]">{refs.length}</span>
                         </div>
                         <div className="flex-1 flex flex-col gap-0.5">
-                          <span className="text-[9.5px] tracking-wide text-[color:var(--text-muted)]">{a.dateLabel}</span>
+                          <span className="text-[9.5px] tracking-wide text-[color:var(--text-muted)]">STE 最后修改</span>
                           <span className="font-serif font-semibold text-[13px] text-[color:var(--text-primary)]">
                             {new Date(a.updatedAt).toLocaleDateString('zh-CN')}
                           </span>
                         </div>
                       </div>
+                      {a.sourceModifiedAt !== undefined && (
+                        <p className="text-[10px] text-[color:var(--text-muted)]">
+                          源文件最后修改：{new Date(a.sourceModifiedAt).toLocaleString('zh-CN')}
+                        </p>
+                      )}
                       {/* 绑定关系（demo .a-bindings） */}
                       <div className="flex items-center gap-1.5 flex-wrap text-[10.5px] text-[color:var(--text-muted)] min-h-5">
                         <Link2 className="w-3 h-3 shrink-0" />

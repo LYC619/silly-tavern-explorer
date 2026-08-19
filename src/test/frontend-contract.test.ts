@@ -225,7 +225,6 @@ describe('阶段 D 外壳与 NSFW 契约', () => {
 
   it('资产库持续显示从 ST 恢复的全局世界书标记', () => {
     const assets = read('src/pages/AssetLibrary.tsx');
-    expect(assets).toContain('stGlobal: w.stGlobal');
     expect(assets).toContain('ST 全局');
   });
 
