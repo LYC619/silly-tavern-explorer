@@ -96,9 +96,10 @@ export async function getArchiveSchemaVersion(): Promise<number> {
 }
 
 export async function setArchiveSchemaVersion(schemaVersion: number): Promise<void> {
+  const repo = getCurrentRepo<ArchiveMetaRecord>('archiveMeta');
   return metaWrites.enqueue(ARCHIVE_SCHEMA_META_ID, async () => {
-    const current = await archiveMetaRepo.get(ARCHIVE_SCHEMA_META_ID);
-    await archiveMetaRepo.put({
+    const current = await repo.get(ARCHIVE_SCHEMA_META_ID);
+    await repo.put({
       ...current,
       id: ARCHIVE_SCHEMA_META_ID,
       schemaVersion,
@@ -113,9 +114,10 @@ export async function getLibraryTagPreferences(): Promise<LibraryTagPreferences>
 }
 
 export async function saveLibraryTagPreferences(preferences: LibraryTagPreferences): Promise<void> {
+  const repo = getCurrentRepo<ArchiveMetaRecord>('archiveMeta');
   return metaWrites.enqueue(ARCHIVE_SCHEMA_META_ID, async () => {
-    const current = await archiveMetaRepo.get(ARCHIVE_SCHEMA_META_ID);
-    await archiveMetaRepo.put({
+    const current = await repo.get(ARCHIVE_SCHEMA_META_ID);
+    await repo.put({
       ...current,
       id: ARCHIVE_SCHEMA_META_ID,
       schemaVersion: current?.schemaVersion ?? 1,
