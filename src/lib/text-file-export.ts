@@ -7,6 +7,11 @@ export interface TextFileExportAdapters {
   download?: (name: string, content: string) => void;
 }
 
+interface TextFileExportResultHandlers {
+  onComplete: () => void;
+  onFailure: () => void;
+}
+
 interface TextFileExportInput {
   suggestedName: string;
   content: string;
@@ -61,4 +66,12 @@ export async function exportTextFile(
   } catch {
     return 'failed';
   }
+}
+
+export function routeTextFileExportResult(
+  result: TextFileExportResult,
+  handlers: TextFileExportResultHandlers,
+): void {
+  if (result === 'failed') handlers.onFailure();
+  else if (result !== 'cancelled') handlers.onComplete();
 }

@@ -34,6 +34,7 @@ import {
   type OrganizeFilter, type OrganizeKindFilter, type OrganizeEntry,
 } from '@/lib/organize-index';
 import { summaryToObsidian, storyTreeToObsidian, downloadMarkdown } from '@/lib/obsidian-export';
+import { routeTextFileExportResult } from '@/lib/text-file-export';
 import { storyTreeToJSON, parseStoryTreeJSON } from '@/lib/story-tree-io';
 import { RecordWorkbench, type RecordWorkbenchHandle } from './RecordWorkbench';
 import { TreeWorkbench } from './TreeWorkbench';
@@ -219,13 +220,17 @@ export function OrganizePanel({ story, characterName, coverDataUrl, currentBranc
     toast({ title: '已删除' });
   };
 
-  const handleExportMd = () => {
-    if (selectedRecord) {
-      downloadMarkdown(selectedRecord.title || SUMMARY_KIND_LABELS[selectedRecord.kind], summaryToObsidian(selectedRecord));
-    } else if (selectedTree) {
-      downloadMarkdown(selectedTree.title || '故事树', storyTreeToObsidian(selectedTree, { linkNodes: false }));
-    }
-    toast({ title: '已导出 Markdown', description: 'Obsidian 友好（含 frontmatter）' });
+  const handleExportMd = async () => {
+    const result = selectedRecord
+      ? await downloadMarkdown(selectedRecord.title || SUMMARY_KIND_LABELS[selectedRecord.kind], summaryToObsidian(selectedRecord))
+      : selectedTree
+        ? await downloadMarkdown(selectedTree.title || '故事树', storyTreeToObsidian(selectedTree, { linkNodes: false }))
+        : null;
+    if (!result) return;
+    routeTextFileExportResult(result, {
+      onComplete: () => toast({ title: '已导出 Markdown', description: 'Obsidian 友好（含 frontmatter）' }),
+      onFailure: () => toast({ title: '导出失败', description: '没有写入任何文件，请重新选择位置后再试。', variant: 'destructive' }),
+    });
   };
 
   const handleExportTreeJson = () => {

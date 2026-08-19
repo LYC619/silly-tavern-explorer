@@ -8,6 +8,7 @@ import { useToast } from '@/hooks/use-toast';
 import type { ChatSession } from '@/types/chat';
 import { extractMiniSummaries, miniSummariesToText } from '@/lib/mini-summary';
 import { downloadMarkdown } from '@/lib/obsidian-export';
+import { routeTextFileExportResult } from '@/lib/text-file-export';
 
 const LS_KEY = 'st-mini-summary-regex';
 const DEFAULT_REGEX = '/<summary>([\\s\\S]*?)<\\/summary>/g';
@@ -45,9 +46,12 @@ export function MiniSummaryPanel({ session }: MiniSummaryPanelProps) {
     toast({ title: '已复制配对文本' });
   };
 
-  const handleExport = () => {
-    downloadMarkdown(`${session.title} 小结`, miniSummariesToText(pairs));
-    toast({ title: '已导出小结' });
+  const handleExport = async () => {
+    const result = await downloadMarkdown(`${session.title} 小结`, miniSummariesToText(pairs));
+    routeTextFileExportResult(result, {
+      onComplete: () => toast({ title: '已导出小结' }),
+      onFailure: () => toast({ title: '导出失败', description: '没有写入任何文件，请重新选择位置后再试。', variant: 'destructive' }),
+    });
   };
 
   return (
@@ -72,7 +76,7 @@ export function MiniSummaryPanel({ session }: MiniSummaryPanelProps) {
             <Button variant="ghost" size="sm" className="h-7 gap-1" onClick={handleCopy}>
               <Copy className="w-3.5 h-3.5" />复制
             </Button>
-            <Button variant="ghost" size="sm" className="h-7 gap-1" onClick={handleExport}>
+            <Button variant="ghost" size="sm" className="h-7 gap-1" onClick={() => void handleExport()}>
               <Upload className="w-3.5 h-3.5" />导出
             </Button>
           </div>

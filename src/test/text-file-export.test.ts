@@ -1,7 +1,11 @@
 import { describe, expect, it, vi } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
-import { exportTextFile, type TextFileExportAdapters } from '@/lib/text-file-export';
+import {
+  exportTextFile,
+  routeTextFileExportResult,
+  type TextFileExportAdapters,
+} from '@/lib/text-file-export';
 
 describe('文本文件导出结果', () => {
   it('Tauri 客户端允许打开原生保存对话框', () => {
@@ -40,5 +44,21 @@ describe('文本文件导出结果', () => {
       selectPath: vi.fn().mockResolvedValue('D:/out/总结.md'),
       writeText: vi.fn().mockRejectedValue(new Error('disk full')),
     })).resolves.toBe('failed');
+  });
+
+  it('只把真实写入或下载视为完成，取消不产生任何反馈', () => {
+    const onComplete = vi.fn();
+    const onFailure = vi.fn();
+
+    routeTextFileExportResult('cancelled', { onComplete, onFailure });
+    expect(onComplete).not.toHaveBeenCalled();
+    expect(onFailure).not.toHaveBeenCalled();
+
+    routeTextFileExportResult('failed', { onComplete, onFailure });
+    expect(onFailure).toHaveBeenCalledTimes(1);
+
+    routeTextFileExportResult('saved', { onComplete, onFailure });
+    routeTextFileExportResult('downloaded', { onComplete, onFailure });
+    expect(onComplete).toHaveBeenCalledTimes(2);
   });
 });

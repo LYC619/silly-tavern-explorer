@@ -20,6 +20,7 @@ import {
 import { useToast } from '@/hooks/use-toast';
 import { getBranchLine } from '@/lib/archive-db';
 import { downloadMarkdown, storyTreeToObsidian } from '@/lib/obsidian-export';
+import { routeTextFileExportResult } from '@/lib/text-file-export';
 import { deleteStoryTree, getAllStoryTrees, saveStoryTree } from '@/lib/story-tree-db';
 import { parseStoryTreeJSON, storyTreeToJSON } from '@/lib/story-tree-io';
 import type { ArchiveStory } from '@/types/archive';
@@ -111,10 +112,13 @@ export function StoryTreeWorkspace({ story, currentBranchId, initialTarget }: St
     toast({ title: '已导出 JSON' });
   };
 
-  const exportMarkdown = () => {
+  const exportMarkdown = async () => {
     if (!currentTree) return;
-    downloadMarkdown(currentTree.title || '故事树', storyTreeToObsidian(currentTree));
-    toast({ title: '已导出 Markdown', description: 'Obsidian 友好（含 frontmatter）' });
+    const result = await downloadMarkdown(currentTree.title || '故事树', storyTreeToObsidian(currentTree));
+    routeTextFileExportResult(result, {
+      onComplete: () => toast({ title: '已导出 Markdown', description: 'Obsidian 友好（含 frontmatter）' }),
+      onFailure: () => toast({ title: '导出失败', description: '没有写入任何文件，请重新选择位置后再试。', variant: 'destructive' }),
+    });
   };
 
   return (

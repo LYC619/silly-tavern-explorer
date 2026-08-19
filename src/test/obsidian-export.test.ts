@@ -1,5 +1,6 @@
-import { describe, it, expect } from 'vitest';
-import { summaryToObsidian, storyTreeToObsidian } from '@/lib/obsidian-export';
+import { describe, it, expect, vi } from 'vitest';
+import { downloadMarkdown, summaryToObsidian, storyTreeToObsidian } from '@/lib/obsidian-export';
+import type { TextFileExportAdapters } from '@/lib/text-file-export';
 import type { SummaryItem } from '@/types/summary';
 import type { StoryTree, StoryNode } from '@/types/story-tree';
 
@@ -56,5 +57,28 @@ describe('storyTreeToObsidian', () => {
   it('归档节点不导出', () => {
     const t: StoryTree = { ...tree, nodes: tree.nodes.map((n) => n.id === 'A1' ? { ...n, archived: true } : n) };
     expect(storyTreeToObsidian(t)).not.toContain('爱丽丝');
+  });
+});
+
+describe('Markdown 文件导出', () => {
+  it('复用跨平台文本导出并向调用方返回真实结果', async () => {
+    const download = vi.fn();
+    const web: TextFileExportAdapters = { tauri: false, download };
+    await expect(downloadMarkdown('卷:一', '正文', web)).resolves.toBe('downloaded');
+    expect(download).toHaveBeenCalledWith('卷_一.md', '正文');
+
+    const writeText = vi.fn();
+    await expect(downloadMarkdown('卷一', '正文', {
+      tauri: true,
+      selectPath: vi.fn().mockResolvedValue(null),
+      writeText,
+    })).resolves.toBe('cancelled');
+    expect(writeText).not.toHaveBeenCalled();
+
+    await expect(downloadMarkdown('卷一', '正文', {
+      tauri: true,
+      selectPath: vi.fn().mockResolvedValue('D:/out/卷一.md'),
+      writeText: vi.fn().mockRejectedValue(new Error('disk full')),
+    })).resolves.toBe('failed');
   });
 });

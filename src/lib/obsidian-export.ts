@@ -8,6 +8,11 @@ import type { SummaryItem, SummaryKind } from '@/types/summary';
 import { SUMMARY_KIND_LABELS } from '@/types/summary';
 import type { StoryTree, StoryNode } from '@/types/story-tree';
 import { childrenOf, nodePath } from '@/lib/story-tree-model';
+import {
+  exportTextFile,
+  type TextFileExportAdapters,
+  type TextFileExportResult,
+} from '@/lib/text-file-export';
 
 /** YAML 值转义：含特殊字符时加引号 */
 function yamlValue(v: string): string {
@@ -96,16 +101,11 @@ export function storyTreeToObsidian(tree: StoryTree, opts: { linkNodes?: boolean
   return lines.join('\n').replace(/\n{3,}/g, '\n\n');
 }
 
-/** 通用下载单个 markdown 文件 */
-export function downloadMarkdown(name: string, content: string): void {
-  const safe = name.replace(/[\\/:*?"<>|]/g, '_');
-  const blob = new Blob([content], { type: 'text/markdown;charset=utf-8' });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = safe.endsWith('.md') ? safe : `${safe}.md`;
-  document.body.appendChild(a);
-  a.click();
-  document.body.removeChild(a);
-  URL.revokeObjectURL(url);
+/** 跨平台导出单个 Markdown：客户端打开原生保存对话框，Web 使用浏览器下载。 */
+export function downloadMarkdown(
+  name: string,
+  content: string,
+  adapters?: TextFileExportAdapters,
+): Promise<TextFileExportResult> {
+  return exportTextFile({ suggestedName: name, content }, adapters);
 }

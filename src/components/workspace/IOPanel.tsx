@@ -25,6 +25,7 @@ import { updateBranchLine, getBranchLine, type BranchLine } from '@/lib/archive-
 import { getAllSummaries } from '@/lib/summary-db';
 import { getAllStoryTrees } from '@/lib/story-tree-db';
 import { summaryToObsidian, storyTreeToObsidian, downloadMarkdown } from '@/lib/obsidian-export';
+import { routeTextFileExportResult } from '@/lib/text-file-export';
 import { storyTreeToJSON } from '@/lib/story-tree-io';
 
 interface IOPanelProps {
@@ -123,16 +124,26 @@ export function IOPanel({ story, branchId, line, settings, onStoryUpdate }: IOPa
     }
   };
 
-  const handleExportRecordMd = (item: SummaryItem) => {
-    downloadMarkdown(item.title || SUMMARY_KIND_LABELS[item.kind], summaryToObsidian(item));
-    markExported();
-    toast({ title: '已导出 Markdown' });
+  const handleExportRecordMd = async (item: SummaryItem) => {
+    const result = await downloadMarkdown(item.title || SUMMARY_KIND_LABELS[item.kind], summaryToObsidian(item));
+    routeTextFileExportResult(result, {
+      onComplete: () => {
+        markExported();
+        toast({ title: '已导出 Markdown' });
+      },
+      onFailure: () => toast({ title: '导出失败', description: '没有写入任何文件，请重新选择位置后再试。', variant: 'destructive' }),
+    });
   };
 
-  const handleExportTreeMd = (tree: StoryTree) => {
-    downloadMarkdown(tree.title || '故事树', storyTreeToObsidian(tree, { linkNodes: false }));
-    markExported();
-    toast({ title: '已导出 Markdown' });
+  const handleExportTreeMd = async (tree: StoryTree) => {
+    const result = await downloadMarkdown(tree.title || '故事树', storyTreeToObsidian(tree, { linkNodes: false }));
+    routeTextFileExportResult(result, {
+      onComplete: () => {
+        markExported();
+        toast({ title: '已导出 Markdown' });
+      },
+      onFailure: () => toast({ title: '导出失败', description: '没有写入任何文件，请重新选择位置后再试。', variant: 'destructive' }),
+    });
   };
 
   const handleExportTreeJson = (tree: StoryTree) => {
