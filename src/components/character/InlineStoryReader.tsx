@@ -17,7 +17,7 @@ import { ChatWorkbench, type ChatWorkbenchHandle } from '@/components/chat/ChatW
 import NovelView from '@/components/reader/NovelView';
 import type { ArchiveStory } from '@/types/archive';
 import {
-  getArchiveStory, saveArchiveStory, getBranchLine, updateBranchLine,
+  getArchiveStory, updateArchiveStory, getBranchLine, updateBranchLine,
 } from '@/lib/archive-db';
 import { getDefaultExportSettings } from '@/lib/session-storage';
 import { StoryDraftSaver, flushBeforeStoryTransition } from '@/lib/story-draft-save';
@@ -56,14 +56,14 @@ export function InlineStoryReader({ storyId, stories, onSwitchStory, onBack, onO
   }, [storyId, loading]);
 
   const storyRef = useRef<ArchiveStory | null>(null);
-  const saverRef = useRef(new StoryDraftSaver(saveArchiveStory));
+  const saverRef = useRef(new StoryDraftSaver(updateArchiveStory));
   const mutateStory = useCallback((fn: (cur: ArchiveStory) => ArchiveStory) => {
     const current = storyRef.current;
     if (!current) return;
     const next = fn(current);
     if (next === current) return;
     storyRef.current = next;
-    saverRef.current.setDraft(next);
+    saverRef.current.queueMutation(current.id, (latest) => fn(latest));
     setStory(next);
   }, []);
 
@@ -103,16 +103,16 @@ export function InlineStoryReader({ storyId, stories, onSwitchStory, onBack, onO
             ? s.lastViewedBranchId
             : null);
         setBranchId(restoredBranchId);
-        const withView: ArchiveStory = {
-          ...s,
-          settings: s.settings ?? getDefaultExportSettings(),
-          lastViewedAt: Date.now(),
+        const viewedAt = Date.now();
+        const withView = await updateArchiveStory(s.id, (current) => ({
+          settings: current.settings ?? getDefaultExportSettings(),
+          lastViewedAt: viewedAt,
           lastViewedBranchId: restoredBranchId ?? undefined,
-        };
-        saverRef.current = new StoryDraftSaver(saveArchiveStory);
+        }));
+        if (cancelled || !withView) return;
+        saverRef.current = new StoryDraftSaver(updateArchiveStory);
         storyRef.current = withView;
         setStory(withView);
-        await saveArchiveStory(withView);
       } catch (error) {
         if (!cancelled) {
           toast({

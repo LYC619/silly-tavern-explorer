@@ -1,15 +1,24 @@
 import type { ArchiveStory } from '@/types/archive';
 
-/** 管理单个故事的最新草稿；保存期间产生的新修改会在旧保存后继续落库。 */
+export type StoryMutation = (
+  current: ArchiveStory,
+) => Partial<ArchiveStory> | undefined | Promise<Partial<ArchiveStory> | undefined>;
+
+export type UpdateStory = (
+  id: string,
+  updater: StoryMutation,
+) => Promise<ArchiveStory | undefined>;
+
+/** 管理单个故事的待保存修改；每笔 mutation 都在落库时基于最新记录重放。 */
 export class StoryDraftSaver {
-  private draft: ArchiveStory | null = null;
+  private pending: Array<{ id: string; mutation: StoryMutation }> = [];
   private dirty = false;
   private running: Promise<void> | null = null;
 
-  constructor(private readonly save: (story: ArchiveStory) => Promise<void>) {}
+  constructor(private readonly update: UpdateStory) {}
 
-  setDraft(story: ArchiveStory): void {
-    this.draft = story;
+  queueMutation(id: string, mutation: StoryMutation): void {
+    this.pending.push({ id, mutation });
     this.dirty = true;
   }
 
@@ -29,12 +38,17 @@ export class StoryDraftSaver {
 
   private async drain(): Promise<void> {
     while (this.dirty) {
-      const current = this.draft;
-      if (!current) return;
-      this.dirty = false;
+      const next = this.pending.shift();
+      if (!next) {
+        this.dirty = false;
+        return;
+      }
       try {
-        await this.save(current);
+        const saved = await this.update(next.id, next.mutation);
+        if (!saved) throw new Error('故事档案不存在');
+        this.dirty = this.pending.length > 0;
       } catch (error) {
+        this.pending.unshift(next);
         this.dirty = true;
         throw error;
       }

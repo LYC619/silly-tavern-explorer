@@ -22,8 +22,7 @@ import {
   getCharacter,
   updateCharacter,
   getStoriesByCharacter,
-  saveArchiveStory,
-  getArchiveStory,
+  updateArchiveStory,
   deleteArchiveStory,
   deleteCharacter,
   sortStoriesForDisplay,
@@ -290,7 +289,7 @@ const CharacterPage = () => {
     if (!character) return;
     try {
       await Promise.all(
-        stories.map((s) => saveArchiveStory({ ...s, characterId: undefined, updatedAt: Date.now() })),
+        stories.map((s) => updateArchiveStory(s.id, () => ({ characterId: undefined, updatedAt: Date.now() }))),
       );
       await deleteCharacter(character.id);
       toast({ title: `已删除「${character.name}」（名下故事已转为未绑定）` });
@@ -328,9 +327,7 @@ const CharacterPage = () => {
 
   /** 列表行内改状态/评分（就地落库，不动 lastViewedAt） */
   const patchStory = useCallback(async (storyId: string, patch: Partial<ArchiveStory>) => {
-    const cur = await getArchiveStory(storyId);
-    if (!cur) return;
-    await saveArchiveStory({ ...cur, ...patch, updatedAt: Date.now() });
+    await updateArchiveStory(storyId, () => ({ ...patch, updatedAt: Date.now() }));
     await load();
   }, [load]);
 

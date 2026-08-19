@@ -74,7 +74,7 @@ import {
   getAllArchiveStories,
   getLibraryTagPreferences,
   saveLibraryTagPreferences,
-  saveArchiveStory,
+  updateArchiveStory,
 } from '@/lib/archive-db';
 import { importEmbeddedAssets } from '@/lib/card-embedded-assets';
 import {
@@ -360,7 +360,7 @@ const Library = () => {
       await Promise.all(
         stories
           .filter((s) => s.characterId && ids.has(s.characterId))
-          .map((s) => saveArchiveStory({ ...s, characterId: undefined, updatedAt: Date.now() })),
+          .map((s) => updateArchiveStory(s.id, () => ({ characterId: undefined, updatedAt: Date.now() }))),
       );
       for (const c of pendingDelete) await deleteCharacter(c.id);
       await load();

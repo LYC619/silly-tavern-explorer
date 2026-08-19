@@ -32,13 +32,14 @@ import type { ChatSession } from '@/types/chat';
 import type { SummaryKind } from '@/types/summary';
 import {
   getArchiveStory,
-  saveArchiveStory,
+  updateArchiveStory,
   getCharacter,
   getBranchLine,
   resolveInitialBranchId,
   updateBranchLine,
   buildBranchFromSession,
 } from '@/lib/archive-db';
+import { StoryDraftSaver } from '@/lib/story-draft-save';
 import { parseJsonl, parseJson } from '@/lib/adapters/st';
 import { getDefaultExportSettings } from '@/lib/session-storage';
 import { setEditorStoryId } from '@/lib/editor-story-context';
@@ -109,30 +110,28 @@ const StoryWorkspace = () => {
   }, [setSearchParams]);
   const changeSummaryKind = useCallback((kind: SummaryKind) => changeView(kind), [changeView]);
 
-  // 持久化：只有真实修改（dirty）才落库，防抖 600ms；离开页面前有脏数据立即补存
-  const dirtyRef = useRef(false);
+  // 持久化：界面立即更新，落库时在最新故事上重放 mutation，避免旧页面快照覆盖并发修改。
   const storyRef = useRef<ArchiveStory | null>(null);
-  useEffect(() => { storyRef.current = story; }, [story]);
+  const saverRef = useRef(new StoryDraftSaver(updateArchiveStory));
   const mutateStory = useCallback((fn: (cur: ArchiveStory) => ArchiveStory) => {
-    setStory((cur) => {
-      if (!cur) return cur;
-      const next = fn(cur);
-      if (next !== cur) dirtyRef.current = true;
-      return next;
-    });
+    const current = storyRef.current;
+    if (!current) return;
+    const next = fn(current);
+    if (next === current) return;
+    storyRef.current = next;
+    saverRef.current.queueMutation(current.id, (latest) => fn(latest));
+    setStory(next);
   }, []);
 
   useEffect(() => {
-    if (!story || !dirtyRef.current) return;
+    if (!story || !saverRef.current.isDirty()) return;
     const t = setTimeout(() => {
-      dirtyRef.current = false;
-      saveArchiveStory(story).catch(() => { dirtyRef.current = true; });
+      void saverRef.current.flush().catch(() => {});
     }, 600);
     return () => clearTimeout(t);
   }, [story]);
   useEffect(() => () => {
-    // 卸载兜底：防抖窗口内切走不丢最后一笔
-    if (dirtyRef.current && storyRef.current) saveArchiveStory(storyRef.current).catch(() => {});
+    void saverRef.current.flush().catch(() => {});
   }, []);
 
   // 加载故事 + 角色；记录 lastViewedAt（排序依据，不动 updatedAt）
@@ -151,16 +150,18 @@ const StoryWorkspace = () => {
         const requestedBranchId = (location.state as { branchId?: string | null } | null)?.branchId;
         const restoredBranchId = resolveInitialBranchId(s, requestedBranchId);
         setBranchId(restoredBranchId);
-        const withView: ArchiveStory = {
-          ...s,
-          settings: s.settings ?? getDefaultExportSettings(),
-          lastViewedAt: Date.now(),
+        const viewedAt = Date.now();
+        const withView = await updateArchiveStory(s.id, (current) => ({
+          settings: current.settings ?? getDefaultExportSettings(),
+          lastViewedAt: viewedAt,
           lastViewedBranchId: restoredBranchId ?? undefined,
-        };
+        }));
+        if (cancelled || !withView) return;
+        saverRef.current = new StoryDraftSaver(updateArchiveStory);
+        storyRef.current = withView;
         setStory(withView);
-        saveArchiveStory(withView).catch(() => {});
-        if (s.characterId) {
-          const c = await getCharacter(s.characterId);
+        if (withView.characterId) {
+          const c = await getCharacter(withView.characterId);
           if (!cancelled) setCharacter(c ?? null);
         }
       } finally {

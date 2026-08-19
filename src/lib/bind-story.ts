@@ -10,6 +10,7 @@ import {
   buildStoryFromSession,
   getArchiveStory,
   saveArchiveStory,
+  updateArchiveStory,
   updateBranchLine,
 } from '@/lib/archive-db';
 import { getAllSummaries } from '@/lib/summary-db';
@@ -30,25 +31,35 @@ export async function bindSessionToCharacter(args: BindArgs): Promise<{ story: A
   const existing = args.storyId ? await getArchiveStory(args.storyId) : undefined;
   let story: ArchiveStory;
   if (existing) {
-    // 先把当前编辑态写进故事（updateBranchLine 会同步重算 meta），再补 characterId
-    story = updateBranchLine(existing, null, {
-      session: args.session,
-      markers: args.markers,
-      favorites: args.favorites,
+    const saved = await updateArchiveStory(existing.id, (current) => {
+      const updated = updateBranchLine(current, null, {
+        session: args.session,
+        markers: args.markers,
+        favorites: args.favorites,
+      });
+      return {
+        ...updated,
+        characterId: args.characterId,
+        ...(args.session.title ? { title: args.session.title } : {}),
+        settings: args.settings ?? updated.settings,
+        updatedAt: Date.now(),
+      };
     });
+    if (!saved) throw new Error('故事档案不存在');
+    story = saved;
   } else {
     story = buildStoryFromSession(args.session);
     story.markers = args.markers;
     story.favorites = args.favorites;
+    story = {
+      ...story,
+      characterId: args.characterId,
+      ...(args.session.title ? { title: args.session.title } : {}),
+      settings: args.settings ?? story.settings,
+      updatedAt: Date.now(),
+    };
+    await saveArchiveStory(story);
   }
-  story = {
-    ...story,
-    characterId: args.characterId,
-    ...(args.session.title ? { title: args.session.title } : {}),
-    settings: args.settings ?? story.settings,
-    updatedAt: Date.now(),
-  };
-  await saveArchiveStory(story);
 
   let carried = 0;
   if (args.storyId) {

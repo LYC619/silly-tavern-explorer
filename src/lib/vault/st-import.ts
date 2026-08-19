@@ -26,6 +26,7 @@ import {
   getAllArchiveStories,
   getAllCharacters,
   saveArchiveStory,
+  updateArchiveStory,
   saveCharacter,
 } from '@/lib/archive-db';
 import { parseJsonl } from '@/lib/adapters/st/chat-jsonl';
@@ -930,10 +931,16 @@ export async function importSelected(stFs: VaultFs, plan: STImportPlan): Promise
         if (!metadata || messages.length === 0 || diagnostics.invalidLines > 0) {
           throw new Error(`聊天文件不完整（坏行 ${diagnostics.invalidLines}）`);
         }
-        if (applyChatRelations(existingStory, chatWorldbookNames(metadata))) {
-          existingStory.updatedAt = Date.now();
-          await saveArchiveStory(existingStory);
-        }
+        const saved = await updateArchiveStory(existingStory.id, (current) => {
+          const next: ArchiveStory = {
+            ...current,
+            assets: current.assets?.map((ref) => ({ ...ref, relations: ref.relations ? [...ref.relations] : undefined })),
+            unresolvedAssets: current.unresolvedAssets?.map((ref) => ({ ...ref })),
+          };
+          if (!applyChatRelations(next, chatWorldbookNames(metadata))) return undefined;
+          return { ...next, updatedAt: Date.now() };
+        });
+        if (saved) storyBySource.set(srcKey, saved);
       } catch (err) {
         console.warn(`[st-import] 已有聊天的关系刷新失败，保留原关系 ${chat.path}:`, err);
         summary.failed++;

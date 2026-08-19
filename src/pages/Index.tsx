@@ -23,6 +23,7 @@ import type { ArchiveCharacter, ArchiveStory } from '@/types/archive';
 import {
   buildStoryFromSession,
   saveArchiveStory,
+  updateArchiveStory,
   getArchiveStory,
   getAllArchiveStories,
   deleteArchiveStory,
@@ -179,15 +180,14 @@ const Index = () => {
   const storySyncTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const persistCurrentStory = useCallback(async () => {
     if (!session || !currentStoryId) return;
-    const existing = await getArchiveStory(currentStoryId);
-    if (!existing) return;
-    let updated = updateBranchLine(existing, null, { session, markers, favorites });
-    updated = {
-      ...updated,
-      title: session.title || existing.title,
-      settings,
-    };
-    await saveArchiveStory(updated);
+    await updateArchiveStory(currentStoryId, (current) => {
+      const updated = updateBranchLine(current, null, { session, markers, favorites });
+      return {
+        ...updated,
+        title: session.title || current.title,
+        settings,
+      };
+    });
   }, [currentStoryId, favorites, markers, session, settings]);
 
   useEffect(() => {

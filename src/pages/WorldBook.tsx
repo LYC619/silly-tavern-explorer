@@ -30,8 +30,9 @@ import type { WorldBook, WorldBookEntry } from '@/types/worldbook';
 import { DEFAULT_ENTRY, POSITION_LABELS, generateWorldBookId } from '@/types/worldbook';
 import { saveWorldBook, getAllWorldBooks, getWorldBook, deleteWorldBook, pruneAutoSavedWorldBooks } from '@/lib/worldbook-db';
 import { appendEntries } from '@/lib/worldbook-entry-copy';
-import { planCowSave, buildDerivedMeta, switchAssetRef } from '@/lib/asset-cow';
-import { getCharacter, saveCharacter } from '@/lib/archive-db';
+import { planCowSave, buildDerivedMeta } from '@/lib/asset-cow';
+import { getCharacter } from '@/lib/archive-db';
+import { updateCharacterAssetReference } from '@/lib/character-asset-ref';
 import { takePendingToolFile, peekPendingToolFile } from '@/lib/tool-handoff';
 import { estimateTokens } from '@/lib/preset-parser';
 import type { WorldBookItem } from '@/types/worldbook';
@@ -444,14 +445,7 @@ export default function WorldBookPage() {
         toast({ title: '已生成派生副本', description: `「${plan.copyTitle}」，原世界书与其他角色不受影响` });
       }
       // 该角色的引用切到副本
-      const character = await getCharacter(cowCharacterId);
-      if (character) {
-        await saveCharacter({
-          ...character,
-          assets: switchAssetRef(character.assets, 'worldbook', base.id, targetId),
-          updatedAt: now,
-        });
-      }
+      await updateCharacterAssetReference(cowCharacterId, 'worldbook', base.id, targetId, now);
       setCurrentItemId(targetId);
       setIsDirty(false);
       setSavedItems(await getAllWorldBooks());
@@ -472,14 +466,7 @@ export default function WorldBookPage() {
     await saveWorldBook(item);
     // 角色上下文里保存全新世界书：入库并直接挂到该角色名下
     if (cowCharacterId && !base) {
-      const character = await getCharacter(cowCharacterId);
-      if (character) {
-        await saveCharacter({
-          ...character,
-          assets: switchAssetRef(character.assets, 'worldbook', id, id),
-          updatedAt: now,
-        });
-      }
+      await updateCharacterAssetReference(cowCharacterId, 'worldbook', id, id, now);
     }
     setCurrentItemId(id);
     setIsDirty(false);

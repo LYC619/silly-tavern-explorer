@@ -82,6 +82,25 @@ export async function saveArchiveStory(item: ArchiveStory): Promise<void> {
   return storyWrites.enqueue(item.id, () => repo.put(item));
 }
 
+/**
+ * 按故事 ID 串行应用局部修改。updater 在队列内读取最新记录，避免并发页面用旧快照整对象覆盖彼此的字段。
+ */
+export async function updateArchiveStory(
+  id: string,
+  updater: (current: ArchiveStory) => Partial<ArchiveStory> | undefined | Promise<Partial<ArchiveStory> | undefined>,
+): Promise<ArchiveStory | undefined> {
+  const repo = getCurrentRepo<ArchiveStory>('archiveStories');
+  return storyWrites.enqueue(id, async () => {
+    const current = await repo.get(id);
+    if (!current) return undefined;
+    const patch = await updater(current);
+    if (!patch) return current;
+    const next: ArchiveStory = { ...current, ...patch, id: current.id };
+    await repo.put(next);
+    return next;
+  });
+}
+
 export async function deleteArchiveStory(id: string): Promise<void> {
   const repo = getCurrentRepo<ArchiveStory>('archiveStories');
   return storyWrites.enqueue(id, () => repo.remove(id));

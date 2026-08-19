@@ -18,8 +18,9 @@ import { parsePreset, getActiveOrder } from '@/lib/preset-parser';
 import {
   getAllPresets, getPreset, savePreset, deletePreset, pruneAutoSavedPresets,
 } from '@/lib/preset-db';
-import { planCowSave, buildDerivedMeta, switchAssetRef } from '@/lib/asset-cow';
-import { getCharacter, saveCharacter } from '@/lib/archive-db';
+import { planCowSave, buildDerivedMeta } from '@/lib/asset-cow';
+import { getCharacter } from '@/lib/archive-db';
+import { updateCharacterAssetReference } from '@/lib/character-asset-ref';
 import { takePendingToolFile, peekPendingToolFile } from '@/lib/tool-handoff';
 import { PresetOverview } from '@/components/preset/PresetOverview';
 import { PromptEditor } from '@/components/preset/PromptEditor';
@@ -309,14 +310,7 @@ export default function Preset() {
         setFileName(plan.copyTitle);
         toast({ title: '已生成派生副本', description: `「${plan.copyTitle}」，原预设与其他角色不受影响` });
       }
-      const character = await getCharacter(cowCharacterId);
-      if (character) {
-        await saveCharacter({
-          ...character,
-          assets: switchAssetRef(character.assets, 'preset', base.id, targetId),
-          updatedAt: now,
-        });
-      }
+      await updateCharacterAssetReference(cowCharacterId, 'preset', base.id, targetId, now);
       setCurrentItemId(targetId);
       await refreshSaved();
       return;
@@ -332,14 +326,7 @@ export default function Preset() {
     });
     // 角色上下文里保存全新预设：入库并直接挂到该角色名下
     if (cowCharacterId && !base) {
-      const character = await getCharacter(cowCharacterId);
-      if (character) {
-        await saveCharacter({
-          ...character,
-          assets: switchAssetRef(character.assets, 'preset', id, id),
-          updatedAt: now,
-        });
-      }
+      await updateCharacterAssetReference(cowCharacterId, 'preset', id, id, now);
     }
     setCurrentItemId(id);
     await refreshSaved();

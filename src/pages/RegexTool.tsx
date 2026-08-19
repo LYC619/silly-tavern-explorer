@@ -34,8 +34,9 @@ import {
   generateRegexCollectionId,
   type RegexCollectionItem,
 } from '@/lib/regex-db';
-import { planCowSave, buildDerivedMeta, switchAssetRef } from '@/lib/asset-cow';
-import { getCharacter, saveCharacter, getAllArchiveStories } from '@/lib/archive-db';
+import { planCowSave, buildDerivedMeta } from '@/lib/asset-cow';
+import { getCharacter, getAllArchiveStories } from '@/lib/archive-db';
+import { updateCharacterAssetReference } from '@/lib/character-asset-ref';
 
 const RegexTool = () => {
   const { toast } = useToast();
@@ -151,27 +152,13 @@ const RegexTool = () => {
             toast({ title: '已生成派生副本', description: `「${plan.copyTitle}」，原规则集未改动` });
           }
           // 角色引用切到目标副本
-          const character = await getCharacter(cowCharacterId);
-          if (character) {
-            await saveCharacter({
-              ...character,
-              assets: switchAssetRef(character.assets, 'regex', base.id, targetId),
-              updatedAt: Date.now(),
-            });
-          }
+          await updateCharacterAssetReference(cowCharacterId, 'regex', base.id, targetId);
           setActiveCollectionId(targetId);
         } else {
           // 角色上下文的全新规则集：直接入库并挂引用
           const item = buildRegexCollection(name, rules);
           await saveRegexCollection(item);
-          const character = await getCharacter(cowCharacterId);
-          if (character) {
-            await saveCharacter({
-              ...character,
-              assets: switchAssetRef(character.assets, 'regex', item.id, item.id),
-              updatedAt: Date.now(),
-            });
-          }
+          await updateCharacterAssetReference(cowCharacterId, 'regex', item.id, item.id);
           setActiveCollectionId(item.id);
           toast({ title: `已存入资产库并关联「${cowCharacterName}」` });
         }
