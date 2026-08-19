@@ -38,7 +38,8 @@ describe('版本号单一来源一致性', () => {
   });
 
   it('Cargo 使用真实项目元数据而不是 tauri init 占位值', () => {
-    expect(cargoField('description')).toBe('SillyTavern Chat Beautifier - 聊天记录处理、世界书编辑与 AI 辅助工具');
+    expect(cargoField('name')).toBe('ste-explorer');
+    expect(cargoField('description')).toBe('ST Explorer - SillyTavern 聊天记录、世界书、预设与资产管理工具');
     expect(cargo).toMatch(/^authors\s*=\s*\["LYC619"\]$/m);
     expect(cargoField('license')).toBe('MIT');
     expect(cargoField('repository')).toBe('https://github.com/LYC619/silly-tavern-explorer');

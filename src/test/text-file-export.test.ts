@@ -11,6 +11,7 @@ describe('文本文件导出结果', () => {
   it('Tauri 客户端允许打开原生保存对话框', () => {
     const capability = JSON.parse(readFileSync(resolve(process.cwd(), 'src-tauri/capabilities/default.json'), 'utf8'));
     expect(capability.permissions).toContain('dialog:allow-save');
+    expect(capability.permissions).not.toContain('dialog:allow-open');
   });
 
   it('Web 模式触发下载并返回 downloaded', async () => {
