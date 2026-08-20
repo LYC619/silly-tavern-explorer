@@ -78,6 +78,7 @@ export const NAV_AREAS: NavArea[] = [
         path: '/tools?focus=preset', prefixes: ['/preset'],
         activeMatches: [{ prefix: '/tools', query: { focus: 'preset' } }, { prefix: '/preset' }],
       },
+      { key: 'regex', label: '正则', description: '编辑规则集并预览生效结果', icon: Regex, path: '/regex', prefixes: ['/regex'] },
     ],
   },
   {

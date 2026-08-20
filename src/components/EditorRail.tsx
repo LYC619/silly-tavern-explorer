@@ -5,7 +5,7 @@
 import { useEffect, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import {
-  BookOpen, IdCard, MessageSquare, Network, ScrollText, SlidersHorizontal, type LucideIcon,
+  BookOpen, IdCard, MessageSquare, Network, Regex, ScrollText, SlidersHorizontal, type LucideIcon,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { NAV_AREAS } from '@/lib/navigation-model';
@@ -39,6 +39,7 @@ const RAIL_ITEMS: RailItem[] = [
   { key: 'worldbook', label: '世界书', icon: BookOpen, fallbackPath: '/tools?focus=worldbook', prefix: '/worldbook', focus: 'worldbook' },
   { key: 'card', label: '角色卡', icon: IdCard, fallbackPath: '/card-viewer', prefix: '/card-viewer' },
   { key: 'preset', label: '预设', icon: SlidersHorizontal, fallbackPath: '/tools?focus=preset', prefix: '/preset', focus: 'preset' },
+  { key: 'regex', label: '正则', icon: Regex, fallbackPath: '/regex', prefix: '/regex' },
 ];
 
 export function EditorRail() {
