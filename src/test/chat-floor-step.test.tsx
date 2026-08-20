@@ -1,36 +1,19 @@
+/**
+ * 聊天楼层连续跳转（阶段 B4：修正过度 mock）。
+ *
+ * 之前这里把 ChatPreview、MessageNavBar 等 8 个子组件全 mock 掉，楼层映射用一个
+ * 手写的 Map 顶替——等于只测了 ChatWorkbench 里两个 useState 的加减法，而楼层跳转
+ * 恰恰是反复修了四次的地方，真正会错的是「过滤空消息之后，楼层号对应哪一条消息」。
+ *
+ * 现在只 stub jsdom 缺的 ResizeObserver 与虚拟列表测量，ChatPreview / MessageNavBar
+ * 都是真组件，楼层映射由真实过滤逻辑产生。
+ */
 import { act } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import type { ChatSession, ExportSettings } from '@/types/chat';
+import type { ChatMessage, ChatSession, ExportSettings } from '@/types/chat';
 
-const scrollToFloor = vi.hoisted(() => vi.fn());
-
-vi.mock('@/components/chat/ChatPreview', async () => {
-  const React = await import('react');
-  return {
-    ChatPreview: React.forwardRef(function Preview(
-      props: { onFloorMapChange?: (map: Map<string, number>) => void },
-      ref: React.ForwardedRef<{ scrollToFloor: (floor: number) => void; scrollToMessageId: (id: string) => void }>,
-    ) {
-      const { onFloorMapChange } = props;
-      React.useImperativeHandle(ref, () => ({ scrollToFloor, scrollToMessageId: vi.fn() }), []);
-      React.useEffect(() => {
-        onFloorMapChange?.(new Map([['m0', 0], ['m1', 1], ['m2', 2]]));
-      }, [onFloorMapChange]);
-      return <div data-testid="preview" />;
-    }),
-  };
-});
-
-vi.mock('@/components/chat/MessageNavBar', () => ({
-  MessageNavBar: ({ currentFloor, onNext }: { currentFloor: number; onNext: () => void }) => (
-    <div>
-      <span data-testid="current-floor">{currentFloor}</span>
-      <button type="button" data-testid="next-floor" onClick={onNext}>下一楼</button>
-    </div>
-  ),
-}));
-vi.mock('@/components/chat/MessageSearchBar', () => ({ MessageSearchBar: () => null }));
+// 只留这几个与楼层无关、且会拖进弹窗/侧栏的重组件
 vi.mock('@/components/chat/EditorToolbar', () => ({ EditorToolbar: () => null }));
 vi.mock('@/components/chat/ChapterMarkerDialog', () => ({ ChapterMarkerDialog: () => null }));
 vi.mock('@/components/chat/MessageEditDialog', () => ({ MessageEditDialog: () => null }));
@@ -42,23 +25,38 @@ import { ChatWorkbench } from '@/components/chat/ChatWorkbench';
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
+/** 立刻回报一次尺寸：虚拟列表靠它拿到滚动容器大小 */
 class ResizeObserverStub {
-  observe() {}
+  constructor(private readonly callback: ResizeObserverCallback) {}
+  observe(target: Element) {
+    this.callback(
+      [{ target, contentRect: target.getBoundingClientRect() } as unknown as ResizeObserverEntry],
+      this as unknown as ResizeObserver,
+    );
+  }
+  unobserve() {}
   disconnect() {}
 }
 
-const session: ChatSession = {
-  id: 'floor-session',
-  title: '楼层测试',
-  messages: [0, 1, 2].map((index) => ({
+function mkMessage(index: number, over: Partial<ChatMessage> = {}): ChatMessage {
+  return {
     id: `m${index}`,
     role: index % 2 === 0 ? 'assistant' : 'user',
     content: `第 ${index} 楼`,
-  })),
-  character: { name: '角色' },
-  user: { name: '用户' },
-  createdAt: 1,
-};
+    ...over,
+  } as ChatMessage;
+}
+
+function mkSession(messages: ChatMessage[]): ChatSession {
+  return {
+    id: 'floor-session',
+    title: '楼层测试',
+    messages,
+    character: { name: '角色' },
+    user: { name: '用户' },
+    createdAt: 1,
+  };
+}
 
 const settings: ExportSettings = {
   theme: 'minimal',
@@ -78,9 +76,41 @@ const settings: ExportSettings = {
 let container: HTMLDivElement;
 let root: Root;
 
+async function renderWorkbench(session: ChatSession) {
+  await act(async () => {
+    root.render(
+      <ChatWorkbench
+        session={session}
+        markers={[]}
+        favorites={[]}
+        settings={settings}
+        onFavoritesChange={vi.fn()}
+        onSettingsChange={vi.fn()}
+      />,
+    );
+  });
+  await act(async () => { await Promise.resolve(); });
+}
+
+const nextButton = () => document.querySelector<HTMLButtonElement>('[aria-label="下一层"]');
+const prevButton = () => document.querySelector<HTMLButtonElement>('[aria-label="上一层"]');
+const floorInput = () => document.querySelector<HTMLInputElement>('[aria-label="跳转到楼层"]');
+
+/** 跳转条右下角的「/ N」是过滤后的最大楼层号 */
+function maxFloorLabel(): string {
+  const label = Array.from(document.querySelectorAll('span'))
+    .map((s) => s.textContent?.trim() ?? '')
+    .find((text) => /^\/\s*\d+$/.test(text));
+  return label ?? '';
+}
+
+async function click(el: Element | null) {
+  await act(async () => { (el as HTMLElement | null)?.click(); });
+}
+
 beforeEach(() => {
-  scrollToFloor.mockClear();
   vi.stubGlobal('ResizeObserver', ResizeObserverStub);
+  Element.prototype.scrollTo = Element.prototype.scrollTo ?? (() => {});
   container = document.createElement('div');
   document.body.appendChild(container);
   root = createRoot(container);
@@ -93,29 +123,64 @@ afterEach(() => {
 });
 
 describe('聊天楼层连续跳转', () => {
-  it('下一楼命令立即推进父状态，不依赖虚拟列表的延迟可见楼层回报', async () => {
-    await act(async () => {
-      root.render(
-        <ChatWorkbench
-          session={session}
-          markers={[]}
-          favorites={[]}
-          settings={settings}
-          onFavoritesChange={vi.fn()}
-          onSettingsChange={vi.fn()}
-        />,
-      );
-    });
+  it('连点下一层能一路推进，不会卡在第一次跳转', async () => {
+    await renderWorkbench(mkSession([0, 1, 2].map((i) => mkMessage(i))));
 
-    const next = container.querySelector<HTMLButtonElement>('[data-testid="next-floor"]');
-    expect(container.querySelector('[data-testid="current-floor"]')?.textContent).toBe('0');
+    expect(floorInput()?.value).toBe('0');
 
-    await act(async () => next?.click());
-    expect(scrollToFloor).toHaveBeenLastCalledWith(1);
-    expect(container.querySelector('[data-testid="current-floor"]')?.textContent).toBe('1');
+    await click(nextButton());
+    expect(floorInput()?.value).toBe('1');
 
-    await act(async () => next?.click());
-    expect(scrollToFloor).toHaveBeenLastCalledWith(2);
-    expect(container.querySelector('[data-testid="current-floor"]')?.textContent).toBe('2');
+    await click(nextButton());
+    expect(floorInput()?.value).toBe('2');
+  });
+
+  it('上一层同样连续，并在第 0 层停住', async () => {
+    await renderWorkbench(mkSession([0, 1, 2].map((i) => mkMessage(i))));
+
+    await click(nextButton());
+    await click(nextButton());
+    expect(floorInput()?.value).toBe('2');
+
+    await click(prevButton());
+    expect(floorInput()?.value).toBe('1');
+
+    await click(prevButton());
+    expect(floorInput()?.value).toBe('0');
+    expect(prevButton()?.disabled).toBe(true);
+  });
+
+  it('到最后一层后下一层禁用，点不出越界楼层', async () => {
+    await renderWorkbench(mkSession([0, 1].map((i) => mkMessage(i))));
+
+    await click(nextButton());
+
+    expect(floorInput()?.value).toBe('1');
+    expect(nextButton()?.disabled).toBe(true);
+  });
+
+  it('楼层总数按过滤后的消息算：空消息不占楼层', async () => {
+    const withEmpty = mkSession([
+      mkMessage(0),
+      mkMessage(1, { content: '   ' }),
+      mkMessage(2),
+      mkMessage(3),
+    ]);
+    await renderWorkbench(withEmpty);
+
+    // 4 条消息里有 1 条是空的 → 最大楼层号是 2 而不是 3
+    expect(maxFloorLabel()).toBe('/ 2');
+
+    await click(nextButton());
+    await click(nextButton());
+    expect(floorInput()?.value).toBe('2');
+    expect(nextButton()?.disabled).toBe(true);
+  });
+
+  it('只有一条消息时两端都禁用', async () => {
+    await renderWorkbench(mkSession([mkMessage(0)]));
+
+    expect(prevButton()?.disabled).toBe(true);
+    expect(nextButton()?.disabled).toBe(true);
   });
 });

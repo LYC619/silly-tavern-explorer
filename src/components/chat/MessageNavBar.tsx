@@ -83,7 +83,7 @@ export function MessageNavBar({
         {/* 上一层 */}
         <Tooltip>
           <TooltipTrigger asChild>
-            <Button variant="ghost" size="icon" className="h-8 w-8" onClick={onPrev} disabled={currentFloor <= 0}>
+            <Button aria-label="上一层" variant="ghost" size="icon" className="h-8 w-8" onClick={onPrev} disabled={currentFloor <= 0}>
               <ChevronUp className="h-4 w-4" />
             </Button>
           </TooltipTrigger>
@@ -108,7 +108,7 @@ export function MessageNavBar({
         {/* 下一层 */}
         <Tooltip>
           <TooltipTrigger asChild>
-            <Button variant="ghost" size="icon" className="h-8 w-8" onClick={onNext} disabled={currentFloor >= floorCount - 1}>
+            <Button aria-label="下一层" variant="ghost" size="icon" className="h-8 w-8" onClick={onNext} disabled={currentFloor >= floorCount - 1}>
               <ChevronDown className="h-4 w-4" />
             </Button>
           </TooltipTrigger>
