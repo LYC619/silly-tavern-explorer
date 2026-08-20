@@ -65,6 +65,16 @@ describe('前端状态刷新契约', () => {
     expect(home).toContain('您已经归档了');
     expect(home).not.toContain('你上次在');
   });
+  // TODO(阶段 B3 遗留)：从 editor-chat-session.test.ts 迁来的最后一条 grep。
+  // 该文件其余断言已换成 editor-chat-session.test.tsx 里的页面行为测试；
+  // 这条要等价覆盖需要渲染 CharacterPage（595 行、依赖立绘与资产区），
+  // 按「不允许先删后补」暂留，等 C3 拆完 CharacterPage 再补行为用例。
+  it('角色页普通处理进入 Chat，整理和导出仍进入对应故事视图', () => {
+    const page = read('src/pages/CharacterPage.tsx');
+    expect(page).toContain('buildEditorChatPath');
+    expect(page).toContain('buildEditorStoryPath');
+    expect(page).toContain('setEditorStoryId(storyId)');
+  });
 });
 
 describe('四主题覆盖契约', () => {
