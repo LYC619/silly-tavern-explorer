@@ -24,6 +24,7 @@ import {
   recordProtectionBackup,
   restoreBackup,
   writebackSummary,
+  RESTORE_KEEP,
   WRITEBACK_KEEP,
 } from '@/lib/vault/st-writeback';
 import type { ArchiveStory } from '@/types/archive';
@@ -63,16 +64,19 @@ export function WritebackSection({ story, onStoryUpdate }: Props) {
           ].filter(Boolean).join('；'),
         });
       } else {
-        const { protectionFile } = await restoreBackup(vaultFs, abs, story, pending.backupFile);
-        if (protectionFile) {
-          onStoryUpdate((cur) => recordProtectionBackup(cur, protectionFile, Date.now()));
+        const { protection, warning } = await restoreBackup(vaultFs, abs, story, pending.backupFile);
+        if (protection) {
+          onStoryUpdate((cur) => recordProtectionBackup(cur, protection));
         }
         toast({
           title: '已恢复该版备份到 ST',
           description: [
-            protectionFile ? '恢复前的当前 ST 内容已另存保护备份' : '恢复前没有可读取的当前 ST 文件',
+            protection
+              ? `恢复前的当前 ST 内容已另存保护备份（保留最近 ${RESTORE_KEEP} 版）`
+              : '恢复前没有可读取的当前 ST 文件',
             'STE 库内数据未变动；需要时可再次写回覆盖',
-          ].join('；'),
+            warning,
+          ].filter(Boolean).join('；'),
         });
       }
       setPending(null);
@@ -108,7 +112,7 @@ export function WritebackSection({ story, onStoryUpdate }: Props) {
             </p>
             {story.writebacks!.map((w) => (
               <div key={w.at} className="flex items-center gap-2 text-xs text-muted-foreground">
-                <span>{fmtTime(w.at)} · {w.floors} 楼</span>
+                <span>{fmtTime(w.at)} · {w.kind === 'restore' ? '恢复前备份' : '写回'} {w.floors} 楼</span>
                 {w.backupFile ? (
                   <Button
                     size="sm"

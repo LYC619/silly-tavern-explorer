@@ -211,7 +211,9 @@ export interface ArchiveStory {
 /** 一次写回 ST 的记录（阶段7.5） */
 export interface WritebackRecord {
   at: number;
-  /** 写回时的主线楼数 */
+  /** write=写回 ST；restore=恢复前留下的保护备份。缺省按 write 处理（早于本字段的历史数据） */
+  kind?: 'write' | 'restore';
+  /** write=写回时的主线楼数；restore=保护文件里 ST 侧的实际楼数（两者可能不同） */
   floors: number;
   /** 写前备份在库内的相对路径（.ste/写回备份/…）；源文件当时不存在则无 */
   backupFile?: string;

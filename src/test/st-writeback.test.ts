@@ -5,6 +5,8 @@ import {
   performWriteback,
   recordProtectionBackup,
   restoreBackup,
+  restoreProtectionFileName,
+  RESTORE_KEEP,
   WRITEBACK_KEEP,
 } from '@/lib/vault/st-writeback';
 import { parseJsonl } from '@/lib/adapters/st/chat-jsonl';
@@ -54,6 +56,7 @@ describe('写回 ST（7.5）', () => {
     const { story, backedUp } = await performWriteback(vault, io, mkStory(3), 1700000000000);
     expect(backedUp).toBe(true);
     expect(story.writebacks).toHaveLength(1);
+    expect(story.writebacks![0].kind).toBe('write');
     expect(story.writebacks![0].floors).toBe(3);
     // 备份的是写回前的 ST 内容
     const backup = await vault.readText(story.writebacks![0].backupFile!);
@@ -107,21 +110,55 @@ describe('写回 ST（7.5）', () => {
     await absFs.writeText(ST_PATH, mkJsonl(2));
     const { story } = await performWriteback(vault, io, mkStory(5), 1700000000000);
 
-    const { protectionFile } = await restoreBackup(
+    const { protection } = await restoreBackup(
       vault,
       io,
       story,
       story.writebacks![0].backupFile!,
       1700000060000,
     );
-    const updated = recordProtectionBackup(story, protectionFile!, 1700000060000);
+    const updated = recordProtectionBackup(story, protection!);
 
-    expect(updated.writebacks![0].backupFile).toBe(protectionFile);
+    expect(updated.writebacks![0].kind).toBe('restore');
+    expect(updated.writebacks![0].backupFile).toBe(protection!.backupFile);
     await restoreBackup(vault, io, updated, updated.writebacks![0].backupFile!, 1700000120000);
     expect(parseJsonl(await absFs.readText(ST_PATH)).messages).toHaveLength(5);
   });
 
-  it('普通写回修剪时保留恢复保护备份', async () => {
+  it('保护记录的楼数取 ST 侧实际内容，不是库内故事楼数', async () => {
+    const vault = createMemFs();
+    const { fs: absFs, io } = mkAbs();
+    const backupFile = '.ste/写回备份/astory_wb/20240101-000000.jsonl';
+    await vault.writeText(backupFile, mkJsonl(9));
+    await absFs.writeText(ST_PATH, mkJsonl(2)); // ST 侧只有 2 楼，库内故事是 5 楼
+
+    const { protection } = await restoreBackup(vault, io, mkStory(5), backupFile, 1700000000000);
+
+    expect(protection!.floors).toBe(2);
+    expect(parseJsonl(await vault.readText(protection!.backupFile!)).messages).toHaveLength(2);
+  });
+
+  it('保护备份不再永久豁免修剪，单独保留 RESTORE_KEEP 版', async () => {
+    const vault = createMemFs();
+    const { fs: absFs, io } = mkAbs();
+    await absFs.writeText(ST_PATH, mkJsonl(2));
+    const { story } = await performWriteback(vault, io, mkStory(3), 1700000000000);
+    const backupFile = story.writebacks![0].backupFile!;
+
+    const first = 1700000060000;
+    for (let i = 0; i < RESTORE_KEEP + 2; i++) {
+      await restoreBackup(vault, io, story, backupFile, first + i * 60_000);
+    }
+
+    const names = (await vault.list(`.ste/写回备份/${story.id}`)).map((entry) => entry.name);
+    expect(names.filter((name) => name.endsWith('-restore.jsonl'))).toHaveLength(RESTORE_KEEP);
+    expect(names).toContain(restoreProtectionFileName(first + (RESTORE_KEEP + 1) * 60_000));
+    expect(names).not.toContain(restoreProtectionFileName(first));
+    // 普通写回备份是另一池，不被恢复操作牵连
+    expect(names.filter((name) => !name.endsWith('-restore.jsonl'))).toEqual([backupFileName(1700000000000)]);
+  });
+
+  it('普通写回修剪只算普通备份这一池，不挤占保护备份', async () => {
     const vault = createMemFs();
     const { fs: absFs, io } = mkAbs();
     await absFs.writeText(ST_PATH, mkJsonl(1));
