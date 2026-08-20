@@ -75,6 +75,17 @@ describe('前端状态刷新契约', () => {
     expect(page).toContain('buildEditorStoryPath');
     expect(page).toContain('setEditorStoryId(storyId)');
   });
+  // TODO(阶段 B3 遗留)：从 editor-mode-restoration.test.ts 迁来的两条 grep。
+  // 该文件其余 13 条已换成 editor-mode-restoration.test.tsx / st-ai-config-dialog.test.tsx
+  // 里的行为测试；这两条要等价覆盖需要分别渲染 Home.tsx 和 StoryWorkspace.tsx，
+  // 按「不允许先删后补」暂留。Home 的行为覆盖并入后续 Home 批次一起做。
+  it('首页编辑区入口直达聊天工作台，故事工作区记住当前故事', () => {
+    const home = read('src/pages/Home.tsx');
+    const workspace = read('src/pages/StoryWorkspace.tsx');
+
+    expect(home).toMatch(/label="进入编辑区"[^\n]*navigate\('\/chat'\)/);
+    expect(workspace).toContain('setEditorStoryId');
+  });
 });
 
 describe('四主题覆盖契约', () => {
