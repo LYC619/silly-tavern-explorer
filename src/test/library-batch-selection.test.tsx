@@ -284,6 +284,26 @@ describe('角色库工具条与分组', () => {
     expect(localStorage.getItem('ste-library-group-by')).toBe('tag');
     expect(cardIds().sort()).toEqual(['a', 'b']);
   });
+
+  it('侧边筛选栏的标签可点，勾中后只留带该标签的角色，再点取消', async () => {
+    // 用内置分类法里的真实标签（人物/少女），自造的「角色/xx」不进内置筛选组
+    await renderLibrary([
+      mkCharacter('a', { tags: ['人物/少女'] }),
+      mkCharacter('b', { tags: ['人物/成女'] }),
+    ]);
+    expect(cardIds().sort()).toEqual(['a', 'b']);
+
+    const tagButton = Array.from(document.querySelectorAll('button'))
+      // 标签按钮文本是「标签名+计数」，去掉尾部数字再比
+      .find((b) => b.textContent?.trim().replace(/\d+$/, '') === '少女');
+    if (!tagButton) throw new Error('筛选栏里没有渲染出「少女」标签');
+
+    await click(tagButton);
+    expect(cardIds()).toEqual(['a']);
+
+    await click(tagButton);
+    expect(cardIds().sort()).toEqual(['a', 'b']);
+  });
 });
 
 describe('角色库批量导出', () => {
