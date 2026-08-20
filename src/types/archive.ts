@@ -217,6 +217,8 @@ export interface WritebackRecord {
   floors: number;
   /** 写前备份在库内的相对路径（.ste/写回备份/…）；源文件当时不存在则无 */
   backupFile?: string;
+  /** 备份文件已被保留策略修剪：记录本身留着，但不再提供恢复入口 */
+  backupPruned?: boolean;
 }
 
 // ---------- 独立资产：引用 + 写时复制（定稿第七章） ----------

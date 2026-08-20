@@ -20,8 +20,8 @@ import {
 import { useToast } from '@/hooks/use-toast';
 import { createTauriFs, getVaultRoot, readAbsText, writeAbsText } from '@/lib/vault/tauri-fs';
 import {
+  applyRestoreOutcome,
   performWriteback,
-  recordProtectionBackup,
   restoreBackup,
   writebackSummary,
   RESTORE_KEEP,
@@ -64,18 +64,16 @@ export function WritebackSection({ story, onStoryUpdate }: Props) {
           ].filter(Boolean).join('；'),
         });
       } else {
-        const { protection, warning } = await restoreBackup(vaultFs, abs, story, pending.backupFile);
-        if (protection) {
-          onStoryUpdate((cur) => recordProtectionBackup(cur, protection));
-        }
+        const outcome = await restoreBackup(vaultFs, abs, story, pending.backupFile);
+        onStoryUpdate((cur) => applyRestoreOutcome(cur, outcome));
         toast({
           title: '已恢复该版备份到 ST',
           description: [
-            protection
+            outcome.protection
               ? `恢复前的当前 ST 内容已另存保护备份（保留最近 ${RESTORE_KEEP} 版）`
               : '恢复前没有可读取的当前 ST 文件',
             'STE 库内数据未变动；需要时可再次写回覆盖',
-            warning,
+            outcome.warning,
           ].filter(Boolean).join('；'),
         });
       }
@@ -124,7 +122,7 @@ export function WritebackSection({ story, onStoryUpdate }: Props) {
                     恢复此前版本
                   </Button>
                 ) : (
-                  <span>（无备份）</span>
+                  <span>{w.backupPruned ? '（备份已按保留策略清理）' : '（无备份）'}</span>
                 )}
               </div>
             ))}

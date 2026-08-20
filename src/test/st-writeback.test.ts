@@ -1,12 +1,13 @@
 import { describe, expect, it } from 'vitest';
 import { createMemFs } from '@/lib/vault/fs';
 import {
+  applyRestoreOutcome,
   backupFileName,
   performWriteback,
-  recordProtectionBackup,
   restoreBackup,
   restoreProtectionFileName,
   RESTORE_KEEP,
+  WRITEBACK_HISTORY_MAX,
   WRITEBACK_KEEP,
 } from '@/lib/vault/st-writeback';
 import { parseJsonl } from '@/lib/adapters/st/chat-jsonl';
@@ -110,19 +111,70 @@ describe('写回 ST（7.5）', () => {
     await absFs.writeText(ST_PATH, mkJsonl(2));
     const { story } = await performWriteback(vault, io, mkStory(5), 1700000000000);
 
-    const { protection } = await restoreBackup(
-      vault,
-      io,
-      story,
-      story.writebacks![0].backupFile!,
-      1700000060000,
-    );
-    const updated = recordProtectionBackup(story, protection!);
+    const outcome = await restoreBackup(vault, io, story, story.writebacks![0].backupFile!, 1700000060000);
+    const updated = applyRestoreOutcome(story, outcome);
 
     expect(updated.writebacks![0].kind).toBe('restore');
-    expect(updated.writebacks![0].backupFile).toBe(protection!.backupFile);
+    expect(updated.writebacks![0].backupFile).toBe(outcome.protection!.backupFile);
     await restoreBackup(vault, io, updated, updated.writebacks![0].backupFile!, 1700000120000);
     expect(parseJsonl(await absFs.readText(ST_PATH)).messages).toHaveLength(5);
+  });
+
+  it('修剪掉文件的历史记录撤下恢复入口，但保留时间与楼数', async () => {
+    const vault = createMemFs();
+    const { fs: absFs, io } = mkAbs();
+    await absFs.writeText(ST_PATH, mkJsonl(1));
+    let story = mkStory(2);
+    // 历史留 10 条、普通备份只留 5 份，多写几次必然对不齐
+    for (let i = 0; i < WRITEBACK_KEEP + 3; i++) {
+      ({ story } = await performWriteback(vault, io, story, 1700000000000 + i * 60_000));
+    }
+
+    const history = story.writebacks!;
+    expect(history).toHaveLength(WRITEBACK_KEEP + 3);
+    const live = history.filter((record) => record.backupFile);
+    const dropped = history.filter((record) => record.backupPruned);
+    expect(live).toHaveLength(WRITEBACK_KEEP);
+    expect(dropped).toHaveLength(3);
+    // 撤下的只是恢复入口，时间与楼数还在
+    expect(dropped.every((record) => record.at > 0 && record.floors === 2)).toBe(true);
+    // 仍标着可恢复的，文件必须真的还在
+    for (const record of live) {
+      await expect(vault.readText(record.backupFile!)).resolves.toContain('第1楼');
+    }
+  });
+
+  it('恢复顺带修剪时，同样撤下失效的历史恢复入口', async () => {
+    const vault = createMemFs();
+    const { fs: absFs, io } = mkAbs();
+    await absFs.writeText(ST_PATH, mkJsonl(2));
+    const { story } = await performWriteback(vault, io, mkStory(3), 1700000000000);
+    const backupFile = story.writebacks![0].backupFile!;
+
+    // 先攒满保护备份，再多恢复一次把最早那版挤掉
+    let current = story;
+    const first = 1700000060000;
+    for (let i = 0; i < RESTORE_KEEP + 1; i++) {
+      current = applyRestoreOutcome(current, await restoreBackup(vault, io, current, backupFile, first + i * 60_000));
+    }
+
+    const oldest = current.writebacks!.find((record) => record.at === first)!;
+    expect(oldest.backupPruned).toBe(true);
+    expect(oldest.backupFile).toBeUndefined();
+    expect(current.writebacks!.filter((record) => record.kind === 'restore' && record.backupFile))
+      .toHaveLength(RESTORE_KEEP);
+  });
+
+  it('历史条数上限内的老记录不会被误伤', async () => {
+    const vault = createMemFs();
+    const { fs: absFs, io } = mkAbs();
+    await absFs.writeText(ST_PATH, mkJsonl(1));
+    let story = mkStory(2);
+    for (let i = 0; i < WRITEBACK_HISTORY_MAX + 2; i++) {
+      ({ story } = await performWriteback(vault, io, story, 1700000000000 + i * 60_000));
+    }
+    expect(story.writebacks).toHaveLength(WRITEBACK_HISTORY_MAX);
+    expect(story.writebacks!.filter((record) => record.backupFile)).toHaveLength(WRITEBACK_KEEP);
   });
 
   it('保护记录的楼数取 ST 侧实际内容，不是库内故事楼数', async () => {

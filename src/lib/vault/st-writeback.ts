@@ -59,9 +59,10 @@ export interface WritebackOutcome {
 /**
  * 两类备份各留各的版数：普通写回备份 WRITEBACK_KEEP 版、恢复保护备份 RESTORE_KEEP 版。
  * 文件名前缀是可字典序排序的时间戳，因此同类里排在前面的就是最旧的。
+ * 返回被删掉的库内相对路径，供调用方同步历史里的恢复入口。
  * 抛错由调用方转成警告：备份文件已经落地，清理失败不该反过来推翻已完成的写入。
  */
-async function pruneBackups(vaultFs: VaultFs, dir: string): Promise<void> {
+async function pruneBackups(vaultFs: VaultFs, dir: string): Promise<string[]> {
   const names = (await vaultFs.list(dir))
     .filter((entry) => !entry.isDir && entry.name.endsWith('.jsonl'))
     .map((entry) => entry.name)
@@ -70,11 +71,27 @@ async function pruneBackups(vaultFs: VaultFs, dir: string): Promise<void> {
     [names.filter((name) => !name.endsWith(RESTORE_SUFFIX)), WRITEBACK_KEEP],
     [names.filter((name) => name.endsWith(RESTORE_SUFFIX)), RESTORE_KEEP],
   ];
+  const removed: string[] = [];
   for (const [pool, keep] of pools) {
     for (const name of pool.slice(0, Math.max(0, pool.length - keep))) {
       await vaultFs.removeFile(`${dir}/${name}`);
+      removed.push(`${dir}/${name}`);
     }
   }
+  return removed;
+}
+
+/**
+ * 历史留 WRITEBACK_HISTORY_MAX 条，文件只留 WRITEBACK_KEEP + RESTORE_KEEP 份，两者必然对不齐。
+ * 修剪掉文件的记录保留时间与楼数（写回历史本身有价值），但去掉指向已删文件的恢复入口，
+ * 免得界面给出一个点了必然报错的按钮。
+ */
+function dropPrunedBackups(records: WritebackRecord[] | undefined, pruned: string[]): WritebackRecord[] {
+  if (!records?.length || !pruned.length) return records ?? [];
+  const gone = new Set(pruned);
+  return records.map((record) => (record.backupFile && gone.has(record.backupFile)
+    ? { ...record, backupFile: undefined, backupPruned: true }
+    : record));
 }
 
 /** 执行写回：备份 → 修剪旧备份 → 序列化主线写 ST → 记历史。抛错即整体失败，不半途落历史 */
@@ -88,6 +105,7 @@ export async function performWriteback(
   const dir = `${BACKUP_ROOT}/${story.id}`;
   let backupFile: string | undefined;
   let warning: string | undefined;
+  let pruned: string[] = [];
   let currentST: string | undefined;
   try {
     currentST = await abs.readText(story.sourcePath);
@@ -100,7 +118,7 @@ export async function performWriteback(
     backupFile = `${dir}/${backupFileName(now)}`;
     await vaultFs.writeText(backupFile, currentST);
     try {
-      await pruneBackups(vaultFs, dir);
+      pruned = await pruneBackups(vaultFs, dir);
     } catch (error) {
       warning = `备份已保存，但清理旧备份失败：${error instanceof Error ? error.message : String(error)}`;
     }
@@ -112,8 +130,9 @@ export async function performWriteback(
     floors: story.session.messages.length,
     backupFile,
   };
+  const history = [rec, ...dropPrunedBackups(story.writebacks, pruned)].slice(0, WRITEBACK_HISTORY_MAX);
   return {
-    story: { ...story, writebacks: [rec, ...(story.writebacks ?? [])].slice(0, WRITEBACK_HISTORY_MAX) },
+    story: { ...story, writebacks: history },
     backedUp: backupFile !== undefined,
     warning,
   };
@@ -123,17 +142,20 @@ export function restoreProtectionFileName(at: number): string {
   return backupFileName(at).replace(/\.jsonl$/, RESTORE_SUFFIX);
 }
 
-/** 将恢复前的保护备份登记到历史，使其可从界面再次恢复。 */
-export function recordProtectionBackup(story: ArchiveStory, record: WritebackRecord): ArchiveStory {
+/** 把一次恢复的结果落到故事上：保护备份进历史，被修剪掉的旧备份撤下恢复入口。 */
+export function applyRestoreOutcome(story: ArchiveStory, outcome: RestoreOutcome): ArchiveStory {
+  const history = dropPrunedBackups(story.writebacks, outcome.prunedFiles);
   return {
     ...story,
-    writebacks: [record, ...(story.writebacks ?? [])].slice(0, WRITEBACK_HISTORY_MAX),
+    writebacks: (outcome.protection ? [outcome.protection, ...history] : history).slice(0, WRITEBACK_HISTORY_MAX),
   };
 }
 
 export interface RestoreOutcome {
   /** 恢复前当前 ST 内容的保护备份记录；当时没有可读文件则无 */
   protection?: WritebackRecord;
+  /** 本次顺带修剪掉的旧备份（库内相对路径），历史里指向它们的恢复入口要撤下 */
+  prunedFiles: string[];
   /** 恢复已完成但修剪旧备份失败时返回；不影响本次恢复。 */
   warning?: string;
 }
@@ -166,12 +188,13 @@ export async function restoreBackup(
   }
   await abs.writeText(story.sourcePath, backup);
   let warning: string | undefined;
+  let prunedFiles: string[] = [];
   if (protection) {
     try {
-      await pruneBackups(vaultFs, dir);
+      prunedFiles = await pruneBackups(vaultFs, dir);
     } catch (error) {
       warning = `已恢复，但清理旧备份失败：${error instanceof Error ? error.message : String(error)}`;
     }
   }
-  return { protection, warning };
+  return { protection, prunedFiles, warning };
 }
