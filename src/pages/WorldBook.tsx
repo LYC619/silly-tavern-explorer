@@ -1119,6 +1119,7 @@ export default function WorldBookPage() {
                           <EntryCard
                             key={key}
                             entry={entry}
+                            entryKey={key}
                             selected={selectedUid === key}
                             onClick={() => handleSelectEntry(key)}
                             onToggleEnabled={(v) => toggleEnabled(key, v)}
@@ -1149,6 +1150,7 @@ export default function WorldBookPage() {
                               <EntryListRow
                                 key={key}
                                 entry={entry}
+                                entryKey={key}
                                 selected={selectedUid === key}
                                 onClick={() => handleSelectEntry(key)}
                                 onToggleEnabled={(v) => toggleEnabled(key, v)}

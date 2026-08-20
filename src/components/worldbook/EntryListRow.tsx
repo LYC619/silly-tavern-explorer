@@ -7,6 +7,8 @@ import { cn } from '@/lib/utils';
 
 interface Props {
   entry: WorldBookEntry;
+  /** entries 记录里的键；作为列表项的稳定标识暴露给 DOM */
+  entryKey: string;
   selected: boolean;
   onClick: () => void;
   onToggleEnabled: (enabled: boolean) => void;
@@ -22,9 +24,11 @@ function strategyIcon(entry: WorldBookEntry) {
   return '🟢';
 }
 
-export function EntryListRow({ entry, selected, onClick, onToggleEnabled, onDelete, batchMode, batchChecked, onBatchToggle }: Props) {
+export function EntryListRow({ entry, entryKey, selected, onClick, onToggleEnabled, onDelete, batchMode, batchChecked, onBatchToggle }: Props) {
   return (
     <tr
+      data-entry-key={entryKey}
+      data-batch-checked={batchChecked ? 'true' : undefined}
       className={cn(
         'cursor-pointer hover:bg-accent/50 transition-colors text-sm',
         selected && 'bg-accent'

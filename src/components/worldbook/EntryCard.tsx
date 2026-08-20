@@ -9,6 +9,8 @@ import { cn } from '@/lib/utils';
 
 interface Props {
   entry: WorldBookEntry;
+  /** entries 记录里的键；作为列表项的稳定标识暴露给 DOM */
+  entryKey: string;
   selected: boolean;
   onClick: () => void;
   onToggleEnabled: (enabled: boolean) => void;
@@ -32,13 +34,15 @@ function strategyInfo(entry: WorldBookEntry) {
   return { dot: 'bg-green-500', label: '关键词' };
 }
 
-export function EntryCard({ entry, selected, onClick, onToggleEnabled, onDelete, batchMode, batchChecked, onBatchToggle }: Props) {
+export function EntryCard({ entry, entryKey, selected, onClick, onToggleEnabled, onDelete, batchMode, batchChecked, onBatchToggle }: Props) {
   const strategy = strategyInfo(entry);
   const posLabel = POSITION_LABELS[entry.position] ?? `位置 ${entry.position}`;
   const contentPreview = entry.content.split('\n').slice(0, 3).join('\n');
 
   return (
     <div
+      data-entry-key={entryKey}
+      data-batch-checked={batchChecked ? 'true' : undefined}
       className={cn(
         'relative rounded-lg border bg-card cursor-pointer transition-all overflow-hidden',
         'hover:shadow-md',
