@@ -835,6 +835,8 @@ const Library = () => {
                           key={c.id}
                           role="button"
                           tabIndex={0}
+                          data-character-id={c.id}
+                          data-selected={batchMode && isSelected ? 'true' : undefined}
                           className={cn(
                             'group relative aspect-[2/3] rounded-xl overflow-hidden cursor-pointer bg-elevated transition-transform duration-200 hover:-translate-y-0.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--bg-canvas)]',
                             batchMode && isSelected && 'ring-2 ring-primary',
@@ -955,6 +957,8 @@ const Library = () => {
                           key={c.id}
                           role="button"
                           tabIndex={0}
+                          data-character-id={c.id}
+                          data-selected={batchMode && isSelected ? 'true' : undefined}
                           className={cn(
                             'grid items-center gap-3.5 px-3.5 py-2.5 cursor-pointer transition-colors hover:bg-[var(--hover-overlay)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--bg-canvas)]',
                             batchMode && isSelected && 'bg-[var(--brand-active-bg)]',

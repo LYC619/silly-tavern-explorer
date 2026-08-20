@@ -5,34 +5,11 @@ import { resolve } from 'node:path';
 const read = (path: string) => readFileSync(resolve(process.cwd(), path), 'utf8');
 
 describe('前端状态刷新契约', () => {
-  it('角色库将标签和批量管理紧跟搜索，筛选栏使用独立组件', () => {
-    const library = read('src/pages/Library.tsx');
-    const searchIndex = library.indexOf('placeholder="搜索角色或标签"');
-    const tagIndex = library.indexOf('aria-label="标签管理"', searchIndex);
-    const batchIndex = library.indexOf("batchMode ? '退出批量' : '批量管理'", tagIndex);
-    const sortIndex = library.indexOf('<Select value={sortKey}', batchIndex);
 
-    expect(library).toContain("import { LibraryFilterRail } from '@/components/library/LibraryFilterRail'");
-    expect(library).toContain('<LibraryFilterRail');
-    expect(searchIndex).toBeGreaterThanOrEqual(0);
-    expect(tagIndex).toBeGreaterThan(searchIndex);
-    expect(batchIndex).toBeGreaterThan(tagIndex);
-    expect(sortIndex).toBeGreaterThan(batchIndex);
-  });
 
-  it('角色库批量导出在 Tauri 中写入用户选定目录并反馈真实结果', () => {
-    const library = read('src/pages/Library.tsx');
-
-    expect(library).toContain("import { exportCharactersToDirectory } from '@/lib/character-batch-export'");
-    expect(library).toContain("import { createTauriFs, isTauri, pickDirectory } from '@/lib/vault/tauri-fs'");
-    expect(library).toContain("const root = await pickDirectory('选择角色卡导出文件夹')");
-    expect(library).toContain('exportCharactersToDirectory(targets, createTauriFs(root))');
-    expect(library).toContain('result.failed');
-    expect(library).toContain('已取消导出');
-    expect(library).toContain('onPreferencesChange={handleTagPreferencesChange}');
-    expect(library).toContain('导出角色卡');
-  });
-
+  // TODO(阶段 B2 遗留)：这条仍是源码 grep。导入弹窗的行为测试见
+  // library-import-dialog.test.tsx / library-character-import.test.ts，
+  // 但 Library.tsx 把它们接起来的这段还没有等价的行为覆盖，按「不允许先删后补」暂留。
   it('角色库导入先准备文件和标签选择，再保存可导出的空白图片卡', () => {
     const library = read('src/pages/Library.tsx');
 
@@ -45,19 +22,6 @@ describe('前端状态刷新契约', () => {
     expect(library).toContain('await saveCharacter(character)');
   });
 
-  it('角色库网格视图提供持久化分组和可选的一级标签分类', () => {
-    const library = read('src/pages/Library.tsx');
-
-    expect(library).toContain("lsGet('ste-library-group-by')");
-    expect(library).toContain("lsSet('ste-library-group-by', groupBy)");
-    expect(library).toContain('LIBRARY_GROUP_BY_OPTIONS.map');
-    expect(library).toContain("lsGet('ste-library-group-tag-category')");
-    expect(library).toContain("lsSet('ste-library-group-tag-category', groupTagCategory)");
-    expect(library).toContain('getTagCategories,');
-    expect(library).toContain('aria-label="标签分组分类"');
-    expect(library).toContain('buildLibraryGroups(pageItems, groupBy, { tagCategory: groupTagCategory })');
-    expect(library).toContain('group.items.map');
-  });
 
   it('角色页快速标签使用宽版多列勾选面板并包含未分类', () => {
     const header = read('src/components/character/CharacterHeader.tsx');
