@@ -154,6 +154,16 @@ describe('故事树选树工具行', () => {
     expect(items.some((text) => text.includes('JSON'))).toBe(true);
     expect(items.some((text) => text.includes('Markdown'))).toBe(true);
   });
+  it('故事树视图自己滚，不把整理页外壳撑破', async () => {
+    getAllStoryTrees.mockResolvedValue([tree()]);
+    await render();
+
+    // jsdom 没有排版引擎，滚动本身测不了，只能断言渲染节点的声明
+    const rootEl = container.firstElementChild as HTMLElement;
+    expect(rootEl.classList.contains('overflow-y-auto')).toBe(true);
+    expect(rootEl.classList.contains('h-full')).toBe(true);
+    expect(rootEl.classList.contains('min-h-0')).toBe(true);
+  });
 });
 
 describe('还没有故事树时', () => {

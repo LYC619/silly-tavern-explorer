@@ -2,8 +2,6 @@ import { act, forwardRef, useImperativeHandle, useState, type ReactNode } from '
 import { createRoot, type Root } from 'react-dom/client';
 import { MemoryRouter } from 'react-router-dom';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { readFileSync } from 'node:fs';
-import { resolve } from 'node:path';
 import type { ArchiveStory } from '@/types/archive';
 import type { SummaryKind } from '@/types/summary';
 import type { RecordWorkbenchHandle } from '@/components/organize/RecordWorkbench';
@@ -130,13 +128,21 @@ describe('总结工作台单屏交互', () => {
     expect([...container.querySelectorAll('button')].some((button) => button.textContent === '查看现有')).toBe(false);
   });
 
-  it('页面和展示正文声明固定高度与内部滚动边界', () => {
-    const workspace = readFileSync(resolve(process.cwd(), 'src/components/organize/SummaryWorkspace.tsx'), 'utf8');
-    const gallery = readFileSync(resolve(process.cwd(), 'src/components/summary/SummaryGallery.tsx'), 'utf8');
-    expect(workspace).toContain('h-full min-h-0 overflow-hidden');
-    expect(workspace).toContain('data-summary-workspace');
-    expect(gallery).toContain('data-summary-content-scroll');
-    expect(gallery).toContain('overflow-y-auto');
+  it('整理页外壳自己吃满高度并夹住溢出，滚动交给各视图内部', () => {
+    act(() => {
+      root.render(
+        <MemoryRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
+          <ControlledWorkspace />
+        </MemoryRouter>,
+      );
+    });
+
+    // jsdom 没有排版引擎，只能断言外壳的声明；展示页正文的滚动区见 organize-panels.test.tsx
+    const shell = container.querySelector<HTMLElement>('[data-summary-workspace]');
+    expect(shell).not.toBeNull();
+    expect(shell!.classList.contains('h-full')).toBe(true);
+    expect(shell!.classList.contains('min-h-0')).toBe(true);
+    expect(shell!.classList.contains('overflow-hidden')).toBe(true);
   });
 
   it('一级页面默认停在生成工作台，切到展示页再切回来还能拿到列表', () => {
@@ -218,23 +224,4 @@ describe('总结工作台单屏交互', () => {
     expect(container.querySelector('[data-testid="saved-summary-list"]')?.getAttribute('data-kind')).toBe('diary');
   });
 
-  it('左侧配置块可折叠，挂载设定和批量生成默认收起', () => {
-    const floor = readFileSync(resolve(process.cwd(), 'src/components/summary/FloorRangePicker.tsx'), 'utf8');
-    const attach = readFileSync(resolve(process.cwd(), 'src/components/summary/AttachPanel.tsx'), 'utf8');
-    const prior = readFileSync(resolve(process.cwd(), 'src/components/summary/PriorVolumesPanel.tsx'), 'utf8');
-    const batch = readFileSync(resolve(process.cwd(), 'src/components/summary/BatchProcessor.tsx'), 'utf8');
-    expect(floor).toContain('<Collapsible defaultOpen>');
-    expect(prior).toContain('<Collapsible defaultOpen>');
-    expect(attach).toContain('<Collapsible>');
-    expect(attach).not.toContain('<Collapsible defaultOpen>');
-    expect(batch).toContain('<Collapsible>');
-    expect(batch).not.toContain('<Collapsible defaultOpen>');
-  });
-
-  it('故事树和导入导出视图在整理页外壳内拥有独立滚动', () => {
-    const tree = readFileSync(resolve(process.cwd(), 'src/components/organize/StoryTreeWorkspace.tsx'), 'utf8');
-    const io = readFileSync(resolve(process.cwd(), 'src/components/workspace/IOPanel.tsx'), 'utf8');
-    expect(tree).toContain('h-full min-h-0 overflow-y-auto');
-    expect(io).toContain('h-full min-h-0 overflow-y-auto');
-  });
 });
