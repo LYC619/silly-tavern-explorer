@@ -2,8 +2,6 @@ import { act } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { MemoryRouter, Route, Routes, useLocation, useNavigate } from 'react-router-dom';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { readFileSync } from 'node:fs';
-import { resolve } from 'node:path';
 
 const collapseSidenav = vi.hoisted(() => vi.fn());
 /** 侧栏子项默认折叠，个别用例需要展开后断言高亮，因此让开合状态可控。 */
@@ -54,6 +52,22 @@ function sideSubItem(root: ParentNode, areaKey: string, childKey: string): HTMLB
   return root.querySelector<HTMLButtonElement>(`button[title="${navChild(areaKey, childKey).description}"]`);
 }
 
+/** 取某个一级区块下真正的子项按钮（排除父行自己和展开箭头） */
+function sideSubItems(areaLabel: string): HTMLButtonElement[] {
+  const parentRow = Array.from(container.querySelectorAll('[data-nav-parent-row]'))
+    .find((row) => row.textContent?.trim() === areaLabel);
+  if (!parentRow) throw new Error(`侧栏没有「${areaLabel}」父项`);
+  return Array.from(parentRow.parentElement!.querySelectorAll<HTMLButtonElement>('button[title]'))
+    .filter((button) => !parentRow.contains(button));
+}
+
+function railButton(label: string): HTMLButtonElement {
+  const found = Array.from(container.querySelectorAll<HTMLButtonElement>('[data-editor-rail] button'))
+    .find((item) => item.textContent?.trim() === label);
+  if (!found) throw new Error(`窄工具栏没有「${label}」`);
+  return found;
+}
+
 function TestPage({ id, target }: { id: string; target: string }) {
   const navigate = useNavigate();
   return (
@@ -91,11 +105,18 @@ afterEach(() => {
 });
 
 describe('AppLayout route transitions', () => {
-  it('编辑区展开后只展示正式子界面，不混入最近处理条目', () => {
-    const source = readFileSync(resolve(process.cwd(), 'src/components/AppLayout.tsx'), 'utf8');
+  it('编辑区展开后只展示信息架构里的正式子界面，不混入最近处理条目', async () => {
+    navOpen.editor = true;
+    await act(async () => {
+      root.render(
+        <MemoryRouter initialEntries={['/chat']} future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
+          <AppLayout><LayoutLocationProbe /></AppLayout>
+        </MemoryRouter>,
+      );
+    });
 
-    expect(source).not.toContain('EditorRecentList');
-    expect(source).not.toContain("@/lib/editor-recent");
+    const expected = NAV_AREAS.find((area) => area.key === 'editor')!.children.map((child) => child.description);
+    expect(sideSubItems('编辑区').map((button) => button.getAttribute('title'))).toEqual(expected);
   });
 
   it('removes the previous route instead of stacking pages in the main scroller', async () => {
@@ -211,11 +232,64 @@ describe('正则工具页的编辑区落点', () => {
   it('窄工具栏的「正则」进的是工具页，不是资产列表', async () => {
     await renderAt('/chat');
 
-    const button = Array.from(container.querySelectorAll<HTMLButtonElement>('[data-editor-rail] button'))
-      .find((item) => item.textContent?.trim() === '正则');
-    expect(button).toBeDefined();
-    await act(async () => { button?.click(); });
+    const button = railButton('正则');
+    await act(async () => { button.click(); });
 
     expect(container.querySelector('[data-testid="layout-location"]')?.textContent).toBe('/regex');
+  });
+});
+
+describe('编辑区窄工具栏与侧栏共用当前故事', () => {
+  async function renderAt(path: string) {
+    await act(async () => {
+      root.render(
+        <MemoryRouter initialEntries={[path]} future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
+          <AppLayout><LayoutLocationProbe /></AppLayout>
+        </MemoryRouter>,
+      );
+    });
+  }
+  const location = () => container.querySelector('[data-testid="layout-location"]')?.textContent;
+
+  it('没有当前故事时按各自的兜底落点走', async () => {
+    await renderAt('/regex');
+
+    await act(async () => { railButton('聊天处理').click(); });
+    expect(location()).toBe('/chat');
+
+    await act(async () => { railButton('总结').click(); });
+    expect(location()).toBe('/tools?focus=summary');
+  });
+
+  it('有当前故事时深链进这个故事，不再回选择页', async () => {
+    localStorage.setItem('ste-current-editor-story-id', 'st_9');
+    await renderAt('/regex');
+
+    await act(async () => { railButton('总结').click(); });
+    expect(location()).toBe('/story/st_9?view=volume');
+
+    await act(async () => { railButton('故事树').click(); });
+    expect(location()).toBe('/story/st_9?view=tree');
+
+    await act(async () => { railButton('聊天处理').click(); });
+    expect(location()).toBe('/chat?storyId=st_9');
+  });
+
+  it('侧栏子项和窄工具栏用同一个当前故事，不会一个进故事一个进选择页', async () => {
+    localStorage.setItem('ste-current-editor-story-id', 'st_9');
+    navOpen.editor = true;
+    await renderAt('/regex');
+
+    await act(async () => { sideSubItem(container, 'editor', 'summary')!.click(); });
+
+    expect(location()).toBe('/story/st_9?view=volume');
+  });
+
+  it('不吃故事上下文的世界书照样进选择页', async () => {
+    localStorage.setItem('ste-current-editor-story-id', 'st_9');
+    await renderAt('/regex');
+
+    await act(async () => { railButton('世界书').click(); });
+    expect(location()).toBe('/tools?focus=worldbook');
   });
 });

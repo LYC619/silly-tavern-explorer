@@ -139,6 +139,27 @@ describe('总结工作台单屏交互', () => {
     expect(gallery).toContain('overflow-y-auto');
   });
 
+  it('一级页面默认停在生成工作台，切到展示页再切回来还能拿到列表', () => {
+    act(() => {
+      root.render(
+        <MemoryRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
+          <ControlledWorkspace />
+        </MemoryRouter>,
+      );
+    });
+
+    expect(container.querySelector('[data-testid="record-workbench"]')).not.toBeNull();
+    expect(container.querySelector('[data-testid="saved-summary-list"]')).not.toBeNull();
+    expect(container.querySelector('[data-testid="summary-gallery"]')).toBeNull();
+
+    activateTab([...container.querySelectorAll('button')].find((button) => button.textContent?.includes('展示页')));
+    expect(container.querySelector('[data-testid="record-workbench"]')).toBeNull();
+
+    activateTab([...container.querySelectorAll('button')].find((button) => button.textContent?.includes('生成工作台')));
+    expect(container.querySelector('[data-testid="record-workbench"]')).not.toBeNull();
+    expect(container.querySelector('[data-testid="summary-gallery"]')).toBeNull();
+  });
+
   it('一级页面与二级总结类型独立切换，展示页不会被送回生成工作台', () => {
     const onKindChange = vi.fn();
     act(() => {
