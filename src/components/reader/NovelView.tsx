@@ -591,7 +591,7 @@ const NovelView = ({
       </div>
 
       {/* ===== 分页正文 ===== */}
-      <div className="relative flex-1 min-h-0 overflow-hidden" onClick={handleSurfaceClick}>
+      <div data-novel-surface className="relative flex-1 min-h-0 overflow-hidden" onClick={handleSurfaceClick}>
         {pages.length === 0 ? (
           <p className="flex h-full items-center justify-center text-center text-muted-foreground text-sm">
             没有可显示的内容（可能全部楼层被隐藏或清洗）。

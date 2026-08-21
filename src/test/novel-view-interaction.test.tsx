@@ -144,3 +144,59 @@ describe('小说视图翻页交互', () => {
     expect(paragraphs.every((paragraph) => !paragraph.className.includes('mb-2'))).toBe(true);
   });
 });
+
+/**
+ * 嵌入模式（角色卡页内嵌阅读器用）。原先由 embedded-reader.test.ts grep
+ * 「embedded?: boolean」「className={embedded」「event.clientX < window.innerWidth / 2」
+ * 这些源码片段，实际要保的是：不霸占整个视口，且翻页按自己面板的中线判方向。
+ */
+describe('小说视图嵌入模式', () => {
+  async function renderNovel(embedded: boolean) {
+    await act(async () => {
+      root.render(
+        <NovelView session={session} markers={[]} regexRules={[]} onClose={vi.fn()} readOnly embedded={embedded} />,
+      );
+    });
+  }
+
+  const surface = () => container.querySelector<HTMLElement>('[data-novel-surface]')!;
+
+  it('嵌入时留在文档流里，全屏时才铺满视口', async () => {
+    await renderNovel(true);
+    const embeddedRoot = container.firstElementChild as HTMLElement;
+    expect(embeddedRoot.className).not.toContain('fixed');
+    expect(embeddedRoot.className).not.toContain('inset-0');
+
+    await renderNovel(false);
+    const fullscreenRoot = container.firstElementChild as HTMLElement;
+    expect(fullscreenRoot.className).toContain('fixed');
+    expect(fullscreenRoot.className).toContain('inset-0');
+  });
+
+  it('按自己面板的中线判翻页方向，不看窗口中线', async () => {
+    await renderNovel(true);
+    // 方向键先翻到第二组，好验证「往回翻」确实发生
+    await act(async () => {
+      window.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true, cancelable: true }));
+    });
+    expect(container.textContent).toMatch(/3–4 \/ \d+/);
+
+    // 面板整体偏在窗口右半边：x=[600,1000]，中线 800；窗口中线是 innerWidth/2
+    const panel = surface();
+    panel.getBoundingClientRect = () => ({
+      left: 600, right: 1000, width: 400, top: 0, bottom: 600, height: 600, x: 600, y: 0, toJSON: () => ({}),
+    }) as DOMRect;
+
+    // clientX=700 在面板左半边（该往回翻），但在窗口右半边（按窗口中线会往前翻）
+    await act(async () => {
+      panel.dispatchEvent(new MouseEvent('click', { bubbles: true, clientX: 700 }));
+    });
+    expect(container.textContent).toMatch(/1–2 \/ \d+/);
+
+    // clientX=900 在面板右半边，往前翻
+    await act(async () => {
+      panel.dispatchEvent(new MouseEvent('click', { bubbles: true, clientX: 900 }));
+    });
+    expect(container.textContent).toMatch(/3–4 \/ \d+/);
+  });
+});

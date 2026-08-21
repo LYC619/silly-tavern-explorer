@@ -182,7 +182,7 @@ export function InlineStoryReader({ storyId, stories, onSwitchStory, onBack, onO
   return (
     <div className="flex flex-col">
       {/* ===== 阅读顶栏：返回 + 故事名下拉（含分支）+ 状态 + 在编辑器中打开 ===== */}
-      <div ref={readerHeaderRef} className="sticky top-0 z-50 flex items-center gap-2 flex-wrap border-b border-border bg-background/95 py-1.5 backdrop-blur-sm">
+      <div ref={readerHeaderRef} data-reader-header className="sticky top-0 z-50 flex items-center gap-2 flex-wrap border-b border-border bg-background/95 py-1.5 backdrop-blur-sm">
         <Button variant="ghost" size="sm" className="px-1.5 text-muted-foreground" onClick={() => void transitionAfterFlush(onBack)}>
           <ArrowLeft className="w-4 h-4 mr-1" />
           故事列表

@@ -417,6 +417,7 @@ export const ChatWorkbench = forwardRef<ChatWorkbenchHandle, ChatWorkbenchProps>
       {/* 工作台自带工具条（不占用 AppLayout header 槽，工作区/聊天处理页共用） */}
       <div
         ref={toolbarRef}
+        data-chat-toolbar
         className={`sticky z-40 border-b border-border bg-card/60 backdrop-blur-sm ${readerMode ? '' : 'top-0'}`}
         style={readerMode ? { top: readerStickyTop } : undefined}
       >
