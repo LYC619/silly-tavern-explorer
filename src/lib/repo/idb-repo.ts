@@ -16,6 +16,21 @@ export interface BaseRecord {
   updatedAt: number;
 }
 
+export interface PutOptions {
+  /**
+   * 本次改动没有碰到「派生产物的来源字段」——角色的 `pngBase64`、故事的 `session`/`branches`。
+   *
+   * 文件库据此跳过重写 卡片.png / 聊天.jsonl / 分支·*.jsonl。这些文件是纯派生的
+   * （故事.json 与 档案.json 才是真源，派生文件只写不读），来源没变就没有重写的理由；
+   * 而「打开故事页盖一个 lastViewedAt」原本会把整个故事文件夹连同每条分支重新序列化一遍，
+   * 上百楼的故事里这是打开页面最贵的一步，且每次访问角色页都会重写整张卡 PNG。
+   *
+   * 只有在**确定**来源字段没变时才传 true（`updateCharacter`/`updateArchiveStory`
+   * 用引用比较判断，patch 没碰就是没碰）。传错会让派生的 ST 工作版落后于真源。
+   */
+  derivedUnchanged?: boolean;
+}
+
 export interface Repo<T extends BaseRecord> {
   /** 全量列表，按 updatedAt 降序（与旧各 getAllX 行为一致） */
   list(): Promise<T[]>;
@@ -29,7 +44,7 @@ export interface Repo<T extends BaseRecord> {
    */
   listLight(): Promise<T[]>;
   get(id: string): Promise<T | undefined>;
-  put(item: T): Promise<void>;
+  put(item: T, opts?: PutOptions): Promise<void>;
   remove(id: string): Promise<void>;
 }
 
@@ -56,6 +71,7 @@ export function createIdbRepo<T extends BaseRecord>(storeName: StoreName): Repo<
     async get(id) {
       return (await request((await store('readonly')).get(id))) as T | undefined;
     },
+    // IDB 整条记录一次写入，没有派生文件，PutOptions 对它无意义
     async put(item) {
       await request((await store('readwrite')).put(item));
     },

@@ -54,7 +54,8 @@ export async function updateCharacter(
     const patch = await updater(current);
     if (!patch) return current;
     const next: ArchiveCharacter = { ...current, ...patch, id: current.id };
-    await repo.put(next);
+    // patch 没碰 pngBase64 → 卡片.png 不必重写（markCharacterViewed 这类只盖时间戳的改动）
+    await repo.put(next, { derivedUnchanged: next.pngBase64 === current.pngBase64 });
     return next;
   });
 }
@@ -84,6 +85,10 @@ export async function saveArchiveStory(item: ArchiveStory): Promise<void> {
 
 /**
  * 按故事 ID 串行应用局部修改。updater 在队列内读取最新记录，避免并发页面用旧快照整对象覆盖彼此的字段。
+ *
+ * patch 没碰 session/branches 时告知后端跳过派生的 ST 工作版（聊天.jsonl / 分支·*.jsonl）：
+ * 「打开故事盖个 lastViewedAt」不该把主线加每条分支整体重新序列化一遍。
+ * 判据是引用比较，只在 patch 确实没带这两个字段时才成立——宁可多写一次，不会漏写。
  */
 export async function updateArchiveStory(
   id: string,
@@ -96,7 +101,8 @@ export async function updateArchiveStory(
     const patch = await updater(current);
     if (!patch) return current;
     const next: ArchiveStory = { ...current, ...patch, id: current.id };
-    await repo.put(next);
+    const derivedUnchanged = next.session === current.session && next.branches === current.branches;
+    await repo.put(next, { derivedUnchanged });
     return next;
   });
 }

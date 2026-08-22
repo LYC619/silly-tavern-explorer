@@ -33,7 +33,7 @@ export function createRepo<T extends BaseRecord>(store: StoreName): Repo<T> {
     list: () => getCurrentRepo<T>(store).list(),
     listLight: () => getCurrentRepo<T>(store).listLight(),
     get: (id) => getCurrentRepo<T>(store).get(id),
-    put: (item) => getCurrentRepo<T>(store).put(item),
+    put: (item, opts) => getCurrentRepo<T>(store).put(item, opts),
     remove: (id) => getCurrentRepo<T>(store).remove(id),
   };
 }

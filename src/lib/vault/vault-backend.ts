@@ -17,7 +17,7 @@
  * 下次读回盘，保证序列化往返真实。
  */
 import type { StoreName } from '@/lib/idb';
-import type { BaseRecord, Repo } from '@/lib/repo/idb-repo';
+import type { BaseRecord, PutOptions, Repo } from '@/lib/repo/idb-repo';
 import type { ArchiveCharacter, ArchiveStory } from '@/types/archive';
 import type { SummaryItem, SummaryTemplate } from '@/types/summary';
 import { SUMMARY_KIND_LABELS } from '@/types/summary';
@@ -410,7 +410,7 @@ export function createVault(fs: VaultFs): VaultBackend {
     m.set(id, target);
   }
 
-  async function putCharacter(rec: ArchiveCharacter): Promise<void> {
+  async function putCharacter(rec: ArchiveCharacter, derivedUnchanged = false): Promise<void> {
     const m = of('characters');
     const cur = m.get(rec.id);
     const stem = safeName(rec.name, '未命名角色');
@@ -429,6 +429,9 @@ export function createVault(fs: VaultFs): VaultBackend {
     m.set(rec.id, dir);
     const { pngBase64, ...profile } = rec;
     await fs.writeText(joinPath(dir, FILE_PROFILE), toJson(profile));
+    // 卡片.png 是 pngBase64 的派生物：这次没碰它就不重写（否则每次访问角色页都整张卡重写一遍）。
+    // 文件夹刚改名时也得写——rename 已经把旧图带过来了，所以这里只看 pngBase64 有没有变。
+    if (derivedUnchanged) return;
     const pngPath = joinPath(dir, FILE_CARD_PNG);
     if (pngBase64) {
       await fs.writeBinary(pngPath, pngBase64);
@@ -438,7 +441,7 @@ export function createVault(fs: VaultFs): VaultBackend {
     }
   }
 
-  async function putStory(rec: ArchiveStory): Promise<void> {
+  async function putStory(rec: ArchiveStory, derivedUnchanged = false): Promise<void> {
     const m = of('archiveStories');
     const charDir = rec.characterId ? of('characters').get(rec.characterId) : undefined;
     // 绑定且角色在库 → 角色文件夹下；否则进 临时/（characterId 悬空同样按未绑定落位）
@@ -461,9 +464,11 @@ export function createVault(fs: VaultFs): VaultBackend {
       }
     }
     m.set(rec.id, dir);
-    // 故事.json = 唯一真源（全记录，含 session/branches，messageId 锚点不破）
+    // 故事.json = 唯一真源（全记录，含 session/branches，messageId 锚点不破），永远重写
     await fs.writeText(joinPath(dir, FILE_STORY), toJson(rec));
-    // 派生 ST 工作版：只写不读，随保存整体重生成
+    // 派生 ST 工作版：只写不读，随保存整体重生成。正文没动就不重生成——
+    // 「打开故事盖个 lastViewedAt」不该把主线加每条分支全部重新序列化一遍。
+    if (derivedUnchanged) return;
     await fs.writeText(joinPath(dir, FILE_CHAT), serializeChatJsonl(rec.session));
     const branchFiles = new Set<string>();
     const stems: string[] = [];
@@ -550,12 +555,12 @@ export function createVault(fs: VaultFs): VaultBackend {
     return toJson(st);
   }
 
-  function putRecord(store: VaultStore, rec: BaseRecord): Promise<void> {
+  function putRecord(store: VaultStore, rec: BaseRecord, opts?: PutOptions): Promise<void> {
     switch (store) {
       case 'characters':
-        return putCharacter(rec as ArchiveCharacter);
+        return putCharacter(rec as ArchiveCharacter, opts?.derivedUnchanged);
       case 'archiveStories':
-        return putStory(rec as ArchiveStory);
+        return putStory(rec as ArchiveStory, opts?.derivedUnchanged);
       case 'cards':
         return putCard(rec as CardItem);
       case 'summaries': {
@@ -654,10 +659,10 @@ export function createVault(fs: VaultFs): VaultBackend {
         if (!path) return undefined;
         return (await readRecordCached(store, id, path)) ?? undefined;
       },
-      async put(item) {
+      async put(item, opts) {
         await ensureIndex();
         invalidate(store, item.id);
-        await putRecord(store, item);
+        await putRecord(store, item, opts);
       },
       async remove(id) {
         await ensureIndex();
