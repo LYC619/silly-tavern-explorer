@@ -3,6 +3,7 @@
  * 按行组织（一行=一个角色/一个剧情阶段）：行标题可改名、行内横滚、可展开网格、每行导入；
  * 「设为当前」把立绘嵌卡数据换成卡面，旧卡面自动归档进「卡面」行（portrait-store）。
  * 网页版（IDB）与客户端（行文件夹）同构；用户手放的文件以「散图」只读展示。
+ * 图片按需读：视图只带路径，缩略图滚进可视区才取字节（PortraitThumb）。
  */
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Images, Plus, Upload, ChevronDown, ChevronUp } from 'lucide-react';
@@ -14,7 +15,7 @@ import { cn } from '@/lib/utils';
 import type { ArchiveCharacter } from '@/types/archive';
 import type { CharacterPatch } from '@/lib/character-write';
 import {
-  loadPortraitViews, createPortraitRow, renamePortraitRow, addPortraitFiles, setPortraitAsCard,
+  loadPortraitViews, loadPortraitImage, createPortraitRow, renamePortraitRow, addPortraitFiles, setPortraitAsCard,
   rowTitleConflict, rowDirOf, ensureRowTitle,
   type PortraitViewRow, type PortraitViewItem,
 } from '@/lib/portrait-store';
@@ -27,11 +28,63 @@ interface PortraitSectionProps {
   onOpenImport: () => void;
 }
 
+/** 提前一屏开始读，滚起来看不出在加载 */
+const PRELOAD_MARGIN = '300px';
+
+/**
+ * 缩略图：滚进可视区（提前 PRELOAD_MARGIN）才去读图片字节。
+ * 上百张立绘的角色打开立绘 tab 时，不再一次性把整个立绘库解码进内存。
+ * 网页版内嵌图（dataBase64 随记录来）本来就在内存里，`item.url` 已就绪，直接渲染。
+ */
+function PortraitThumb({ item, onOpen }: { item: PortraitViewItem; onOpen: (url: string) => void }) {
+  const [url, setUrl] = useState(item.url);
+  const [failed, setFailed] = useState(false);
+  const ref = useRef<HTMLButtonElement>(null);
+
+  useEffect(() => {
+    const el = ref.current;
+    if (url || !el) return;
+    let cancelled = false;
+    const io = new IntersectionObserver((entries) => {
+      if (!entries.some((e) => e.isIntersecting)) return;
+      io.disconnect(); // 读一次就够，之后由 url 状态兜住
+      void loadPortraitImage(item).then((loaded) => {
+        if (cancelled) return;
+        if (loaded) setUrl(loaded);
+        else setFailed(true); // 文件刚被挪走：说出来，别留个点不动的空框
+      });
+    }, { rootMargin: PRELOAD_MARGIN });
+    io.observe(el);
+    return () => {
+      cancelled = true;
+      io.disconnect();
+    };
+  }, [item, url]);
+
+  return (
+    <button
+      ref={ref}
+      className="block w-full aspect-[3/4] rounded-md overflow-hidden border border-border bg-elevated"
+      onClick={() => url && onOpen(url)}
+      aria-label={url ? `放大 ${item.name}` : item.name}
+      data-portrait-thumb={item.name}
+    >
+      {url ? (
+        <img src={url} alt={item.name} className="w-full h-full object-cover object-top" />
+      ) : (
+        <span className="flex h-full w-full items-center justify-center px-1 text-[11px] text-muted-foreground/70">
+          {failed ? '读不到图片' : ''}
+        </span>
+      )}
+    </button>
+  );
+}
+
 export function PortraitSection({ character, onPatch, onOpenImport }: PortraitSectionProps) {
   const { toast } = useToast();
   const [views, setViews] = useState<PortraitViewRow[] | null>(null);
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
-  const [lightbox, setLightbox] = useState<PortraitViewItem | null>(null);
+  const [lightbox, setLightbox] = useState<{ name: string; url: string } | null>(null);
   const [renameDrafts, setRenameDrafts] = useState<Record<string, string>>({});
   const fileRef = useRef<HTMLInputElement>(null);
   const importRowId = useRef<string | null>(null);
@@ -212,13 +265,7 @@ export function PortraitSection({ character, onPatch, onOpenImport }: PortraitSe
                 >
                   {row.items.map((item, i) => (
                     <div key={item.itemId ?? `${row.rowId}-stray-${i}`} className={cn('group/pc', !open && 'w-28 shrink-0')}>
-                      <button
-                        className="block w-full aspect-[3/4] rounded-md overflow-hidden border border-border bg-elevated"
-                        onClick={() => setLightbox(item)}
-                        aria-label={`放大 ${item.name}`}
-                      >
-                        <img src={item.url} alt={item.name} loading="lazy" className="w-full h-full object-cover object-top" />
-                      </button>
+                      <PortraitThumb item={item} onOpen={(url) => setLightbox({ name: item.name, url })} />
                       <div className="mt-1 flex items-center gap-1 text-[11px] leading-tight">
                         <span
                           className="min-w-0 truncate text-muted-foreground"

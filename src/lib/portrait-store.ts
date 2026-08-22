@@ -191,8 +191,12 @@ export interface PortraitViewItem {
   itemId?: string;
   name: string;
   source: PortraitItem['source'] | 'stray';
-  /** data: URL，直接给 <img> */
-  url: string;
+  /**
+   * 已就绪的 data: URL，直接给 <img>。
+   * 只有网页版内嵌图（dataBase64 已在记录里）开箱就有；客户端文件要
+   * `loadPortraitImage()` 按需读，视图构建时**不读字节**。
+   */
+  url?: string;
   isCurrent: boolean;
   mime: string;
   /** 客户端文件相对路径（设为卡面时读字节）；网页版为空 */
@@ -211,7 +215,13 @@ export interface PortraitViewRow {
   isStray?: boolean;
 }
 
-/** 读出立绘展示视图：库内条目 + 客户端扫描散图；文件被用户挪走的条目静默跳过（记录保留） */
+/**
+ * 读出立绘展示视图：库内条目 + 客户端扫描散图。
+ *
+ * **不读图片字节**——客户端条目只记 `fsPath`，由 UI 滚进可视区再调 `loadPortraitImage()`。
+ * 记录条目的文件在不在，改用行文件夹清单判断（散图扫描本来就要读这份清单，不多发 IO）；
+ * 文件被用户挪走的条目照旧静默跳过，记录保留，放回即恢复。
+ */
 export async function loadPortraitViews(c: ArchiveCharacter): Promise<PortraitViewRow[]> {
   const rows = c.portraitRows ?? [];
   const ctx = await vaultCtx(c.id);
@@ -220,6 +230,9 @@ export async function loadPortraitViews(c: ArchiveCharacter): Promise<PortraitVi
   for (const r of rows) {
     const items: PortraitViewItem[] = [];
     const dir = ctx ? rowDirPath(ctx, r.title) : '';
+    const found = ctx ? (await ctx.vault.fs.list(dir)).filter((e) => !e.isDir) : [];
+    // 记录条目按原文件名核对（不过 mime 筛，免得历史上扩展名怪一点的条目被判成丢失）
+    const present = new Set(found.map((e) => e.name));
     for (const it of r.items) {
       const mime = it.mime ?? (it.fileName ? mimeOfName(it.fileName) : undefined) ?? 'image/png';
       if (it.dataBase64) {
@@ -228,30 +241,17 @@ export async function loadPortraitViews(c: ArchiveCharacter): Promise<PortraitVi
           url: `data:${mime};base64,${it.dataBase64}`, isCurrent: c.portraitCurrentId === it.id,
           dataBase64: it.dataBase64, rowId: r.id,
         });
-      } else if (it.fileName && ctx) {
-        const path = `${dir}/${it.fileName}`;
-        try {
-          const b64 = await ctx.vault.fs.readBinary(path);
-          items.push({
-            itemId: it.id, name: it.name ?? it.fileName, source: it.source, mime,
-            url: `data:${mime};base64,${b64}`, isCurrent: c.portraitCurrentId === it.id, fsPath: path, rowId: r.id,
-          });
-        } catch {
-          // 文件被挪走/删除：跳过展示，条目保留（用户放回即恢复）
-        }
+      } else if (it.fileName && present.has(it.fileName)) {
+        items.push({
+          itemId: it.id, name: it.name ?? it.fileName, source: it.source, mime,
+          isCurrent: c.portraitCurrentId === it.id, fsPath: `${dir}/${it.fileName}`, rowId: r.id,
+        });
       }
     }
     // 行文件夹里用户手放的图 → 并入该行（只读散图）
-    if (ctx) {
-      const found = (await ctx.vault.fs.list(dir)).filter((e) => !e.isDir && mimeOfName(e.name)).map((e) => e.name);
-      for (const name of strayOf(r.items.map((i) => i.fileName), found)) {
-        const path = `${dir}/${name}`;
-        try {
-          const b64 = await ctx.vault.fs.readBinary(path);
-          const mime = mimeOfName(name)!;
-          items.push({ name, source: 'stray', mime, url: `data:${mime};base64,${b64}`, isCurrent: false, fsPath: path, rowId: r.id });
-        } catch { /* 读失败不打扰 */ }
-      }
+    const strays = strayOf(r.items.map((i) => i.fileName), found.filter((e) => mimeOfName(e.name)).map((e) => e.name));
+    for (const name of strays) {
+      items.push({ name, source: 'stray', mime: mimeOfName(name)!, isCurrent: false, fsPath: `${dir}/${name}`, rowId: r.id });
     }
     views.push({ rowId: r.id, title: r.title, items });
   }
@@ -259,19 +259,30 @@ export async function loadPortraitViews(c: ArchiveCharacter): Promise<PortraitVi
   // 立绘/ 根目录的图（10.3c 前的旧提示让用户放这里）→ 散图虚拟行
   if (ctx) {
     const rootDir = `${ctx.dir}/${PORTRAIT_DIR}`;
-    const found = (await ctx.vault.fs.list(rootDir)).filter((e) => !e.isDir && mimeOfName(e.name));
-    const items: PortraitViewItem[] = [];
-    for (const e of found) {
-      const path = `${rootDir}/${e.name}`;
-      try {
-        const b64 = await ctx.vault.fs.readBinary(path);
-        const mime = mimeOfName(e.name)!;
-        items.push({ name: e.name, source: 'stray', mime, url: `data:${mime};base64,${b64}`, isCurrent: false, fsPath: path, rowId: STRAY_ROW_ID });
-      } catch { /* 读失败不打扰 */ }
-    }
+    const items: PortraitViewItem[] = (await ctx.vault.fs.list(rootDir))
+      .filter((e) => !e.isDir && mimeOfName(e.name))
+      .map((e) => ({
+        name: e.name, source: 'stray' as const, mime: mimeOfName(e.name)!,
+        isCurrent: false, fsPath: `${rootDir}/${e.name}`, rowId: STRAY_ROW_ID,
+      }));
     if (items.length > 0) views.push({ rowId: STRAY_ROW_ID, title: '散图（立绘文件夹根目录）', items, isStray: true });
   }
   return views;
+}
+
+/**
+ * 按需读一张立绘（缩略图滚进可视区时调）。网页版内嵌图直接返回已有 url；
+ * 读失败返回 null——文件可能刚被用户挪走，由调用方显示读不到，不抛给页面。
+ */
+export async function loadPortraitImage(item: PortraitViewItem): Promise<string | null> {
+  if (item.url) return item.url;
+  const vault = getActiveVault();
+  if (!item.fsPath || !vault) return null;
+  try {
+    return `data:${item.mime};base64,${await vault.fs.readBinary(item.fsPath)}`;
+  } catch {
+    return null;
+  }
 }
 
 // ---------- 变更 ----------
