@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { IdCard, Save, History, Download, FileJson, Image } from 'lucide-react';
+import { IdCard, Upload, Save, History, Download, FileJson, Image } from 'lucide-react';
 import { AppLayout } from '@/components/AppLayout';
 import { HelpCard } from '@/components/HelpCard';
 import { DeleteConfirmDialog } from '@/components/DeleteConfirmDialog';
@@ -305,7 +305,7 @@ export default function CardViewer() {
         </PopoverContent>
       </Popover>
       <Button variant="outline" size="sm" onClick={handleSave}><Save className="w-4 h-4 mr-1.5" /> 保存</Button>
-      <Button data-tour="card-export" variant="outline" size="sm" onClick={handleExportJson}><Download className="w-4 h-4 mr-1.5" /> 导出 JSON</Button>
+      <Button data-tour="card-export" variant="outline" size="sm" onClick={handleExportJson}><Upload className="w-4 h-4 mr-1.5" /> 导出 JSON</Button>
       <Button variant="outline" size="sm" onClick={handleExportPng} disabled={!hasPng} title={hasPng ? '' : 'JSON 导入的卡无原图，无法导出 PNG'}>
         <Image className="w-4 h-4 mr-1.5" /> 导出 PNG
       </Button>

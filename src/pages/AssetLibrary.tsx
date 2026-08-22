@@ -8,7 +8,15 @@
 import { useState, useEffect, useMemo, useCallback, useRef, type ChangeEvent } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import {
-  Globe, SlidersHorizontal, Regex as RegexIcon, MoreVertical, Trash2, PenSquare, Plus, Link2, Upload,
+  Globe,
+  SlidersHorizontal,
+  Regex as RegexIcon,
+  MoreVertical,
+  Trash2,
+  PenSquare,
+  Plus,
+  Link2,
+  Download,
 } from 'lucide-react';
 import { AppLayout } from '@/components/AppLayout';
 import { OtherAssetsBrowser } from '@/components/assets/OtherAssetsBrowser';
@@ -223,7 +231,7 @@ const AssetLibrary = () => {
                 aria-label="导入世界书"
                 onClick={() => worldBookInputRef.current?.click()}
               >
-                <Upload className="w-4 h-4 mr-1.5" />
+                <Download className="w-4 h-4 mr-1.5" />
                 导入世界书
               </Button>
             </>

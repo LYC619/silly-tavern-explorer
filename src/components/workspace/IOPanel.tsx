@@ -204,7 +204,7 @@ export function IOPanel({ story, branchId, line, settings, onStoryUpdate }: IOPa
               </Button>
             )}
             <Button variant="outline" size="sm" onClick={() => fileRef.current?.click()}>
-              <FileUp className="w-4 h-4 mr-1.5" />
+              <FileDown className="w-4 h-4 mr-1.5" />
               {canReimportFromSource ? '另选文件重新导入' : '选择文件重新导入'}
             </Button>
           </div>
@@ -238,7 +238,7 @@ export function IOPanel({ story, branchId, line, settings, onStoryUpdate }: IOPa
                     <Badge variant="outline" className="h-5 shrink-0 text-[11px] font-normal">{SUMMARY_KIND_LABELS[r.kind]}</Badge>
                     <span className="flex-1 truncate">{r.title || SUMMARY_KIND_LABELS[r.kind]}</span>
                     <Button variant="ghost" size="sm" className="h-7 px-2 text-xs shrink-0" onClick={() => handleExportRecordMd(r)}>
-                      <FileDown className="w-3.5 h-3.5 mr-1" />MD
+                      <FileUp className="w-3.5 h-3.5 mr-1" />MD
                     </Button>
                   </div>
                 ))}
@@ -247,7 +247,7 @@ export function IOPanel({ story, branchId, line, settings, onStoryUpdate }: IOPa
                     <Badge variant="outline" className="h-5 shrink-0 text-[11px] font-normal">故事树</Badge>
                     <span className="flex-1 truncate">{t.title || '未命名故事树'}</span>
                     <Button variant="ghost" size="sm" className="h-7 px-2 text-xs shrink-0" onClick={() => handleExportTreeMd(t)}>
-                      <FileDown className="w-3.5 h-3.5 mr-1" />MD
+                      <FileUp className="w-3.5 h-3.5 mr-1" />MD
                     </Button>
                     <Button variant="ghost" size="sm" className="h-7 px-2 text-xs shrink-0" onClick={() => handleExportTreeJson(t)}>
                       <FileJson className="w-3.5 h-3.5 mr-1" />JSON

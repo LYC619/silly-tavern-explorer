@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Copy, Check, Download, Save, Bookmark, Pencil, BookOpen } from 'lucide-react';
+import { Copy, Check, Save, Bookmark, Pencil, BookOpen, Upload } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -30,7 +30,7 @@ interface SummaryResultEditorProps {
 
 const REWRITE_PRESETS = ['润色措辞', '精简篇幅', '扩写细节', '调整语气更客观'];
 
-/** 总结结果编辑器：标题 + 正文编辑 + AI 微调 + 保存/复制/下载 .md；日记支持日记本预览 */
+/** 总结结果编辑器：标题 + 正文编辑 + AI 微调 + 保存/复制/导出 .md；日记支持日记本预览 */
 export function SummaryResultEditor({
   kind, title, onTitleChange, content, onContentChange,
   streaming, onSave, saving, savedPermanent, charName,
@@ -81,7 +81,7 @@ export function SummaryResultEditor({
               复制
             </Button>
             <Button variant="ghost" size="sm" className="h-8 gap-1" onClick={handleDownload} disabled={!content}>
-              <Download className="w-3.5 h-3.5" />下载 .md
+              <Upload className="w-3.5 h-3.5" />导出 .md
             </Button>
             <Button size="sm" className="h-8 gap-1" onClick={onSave} disabled={!content || saving}>
               {savedPermanent ? <Bookmark className="w-3.5 h-3.5" /> : <Save className="w-3.5 h-3.5" />}

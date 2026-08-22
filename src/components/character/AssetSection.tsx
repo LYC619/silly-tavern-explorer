@@ -6,8 +6,15 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
-  Globe, SlidersHorizontal, Regex as RegexIcon, Quote as QuoteIcon,
-  Plus, X, Wrench, PackageOpen, Upload,
+  Globe,
+  SlidersHorizontal,
+  Regex as RegexIcon,
+  Quote as QuoteIcon,
+  Plus,
+  X,
+  Wrench,
+  PackageOpen,
+  Download,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -198,7 +205,7 @@ export function AssetSection({ character, onAssetsChange, onQuotesChange, onRead
           读取内置资源
         </Button>
         <Button variant="outline" size="sm" className="h-7" onClick={onOpenImport}>
-          <Upload className="w-3.5 h-3.5 mr-1" />
+          <Download className="w-3.5 h-3.5 mr-1" />
           导入资产
         </Button>
         <Popover open={addOpen} onOpenChange={setAddOpen}>

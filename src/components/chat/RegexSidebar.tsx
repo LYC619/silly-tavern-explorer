@@ -561,7 +561,7 @@ export function RegexSidebar({ rules, onRulesChange, isOpen, onClose, sampleMess
                 onClick={() => importInputRef.current?.click()}
                 title="导入 SillyTavern 正则脚本 .json（可一次选多个文件）"
               >
-                <Upload className="w-3 h-3" />
+                <Download className="w-3 h-3" />
                 导入正则
               </Button>
             </>
@@ -573,7 +573,7 @@ export function RegexSidebar({ rules, onRulesChange, isOpen, onClose, sampleMess
             onClick={handleExportST}
             title="导出为 SillyTavern 正则脚本 .json"
           >
-            <Download className="w-3 h-3" />
+            <Upload className="w-3 h-3" />
             导出正则
           </Button>
         </div>

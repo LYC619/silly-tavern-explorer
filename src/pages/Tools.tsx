@@ -1,7 +1,7 @@
 /** 聊天处理外的编辑区入口选择页：总结/故事树选故事，世界书/预设选资产；全局编辑区导航由 AppLayout 唯一提供。 */
 import { useState, useEffect, useCallback } from 'react';
 import { Navigate, useNavigate, useSearchParams } from 'react-router-dom';
-import { CalendarRange, MessageSquare, Search, UploadCloud } from 'lucide-react';
+import { CalendarRange, MessageSquare, Search, DownloadCloud } from 'lucide-react';
 import { AppLayout } from '@/components/AppLayout';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
@@ -275,7 +275,7 @@ const Tools = () => {
                   data-tour="tools-dropzone"
                   onClick={() => document.getElementById('tools-file-input')?.click()}
                 >
-                  <UploadCloud className="mr-1.5 h-4 w-4" />
+                  <DownloadCloud className="mr-1.5 h-4 w-4" />
                   {focusCopy.importLabel}
                 </Button>
               </div>
@@ -401,7 +401,7 @@ const Tools = () => {
         {dragOver && (
           <div className="pointer-events-none absolute inset-0 z-50 flex items-center justify-center border-2 border-dashed border-brand bg-[var(--brand-active-bg)]">
             <div className="rounded-lg bg-elevated px-6 py-4 text-center shadow-lg">
-              <UploadCloud className="mx-auto h-7 w-7 text-brand" />
+              <DownloadCloud className="mx-auto h-7 w-7 text-brand" />
               <p className="mt-2 text-sm font-medium text-[color:var(--text-primary)]">松开导入文件</p>
               <p className="mt-1 text-[11px] text-[color:var(--text-muted)]">聊天记录 · 角色卡 · 世界书 / 预设 / 正则</p>
             </div>

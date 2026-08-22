@@ -3,13 +3,13 @@ import {
   Archive,
   BookOpen,
   Braces,
+  Download,
   FileText,
   Link2,
   Loader2,
   MessageSquareText,
   SlidersHorizontal,
   Users,
-  Upload,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -307,7 +307,7 @@ export function STImportSelectionDialog({
           <DialogFooter>
             <Button variant="outline" onClick={onCancel} disabled={importing}>取消</Button>
             <Button onClick={onImport} disabled={importing || pickedCount === 0}>
-              {importing ? <Loader2 className="mr-1 h-4 w-4 animate-spin" /> : <Upload className="mr-1 h-4 w-4" />}
+              {importing ? <Loader2 className="mr-1 h-4 w-4 animate-spin" /> : <Download className="mr-1 h-4 w-4" />}
               导入 {pickedCount} 个项目组
             </Button>
           </DialogFooter>

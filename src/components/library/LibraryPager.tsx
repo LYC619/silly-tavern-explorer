@@ -1,4 +1,4 @@
-import { ChevronLeft, ChevronRight, Download, Tags, Trash2 } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Tags, Trash2, Upload } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { PAGE_SIZES, PAGE_SIZE_LABELS, type PageSize } from '@/lib/library-view';
@@ -102,7 +102,7 @@ export function LibraryBatchBar({
         disabled={selectedCount === 0 || exporting}
         onClick={onExport}
       >
-        <Download className="w-3.5 h-3.5 mr-1" />
+        <Upload className="w-3.5 h-3.5 mr-1" />
         {exporting ? '导出中…' : '导出'}
       </Button>
       <Button

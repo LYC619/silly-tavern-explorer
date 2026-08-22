@@ -7,7 +7,7 @@
  */
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
-import { ArrowLeft, ChevronRight, BookOpen, Upload } from 'lucide-react';
+import { ArrowLeft, ChevronRight, BookOpen, Download } from 'lucide-react';
 import { AppLayout } from '@/components/AppLayout';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
@@ -411,7 +411,7 @@ const CharacterPage = () => {
                </TabsList>
                {TAB_IMPORT_KIND[activeTab] && (
                  <Button variant="outline" size="sm" className="ml-auto h-8" onClick={() => setImportOpen(true)}>
-                   <Upload className="w-3.5 h-3.5 mr-1" />
+                   <Download className="w-3.5 h-3.5 mr-1" />
                    导入
                  </Button>
                )}

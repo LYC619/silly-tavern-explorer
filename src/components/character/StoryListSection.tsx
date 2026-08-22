@@ -5,7 +5,7 @@
  * 当前就地阅读中的故事左侧高亮条。
  */
 import { useState } from 'react';
-import { BookOpen, Download, GitBranch, Settings2, Star, Trash2 } from 'lucide-react';
+import { BookOpen, GitBranch, Settings2, Star, Trash2, Upload } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Slider } from '@/components/ui/slider';
@@ -145,7 +145,7 @@ export function StoryListSection({
                     处理
                   </Button>
                   <Button variant="outline" size="sm" className="h-7 px-2.5 text-xs" onClick={() => onExport(story.id)} title="进入工作区「导入与导出」">
-                    <Download className="w-3.5 h-3.5 mr-1" />
+                    <Upload className="w-3.5 h-3.5 mr-1" />
                     导出
                   </Button>
                   <Button

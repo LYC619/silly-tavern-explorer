@@ -4,7 +4,7 @@
  * 操作：跳回聊天对应楼层（保留分支）、重新生成、复制为新记录、导出、删除。
  */
 import { useEffect, useState } from 'react';
-import { CornerUpLeft, RotateCcw, CopyPlus, Trash2, ImageDown, Download } from 'lucide-react';
+import { CornerUpLeft, RotateCcw, CopyPlus, Upload, Trash2, ImageDown } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -172,7 +172,7 @@ export function ContextRail({
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button variant="outline" size="sm" className="h-7 gap-1 w-full">
-                  <Download className="w-3.5 h-3.5" />导出
+                  <Upload className="w-3.5 h-3.5" />导出
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
@@ -182,7 +182,7 @@ export function ContextRail({
             </DropdownMenu>
           ) : (
             <Button variant="outline" size="sm" className="h-7 gap-1 w-full" onClick={onExportMd}>
-              <Download className="w-3.5 h-3.5" />导出 .md
+              <Upload className="w-3.5 h-3.5" />导出 .md
             </Button>
           )}
           {isRecord && onShareImage && (

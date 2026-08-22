@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Eye, Plus, RotateCcw, Trash2, Download } from 'lucide-react';
+import { Eye, Plus, RotateCcw, Trash2, Upload } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
@@ -98,7 +98,7 @@ export function SavedSummaryList({
           </Button>
           {filtered.length > 0 && (
             <Button variant="outline" size="sm" className="h-7 gap-1 px-2" onClick={() => void handleExportAll()}>
-              <Download className="w-3 h-3" />导出全部
+              <Upload className="w-3 h-3" />导出全部
             </Button>
           )}
         </div>
@@ -117,7 +117,7 @@ export function SavedSummaryList({
                 <div className="flex items-center gap-0.5 shrink-0">
                   <Button variant="ghost" size="icon" className="h-7 w-7" title="查看或编辑" onClick={() => onView(item)}><Eye className="w-3.5 h-3.5" /></Button>
                   <Button variant="ghost" size="icon" className="h-7 w-7" title="用相同设置重新生成" onClick={() => onRegenerate(item)}><RotateCcw className="w-3.5 h-3.5" /></Button>
-                  <Button variant="ghost" size="icon" className="h-7 w-7" title="导出 Markdown" onClick={() => void handleExport(item)}><Download className="w-3.5 h-3.5" /></Button>
+                  <Button variant="ghost" size="icon" className="h-7 w-7" title="导出 Markdown" onClick={() => void handleExport(item)}><Upload className="w-3.5 h-3.5" /></Button>
                   <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" title="删除" onClick={() => setDeleteId(item.id)}><Trash2 className="w-3.5 h-3.5" /></Button>
                 </div>
               </div>

@@ -4,7 +4,7 @@
  * → 「操作」入口 → 右侧抽屉（编辑角色卡/读取内置资源/导出角色卡/删除角色卡）。
  */
 import { useEffect, useMemo, useState } from 'react';
-import { BookOpen, Wrench, PenLine, PackageOpen, Download, Trash2 } from 'lucide-react';
+import { BookOpen, Wrench, PenLine, PackageOpen, Trash2, Upload } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog';
 import {
@@ -171,7 +171,7 @@ export function CharacterInfoRail({
               读取内置资源
             </Button>
             <Button variant="outline" className="justify-start" onClick={onExport}>
-              <Download className="w-4 h-4 mr-2" />
+              <Upload className="w-4 h-4 mr-2" />
               导出角色卡
             </Button>
             <Button

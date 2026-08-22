@@ -1,5 +1,5 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
-import { FileText, AlertCircle, Upload } from 'lucide-react';
+import { Download, FileText, AlertCircle } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
@@ -249,7 +249,7 @@ export function ChatImporter({ onImport, initialFile }: ChatImporterProps) {
       >
         <div className="flex flex-col items-center justify-center gap-4 text-center">
           <div className={`p-4 rounded-full transition-colors ${isDragging ? 'bg-primary/20' : 'bg-secondary'}`}>
-            <Upload className={`w-8 h-8 transition-colors ${isDragging ? 'text-primary' : 'text-muted-foreground'}`} />
+            <Download className={`w-8 h-8 transition-colors ${isDragging ? 'text-primary' : 'text-muted-foreground'}`} />
           </div>
           <div className="space-y-2">
             <h3 className="font-display text-xl font-semibold">导入聊天记录</h3>

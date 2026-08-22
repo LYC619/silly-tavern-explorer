@@ -4,7 +4,7 @@
  * 即选即导（逐文件容错），结果通过 onDone 交给页面落库+刷新。
  */
 import { useEffect, useRef, useState } from 'react';
-import { Upload } from 'lucide-react';
+import { Download } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -114,7 +114,7 @@ export function CharacterImportDialog({
             void runImport(Array.from(e.dataTransfer.files));
           }}
         >
-          <Upload className="w-5 h-5 mx-auto mb-2 opacity-60" />
+          <Download className="w-5 h-5 mx-auto mb-2 opacity-60" />
           {busy ? '导入中…' : <>把文件拖到这里，或点击选择<br /><span className="text-[11px]">当前类型：{meta.label}</span></>}
         </button>
         <input

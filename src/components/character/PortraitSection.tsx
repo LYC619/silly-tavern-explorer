@@ -6,7 +6,7 @@
  * 图片按需读：视图只带路径，缩略图滚进可视区才取字节（PortraitThumb）。
  */
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { Images, Plus, Upload, ChevronDown, ChevronUp } from 'lucide-react';
+import { Images, Plus, ChevronDown, ChevronUp, Download } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog';
@@ -188,7 +188,7 @@ export function PortraitSection({ character, onPatch, onOpenImport }: PortraitSe
             新建分行
           </Button>
           <Button variant="outline" size="sm" className="h-7" onClick={onOpenImport}>
-            <Upload className="w-3.5 h-3.5 mr-1" />
+            <Download className="w-3.5 h-3.5 mr-1" />
             导入立绘
           </Button>
         </div>
@@ -245,7 +245,7 @@ export function PortraitSection({ character, onPatch, onOpenImport }: PortraitSe
                         fileRef.current?.click();
                       }}
                     >
-                      <Upload className="w-3 h-3 mr-0.5" />
+                      <Download className="w-3 h-3 mr-0.5" />
                       导入
                     </Button>
                   )}

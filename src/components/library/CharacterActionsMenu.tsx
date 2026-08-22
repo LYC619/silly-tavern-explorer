@@ -1,4 +1,4 @@
-import { Download, ExternalLink, MoreVertical, Trash2 } from 'lucide-react';
+import { ExternalLink, MoreVertical, Trash2, Upload } from 'lucide-react';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -36,7 +36,7 @@ export function CharacterActionsMenu({
           打开角色主页
         </DropdownMenuItem>
         <DropdownMenuItem onClick={onExport}>
-          <Download className="w-3.5 h-3.5 mr-2" />
+          <Upload className="w-3.5 h-3.5 mr-2" />
           导出角色卡
         </DropdownMenuItem>
         <DropdownMenuItem className="text-destructive focus:text-destructive" onClick={onDelete}>

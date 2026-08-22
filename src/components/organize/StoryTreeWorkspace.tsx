@@ -152,8 +152,8 @@ export function StoryTreeWorkspace({ story, currentBranchId, initialTarget }: St
                   <Input value={title} onChange={(event) => onTitleChange(event.target.value)} className="h-8 flex-1 min-w-[160px]" placeholder="故事树名称" />
                   <div className="flex items-center gap-1 ml-auto">
                     <Button variant="outline" size="sm" className="h-8 gap-1" onClick={createTree}><Plus className="w-4 h-4" />新建</Button>
-                    <label><Button variant="ghost" size="sm" className="h-8 gap-1" asChild><span><Upload className="w-4 h-4" />导入</span></Button><input type="file" accept=".json,application/json" className="hidden" onChange={(event) => { const file = event.target.files?.[0]; if (file) void importTree(file); event.target.value = ''; }} /></label>
-                    <DropdownMenu><DropdownMenuTrigger asChild><Button variant="ghost" size="sm" className="h-8 gap-1"><Download className="w-4 h-4" />导出</Button></DropdownMenuTrigger><DropdownMenuContent align="end"><DropdownMenuItem onSelect={exportJSON}>JSON（可再次导入）</DropdownMenuItem><DropdownMenuItem onSelect={exportMarkdown}>Markdown（Obsidian 友好）</DropdownMenuItem></DropdownMenuContent></DropdownMenu>
+                    <label><Button variant="ghost" size="sm" className="h-8 gap-1" asChild><span><Download className="w-4 h-4" />导入</span></Button><input type="file" accept=".json,application/json" className="hidden" onChange={(event) => { const file = event.target.files?.[0]; if (file) void importTree(file); event.target.value = ''; }} /></label>
+                    <DropdownMenu><DropdownMenuTrigger asChild><Button variant="ghost" size="sm" className="h-8 gap-1"><Upload className="w-4 h-4" />导出</Button></DropdownMenuTrigger><DropdownMenuContent align="end"><DropdownMenuItem onSelect={exportJSON}>JSON（可再次导入）</DropdownMenuItem><DropdownMenuItem onSelect={exportMarkdown}>Markdown（Obsidian 友好）</DropdownMenuItem></DropdownMenuContent></DropdownMenu>
                     <Button variant="ghost" size="sm" className="h-8 gap-1 text-destructive" onClick={() => setDeleteOpen(true)}><Trash2 className="w-4 h-4" />删除</Button>
                   </div>
                 </CardContent>
@@ -161,7 +161,7 @@ export function StoryTreeWorkspace({ story, currentBranchId, initialTarget }: St
             )}
           />
         ) : loaded ? (
-          <Card data-story-tree-selector><CardContent className="p-8 text-center space-y-3"><Network className="w-8 h-8 mx-auto text-muted-foreground" /><p className="text-muted-foreground">用一棵事实树梳理这个故事的人物、事件与关系。</p><div className="flex gap-2 justify-center flex-wrap"><Button onClick={createTree} className="gap-1"><Plus className="w-4 h-4" />新建故事树</Button><label><Button variant="outline" className="gap-1" asChild><span><Upload className="w-4 h-4" />导入</span></Button><input type="file" accept=".json,application/json" className="hidden" onChange={(event) => { const file = event.target.files?.[0]; if (file) void importTree(file); event.target.value = ''; }} /></label></div></CardContent></Card>
+          <Card data-story-tree-selector><CardContent className="p-8 text-center space-y-3"><Network className="w-8 h-8 mx-auto text-muted-foreground" /><p className="text-muted-foreground">用一棵事实树梳理这个故事的人物、事件与关系。</p><div className="flex gap-2 justify-center flex-wrap"><Button onClick={createTree} className="gap-1"><Plus className="w-4 h-4" />新建故事树</Button><label><Button variant="outline" className="gap-1" asChild><span><Download className="w-4 h-4" />导入</span></Button><input type="file" accept=".json,application/json" className="hidden" onChange={(event) => { const file = event.target.files?.[0]; if (file) void importTree(file); event.target.value = ''; }} /></label></div></CardContent></Card>
         ) : <div className="py-16 text-center text-sm text-muted-foreground">{LOADING_LABEL}</div>}
       </div>
 

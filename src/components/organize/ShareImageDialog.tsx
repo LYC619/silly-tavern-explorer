@@ -1,9 +1,9 @@
 /**
  * 分享图预览对话框（2.0 阶段6，定稿 5.3「美化分享图」一期：总结长图）。
- * 打开即渲染（canvas → dataURL 预览），点下载导出 PNG；不上传任何数据。
+ * 打开即渲染（canvas → dataURL 预览），点「导出 PNG」保存；不上传任何数据。
  */
 import { useState, useEffect } from 'react';
-import { Download, Loader2 } from 'lucide-react';
+import { Loader2, Upload } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
   Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle,
@@ -68,7 +68,7 @@ export function ShareImageDialog({ open, onOpenChange, input }: ShareImageDialog
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)}>关闭</Button>
           <Button onClick={handleDownload} disabled={!previewUrl} className="gap-1">
-            <Download className="w-4 h-4" />下载 PNG
+            <Upload className="w-4 h-4" />导出 PNG
           </Button>
         </DialogFooter>
       </DialogContent>
