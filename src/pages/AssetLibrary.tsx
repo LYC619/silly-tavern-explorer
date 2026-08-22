@@ -198,7 +198,7 @@ const AssetLibrary = () => {
       <div className="h-full flex flex-col overflow-hidden">
         {/* ===== 页头（demo .main-header）===== */}
         <div className="shrink-0 flex items-baseline gap-3.5 px-6 pt-4 pb-1 flex-wrap">
-          <h1 className="font-serif text-[22px] font-semibold tracking-wide text-[color:var(--text-primary)]">其他资产</h1>
+          <h1 className="font-serif text-[22px] font-semibold tracking-wide text-[color:var(--text-primary)]">附属库</h1>
           <span className="text-[11px] text-[color:var(--text-muted)]">
             世界书 {counts.worldbook} · 预设 {counts.preset} · 正则 {counts.regex}
           </span>

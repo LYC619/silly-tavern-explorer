@@ -88,7 +88,7 @@ async function render() {
   await act(async () => { await Promise.resolve(); });
 }
 
-const navBar = () => container.querySelector<HTMLElement>('[aria-label="上一层"]')?.closest<HTMLElement>('div[style]');
+const navBar = () => container.querySelector<HTMLElement>('[aria-label="上一楼"]')?.closest<HTMLElement>('div[style]');
 const button = (label: string) => {
   const found = Array.from(container.querySelectorAll('button')).find((el) => el.textContent?.includes(label));
   if (!found) throw new Error(`找不到「${label}」`);

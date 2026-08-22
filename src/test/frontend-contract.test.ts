@@ -302,7 +302,7 @@ describe('阶段 D 外壳与 NSFW 契约', () => {
       expect(result).toContain(`label="${label}"`);
     }
     expect(result).not.toContain('label="原样归档"');
-    expect(result).toContain('可在“附属库 → 其他”查看');
+    expect(result).toContain('可在“附属库 → 其他资产”查看');
   });
 
   it('导入结果换批次时完整明细重新默认折叠', () => {

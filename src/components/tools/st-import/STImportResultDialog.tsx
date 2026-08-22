@@ -172,7 +172,7 @@ export function STImportResultDialog({ result, onClose }: STImportResultDialogPr
 
           {result.archivedFiles > 0 && (
             <p className="mt-3 text-xs text-muted-foreground">
-              其他资产已保存 {result.archivedFiles} 个文件，共 {formatBytes(result.archiveBytes)}；可在“附属库 → 其他”查看，扩展代码不会在本应用中执行。
+              其他资产已保存 {result.archivedFiles} 个文件，共 {formatBytes(result.archiveBytes)}；可在“附属库 → 其他资产”查看，扩展代码不会在本应用中执行。
             </p>
           )}
         </div>

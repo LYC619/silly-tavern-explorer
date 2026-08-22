@@ -92,7 +92,7 @@ export const NAV_AREAS: NavArea[] = [
       { key: 'worldbook', label: '世界书', description: '共享世界书资产', icon: BookOpen, path: '/assets?tab=worldbook', prefixes: ['/assets'], query: { tab: 'worldbook' } },
       { key: 'preset', label: '预设', description: '共享预设资产', icon: SlidersHorizontal, path: '/assets?tab=preset', prefixes: ['/assets'], query: { tab: 'preset' } },
       { key: 'regex', label: '正则', description: '共享规则集资产', icon: Regex, path: '/assets?tab=regex', prefixes: ['/assets'], query: { tab: 'regex' } },
-      { key: 'other', label: '其他', description: '资产说明与扩展归档', icon: Layers, path: '/assets', prefixes: ['/assets'], query: { tab: null } },
+      { key: 'other', label: '其他资产', description: '资产说明与扩展归档', icon: Layers, path: '/assets', prefixes: ['/assets'], query: { tab: null } },
     ],
   },
 ];

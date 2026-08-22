@@ -769,7 +769,7 @@ export const ChatPreview = memo(forwardRef<ChatPreviewHandle, ChatPreviewProps>(
           <div className="mt-12 pt-6 border-t border-border text-center text-sm text-muted-foreground">
             <div className="mb-2">— 完 —</div>
             <div className="text-xs">
-              共 {processedMessages.length} 条消息
+              共 {processedMessages.length} 楼
             </div>
           </div>
         )}

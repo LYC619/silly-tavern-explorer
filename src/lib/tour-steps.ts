@@ -8,7 +8,7 @@ export const HOME_TOUR_STEPS: TourStep[] = [
   },
   {
     targetSelector: '[data-tour="msg-edit-pencil"]',
-    content: '每条消息右上角的铅笔图标，点击即可直接编辑该楼的内容与说话人——所见即点，无需先切换模式。',
+    content: '每楼右上角的铅笔图标，点击即可直接编辑该楼的内容与说话人——所见即点，无需先切换模式。',
     action: 'next',
   },
   {

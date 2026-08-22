@@ -225,7 +225,7 @@ const Index = () => {
           : stats.swipesBytesEstimate < 1024 * 1024
             ? `${(stats.swipesBytesEstimate / 1024).toFixed(1)} KB`
             : `${(stats.swipesBytesEstimate / (1024 * 1024)).toFixed(1)} MB`;
-        description = `导入 ${stats.totalMessages} 条消息 · 发现 ${stats.swipesRemoved} 条 swipes（约 ${sizeStr}），导出时将自动清除`;
+        description = `导入 ${stats.totalMessages} 楼 · 发现 ${stats.swipesRemoved} 条 swipes（约 ${sizeStr}），导出时将自动清除`;
       }
       toast({ title: '导入成功', description });
     } catch (error) {

@@ -489,7 +489,7 @@ export const ChatWorkbench = forwardRef<ChatWorkbenchHandle, ChatWorkbenchProps>
                     <Pencil className="w-3 h-3 shrink-0 opacity-40 group-hover:opacity-100 transition-opacity" />
                   </button>
                 )}
-                <span className="shrink-0">共 {session.messages.length} 条消息</span>
+                <span className="shrink-0">共 {session.messages.length} 楼</span>
                 {markers.length > 0 && (
                   <span className="text-primary shrink-0">· {markers.length} 个章节标记</span>
                 )}

@@ -3,7 +3,7 @@
  * - 窗口栏：仅首页显示紧凑问候与归档故事数，不再占内容区一整行
  * - 接入 ST 卡：仅客户端且未接入时显示（接入后入口在设置页，10.4 收容）
  * - 左列：4/5 张 2:3 最近角色卡 + 固定三行、双列且内部滚动的最近故事
- * - 右列：单列编辑处理入口 + 独立其他资产区
+ * - 右列：单列编辑处理入口 + 独立共享资产区
  * 硬约束：占满一屏且页面本身不滚动（基准 1440×900、100% 缩放）。
  */
 import { useState, useEffect, useCallback, useRef } from 'react';
@@ -373,11 +373,11 @@ const Home = () => {
               </div>
             </section>
 
-            {/* ④ 其他资产：保留明确的右列份额，不被编辑入口挤到角落。 */}
+            {/* ④ 共享资产：保留明确的右列份额，不被编辑入口挤到角落。 */}
             <section className="flex-[2] min-h-0 flex flex-col rounded-xl bg-elevated p-4" data-tour="home-assets">
               <div className="shrink-0 mb-3 flex items-start justify-between gap-3">
                 <div className="min-w-0">
-                  <h2 className="font-serif text-[17px] font-semibold text-[color:var(--text-primary)]">最近使用的资产</h2>
+                  <h2 className="font-serif text-[17px] font-semibold text-[color:var(--text-primary)]">共享资产</h2>
                   <p className="mt-1 text-xs leading-relaxed text-[color:var(--text-muted)]">世界书、预设和正则是可复用的共享资源。</p>
                 </div>
                 <PillLink label="打开附属库" onClick={() => navigate('/assets')} />

@@ -24,7 +24,7 @@ describe('维护阶段 UX 规则模型', () => {
   it('导航按四个一级区域组织，并包含要求的子界面', () => {
     expect(NAV_AREAS.map((area) => area.key)).toEqual(['home', 'characters', 'editor', 'assets']);
     const labels = NAV_AREAS.flatMap((area) => area.children.map((item) => item.label));
-    expect(labels).toEqual(expect.arrayContaining(['聊天处理', '总结', '故事树', '角色卡', '预设', '正则', '其他']));
+    expect(labels).toEqual(expect.arrayContaining(['聊天处理', '总结', '故事树', '角色卡', '预设', '正则', '其他资产']));
     expect(findNavArea('/assets', '?tab=worldbook')?.key).toBe('assets');
     expect(findNavArea('/library', '')?.key).toBe('characters');
   });

@@ -109,10 +109,10 @@ async function renderChat(entry = '/chat') {
   await act(async () => { await Promise.resolve(); });
 }
 
-/** 工作台标题栏上的「共 N 条消息」，是判断 hydrate 用了哪份数据最稳的可见信号 */
+/** 工作台标题栏上的「共 N 楼」，是判断 hydrate 用了哪份数据最稳的可见信号 */
 function messageCountLabel(): string {
   const text = container.textContent ?? '';
-  return text.match(/共\s*(\d+)\s*条消息/)?.[1] ?? '';
+  return text.match(/共\s*(\d+)\s*楼/)?.[1] ?? '';
 }
 
 const locationText = () => container.querySelector('[data-testid="loc"]')?.textContent ?? '';

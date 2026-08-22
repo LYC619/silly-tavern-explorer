@@ -92,8 +92,8 @@ async function renderWorkbench(session: ChatSession) {
   await act(async () => { await Promise.resolve(); });
 }
 
-const nextButton = () => document.querySelector<HTMLButtonElement>('[aria-label="下一层"]');
-const prevButton = () => document.querySelector<HTMLButtonElement>('[aria-label="上一层"]');
+const nextButton = () => document.querySelector<HTMLButtonElement>('[aria-label="下一楼"]');
+const prevButton = () => document.querySelector<HTMLButtonElement>('[aria-label="上一楼"]');
 const floorInput = () => document.querySelector<HTMLInputElement>('[aria-label="跳转到楼层"]');
 
 /** 跳转条右下角的「/ N」是过滤后的最大楼层号 */

@@ -34,7 +34,7 @@ interface MessageNavBarProps {
 
 /**
  * 正文左侧的竖向跳转条，由预览容器提供本地 sticky 定位：
- * - 上/下一层
+ * - 上/下一楼
  * - 楼层号输入跳转 + 当前楼/总楼
  * - 收藏/取消当前顶部楼层（轻量书签，不进导出）
  * - 收藏列表 popover，点一条跳过去
@@ -80,14 +80,14 @@ export function MessageNavBar({
         className="sticky self-start z-30 flex shrink-0 flex-col items-center gap-1.5 rounded-xl border border-border bg-card/90 px-1.5 py-2 shadow-md backdrop-blur-sm"
         style={{ top: stickyTop }}
       >
-        {/* 上一层 */}
+        {/* 上一楼 */}
         <Tooltip>
           <TooltipTrigger asChild>
-            <Button aria-label="上一层" variant="ghost" size="icon" className="h-8 w-8" onClick={onPrev} disabled={currentFloor <= 0}>
+            <Button aria-label="上一楼" variant="ghost" size="icon" className="h-8 w-8" onClick={onPrev} disabled={currentFloor <= 0}>
               <ChevronUp className="h-4 w-4" />
             </Button>
           </TooltipTrigger>
-          <TooltipContent side="right">上一层</TooltipContent>
+          <TooltipContent side="right">上一楼</TooltipContent>
         </Tooltip>
 
         {/* 楼层号输入 + 当前/总楼 */}
@@ -105,14 +105,14 @@ export function MessageNavBar({
           <span className="text-[10px] leading-none text-muted-foreground">/ {Math.max(floorCount - 1, 0)}</span>
         </div>
 
-        {/* 下一层 */}
+        {/* 下一楼 */}
         <Tooltip>
           <TooltipTrigger asChild>
-            <Button aria-label="下一层" variant="ghost" size="icon" className="h-8 w-8" onClick={onNext} disabled={currentFloor >= floorCount - 1}>
+            <Button aria-label="下一楼" variant="ghost" size="icon" className="h-8 w-8" onClick={onNext} disabled={currentFloor >= floorCount - 1}>
               <ChevronDown className="h-4 w-4" />
             </Button>
           </TooltipTrigger>
-          <TooltipContent side="right">下一层</TooltipContent>
+          <TooltipContent side="right">下一楼</TooltipContent>
         </Tooltip>
 
         <div className="my-0.5 h-px w-6 bg-border" />

@@ -123,7 +123,7 @@ async function flush() {
 }
 
 const shell = () => host.querySelector<HTMLElement>('[data-chat-preview-shell]');
-const navBar = () => host.querySelector<HTMLElement>('[aria-label="上一层"]')?.closest<HTMLElement>('div[style]');
+const navBar = () => host.querySelector<HTMLElement>('[aria-label="上一楼"]')?.closest<HTMLElement>('div[style]');
 /**
  * 虚拟列表自己也会 scrollTo（按估算高度，落点是 行顶 - scrollPaddingStart），
  * 且会在测量后重试；DOM 实测校正比它多让出一个 REVEAL_GAP。因此只断言「校正值出现过」，
@@ -185,7 +185,7 @@ describe('楼层跳转条的定位', () => {
   it('阅读模式收起会话标题统计行，跳转条照旧在阅读器里', async () => {
     await renderWorkbench(mkSession(6), { readerMode: true, readerStickyTop: 40 });
 
-    expect(host.textContent).not.toContain('共 6 条消息');
+    expect(host.textContent).not.toContain('共 6 楼');
     expect(host.querySelector('[title="点击重命名（标题会自动保存，并用于导出文件名）"]')).toBeNull();
     expect(navBar()).not.toBeNull();
   });
@@ -197,7 +197,7 @@ describe('楼层跳转的落点', () => {
     await renderWorkbench(mkSession(8));
     scrollTo.mockClear();
 
-    await click('[aria-label="下一层"]');
+    await click('[aria-label="下一楼"]');
 
     expect(scrollTo).toHaveBeenCalled();
     expect(windowScrollTo).not.toHaveBeenCalled();
@@ -207,7 +207,7 @@ describe('楼层跳转的落点', () => {
     await renderWorkbench(mkSession(8));
     scrollTo.mockClear();
 
-    await click('[aria-label="下一层"]');
+    await click('[aria-label="下一楼"]');
 
     // 目标是第 1 楼（顶部 200），减掉工具栏 48+8 与呼吸间隙，才不会被盖住半行
     expect(scrolledTops()).toContain(revealTop(1));
@@ -217,7 +217,7 @@ describe('楼层跳转的落点', () => {
     await renderWorkbench(mkSession(8), { readerMode: true, readerStickyTop: 40 });
     scrollTo.mockClear();
 
-    await click('[aria-label="下一层"]');
+    await click('[aria-label="下一楼"]');
 
     expect(scrolledTops()).toContain(revealTop(1, 40));
   });
