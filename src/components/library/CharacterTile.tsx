@@ -24,7 +24,7 @@ function RatingTimeBadge({ rating, timestamp }: { rating?: number; timestamp: nu
 function StoryCountBadge({ count, className }: { count: number; className?: string }) {
   if (count <= 0) return null;
   return (
-    <span className={cn(
+    <span data-story-count className={cn(
       'text-[11px] px-2 py-[3px] rounded-full bg-[rgba(0,0,0,0.65)] backdrop-blur-sm text-white border border-[rgba(255,255,255,0.12)] flex items-center gap-1',
       className,
     )}>

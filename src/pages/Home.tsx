@@ -17,6 +17,7 @@ import { STAIConfigDialog } from '@/components/tools/STAIConfigDialog';
 import { STImportCard } from '@/components/tools/STImportCard';
 import { AppLayout } from '@/components/AppLayout';
 import { NsfwImage } from '@/components/NsfwImage';
+import { CharacterTile } from '@/components/library/CharacterTile';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import type { ArchiveCharacter, ArchiveStory } from '@/types/archive';
 import { getAllCharacters, getAllArchiveStories } from '@/lib/archive-db';
@@ -49,12 +50,6 @@ let homeSnapshot: HomeSnapshot = {
   resources: {},
   assetCounts: { worldbooks: 0, presets: 0, regexes: 0 },
 };
-
-function hashName(name: string): number {
-  let hash = 0;
-  for (let i = 0; i < name.length; i++) hash = ((hash << 5) - hash + name.charCodeAt(i)) | 0;
-  return Math.abs(hash);
-}
 
 function greeting(): string {
   const h = new Date().getHours();
@@ -256,57 +251,20 @@ const Home = () => {
                   className="flex-1 min-h-0 flex items-center gap-3.5 overflow-x-auto overflow-y-hidden overscroll-x-contain pb-1.5 scrollbar-thin"
                   data-home-character-rail
                 >
-                  {recentCharacters.map((c) => {
-                    const intro = introOf(c);
-                    const displayName = displayCharacterName(c);
-                    const timeTs = c.lastViewedAt ?? c.updatedAt;
-                    return (
-                      <button
-                        key={c.id}
-                        onClick={() => navigate(`/character/${c.id}`)}
-                        className="relative w-[calc((100%-2.625rem)/4)] 2xl:w-[calc((100%-3.5rem)/5)] aspect-[2/3] shrink-0 self-center rounded-xl overflow-hidden bg-elevated transition-transform duration-200 hover:-translate-y-0.5 text-left"
-                        data-home-character-card
-                      >
-                        {c.pngBase64 ? (
-                          <NsfwImage
-                            src={`data:image/png;base64,${c.pngBase64}`}
-                            alt={displayName}
-                            nsfw={c.nsfw}
-                            className="absolute inset-0 w-full h-full object-cover object-top"
-                            loading="lazy"
-                          />
-                        ) : (
-                          <div className={`absolute inset-0 art art-placeholder-${(hashName(c.name) % 13) + 1}`}>
-                            <div className="char-mark" style={{ fontSize: 24 }}>{displayName.slice(0, 1)}</div>
-                          </div>
-                        )}
-                        {/* 顶部信息与角色库保持一致：左侧评分/日期，右侧故事数。 */}
-                        <div className="absolute top-0 left-0 right-0 z-10 flex justify-between items-start px-2.5 py-2 gap-1.5">
-                          <span className="flex items-center gap-1.5 px-2 py-[3px] rounded-full text-[11px] bg-[rgba(0,0,0,0.65)] backdrop-blur-sm border border-[rgba(255,255,255,0.12)] min-w-0">
-                            <b className="font-semibold text-[color:var(--brand-hi)]">
-                              {c.rating !== undefined ? c.rating : '未评分'}
-                            </b>
-                            <span className="text-white/70 truncate" title={formatFullTime(timeTs)}>
-                              {formatListTime(timeTs)}
-                            </span>
-                          </span>
-                          {(storyCounts[c.id] ?? 0) > 0 && (
-                            <span className="text-[11px] px-2 py-[3px] rounded-full bg-[rgba(0,0,0,0.65)] backdrop-blur-sm text-white border border-[rgba(255,255,255,0.12)] flex items-center gap-1 shrink-0">
-                              <MessageSquare className="w-3 h-3" />
-                              {storyCounts[c.id]}
-                            </span>
-                          )}
-                        </div>
-                        {/* 底部只保留名称和简介，避免与顶部信息重复。 */}
-                        <div className="absolute left-0 right-0 bottom-0 px-3.5 pb-3 pt-12 bg-[linear-gradient(transparent,rgba(0,0,0,0.75)_40%,rgba(0,0,0,0.92))]">
-                          <p className="font-serif text-sm font-semibold text-white truncate [text-shadow:0_1px_4px_rgba(0,0,0,0.5)]" title={displayName}>{displayName}</p>
-                          {intro && (
-                            <p className="text-[11px] leading-snug text-white/70 line-clamp-2 mt-0.5">{intro}</p>
-                          )}
-                        </div>
-                      </button>
-                    );
-                  })}
+                  {recentCharacters.map((c) => (
+                    <CharacterTile
+                      key={c.id}
+                      character={c}
+                      storyCount={storyCounts[c.id] ?? 0}
+                      timestamp={c.lastViewedAt ?? c.updatedAt}
+                      nameSize={14}
+                      introSize={11}
+                      markFontSize={24}
+                      className="w-[calc((100%-2.625rem)/4)] 2xl:w-[calc((100%-3.5rem)/5)] shrink-0 self-center"
+                      dataAttrs={{ 'data-home-character-card': '' }}
+                      onActivate={() => navigate(`/character/${c.id}`)}
+                    />
+                  ))}
                 </div>
               )}
             </section>

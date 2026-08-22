@@ -145,11 +145,12 @@ describe('卡片键盘操作契约', () => {
 
 describe('阶段 D 外壳与 NSFW 契约', () => {
   it('首页两处缩略图与角色详情左栏共用 NSFW 图片包装并接入默认设置', () => {
-    const home = read('src/pages/Home.tsx');
     const rail = read('src/components/character/CharacterInfoRail.tsx');
     const image = read('src/components/NsfwImage.tsx');
-    expect(home).toContain("import { NsfwImage } from '@/components/NsfwImage'");
-    expect(home.match(/<NsfwImage/g)?.length).toBeGreaterThanOrEqual(2);
+    // 首页那两处已由 home-character-rail.test.tsx 的行为断言覆盖（渲染后查
+    // data-nsfw-blurred，并验证关掉全局设置后两处一起恢复清晰）。阶段 C2 把角色卡
+    // 抽成 <CharacterTile>/<CharacterPortrait> 后，数 Home.tsx 里 <NsfwImage 的
+    // 出现次数已不成立——包装还在，只是挪进了组件。
     expect(rail).toContain("import { NsfwImage } from '@/components/NsfwImage'");
     expect(rail).toContain('nsfwRevealed');
     expect(image).toContain('getNsfwBlur()');
@@ -362,7 +363,6 @@ describe('阶段 D 外壳与 NSFW 契约', () => {
     const home = read('src/pages/Home.tsx');
     const layout = read('src/components/AppLayout.tsx');
     const titleBar = read('src/components/ClientTitleBar.tsx');
-    const characterCardClass = home.match(/className="([^"]+)"\s+data-home-character-card/)?.[1] ?? '';
 
     expect(home).toContain('titleBarContent=');
     expect(home).toContain('data-home-title-summary');
@@ -379,13 +379,9 @@ describe('阶段 D 外壳与 NSFW 契约', () => {
     expect(home).not.toContain('snap-x');
     expect(home).not.toContain('snap-proximity');
     expect(home).not.toContain('snap-start');
-    expect(home).toContain('w-[calc((100%-2.625rem)/4)]');
-    expect(home).toContain('2xl:w-[calc((100%-3.5rem)/5)]');
-    expect(characterCardClass).toContain('aspect-[2/3]');
-    expect(characterCardClass).not.toContain('aspect-[3/4]');
-    expect(home).toContain("{c.rating !== undefined ? c.rating : '未评分'}");
-    expect(home).toContain('<MessageSquare');
-    expect(home).not.toContain("c.rating !== undefined ? `★ ${c.rating}`");
+    // 卡面本身（2:3 比例、4/5 列宽度、评分与故事数角标）已由
+    // home-character-rail.test.tsx 的行为断言覆盖；阶段 C2 起卡片是 <CharacterTile>，
+    // 再 grep Home.tsx 里的类名与 JSX 片段只会误红。
 
     const editTools = home.match(/const EDIT_TOOLS = \[[\s\S]*?\n\];/)?.[0] ?? '';
     expect(editTools).toContain("label: '总结'");
