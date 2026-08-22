@@ -48,6 +48,7 @@ import {
   LIBRARY_DISPLAY_SETTINGS_EVENT,
 } from '@/lib/local-settings';
 import { downloadCharacterFile } from '@/lib/character-file';
+import { downloadCharactersInBatch, WEB_BATCH_DOWNLOAD_LIMIT } from '@/lib/character-web-download';
 import { exportCharactersToDirectory } from '@/lib/character-batch-export';
 import { createTauriFs, isTauri, pickDirectory } from '@/lib/vault/tauri-fs';
 import type { ArchiveCharacter, CharacterType } from '@/types/archive';
@@ -118,6 +119,8 @@ const Library = () => {
   const [batchTagOpen, setBatchTagOpen] = useState(false);
   /** 待确认删除（单删=长度1，批量=多条）；null=无弹窗 */
   const [pendingDelete, setPendingDelete] = useState<ArchiveCharacter[] | null>(null);
+  /** 网页版一次选太多要先确认（只下前 WEB_BATCH_DOWNLOAD_LIMIT 张） */
+  const [pendingWebExport, setPendingWebExport] = useState<ArchiveCharacter[] | null>(null);
   const [page, setPage] = useState(1);
   const [hideUnusedTags, setHideUnusedTags] = useState(() => getHideUnusedLibraryTags());
   const prefs = useLibraryViewPrefs();
@@ -269,18 +272,41 @@ const Library = () => {
     }
   };
 
+  /** 网页版：串行发起下载并据实报告结果（超出上限的先经确认，只下前一批） */
+  const runWebExport = async (targets: ArchiveCharacter[]) => {
+    setBatchExporting(true);
+    try {
+      const result = await downloadCharactersInBatch(targets);
+      if (result.failed.length === 0) {
+        toast({
+          title: `已请求下载 ${result.downloaded.length} 张角色卡`,
+          description: '浏览器可能会询问是否允许多个下载文件。',
+        });
+        return;
+      }
+      toast({
+        title: result.downloaded.length > 0
+          ? `已请求下载 ${result.downloaded.length} 张，${result.failed.length} 张失败`
+          : `下载失败：${result.failed.length} 张均未开始`,
+        description: result.failed.slice(0, 3).map((f) => `${f.name}：${f.error}`).join('\n'),
+        variant: 'destructive',
+      });
+    } finally {
+      setBatchExporting(false);
+    }
+  };
+
   /** 客户端选择一个目录后等待真实写入结果；网页版保留浏览器下载降级。 */
   const handleBatchExport = async () => {
     const targets = characters.filter((c) => selection.selected.has(c.id));
     if (targets.length === 0 || batchExporting) return;
     if (!isTauri()) {
-      targets.forEach((character, index) => {
-        window.setTimeout(() => downloadCharacterFile(character), index * 200);
-      });
-      toast({
-        title: `网页版已请求下载 ${targets.length} 张角色卡`,
-        description: '浏览器可能会询问是否允许多个下载文件。',
-      });
+      // 超过上限先问一句：浏览器连续下载几十个文件会开始拦截，闷头发起等于静默丢文件
+      if (targets.length > WEB_BATCH_DOWNLOAD_LIMIT) {
+        setPendingWebExport(targets);
+        return;
+      }
+      await runWebExport(targets);
       return;
     }
 
@@ -666,6 +692,31 @@ const Library = () => {
           <AlertDialogFooter>
             <AlertDialogCancel>取消</AlertDialogCancel>
             <AlertDialogAction onClick={handleConfirmDelete}>删除</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog open={!!pendingWebExport} onOpenChange={(open) => !open && setPendingWebExport(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>网页版一次最多下载 {WEB_BATCH_DOWNLOAD_LIMIT} 张</AlertDialogTitle>
+            <AlertDialogDescription>
+              你选了 {pendingWebExport?.length ?? 0} 张。浏览器连续下载几十个文件会开始拦截，
+              继续将只下载前 {WEB_BATCH_DOWNLOAD_LIMIT} 张，其余请分批再来一次。
+              <span className="block mt-2">要一次导出整库，请用客户端——它是选一个文件夹直接写入，没有这个限制。</span>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>取消</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                const batch = (pendingWebExport ?? []).slice(0, WEB_BATCH_DOWNLOAD_LIMIT);
+                setPendingWebExport(null);
+                void runWebExport(batch);
+              }}
+            >
+              下载前 {WEB_BATCH_DOWNLOAD_LIMIT} 张
+            </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
