@@ -2,16 +2,19 @@ import { FolderOpen, Globe } from 'lucide-react';
 import { WorldBookImporter } from '@/components/worldbook/WorldBookImporter';
 import { StagedWorldBookList } from '@/components/worldbook/StagedWorldBookList';
 import type { WorldBook, WorldBookItem } from '@/types/worldbook';
+import { LOADING_LABEL } from '@/lib/ui-copy';
 
 interface WorldBookEmptyStateProps {
   savedItems: WorldBookItem[];
+  /** 「已暂存」列表读完了没有；false 时不能断言用户没有可恢复的世界书 */
+  savedLoaded?: boolean;
   onImport: (wb: WorldBook, name: string, sourceModifiedAt?: number) => void;
   onRestore: (item: WorldBookItem) => void;
   onDelete: (item: WorldBookItem) => void;
 }
 
 /** 尚未载入世界书时的引导页：导入入口 + 从本地恢复 */
-export function WorldBookEmptyState({ savedItems, onImport, onRestore, onDelete }: WorldBookEmptyStateProps) {
+export function WorldBookEmptyState({ savedItems, savedLoaded = true, onImport, onRestore, onDelete }: WorldBookEmptyStateProps) {
   return (
     <div className="flex-1 flex items-center justify-center">
       <div className="text-center space-y-4 px-4 max-w-lg w-full">
@@ -22,7 +25,9 @@ export function WorldBookEmptyState({ savedItems, onImport, onRestore, onDelete 
         </p>
         <WorldBookImporter onImport={onImport} />
 
-        {savedItems.length > 0 && (
+        {!savedLoaded ? (
+          <p className="mt-8 text-sm text-muted-foreground" data-staged-loading>{LOADING_LABEL}</p>
+        ) : savedItems.length > 0 && (
           <div className="mt-8 text-left space-y-3">
             <div className="flex items-center gap-2 text-sm font-medium text-foreground">
               <FolderOpen className="w-4 h-4" />

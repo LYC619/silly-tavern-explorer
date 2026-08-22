@@ -56,6 +56,7 @@ import { InlineStoryReader } from '@/components/character/InlineStoryReader';
 import { StoryRecordsView, type RecordViewKind } from '@/components/character/StoryRecordsView';
 import { CharacterCardEditSection } from '@/components/character/CharacterCardEditSection';
 import { GreetingsSection } from '@/components/character/GreetingsSection';
+import { LOADING_LABEL } from '@/lib/ui-copy';
 
 /** 故事 tab 内的子视图：列表 | 总结/日记/故事树查看视图 */
 type StorySubView = 'list' | RecordViewKind;
@@ -345,7 +346,7 @@ const CharacterPage = () => {
   if (loading) {
     return (
       <AppLayout>
-        <div className="flex min-h-[50vh] items-center justify-center text-muted-foreground">加载中...</div>
+        <div className="flex min-h-[50vh] items-center justify-center text-muted-foreground">{LOADING_LABEL}</div>
       </AppLayout>
     );
   }

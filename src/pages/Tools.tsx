@@ -27,6 +27,7 @@ import {
   storyWorkspaceViewForEditorFocus,
 } from '@/lib/home-layout';
 import { buildEditorStoryPath, getEditorStoryId, setEditorStoryId } from '@/lib/editor-story-context';
+import { LOADING_LABEL } from '@/lib/ui-copy';
 
 interface ToolEntry {
   type: ToolFileType;
@@ -101,45 +102,52 @@ const Tools = () => {
   const [stories, setStories] = useState<ArchiveStory[]>([]);
   const [characters, setCharacters] = useState<CharacterIndexEntry[]>([]);
   const [assetItems, setAssetItems] = useState<AssetPickerItem[]>([]);
+  /** 首次读完之前不能显示「还没有可以处理的故事」——那是明确的误导 */
+  const [loading, setLoading] = useState(true);
   const [query, setQuery] = useState('');
 
   const loadData = useCallback(async () => {
-    if (assetFocus === 'worldbook') {
-      const items = await getAllWorldBooks().catch(() => []);
-      setAssetItems(items.map((item) => ({
-        id: item.id,
-        title: item.title,
-        meta: `${Object.keys(item.worldbook.entries).length} 个条目`,
-        importedAt: item.createdAt,
-        updatedAt: item.updatedAt,
-        sourceModifiedAt: item.sourceModifiedAt,
-        autoSaved: item.autoSaved,
-      })));
-      return;
+    setLoading(true);
+    try {
+      if (assetFocus === 'worldbook') {
+        const items = await getAllWorldBooks().catch(() => []);
+        setAssetItems(items.map((item) => ({
+          id: item.id,
+          title: item.title,
+          meta: `${Object.keys(item.worldbook.entries).length} 个条目`,
+          importedAt: item.createdAt,
+          updatedAt: item.updatedAt,
+          sourceModifiedAt: item.sourceModifiedAt,
+          autoSaved: item.autoSaved,
+        })));
+        return;
+      }
+      if (assetFocus === 'preset') {
+        const items = await getAllPresets().catch(() => []);
+        setAssetItems(items.map((item) => ({
+          id: item.id,
+          title: item.title,
+          meta: `${item.preset.prompts.length} 个提示词`,
+          importedAt: item.createdAt,
+          updatedAt: item.updatedAt,
+          sourceModifiedAt: item.sourceModifiedAt,
+          autoSaved: item.autoSaved,
+        })));
+        return;
+      }
+      // 故事这边仍要完整读：选择器要按消息时间戳算游玩起止（computeStoryTimeRange），
+      // 楼数与标题之外真的用到了正文。角色只用到 id→名字，走轻量列表。
+      const [stories, cards] = await Promise.all([
+        getAllArchiveStories().catch(() => []),
+        listCharacterIndex().catch(() => []),
+      ]);
+      const sortedStories = [...stories]
+        .sort((a, b) => (b.lastViewedAt ?? b.updatedAt) - (a.lastViewedAt ?? a.updatedAt));
+      setStories(sortedStories);
+      setCharacters(cards);
+    } finally {
+      setLoading(false);
     }
-    if (assetFocus === 'preset') {
-      const items = await getAllPresets().catch(() => []);
-      setAssetItems(items.map((item) => ({
-        id: item.id,
-        title: item.title,
-        meta: `${item.preset.prompts.length} 个提示词`,
-        importedAt: item.createdAt,
-        updatedAt: item.updatedAt,
-        sourceModifiedAt: item.sourceModifiedAt,
-        autoSaved: item.autoSaved,
-      })));
-      return;
-    }
-    // 故事这边仍要完整读：选择器要按消息时间戳算游玩起止（computeStoryTimeRange），
-    // 楼数与标题之外真的用到了正文。角色只用到 id→名字，走轻量列表。
-    const [stories, cards] = await Promise.all([
-      getAllArchiveStories().catch(() => []),
-      listCharacterIndex().catch(() => []),
-    ]);
-    const sortedStories = [...stories]
-      .sort((a, b) => (b.lastViewedAt ?? b.updatedAt) - (a.lastViewedAt ?? a.updatedAt));
-    setStories(sortedStories);
-    setCharacters(cards);
   }, [assetFocus]);
 
   useEffect(() => { void loadData(); }, [loadData]);
@@ -369,6 +377,13 @@ const Tools = () => {
                     </button>
                   ))}
                   </div>
+                </div>
+              ) : loading ? (
+                <div
+                  data-story-picker-loading
+                  className="mt-3 flex min-h-0 flex-1 flex-col items-center justify-center rounded-lg bg-chrome px-4 py-5 text-center"
+                >
+                  <p className="text-sm text-[color:var(--text-muted)]">{LOADING_LABEL}</p>
                 </div>
               ) : (
                 <div className="mt-3 flex min-h-0 flex-1 flex-col items-center justify-center rounded-lg bg-chrome px-4 py-5 text-center">

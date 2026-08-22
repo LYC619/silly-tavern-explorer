@@ -59,6 +59,8 @@ export default function WorldBookPage() {
   const [confirmLoadItem, setConfirmLoadItem] = useState<WorldBookItem | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<WorldBookItem | null>(null);
   const [savedItems, setSavedItems] = useState<WorldBookItem[]>([]);
+  /** 「已暂存」读完之前，空态不能断言「你没有可恢复的世界书」 */
+  const [savedLoaded, setSavedLoaded] = useState(false);
   const [selectedUid, setSelectedUid] = useState<string | null>(null);
   const [viewMode, setViewMode] = useState<EntryViewMode>('card');
   const [mobileEditorOpen, setMobileEditorOpen] = useState(false);
@@ -132,12 +134,20 @@ export default function WorldBookPage() {
     if (initialAssetId) {
       Promise.all([getWorldBook(initialAssetId), getAllWorldBooks()]).then(([item, items]) => {
         setSavedItems(items);
+        setSavedLoaded(true);
         if (item) {
           hydrateWorldbook(item.worldbook);
           setFilename(item.title);
           setCurrentItemId(item.id);
+        } else {
+          // 深链指向已删资产：以前什么都不发生，用户只看到一个空编辑器
+          toast({
+            title: '找不到这个世界书',
+            description: '它可能已经被删除。当前是空白编辑器，不会覆盖任何已有资产。',
+            variant: 'destructive',
+          });
         }
-      }).catch(() => {});
+      }).catch(() => setSavedLoaded(true));
       return;
     }
 
@@ -145,13 +155,14 @@ export default function WorldBookPage() {
     const hasHandoff = peekPendingToolFile('worldbook');
     getAllWorldBooks().then(items => {
       setSavedItems(items);
+      setSavedLoaded(true);
       if (items.length > 0 && !worldbook && !hasHandoff) {
         const latest = items[0]; // already sorted by updatedAt desc
         hydrateWorldbook(latest.worldbook);
         setFilename(latest.title);
         setCurrentItemId(latest.id);
       }
-    }).catch(() => {});
+    }).catch(() => setSavedLoaded(true));
     if (!isTourCompleted('worldbook')) {
       setTimeout(() => setShowTour(true), 500);
     }
@@ -424,6 +435,7 @@ export default function WorldBookPage() {
             {!worldbook ? (
               <WorldBookEmptyState
                 savedItems={savedItems}
+                savedLoaded={savedLoaded}
                 onImport={handleImport}
                 onRestore={(item) => {
                   hydrateWorldbook(item.worldbook);

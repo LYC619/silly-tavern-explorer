@@ -39,6 +39,7 @@ import {
   type QuickReplySet,
 } from '@/lib/vault/other-assets';
 import { OtherAssetPreview } from './OtherAssetPreview';
+import { LOADING_LABEL } from '@/lib/ui-copy';
 
 type BrowserSection = 'overview' | OtherAssetCategoryId;
 
@@ -57,7 +58,7 @@ function isBrowserSection(value: string | null): value is BrowserSection {
   return value === 'overview' || OTHER_ASSET_CATEGORIES.some((category) => category.id === value);
 }
 
-function LoadState({ label = '正在读取归档…' }: { label?: string }) {
+function LoadState({ label = LOADING_LABEL }: { label?: string }) {
   return (
     <div className="flex h-full min-h-56 items-center justify-center gap-2 text-sm text-[color:var(--text-muted)]">
       <Loader2 className="h-4 w-4 animate-spin" />{label}

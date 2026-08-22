@@ -12,6 +12,7 @@ import { createTauriFs, getAppConfig } from '@/lib/vault/tauri-fs';
 import { joinPath } from '@/lib/vault/fs';
 import { extractSTAIConfig, type STAIConfigRow } from '@/lib/st-ai-config';
 import { saveSettingsSection } from '@/lib/settings-navigation';
+import { LOADING_LABEL } from '@/lib/ui-copy';
 
 interface STAIConfigDialogProps {
   open: boolean;
@@ -80,7 +81,7 @@ export function STAIConfigDialog({ open, onOpenChange }: STAIConfigDialogProps) 
         </DialogHeader>
 
         {state.kind === 'loading' && (
-          <p className="py-6 text-center text-sm text-muted-foreground">读取中…</p>
+          <p className="py-6 text-center text-sm text-muted-foreground">{LOADING_LABEL}</p>
         )}
         {state.kind === 'no-root' && (
           <div className="py-4 text-center space-y-3">

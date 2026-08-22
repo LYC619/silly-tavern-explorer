@@ -78,14 +78,28 @@ const RegexTool = () => {
       getCharacter(cowCharacterId).then((c) => setCowCharacterName(c?.name ?? '')).catch(() => {});
     }
     if (initialAssetId) {
+      // 深链指向已删/读不出来的资产时必须说一声：以前两条分支都是静默的，
+      // 用户从附属库点进来只会看到一个空编辑器，以为是自己点错了
       getRegexCollection(initialAssetId).then((item) => {
         if (item) {
           setRules(JSON.parse(JSON.stringify(item.rules)));
           setActiveCollectionId(item.id);
           setCollectionName(item.title);
           toast({ title: `已载入规则集「${item.title}」` });
+        } else {
+          toast({
+            title: '找不到这个规则集',
+            description: '它可能已经被删除。当前是一个空白规则集，不会覆盖任何已有资产。',
+            variant: 'destructive',
+          });
         }
-      }).catch(() => {});
+      }).catch((error) => {
+        toast({
+          title: '载入规则集失败',
+          description: error instanceof Error ? error.message : String(error),
+          variant: 'destructive',
+        });
+      });
     }
     const handoff = takePendingToolFile('regex');
     if (handoff) {

@@ -31,6 +31,7 @@ import { getAllRegexCollections, deleteRegexCollection } from '@/lib/regex-db';
 import { listCharacterIndex } from '@/lib/archive-index';
 import { buildAssetLibraryRows, type AssetLibraryRow } from '@/lib/asset-library-rows';
 import { executeDeleteAction } from '@/lib/destructive-action';
+import { LOADING_LABEL } from '@/lib/ui-copy';
 
 type AssetTab = 'worldbook' | 'preset' | 'regex';
 
@@ -289,7 +290,7 @@ const AssetLibrary = () => {
             </div>
 
             {loading ? (
-              <p className="py-16 text-center text-sm text-muted-foreground">加载中…</p>
+              <p className="py-16 text-center text-sm text-muted-foreground">{LOADING_LABEL}</p>
             ) : tabList.length === 0 ? (
               <div className="flex flex-col items-center justify-center py-20 text-center gap-3">
                 <meta.icon className="w-12 h-12 text-muted-foreground/40" />

@@ -22,6 +22,7 @@ import {
 import { getDefaultExportSettings } from '@/lib/session-storage';
 import { StoryDraftSaver, flushBeforeStoryTransition } from '@/lib/story-draft-save';
 import { useToast } from '@/hooks/use-toast';
+import { LOADING_LABEL } from '@/lib/ui-copy';
 
 interface InlineStoryReaderProps {
   storyId: string;
@@ -163,7 +164,7 @@ export function InlineStoryReader({ storyId, stories, onSwitchStory, onBack, onO
   }, [mutateStory]);
 
   if (loading) {
-    return <div className="py-16 text-center text-sm text-muted-foreground">加载中...</div>;
+    return <div className="py-16 text-center text-sm text-muted-foreground">{LOADING_LABEL}</div>;
   }
   if (!story || !line) {
     return (

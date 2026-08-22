@@ -7,6 +7,7 @@ import {
   imageMimeType,
   type ArchiveFileItem,
 } from '@/lib/vault/other-assets';
+import { LOADING_LABEL } from '@/lib/ui-copy';
 
 interface OtherAssetPreviewProps {
   fs: VaultFs;
@@ -77,7 +78,7 @@ export function OtherAssetPreview({ fs, file, onClose }: OtherAssetPreviewProps)
       <div className="min-h-0 flex-1 overflow-auto p-4 scrollbar-thin">
         {loading ? (
           <div className="flex h-full min-h-40 items-center justify-center gap-2 text-sm text-[color:var(--text-muted)]">
-            <Loader2 className="h-4 w-4 animate-spin" />读取中…
+            <Loader2 className="h-4 w-4 animate-spin" />{LOADING_LABEL}
           </div>
         ) : error ? (
           <div role="alert" className="flex items-start gap-2 rounded-lg bg-[var(--status-danger-bg)] p-3 text-sm text-[color:var(--status-danger)]">

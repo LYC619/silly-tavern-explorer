@@ -51,6 +51,7 @@ import {
   type EditorStoryView,
 } from '@/lib/editor-story-context';
 import { isOrganizeWorkspaceView } from '@/lib/story-workspace-layout';
+import { LOADING_LABEL } from '@/lib/ui-copy';
 
 /** 阶段9.6：整理与记录拆成四个子页面（参照 2.0 前 /summary /story-tree 独立页的架构） */
 type WorkspaceView = EditorStoryView;
@@ -290,7 +291,7 @@ const StoryWorkspace = () => {
   if (loading) {
     return (
       <AppLayout>
-        <div className="flex min-h-[50vh] items-center justify-center text-muted-foreground">加载中...</div>
+        <div className="flex min-h-[50vh] items-center justify-center text-muted-foreground">{LOADING_LABEL}</div>
       </AppLayout>
     );
   }

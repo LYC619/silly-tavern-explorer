@@ -18,6 +18,7 @@ import {
   rowTitleConflict, rowDirOf, ensureRowTitle,
   type PortraitViewRow, type PortraitViewItem,
 } from '@/lib/portrait-store';
+import { LOADING_LABEL } from '@/lib/ui-copy';
 
 interface PortraitSectionProps {
   character: ArchiveCharacter;
@@ -141,7 +142,7 @@ export function PortraitSection({ character, onPatch, onOpenImport }: PortraitSe
       </div>
 
       {views === null ? (
-        <p className="text-sm text-muted-foreground py-6 text-center">加载中…</p>
+        <p className="text-sm text-muted-foreground py-6 text-center">{LOADING_LABEL}</p>
       ) : views.length === 0 ? (
         <Card>
           <CardContent className="py-10 flex flex-col items-center gap-2 text-center">

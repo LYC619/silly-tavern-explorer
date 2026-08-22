@@ -25,6 +25,7 @@ import { deleteStoryTree, getAllStoryTrees, saveStoryTree } from '@/lib/story-tr
 import { parseStoryTreeJSON, storyTreeToJSON } from '@/lib/story-tree-io';
 import type { ArchiveStory } from '@/types/archive';
 import { generateStoryTreeId, type StoryTree } from '@/types/story-tree';
+import { LOADING_LABEL } from '@/lib/ui-copy';
 
 interface StoryTreeWorkspaceProps {
   story: ArchiveStory;
@@ -161,7 +162,7 @@ export function StoryTreeWorkspace({ story, currentBranchId, initialTarget }: St
           />
         ) : loaded ? (
           <Card data-story-tree-selector><CardContent className="p-8 text-center space-y-3"><Network className="w-8 h-8 mx-auto text-muted-foreground" /><p className="text-muted-foreground">用一棵事实树梳理这个故事的人物、事件与关系。</p><div className="flex gap-2 justify-center flex-wrap"><Button onClick={createTree} className="gap-1"><Plus className="w-4 h-4" />新建故事树</Button><label><Button variant="outline" className="gap-1" asChild><span><Download className="w-4 h-4" />导入</span></Button><input type="file" accept=".json,application/json" className="hidden" onChange={(event) => { const file = event.target.files?.[0]; if (file) void importTree(file); event.target.value = ''; }} /></label></div></CardContent></Card>
-        ) : <div className="py-16 text-center text-sm text-muted-foreground">加载中…</div>}
+        ) : <div className="py-16 text-center text-sm text-muted-foreground">{LOADING_LABEL}</div>}
       </div>
 
       <AlertDialog open={deleteOpen} onOpenChange={setDeleteOpen}><AlertDialogContent><AlertDialogHeader><AlertDialogTitle>删除整棵故事树？</AlertDialogTitle><AlertDialogDescription>此操作不可撤销，该树的所有节点将被永久删除。</AlertDialogDescription></AlertDialogHeader><AlertDialogFooter><AlertDialogCancel>取消</AlertDialogCancel><AlertDialogAction onClick={deleteTree}>删除</AlertDialogAction></AlertDialogFooter></AlertDialogContent></AlertDialog>

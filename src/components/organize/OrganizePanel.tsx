@@ -42,6 +42,7 @@ import { ContextRail } from './ContextRail';
 import { ShareImageDialog } from './ShareImageDialog';
 import type { ShareImageInput } from '@/lib/share-image';
 import { MiniSummaryPanel } from '@/components/summary/MiniSummaryPanel';
+import { LOADING_LABEL } from '@/lib/ui-copy';
 
 const KIND_FILTERS: { value: OrganizeKindFilter; label: string }[] = [
   { value: 'all', label: '全部类型' },
@@ -361,7 +362,7 @@ export function OrganizePanel({ story, characterName, coverDataUrl, currentBranc
               ? fixedKind
                 ? FIXED_KIND_META[fixedKind].empty
                 : '暂无记录。点「新建」开始。'
-              : '加载中…'}
+              : LOADING_LABEL}
           </p>
         ) : (
           <div className="space-y-1 max-h-[70vh] overflow-y-auto pr-0.5">

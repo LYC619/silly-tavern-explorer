@@ -15,6 +15,7 @@ import { getAllWorldBooks } from '@/lib/worldbook-db';
 import { getAllPresets } from '@/lib/preset-db';
 import { getAllRegexCollections } from '@/lib/regex-db';
 import { cn } from '@/lib/utils';
+import { LOADING_LABEL } from '@/lib/ui-copy';
 
 export function GlobalSearch() {
   const navigate = useNavigate();
@@ -118,7 +119,7 @@ export function GlobalSearch() {
       {showDrop && (
         <div className="absolute left-0 right-0 top-full mt-1.5 z-50 rounded-lg border border-[color:var(--border-normal)] bg-elevated shadow-[var(--shadow-popover)] py-1.5 max-h-[60vh] overflow-y-auto">
           {entries === null ? (
-            <p className="px-3.5 py-2 text-xs text-[color:var(--text-faint)]">加载中…</p>
+            <p className="px-3.5 py-2 text-xs text-[color:var(--text-faint)]">{LOADING_LABEL}</p>
           ) : results.length === 0 ? (
             <p className="px-3.5 py-2 text-xs text-[color:var(--text-faint)]">没有匹配「{query.trim()}」的内容</p>
           ) : (

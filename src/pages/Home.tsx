@@ -89,6 +89,8 @@ const Home = () => {
   const [resourceSnapshot] = useState(() => homeSnapshot.resources);
   const [assetCounts, setAssetCounts] = useState(() => homeSnapshot.assetCounts);
   const [stConfigOpen, setStConfigOpen] = useState(false);
+  /** 整页读失败：必须说出来，否则空态和「数据没了」长得一模一样 */
+  const [loadFailed, setLoadFailed] = useState(false);
   const characterWheelSurfaceRef = useRef<HTMLElement>(null);
   const characterRailRef = useRef<HTMLDivElement>(null);
   /** A6：已接入（stRoot 已配置）则不再显示接入卡；null = 还没查完，先不显示防闪烁 */
@@ -117,7 +119,11 @@ const Home = () => {
       setStories(nextSnapshot.stories);
       setRecentStories(nextSnapshot.recentStories);
       setAssetCounts(nextSnapshot.assetCounts);
-    } catch { /* 首页加载失败不弹错，各区显示空态 */ }
+      setLoadFailed(false);
+    } catch {
+      // 整页读失败以前静默显示空态，用户会以为数据丢了（对照 Library 是有明确报错的）
+      setLoadFailed(true);
+    }
   }, []);
 
   useEffect(() => { void loadData(); }, [loadData]);
@@ -211,6 +217,24 @@ const Home = () => {
       )}
     >
       <div className="h-full min-h-0 overflow-hidden flex flex-col px-6 py-4 gap-3.5" data-home-resource-cache={Object.keys(resourceSnapshot).length}>
+        {loadFailed && (
+          <div
+            data-home-load-error
+            className="shrink-0 flex items-center justify-between gap-3 rounded-lg border border-[color:var(--border-normal)] bg-chrome px-3.5 py-2.5"
+          >
+            <div className="min-w-0">
+              <p className="text-sm text-[color:var(--text-body)]">读取归档失败</p>
+              <p className="text-xs text-[color:var(--text-muted)]">下面显示的不是空档案，是这次没读出来。数据仍在库里。</p>
+            </div>
+            <button
+              onClick={() => void loadData()}
+              className="flex items-center gap-1 px-3 py-1.5 rounded-full text-xs border border-[color:var(--border-normal)] text-[color:var(--text-body)] hover:border-[color:var(--brand-hairline)] hover:text-brand transition-colors shrink-0"
+            >
+              重试
+            </button>
+          </div>
+        )}
+
         {/* 接入 ST 目录：仅客户端且未接入时显示（A6）；网页版组件自隐藏 */}
         {stConnected === false && (
           <div className="shrink-0 empty:hidden">
