@@ -109,14 +109,15 @@ describe('四主题覆盖契约', () => {
 
 describe('卡片键盘操作契约', () => {
   it('角色卡和资产卡提供聚焦与键盘激活', () => {
-    const library = read('src/pages/Library.tsx');
+    // 角色卡（Library）这部分已由 library-card-keyboard.test.tsx 的 5 项行为覆盖：
+    // 可聚焦、Enter/空格激活、子元素按键不冒泡、批量模式下 Shift+Enter 范围选。
+    // 阶段 C2 把卡片抽成 <CharacterTile>/<CharacterListRow> 后，grep 页面源码已不成立。
+    // 资产卡（AssetLibrary）还没有等价行为测试，暂留 grep（TODO：随资产库批次一起换）。
     const assets = read('src/pages/AssetLibrary.tsx');
-    for (const source of [library, assets]) {
-      expect(source).toContain('tabIndex={0}');
-      expect(source).toContain("e.key === 'Enter' || e.key === ' '");
-      expect(source).toContain('focus-visible:ring-2');
-      expect(source).toContain('e.target !== e.currentTarget');
-    }
+    expect(assets).toContain('tabIndex={0}');
+    expect(assets).toContain("e.key === 'Enter' || e.key === ' '");
+    expect(assets).toContain('focus-visible:ring-2');
+    expect(assets).toContain('e.target !== e.currentTarget');
   });
 
   it('首页编辑区入口不伪装成拖放区', () => {
