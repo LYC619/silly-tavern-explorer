@@ -19,6 +19,15 @@ export interface BaseRecord {
 export interface Repo<T extends BaseRecord> {
   /** 全量列表，按 updatedAt 降序（与旧各 getAllX 行为一致） */
   list(): Promise<T[]>;
+  /**
+   * 列表投影：排序与条目数同 list()，但返回的记录**可能缺少大字段**
+   * （文件库后端会跳过角色卡面 PNG、剥掉故事正文）。
+   *
+   * 只给「拿元信息渲染列表」的调用方用，且必须经 `lib/archive-index` 收敛成不含大字段的窄类型——
+   * 直接把这里的记录当完整记录写回会抹掉 PNG / 正文。要完整记录一律走 list()/get()。
+   * IDB 后端省不掉（getAll 本来就是整条取出），等价于 list()。
+   */
+  listLight(): Promise<T[]>;
   get(id: string): Promise<T | undefined>;
   put(item: T): Promise<void>;
   remove(id: string): Promise<void>;
@@ -36,11 +45,14 @@ export function createIdbRepo<T extends BaseRecord>(storeName: StoreName): Repo<
     const db = await openDB();
     return db.transaction(storeName, mode).objectStore(storeName);
   };
+  const list = async () => {
+    const items = (await request((await store('readonly')).getAll())) as T[];
+    return items.sort((a, b) => b.updatedAt - a.updatedAt);
+  };
   return {
-    async list() {
-      const items = (await request((await store('readonly')).getAll())) as T[];
-      return items.sort((a, b) => b.updatedAt - a.updatedAt);
-    },
+    list,
+    // IDB 没有字段投影，getAll 一次就是整条；省不掉，与 list 同源。
+    listLight: list,
     async get(id) {
       return (await request((await store('readonly')).get(id))) as T | undefined;
     },

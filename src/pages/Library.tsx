@@ -56,11 +56,11 @@ import {
   getAllCharacters,
   saveCharacter,
   deleteCharacter,
-  getAllArchiveStories,
   getLibraryTagPreferences,
   saveLibraryTagPreferences,
   updateArchiveStory,
 } from '@/lib/archive-db';
+import { listStoryIndex } from '@/lib/archive-index';
 import { importEmbeddedAssets } from '@/lib/card-embedded-assets';
 import {
   applyLibraryImportType,
@@ -132,7 +132,7 @@ const Library = () => {
     try {
       const [chars, stories, preferences] = await Promise.all([
         getAllCharacters(),
-        getAllArchiveStories(),
+        listStoryIndex(),
         getLibraryTagPreferences(),
       ]);
       setCharacters(chars);
@@ -251,7 +251,8 @@ const Library = () => {
     try {
       // 名下故事解除绑定（变为临时/未绑定），不连带删除
       const ids = new Set(pendingDelete.map((c) => c.id));
-      const stories = await getAllArchiveStories();
+      // 只要 id + characterId 找出待解绑的故事；真正的改写走 updateArchiveStory（队列内重读最新记录）
+      const stories = await listStoryIndex();
       await Promise.all(
         stories
           .filter((s) => s.characterId && ids.has(s.characterId))

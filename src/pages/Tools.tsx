@@ -16,7 +16,8 @@ import {
 } from '@/components/ui/dialog';
 import { guessFileType, TOOL_TYPE_LABELS, type ToolFileType } from '@/lib/file-type-guess';
 import { setPendingToolFile } from '@/lib/tool-handoff';
-import { getAllCharacters, getAllArchiveStories } from '@/lib/archive-db';
+import { getAllArchiveStories } from '@/lib/archive-db';
+import { listCharacterIndex, type CharacterIndexEntry } from '@/lib/archive-index';
 import { getAllWorldBooks } from '@/lib/worldbook-db';
 import { getAllPresets } from '@/lib/preset-db';
 import type { ArchiveCharacter, ArchiveStory } from '@/types/archive';
@@ -98,7 +99,7 @@ const Tools = () => {
   const [pending, setPending] = useState<{ file: File; guess: ToolFileType | null } | null>(null);
   const [chosenType, setChosenType] = useState<ToolFileType>('chat');
   const [stories, setStories] = useState<ArchiveStory[]>([]);
-  const [characters, setCharacters] = useState<ArchiveCharacter[]>([]);
+  const [characters, setCharacters] = useState<CharacterIndexEntry[]>([]);
   const [assetItems, setAssetItems] = useState<AssetPickerItem[]>([]);
   const [query, setQuery] = useState('');
 
@@ -129,9 +130,11 @@ const Tools = () => {
       })));
       return;
     }
+    // 故事这边仍要完整读：选择器要按消息时间戳算游玩起止（computeStoryTimeRange），
+    // 楼数与标题之外真的用到了正文。角色只用到 id→名字，走轻量列表。
     const [stories, cards] = await Promise.all([
       getAllArchiveStories().catch(() => []),
-      getAllCharacters().catch(() => []),
+      listCharacterIndex().catch(() => []),
     ]);
     const sortedStories = [...stories]
       .sort((a, b) => (b.lastViewedAt ?? b.updatedAt) - (a.lastViewedAt ?? a.updatedAt));

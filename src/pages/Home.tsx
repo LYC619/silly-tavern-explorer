@@ -20,7 +20,8 @@ import { NsfwImage } from '@/components/NsfwImage';
 import { CharacterTile } from '@/components/library/CharacterTile';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import type { ArchiveCharacter, ArchiveStory } from '@/types/archive';
-import { getAllCharacters, getAllArchiveStories } from '@/lib/archive-db';
+import { getAllCharacters } from '@/lib/archive-db';
+import { listStoryIndex, type StoryIndexEntry } from '@/lib/archive-index';
 import { getAllWorldBooks } from '@/lib/worldbook-db';
 import { getAllPresets } from '@/lib/preset-db';
 import { getAllRegexCollections } from '@/lib/regex-db';
@@ -36,8 +37,8 @@ import {
 /** 故事行的下属资源标签计数 */
 interface HomeSnapshot {
   readonly characters: ArchiveCharacter[];
-  readonly stories: ArchiveStory[];
-  readonly recentStories: ArchiveStory[];
+  readonly stories: StoryIndexEntry[];
+  readonly recentStories: StoryIndexEntry[];
   /** 预留给故事资源徽标，快照结构保持与既有缓存兼容。 */
   readonly resources: Record<string, unknown>;
   readonly assetCounts: { worldbooks: number; presets: number; regexes: number };
@@ -97,7 +98,7 @@ const Home = () => {
     try {
       const [chars, allStories, wbs, presets, regexes] = await Promise.all([
         getAllCharacters(),
-        getAllArchiveStories(),
+        listStoryIndex(),
         getAllWorldBooks().catch(() => []),
         getAllPresets().catch(() => []),
         getAllRegexCollections().catch(() => []),
@@ -299,7 +300,7 @@ const Home = () => {
                           ) : <BookOpenText className="m-2 h-4 w-4 text-muted-foreground/50" />}
                         </div>
                         <span className="min-w-0 flex-1 truncate text-xs font-medium text-[color:var(--text-body)]" title={s.title}>{s.title}</span>
-                        <span className="shrink-0 text-[10px] text-[color:var(--text-muted)]">{s.session.messages.length} 楼</span>
+                        <span className="shrink-0 text-[10px] text-[color:var(--text-muted)]">{s.floorCount} 楼</span>
                       </button>
                     );
                   })}

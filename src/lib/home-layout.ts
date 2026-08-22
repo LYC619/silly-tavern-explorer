@@ -46,7 +46,8 @@ export const EDITOR_STORY_PICKER_VISIBLE_COUNT = 10;
  */
 export function buildEditorStoryPickerItems(
   stories: ArchiveStory[],
-  characters: ArchiveCharacter[],
+  // 只用到 id → name 的映射，收窄到最小形状，好让调用方传 archive-index 的轻量角色列表
+  characters: readonly { id: string; name: string }[],
   query = '',
 ): EditorStoryPickerItem[] {
   const characterNames = new Map(characters.map((character) => [character.id, character.name]));
@@ -73,10 +74,10 @@ export function buildEditorStoryPickerItems(
 }
 
 /** 只从有真实查看记录的故事中取最近条目；未查看的新导入内容留给完整选择器。 */
-export function pickRecentlyViewedStories(
-  stories: ArchiveStory[],
+export function pickRecentlyViewedStories<T extends { lastViewedAt?: number }>(
+  stories: T[],
   limit = HOME_RECENT_STORY_VISIBLE_COUNT,
-): ArchiveStory[] {
+): T[] {
   const count = Math.max(0, Math.floor(limit));
   return [...stories]
     .filter((story) => story.lastViewedAt !== undefined)

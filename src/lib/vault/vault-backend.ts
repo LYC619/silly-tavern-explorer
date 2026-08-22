@@ -113,6 +113,16 @@ function serializeMd(rec: BaseRecord): string {
   return serializeFrontmatter(fields, content ?? '');
 }
 
+/**
+ * 故事列表投影：剥掉主线正文与分支，换成一个楼数。
+ * 楼数必须在这里算——正文一旦剥掉，调用方就没法再数了（列表要显示「N 楼」）。
+ */
+function stripStoryBody(rec: BaseRecord | null): BaseRecord | null {
+  if (!rec) return null;
+  const { session, branches, ...rest } = rec as unknown as ArchiveStory;
+  return { ...rest, floorCount: session?.messages?.length ?? 0 } as unknown as BaseRecord;
+}
+
 export function createVault(fs: VaultFs): VaultBackend {
   // ---- 索引：id → 相对路径 ----
   const idx = new Map<VaultStore, Map<string, string>>(VAULT_STORES.map((s) => [s, new Map()]));
@@ -123,16 +133,26 @@ export function createVault(fs: VaultFs): VaultBackend {
   // ---- 记录读缓存（阶段9.1 性能）：id → 记录本体 ----
   // 读时填充；put/remove 只失效不回填（下次读回盘，序列化往返保持真实，测试不被缓存遮蔽）。
   // 代价：应用运行中用户手改库文件不被感知，重启可见——本地单用户可接受。
+  //
+  // 两池分开（阶段 D1）：light 池装的是剥掉大字段的投影，绝不能回填 full 池——
+  // 否则后续 get() 会拿到缺 pngBase64 / session 的记录，保存时把卡面与正文一起写没。
   const recCache = new Map<VaultStore, Map<string, BaseRecord>>(VAULT_STORES.map((s) => [s, new Map()]));
+  const lightCache = new Map<VaultStore, Map<string, BaseRecord>>(VAULT_STORES.map((s) => [s, new Map()]));
 
-  async function readRecordCached(store: VaultStore, id: string, path: string): Promise<BaseRecord | null> {
-    const m = recCache.get(store)!;
+  async function readRecordCached(store: VaultStore, id: string, path: string, light = false): Promise<BaseRecord | null> {
+    const m = (light ? lightCache : recCache).get(store)!;
     const hit = m.get(id);
     // 出入缓存都克隆：调用方拿到的对象与缓存互不别名（与 IDB 每次返回新对象的语义一致）
     if (hit) return structuredClone(hit);
-    const rec = await readRecord(store, path);
+    const rec = light ? await readRecordLight(store, path) : await readRecord(store, path);
     if (rec) m.set(id, structuredClone(rec));
     return rec;
+  }
+
+  /** 记录变更后两池一起失效，避免 light 池留着旧标题/旧楼数 */
+  function invalidate(store: VaultStore, id: string): void {
+    recCache.get(store)!.delete(id);
+    lightCache.get(store)!.delete(id);
   }
 
   const warnSkip = (path: string, err: unknown) => console.warn(`[vault] 跳过无法读取的文件 ${path}:`, err);
@@ -349,6 +369,22 @@ export function createVault(fs: VaultFs): VaultBackend {
       case 'presets': return readPreset(path);
       case 'regexes': return readRegexes(path);
       case 'cards': return readCard(path);
+    }
+  }
+
+  /**
+   * 列表投影读（阶段 D1）：只给 listLight 用，返回的记录**缺少大字段**。
+   * - 角色：跳过 卡片.png 的 stat + readBinary。上百张卡的库里这是列表加载最贵的一段
+   *   （每张卡一趟 IPC 把整张 PNG 读成 base64），而列表元信息只需要 档案.json。
+   * - 故事：故事.json 仍要整读（正文与元信息同文件，省不掉 IO），但读完就剥掉正文，
+   *   省下缓存占用与每次 list 的 structuredClone——那才是反复翻页时的大头。
+   * - 其余 store 没有大字段，与完整读一致。
+   */
+  function readRecordLight(store: VaultStore, path: string): Promise<BaseRecord | null> {
+    switch (store) {
+      case 'characters': return readJsonRecord(joinPath(path, FILE_PROFILE));
+      case 'archiveStories': return readJsonRecord(joinPath(path, FILE_STORY)).then(stripStoryBody);
+      default: return readRecord(store, path);
     }
   }
 
@@ -599,17 +635,19 @@ export function createVault(fs: VaultFs): VaultBackend {
   // ---- Repo 契约 ----
 
   function buildRepo(store: VaultStore): Repo<BaseRecord> {
+    const listWith = async (light: boolean) => {
+      await ensureIndex();
+      // 并行读 + 缓存命中直接返回；坏文件已在 readRecord 里 warn + null
+      const recs = await mapLimit([...of(store).entries()], IO_LIMIT, ([id, path]) =>
+        readRecordCached(store, id, path, light),
+      );
+      return recs
+        .filter((r): r is BaseRecord => r !== null)
+        .sort((a, b) => b.updatedAt - a.updatedAt);
+    };
     return {
-      async list() {
-        await ensureIndex();
-        // 并行读 + 缓存命中直接返回；坏文件已在 readRecord 里 warn + null
-        const recs = await mapLimit([...of(store).entries()], IO_LIMIT, ([id, path]) =>
-          readRecordCached(store, id, path),
-        );
-        return recs
-          .filter((r): r is BaseRecord => r !== null)
-          .sort((a, b) => b.updatedAt - a.updatedAt);
-      },
+      list: () => listWith(false),
+      listLight: () => listWith(true),
       async get(id) {
         await ensureIndex();
         const path = of(store).get(id);
@@ -618,12 +656,12 @@ export function createVault(fs: VaultFs): VaultBackend {
       },
       async put(item) {
         await ensureIndex();
-        recCache.get(store)!.delete(item.id);
+        invalidate(store, item.id);
         await putRecord(store, item);
       },
       async remove(id) {
         await ensureIndex();
-        recCache.get(store)!.delete(id);
+        invalidate(store, id);
         await removeRecord(store, id);
       },
     };

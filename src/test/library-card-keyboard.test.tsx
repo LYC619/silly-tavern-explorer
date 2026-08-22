@@ -31,7 +31,6 @@ vi.mock('@/components/AppLayout', () => ({
 vi.mock('@/lib/archive-db', () => ({
   CHARACTER_TYPES: ['人物', '剧情', '玩法', '综合', '同人'],
   getAllCharacters,
-  getAllArchiveStories: vi.fn().mockResolvedValue([]),
   deleteCharacter: vi.fn().mockResolvedValue(undefined),
   saveCharacter: vi.fn().mockResolvedValue(undefined),
   getLibraryTagPreferences: vi.fn(async () => {
@@ -41,6 +40,7 @@ vi.mock('@/lib/archive-db', () => ({
   saveLibraryTagPreferences: vi.fn().mockResolvedValue(undefined),
   updateArchiveStory: vi.fn().mockResolvedValue(undefined),
 }));
+vi.mock('@/lib/archive-index', () => ({ listStoryIndex: vi.fn().mockResolvedValue([]) }));
 vi.mock('@/lib/vault/tauri-fs', () => ({
   isTauri: vi.fn().mockReturnValue(false),
   pickDirectory: vi.fn(),

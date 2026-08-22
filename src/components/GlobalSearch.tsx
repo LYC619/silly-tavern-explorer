@@ -1,7 +1,7 @@
 /**
  * 标题栏全局搜索（10.1-A2 最小可用）：角色名/故事名/资产标题子串匹配 → 下拉分组结果跳转。
  * - Ctrl+F 覆盖 WebView2 页内查找并聚焦；↑↓ 选择、Enter 跳转、Esc 关闭
- * - 首次聚焦才拉数据（各库 getAll，量小；焦点期内不重复拉）
+ * - 首次聚焦才拉数据（角色/故事走 archive-index 轻量列表，不读卡面与正文；焦点期内不重复拉）
  */
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
@@ -10,7 +10,7 @@ import {
   buildSearchEntries, searchEntries, groupByKind,
   flattenSearchGroups, SEARCH_KIND_LABEL, type SearchEntry,
 } from '@/lib/global-search';
-import { getAllCharacters, getAllArchiveStories } from '@/lib/archive-db';
+import { listCharacterIndex, listStoryIndex } from '@/lib/archive-index';
 import { getAllWorldBooks } from '@/lib/worldbook-db';
 import { getAllPresets } from '@/lib/preset-db';
 import { getAllRegexCollections } from '@/lib/regex-db';
@@ -30,8 +30,8 @@ export function GlobalSearch() {
     loadingRef.current = true;
     try {
       const [characters, stories, worldbooks, presets, regexes] = await Promise.all([
-        getAllCharacters().catch(() => []),
-        getAllArchiveStories().catch(() => []),
+        listCharacterIndex().catch(() => []),
+        listStoryIndex().catch(() => []),
         getAllWorldBooks().catch(() => []),
         getAllPresets().catch(() => []),
         getAllRegexCollections().catch(() => []),

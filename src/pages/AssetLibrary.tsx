@@ -28,7 +28,7 @@ import { getAllWorldBooks, deleteWorldBook, saveWorldBook } from '@/lib/worldboo
 import { readWorldBookUpload, worldBookItemFromUpload } from '@/lib/worldbook-file-import';
 import { getAllPresets, deletePreset } from '@/lib/preset-db';
 import { getAllRegexCollections, deleteRegexCollection } from '@/lib/regex-db';
-import { getAllCharacters } from '@/lib/archive-db';
+import { listCharacterIndex } from '@/lib/archive-index';
 import { buildAssetLibraryRows, type AssetLibraryRow } from '@/lib/asset-library-rows';
 import { executeDeleteAction } from '@/lib/destructive-action';
 
@@ -101,7 +101,7 @@ const AssetLibrary = () => {
         getAllWorldBooks().catch(() => [] as WorldBookItem[]),
         getAllPresets().catch(() => [] as PresetItem[]),
         getAllRegexCollections().catch(() => [] as RegexCollectionItem[]),
-        getAllCharacters().catch(() => []),
+        listCharacterIndex().catch(() => []),
       ]);
       setWorldbooks(wbs);
       setPresets(ps);

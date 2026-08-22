@@ -67,6 +67,7 @@ describe('多库切换写入隔离', () => {
 
     const oldRepo = {
       list: async () => [],
+      listLight: async () => [],
       get: async () => undefined,
       put: async (item: ArchiveStory) => {
         if (oldPuts.length === 0) firstStarted();
@@ -77,6 +78,7 @@ describe('多库切换写入隔离', () => {
     } satisfies Repo<ArchiveStory>;
     const newRepo = {
       list: async () => [],
+      listLight: async () => [],
       get: async () => undefined,
       put: async (item: ArchiveStory) => { newPuts.push(item); },
       remove: async () => {},
@@ -105,6 +107,7 @@ describe('多库切换写入隔离', () => {
 
     const oldRepo = {
       list: async () => oldRecord ? [oldRecord] : [],
+      listLight: async () => oldRecord ? [oldRecord] : [],
       get: async () => oldRecord,
       put: async (item: ArchiveMetaRecord) => {
         oldPutCount += 1;
@@ -118,6 +121,7 @@ describe('多库切换写入隔离', () => {
     } satisfies Repo<ArchiveMetaRecord>;
     const newRepo = {
       list: async () => newRecord ? [newRecord] : [],
+      listLight: async () => newRecord ? [newRecord] : [],
       get: async () => newRecord,
       put: async (item: ArchiveMetaRecord) => { newRecord = structuredClone(item); },
       remove: async () => { newRecord = undefined; },

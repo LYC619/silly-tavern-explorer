@@ -14,7 +14,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { ArchiveCharacter } from '@/types/archive';
 
 const getAllCharacters = vi.hoisted(() => vi.fn().mockResolvedValue([]));
-const getAllArchiveStories = vi.hoisted(() => vi.fn().mockResolvedValue([]));
+const listStoryIndex = vi.hoisted(() => vi.fn().mockResolvedValue([]));
 const deleteCharacter = vi.hoisted(() => vi.fn().mockResolvedValue(undefined));
 const exportCharactersToDirectory = vi.hoisted(() => vi.fn().mockResolvedValue({ exported: [], failed: [] }));
 const pickDirectory = vi.hoisted(() => vi.fn().mockResolvedValue('D:/导出'));
@@ -30,7 +30,6 @@ vi.mock('@/components/AppLayout', () => ({
 vi.mock('@/lib/archive-db', () => ({
   CHARACTER_TYPES: ['人物', '剧情', '玩法', '综合', '同人'],
   getAllCharacters,
-  getAllArchiveStories,
   deleteCharacter,
   saveCharacter: vi.fn().mockResolvedValue(undefined),
   // 真实实现永远返回规整后的对象，不会是 null；用真的 normalizer 免得测试造出不可能的形状
@@ -41,6 +40,7 @@ vi.mock('@/lib/archive-db', () => ({
   saveLibraryTagPreferences: vi.fn().mockResolvedValue(undefined),
   updateArchiveStory: vi.fn().mockResolvedValue(undefined),
 }));
+vi.mock('@/lib/archive-index', () => ({ listStoryIndex }));
 vi.mock('@/lib/character-batch-export', () => ({ exportCharactersToDirectory }));
 vi.mock('@/lib/vault/tauri-fs', () => ({
   isTauri,
@@ -132,7 +132,7 @@ async function enterBatchMode() {
 beforeEach(() => {
   localStorage.clear();
   getAllCharacters.mockClear().mockResolvedValue([]);
-  getAllArchiveStories.mockClear().mockResolvedValue([]);
+  listStoryIndex.mockClear().mockResolvedValue([]);
   deleteCharacter.mockClear().mockResolvedValue(undefined);
   exportCharactersToDirectory.mockClear().mockResolvedValue({ exported: [], failed: [] });
   pickDirectory.mockClear().mockResolvedValue('D:/导出');

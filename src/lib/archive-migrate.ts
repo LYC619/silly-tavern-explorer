@@ -6,15 +6,14 @@
  * 旧五档 status 不删不转（类型语义对不上）：字段留档，UI 于 10.2/10.3 移除，弹窗说明去向。
  */
 import {
-  getAllCharacters,
   getCharacter,
   saveCharacter,
-  getAllArchiveStories,
   getArchiveStory,
   saveArchiveStory,
   getArchiveSchemaVersion,
   setArchiveSchemaVersion,
 } from '@/lib/archive-db';
+import { listCharacterIndex, listStoryIndex } from '@/lib/archive-index';
 import { migrateLegacyTags, NSFW_TAG } from '@/lib/tag-taxonomy';
 import { computeStoryProps } from '@/lib/story-meta';
 import type { ArchiveCharacter, ArchiveStory } from '@/types/archive';
@@ -110,10 +109,11 @@ export async function runArchiveMigration(): Promise<MigrationResult> {
   return runArchiveMigrationWith({
     getSchemaVersion: getArchiveSchemaVersion,
     setSchemaVersion: setArchiveSchemaVersion,
-    listCharacterIds: async () => (await getAllCharacters()).map((c) => c.id),
+    // 只要 id：逐条 getCharacter/getStory 才是迁移的读取点，这里不必把整库拉进内存
+    listCharacterIds: async () => (await listCharacterIndex()).map((c) => c.id),
     getCharacter,
     saveCharacter,
-    listStoryIds: async () => (await getAllArchiveStories()).map((s) => s.id),
+    listStoryIds: async () => (await listStoryIndex()).map((s) => s.id),
     getStory: getArchiveStory,
     saveStory: saveArchiveStory,
   });

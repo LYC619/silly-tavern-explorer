@@ -31,6 +31,7 @@ const idbRepos = new Map<StoreName, Repo<BaseRecord>>();
 export function createRepo<T extends BaseRecord>(store: StoreName): Repo<T> {
   return {
     list: () => getCurrentRepo<T>(store).list(),
+    listLight: () => getCurrentRepo<T>(store).listLight(),
     get: (id) => getCurrentRepo<T>(store).get(id),
     put: (item) => getCurrentRepo<T>(store).put(item),
     remove: (id) => getCurrentRepo<T>(store).remove(id),

@@ -15,11 +15,12 @@ import { createRoot, type Root } from 'react-dom/client';
 import { MemoryRouter } from 'react-router-dom';
 import { TooltipProvider } from '@/components/ui/tooltip';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import type { ArchiveCharacter, ArchiveStory } from '@/types/archive';
+import type { ArchiveCharacter } from '@/types/archive';
+import type { StoryIndexEntry } from '@/lib/archive-index';
 
 const navigate = vi.hoisted(() => vi.fn());
 const getAllCharacters = vi.hoisted(() => vi.fn().mockResolvedValue([]));
-const getAllArchiveStories = vi.hoisted(() => vi.fn().mockResolvedValue([]));
+const listStoryIndex = vi.hoisted(() => vi.fn().mockResolvedValue([]));
 
 vi.mock('react-router-dom', async () => {
   const actual = await vi.importActual<typeof import('react-router-dom')>('react-router-dom');
@@ -35,7 +36,8 @@ vi.mock('@/lib/vault/tauri-fs', () => ({
   isTauri: () => false,
   getAppConfig: vi.fn().mockResolvedValue(null),
 }));
-vi.mock('@/lib/archive-db', () => ({ getAllCharacters, getAllArchiveStories }));
+vi.mock('@/lib/archive-db', () => ({ getAllCharacters }));
+vi.mock('@/lib/archive-index', () => ({ listStoryIndex }));
 vi.mock('@/lib/worldbook-db', () => ({ getAllWorldBooks: vi.fn().mockResolvedValue([]) }));
 vi.mock('@/lib/preset-db', () => ({ getAllPresets: vi.fn().mockResolvedValue([]) }));
 vi.mock('@/lib/regex-db', () => ({ getAllRegexCollections: vi.fn().mockResolvedValue([]) }));
@@ -67,21 +69,21 @@ function mkCharacter(id: string, over: Partial<ArchiveCharacter> = {}): ArchiveC
   } as unknown as ArchiveCharacter;
 }
 
-function mkStory(id: string, characterId: string): ArchiveStory {
+function mkStory(id: string, characterId: string): StoryIndexEntry {
   return {
     id,
     title: `故事${id}`,
     characterId,
     createdAt: 1000,
     updatedAt: 2000,
-    // 最近故事行会读楼数，fixture 必须满足真实必填字段
-    session: { messages: [] },
-  } as unknown as ArchiveStory;
+    // 最近故事行会读楼数；正文已在索引层剥掉，楼数是物化字段
+    floorCount: 0,
+  } as unknown as StoryIndexEntry;
 }
 
-async function renderHome(characters: ArchiveCharacter[], stories: ArchiveStory[] = []) {
+async function renderHome(characters: ArchiveCharacter[], stories: StoryIndexEntry[] = []) {
   getAllCharacters.mockResolvedValue(characters);
-  getAllArchiveStories.mockResolvedValue(stories);
+  listStoryIndex.mockResolvedValue(stories);
   await act(async () => {
     root.render(
       <MemoryRouter initialEntries={['/']}>
@@ -104,7 +106,7 @@ beforeEach(() => {
   localStorage.clear();
   navigate.mockClear();
   getAllCharacters.mockClear().mockResolvedValue([]);
-  getAllArchiveStories.mockClear().mockResolvedValue([]);
+  listStoryIndex.mockClear().mockResolvedValue([]);
   container = document.createElement('div');
   document.body.appendChild(container);
   root = createRoot(container);
@@ -175,7 +177,7 @@ describe('首页最近角色横滑列', () => {
   it('两处缩略图都按 NSFW 设置模糊，且能被设置关掉', async () => {
     const png = 'iVBORw0KGgo=';
     const nsfwChar = mkCharacter('spicy', { nsfw: true, pngBase64: png });
-    const story = { ...mkStory('s1', 'spicy'), lastViewedAt: 5000 } as ArchiveStory;
+    const story = { ...mkStory('s1', 'spicy'), lastViewedAt: 5000 } as StoryIndexEntry;
 
     await renderHome([nsfwChar], [story]);
 
