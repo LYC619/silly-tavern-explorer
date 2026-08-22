@@ -72,13 +72,17 @@ function PillLink({ label, onClick }: { label: string; onClick: () => void }) {
   );
 }
 
-/** 编辑处理区工具列表（0801 反馈 #5：标题+列表化） */
+/**
+ * 编辑处理区工具列表（0801 反馈 #5：标题+列表化）。
+ * 落点与侧栏、编辑区窄栏保持一致：世界书/预设进选择页，不直接进空编辑器
+ * （`docs/ui-conventions.md` 三）。
+ */
 const EDIT_TOOLS = [
   { label: '聊天处理', description: EDITOR_TOOL_COPY.chat, icon: MessagesSquare, path: '/chat' },
   { label: '总结', description: EDITOR_TOOL_COPY.summaryAndTree, icon: BookOpenText, path: '/tools?focus=summary' },
-  { label: '世界书', description: EDITOR_TOOL_COPY.worldbook, icon: BookOpen, path: '/worldbook' },
+  { label: '世界书', description: EDITOR_TOOL_COPY.worldbook, icon: BookOpen, path: '/tools?focus=worldbook' },
   { label: '角色卡', description: EDITOR_TOOL_COPY.card, icon: IdCard, path: '/card-viewer' },
-  { label: '预设', description: EDITOR_TOOL_COPY.preset, icon: SlidersHorizontal, path: '/preset' },
+  { label: '预设', description: EDITOR_TOOL_COPY.preset, icon: SlidersHorizontal, path: '/tools?focus=preset' },
 ];
 
 const Home = () => {

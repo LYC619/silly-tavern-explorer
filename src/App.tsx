@@ -70,6 +70,13 @@ const App = () => {
   >
     <ThemeSync />
     <TooltipProvider>
+      {/*
+        两个 Toaster 是故意的，别当死代码删（阶段 E4 核过）：
+        - <Toaster />：业务提示，全项目经 @/hooks/use-toast 走这里
+        - <Sonner />：Service Worker 的「新版本可用」提示。唯一调用方是
+          lib/register-sw.ts 里直接 `import { toast } from 'sonner'`，不经 hook，
+          所以 grep use-toast 会以为它零调用。删了网页版的更新提示会静默消失，且不报错。
+      */}
       <Toaster />
       <Sonner />
       <VaultGate>
