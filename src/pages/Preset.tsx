@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { SlidersHorizontal, Download, Save, History, FileJson } from 'lucide-react';
+import { SlidersHorizontal, Save, History, FileJson, Upload } from 'lucide-react';
 import { AppLayout } from '@/components/AppLayout';
 import { HelpCard } from '@/components/HelpCard';
 import { DeleteConfirmDialog } from '@/components/DeleteConfirmDialog';
@@ -393,7 +393,7 @@ export default function Preset() {
       </Button>
       <label>
         <Button variant="outline" size="sm" asChild>
-          <span><Download className="w-4 h-4 mr-1.5" /> 导入</span>
+          <span><Upload className="w-4 h-4 mr-1.5" /> 导入</span>
         </Button>
         <input type="file" accept=".json,application/json" className="hidden"
           onChange={(e) => { const f = e.target.files?.[0]; if (f) loadFile(f); e.target.value = ''; }} />
@@ -435,7 +435,7 @@ export default function Preset() {
                   dragOver ? 'border-primary bg-primary/5' : 'border-border hover:border-primary/50'
                 }`}
               >
-                <Download className="w-8 h-8 text-muted-foreground" />
+                <Upload className="w-8 h-8 text-muted-foreground" />
                 <span className="text-sm text-muted-foreground">拖入或点击选择预设文件（.json）</span>
                 <span className="text-xs text-muted-foreground/70">支持 SillyTavern 导出的 Chat Completion 预设</span>
                 <input type="file" accept=".json,application/json" className="hidden"

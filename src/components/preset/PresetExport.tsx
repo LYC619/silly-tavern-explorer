@@ -1,6 +1,6 @@
 import { useState, useMemo } from 'react';
 import { diffLines } from 'diff';
-import { Upload, FileText, GitCompare } from 'lucide-react';
+import { FileText, GitCompare, Download } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -112,7 +112,7 @@ export function PresetExport({ preset, originalPreset, activeCharacterId, fileNa
 
       <div className="flex items-center gap-2 flex-wrap">
         <Button onClick={() => download(exportedJson, `${base}${suffix}.json`, 'application/json;charset=utf-8')}>
-          <Upload className="w-4 h-4 mr-1.5" /> 导出 JSON
+          <Download className="w-4 h-4 mr-1.5" /> 导出 JSON
         </Button>
         <Button variant="outline" onClick={() => download(exportPresetMarkdown(preset, fileName), `${base}.md`, 'text/markdown;charset=utf-8')}>
           <FileText className="w-4 h-4 mr-1.5" /> 导出 Markdown

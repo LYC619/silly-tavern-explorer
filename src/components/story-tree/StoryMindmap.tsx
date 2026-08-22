@@ -1,5 +1,5 @@
 import { useMemo, useRef, useState } from 'react';
-import { Upload, Loader2, X } from 'lucide-react';
+import { Loader2, X, Download } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
 import type { StoryNodeTree, StoryNodeType } from '@/types/story-tree';
@@ -227,10 +227,10 @@ export function StoryMindmap({ forest, selectedId, onSelect, title }: StoryMindm
           角色右侧的浅色子块 = 各卷变化摘要，点子块看该卷全文；点击节点在下方编辑。
         </p>
         <Button variant="outline" size="sm" className="h-7 gap-1 text-xs" onClick={handleExportPng} disabled={exporting}>
-          {exporting ? <Loader2 className="w-3 h-3 animate-spin" /> : <Upload className="w-3 h-3" />}导出 PNG
+          {exporting ? <Loader2 className="w-3 h-3 animate-spin" /> : <Download className="w-3 h-3" />}导出 PNG
         </Button>
         <Button variant="outline" size="sm" className="h-7 gap-1 text-xs" onClick={handleExportSvg}>
-          <Upload className="w-3 h-3" />导出 SVG
+          <Download className="w-3 h-3" />导出 SVG
         </Button>
       </div>
 

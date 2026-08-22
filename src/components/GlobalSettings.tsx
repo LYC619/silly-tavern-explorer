@@ -276,7 +276,7 @@ export function DataSettingsPanel({ onDataChanged }: DataSettingsPanelProps) {
                   onClick={handleExport}
                   disabled={loading}
                 >
-                  <Upload className="w-4 h-4" />
+                  <Download className="w-4 h-4" />
                   导出完整备份
                 </Button>
 
@@ -296,7 +296,7 @@ export function DataSettingsPanel({ onDataChanged }: DataSettingsPanelProps) {
                     disabled={loading}
                   >
                     <span>
-                      <Download className="w-4 h-4" />
+                      <Upload className="w-4 h-4" />
                       从备份恢复
                     </span>
                   </Button>
