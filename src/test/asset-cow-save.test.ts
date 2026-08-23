@@ -34,11 +34,12 @@ const NOW = 9_000;
 let saved: FakeAsset[];
 const save = async (item: FakeAsset) => { saved.push(item); };
 
-function run(base: FakeAsset, all: FakeAsset[], title = '编辑器里的名字') {
+/** 调用方只给 id，库内内容一律现读——所以「传进去的快照」在这个 API 上根本不存在 */
+function run(baseId: string, inVault: FakeAsset[], title = '编辑器里的名字') {
   return saveAssetWithCow<FakeAsset>({
     kind: 'worldbook',
-    base,
-    all,
+    baseId,
+    reload: async () => inVault,
     characterId: 'char_h',
     characterName: '赫敏',
     title,
@@ -58,7 +59,7 @@ describe('saveAssetWithCow', () => {
   it('首次改共享资产：原资产不被写，另存派生副本并把角色引用切过去', async () => {
     const shared = mkAsset({ id: 'a_shared', title: '共享' });
 
-    const result = await run(shared, [shared]);
+    const result = await run('a_shared', [shared]);
 
     expect(result).toEqual({ action: 'copy', targetId: 'new_id', title: '共享_赫敏' });
     expect(saved.map((s) => s.id)).toEqual(['new_id']);
@@ -81,7 +82,7 @@ describe('saveAssetWithCow', () => {
       id: 'a_src', title: '从 ST 导入的', sourcePath: 'D:/ST/worlds/x.json', sourceModifiedAt: 42,
     });
 
-    await run(imported, [imported]);
+    await run('a_src', [imported]);
 
     expect(saved[0].sourcePath).toBeUndefined();
     expect(saved[0].sourceModifiedAt).toBeUndefined();
@@ -95,7 +96,7 @@ describe('saveAssetWithCow', () => {
       derived: { derivedFrom: 'a_shared', characterId: 'char_h', diverged: true, createdAt: 1, updatedAt: 1 },
     });
 
-    const result = await run(shared, [shared, copy], '编辑器里被改过的名字');
+    const result = await run('a_shared', [shared, copy], '编辑器里被改过的名字');
 
     expect(result).toEqual({ action: 'redirect', targetId: 'a_copy', title: '共享_赫敏' });
     expect(saved.map((s) => s.id)).toEqual(['a_copy']);
@@ -114,7 +115,7 @@ describe('saveAssetWithCow', () => {
       derived: { derivedFrom: 'a_shared', characterId: 'char_h', diverged: true, createdAt: 1, updatedAt: 1 },
     });
 
-    const result = await run(copy, [copy], '改过的名字');
+    const result = await run('a_copy', [copy], '改过的名字');
 
     expect(result).toEqual({ action: 'update', targetId: 'a_copy', title: '改过的名字' });
     expect(saved).toHaveLength(1);
@@ -131,9 +132,63 @@ describe('saveAssetWithCow', () => {
       derived: { derivedFrom: 'a_shared', characterId: 'char_r', diverged: true, createdAt: 1, updatedAt: 1 },
     });
 
-    const result = await run(shared, [shared, othersCopy]);
+    const result = await run('a_shared', [shared, othersCopy]);
 
     expect(result.action).toBe('copy');
     expect(saved.map((s) => s.id)).toEqual(['new_id']);
+  });
+});
+
+describe('saveAssetWithCow 落库前重读库内数据', () => {
+  it('用重读到的记录展开，不是页面挂载时的那份', async () => {
+    // 挂载后别处给这条资产补了来源路径。用陈旧快照展开会把它抹掉
+    const fresh = mkAsset({ id: 'a_copy', title: '库里的名字', sourcePath: 'D:/别处刚写的.json' });
+    fresh.derived = { derivedFrom: 'a_shared', characterId: 'char_h', diverged: true, createdAt: 1, updatedAt: 1 };
+
+    await run('a_copy', [fresh], '编辑器里的名字');
+
+    expect(saved[0].sourcePath).toBe('D:/别处刚写的.json');
+  });
+
+  it('挂载后别处才建的派生副本也能认出来，不重复新建', async () => {
+    const shared = mkAsset({ id: 'a_shared', title: '共享' });
+    const copyMadeLater = mkAsset({
+      id: 'a_late', title: '共享_赫敏',
+      derived: { derivedFrom: 'a_shared', characterId: 'char_h', diverged: true, createdAt: 1, updatedAt: 1 },
+    });
+
+    // 重读才看得见 a_late；只认快照的话这里会走 copy 分支，白建一份
+    const result = await run('a_shared', [shared, copyMadeLater]);
+
+    expect(result.action).toBe('redirect');
+    expect(saved.map((s) => s.id)).toEqual(['a_late']);
+  });
+
+  it('重读失败：中止，不落库也不切引用', async () => {
+    const boom = saveAssetWithCow<FakeAsset>({
+      kind: 'worldbook',
+      baseId: 'a_shared',
+      reload: async () => { throw new Error('库读不出来'); },
+      characterId: 'char_h',
+      characterName: '赫敏',
+      title: '名字',
+      content: { rules: ['新'] },
+      newId: () => 'new_id',
+      save,
+      now: NOW,
+    });
+
+    await expect(boom).rejects.toThrow('库读不出来');
+    expect(saved).toEqual([]);
+    expect(updateCharacterAssetReference).not.toHaveBeenCalled();
+  });
+
+  it('这条资产已经不在库里：中止，不落库也不切引用', async () => {
+    // 绝不能拿陈旧快照顶替——那等于把用户已经删掉的资产又写回去
+    const somethingElse = mkAsset({ id: 'a_other', title: '别的' });
+
+    await expect(run('a_deleted', [somethingElse])).rejects.toThrow('已经不在库里');
+    expect(saved).toEqual([]);
+    expect(updateCharacterAssetReference).not.toHaveBeenCalled();
   });
 });

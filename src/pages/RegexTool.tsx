@@ -136,8 +136,8 @@ const RegexTool = () => {
         if (base) {
           const result = await saveAssetWithCow({
             kind: 'regex',
-            base,
-            all: collections,
+            baseId: base.id,
+            reload: getAllRegexCollections,
             characterId: cowCharacterId,
             characterName: cowCharacterName,
             title: name,
@@ -177,8 +177,13 @@ const RegexTool = () => {
         toast({ title: `已存入资产库「${name}」` });
       }
       await refreshCollections();
-    } catch {
-      toast({ title: '保存失败', variant: 'destructive' });
+    } catch (error) {
+      // 含写时复制的重读失败与「资产已被删除」——原先只说「保存失败」，不说为什么
+      toast({
+        title: '保存失败',
+        description: error instanceof Error ? error.message : String(error),
+        variant: 'destructive',
+      });
     }
   };
 

@@ -239,8 +239,8 @@ export default function WorldBookPage() {
     if (cowCharacterId && base) {
       const result = await saveAssetWithCow({
         kind: 'worldbook',
-        base,
-        all: savedItems,
+        baseId: base.id,
+        reload: getAllWorldBooks,
         characterId: cowCharacterId,
         characterName: cowCharacterName,
         title: filename,
@@ -248,7 +248,16 @@ export default function WorldBookPage() {
         newId: generateWorldBookId,
         save: saveWorldBook,
         now,
+      }).catch((error: unknown) => {
+        // 重读失败 / 资产已被删除 / 落库失败：说清楚并中止，草稿仍在编辑器里
+        toast({
+          title: '保存失败',
+          description: error instanceof Error ? error.message : String(error),
+          variant: 'destructive',
+        });
+        return null;
       });
+      if (!result) return;
       // 原地更新时 result.title 就是 filename，这行是空操作
       setFilename(result.title);
       if (result.action === 'update') {

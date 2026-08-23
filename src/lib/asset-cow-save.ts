@@ -35,10 +35,10 @@ export interface CowSaveResult {
 
 export interface CowSaveParams<T extends CowAssetLike> {
   kind: AssetKind;
-  /** 当前载入的库内记录（保存的基准） */
-  base: T;
-  /** 同类资产全集，用于查找该角色已有的派生副本 */
-  all: T[];
+  /** 当前载入的资产 id。记录内容一律以保存时重读的库内数据为准，不收调用方的快照 */
+  baseId: string;
+  /** 保存前重读同类资产全集：base 与该角色的既有派生副本都从这里取 */
+  reload: () => Promise<T[]>;
   characterId: string;
   characterName: string;
   /** 编辑器里的当前标题（只在原地更新时生效） */
@@ -52,11 +52,24 @@ export interface CowSaveParams<T extends CowAssetLike> {
 /**
  * 在角色上下文里保存一条资产：按写时复制决策落库，并把该角色的引用切到落库目标。
  * 原资产在 redirect / copy 两条分支上一个字节都不会被写。
+ *
+ * 读不出库内数据、或这条资产已经不在库里时**抛错**，调用方负责报给用户。
  */
 export async function saveAssetWithCow<T extends CowAssetLike>(
   params: CowSaveParams<T>,
 ): Promise<CowSaveResult> {
-  const { kind, base, all, characterId, characterName, content, save } = params;
+  const { kind, baseId, reload, characterId, characterName, content, save } = params;
+
+  // 落库前重读。挂载期的那份快照可能已经被别处改过（另一个标签页、一次导入、
+  // 批量操作），拿它展开写回等于把别人的改动抹掉；该角色新建的派生副本也只有
+  // 重读才看得见，否则会重复新建。读不出来就中止，绝不用陈旧快照顶替——
+  // 与 Index.tsx 切故事时「以刚 persist 的库内数据为准」是同一条规矩。
+  const all = await reload();
+  const base = all.find((a) => a.id === baseId);
+  if (!base) {
+    throw new Error('这条资产已经不在库里了（可能已被删除），保存已中止');
+  }
+
   const now = params.now ?? Date.now();
   const plan = planCowSave(base, characterId, characterName, all);
 

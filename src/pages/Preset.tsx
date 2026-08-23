@@ -285,8 +285,8 @@ export default function Preset() {
     if (cowCharacterId && base) {
       const result = await saveAssetWithCow({
         kind: 'preset',
-        base,
-        all: savedItems,
+        baseId: base.id,
+        reload: getAllPresets,
         characterId: cowCharacterId,
         characterName: cowCharacterName,
         title: fileName,
@@ -294,7 +294,16 @@ export default function Preset() {
         newId: generatePresetId,
         save: savePreset,
         now,
+      }).catch((error: unknown) => {
+        // 重读失败 / 资产已被删除 / 落库失败：说清楚并中止，草稿仍在编辑器里
+        toast({
+          title: '保存失败',
+          description: error instanceof Error ? error.message : String(error),
+          variant: 'destructive',
+        });
+        return null;
       });
+      if (!result) return;
       // 原地更新时 result.title 就是 fileName，这行是空操作
       setFileName(result.title);
       if (result.action === 'update') {
