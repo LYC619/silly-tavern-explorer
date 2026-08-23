@@ -269,7 +269,24 @@ fn config_get_impl(config_dir: &Path, key: &str) -> Result<Option<serde_json::Va
     Ok(map.get(key).cloned())
 }
 
+/// 前端实际会写的全部配置键。白名单之外一律拒绝。
+///
+/// 理由是纵深防御：配置派生的根目录每次启动都参与授权（见 restore_authorized_roots），
+/// 所以能任意写 config.json 就等于能写 `vaultRoot: "C:\\"`，重启后拿到持久全盘读写。
+/// 目前 webview 里没有已知注入点（全仓无 dangerouslySetInnerHTML），这条是备而不用。
+/// 新增配置项时要同步加到这里，否则写入会在客户端上直接失败。
+const CONFIG_WRITABLE_KEYS: [&str; 5] = [
+    "stRoot",           // ST 根目录
+    "vaultRoot",        // 当前库根目录
+    "vaultRegistry",    // 多库注册表
+    "apiProfiles",      // API 提供商配置（镜像自 localStorage）
+    "apiActiveProfile", // 当前启用的配置档 id
+];
+
 fn config_set_impl(config_dir: &Path, key: &str, value: serde_json::Value) -> Result<(), String> {
+    if !CONFIG_WRITABLE_KEYS.contains(&key) {
+        return Err(format!("拒绝写入未知配置项: {key}"));
+    }
     let file = config_file(config_dir);
     let mut map = if file.exists() {
         parse_config_object(&read_config_text(&file)?)?
@@ -887,11 +904,52 @@ mod tests {
         let root = temp_root("cfg");
         assert_eq!(config_get_impl(&root, "vaultRoot").unwrap(), None);
         config_set_impl(&root, "vaultRoot", serde_json::json!("D:/我的STE库")).unwrap();
-        config_set_impl(&root, "other", serde_json::json!(42)).unwrap();
+        config_set_impl(&root, "stRoot", serde_json::json!("D:/SillyTavern")).unwrap();
         assert_eq!(
             config_get_impl(&root, "vaultRoot").unwrap(),
             Some(serde_json::json!("D:/我的STE库"))
         );
+        assert_eq!(
+            config_get_impl(&root, "stRoot").unwrap(),
+            Some(serde_json::json!("D:/SillyTavern"))
+        );
+        let _ = fs::remove_dir_all(&root);
+    }
+
+    #[test]
+    fn config_set_accepts_exactly_the_keys_the_frontend_writes() {
+        let root = temp_root("cfg-allowlist");
+        // 这五个键在前端各有唯一写入点；少一个就是某个功能在客户端上静默失效
+        for key in [
+            "stRoot",
+            "vaultRoot",
+            "vaultRegistry",
+            "apiProfiles",
+            "apiActiveProfile",
+        ] {
+            config_set_impl(&root, key, serde_json::json!("v"))
+                .unwrap_or_else(|e| panic!("{key} 应当可写: {e}"));
+            assert_eq!(
+                config_get_impl(&root, key).unwrap(),
+                Some(serde_json::json!("v"))
+            );
+        }
+        let _ = fs::remove_dir_all(&root);
+    }
+
+    #[test]
+    fn config_set_rejects_keys_outside_the_allowlist() {
+        let root = temp_root("cfg-unknown-key");
+        config_set_impl(&root, "vaultRoot", serde_json::json!("D:/库")).unwrap();
+        let before = fs::read_to_string(config_file(&root)).unwrap();
+
+        // 注入脚本写任意键 → 拒绝；配置文件一个字节都不动，已有的库根不受影响
+        assert!(config_set_impl(&root, "other", serde_json::json!(42)).is_err());
+        assert!(config_set_impl(&root, "VaultRoot", serde_json::json!("C:/")).is_err());
+        assert!(config_set_impl(&root, "", serde_json::json!("C:/")).is_err());
+
+        assert_eq!(fs::read_to_string(config_file(&root)).unwrap(), before);
+        assert_eq!(config_get_impl(&root, "other").unwrap(), None);
         let _ = fs::remove_dir_all(&root);
     }
 
