@@ -84,6 +84,9 @@
   /* 表单 */
   --input-bg: rgba(255, 255, 255, 0.04);
   --input-border: rgba(255, 255, 255, 0.08);
+
+  /* 阅读器控制栏的渐隐底：本主题 bg-canvas 的半透明版本 */
+  --reader-scrim: rgba(30, 22, 16, 0.88);
 }
 
 /* ============================================================
@@ -118,6 +121,7 @@
 
   --input-bg: rgba(255, 255, 255, 0.04);
   --input-border: rgba(255, 255, 255, 0.08);
+  --reader-scrim: rgba(14, 14, 16, 0.88);
 }
 
 /* ============================================================
@@ -152,6 +156,7 @@
 
   --input-bg: rgba(255, 255, 255, 0.04);
   --input-border: rgba(255, 255, 255, 0.08);
+  --reader-scrim: rgba(15, 19, 28, 0.88);
 }
 
 /* ============================================================
@@ -187,6 +192,7 @@
 
   --input-bg: #fbf8f1;
   --input-border: #d4cec2;
+  --reader-scrim: rgba(245, 240, 230, 0.92);
 }
 
 /* Character Page uses a slightly stronger secondary text hierarchy. The page

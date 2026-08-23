@@ -235,7 +235,7 @@ const ReaderView = ({
 
   if (pages.length === 0) {
     return (
-      <div className="fixed inset-0 z-50 bg-background flex items-center justify-center">
+      <div className="fixed inset-0 z-50 bg-canvas flex items-center justify-center">
         <div className="text-center">
           <BookOpen className="w-16 h-16 text-muted-foreground mx-auto mb-4" />
           <p className="text-muted-foreground">没有可阅读的内容</p>
@@ -255,23 +255,23 @@ const ReaderView = ({
       onClick={handleClick}
     >
       {/* Top controls */}
-      <div 
+      <div
         className={cn(
-          "absolute top-0 left-0 right-0 z-10 bg-gradient-to-b from-black/30 to-transparent transition-opacity duration-300",
+          "absolute top-0 left-0 right-0 z-10 bg-gradient-to-b from-[var(--reader-scrim)] to-transparent transition-opacity duration-300",
           showControls ? "opacity-100" : "opacity-0 pointer-events-none"
         )}
       >
         <div className="flex items-center justify-between p-4">
-          <Button 
-            variant="ghost" 
-            size="icon" 
+          <Button
+            variant="ghost"
+            size="icon"
             onClick={(e) => { e.stopPropagation(); onClose(); }}
-            className="text-white hover:bg-white/20"
+            className="text-[color:var(--text-body)] hover:bg-[var(--hover-overlay-strong)]"
           >
             <X className="w-5 h-5" />
           </Button>
 
-          <div className="text-white text-sm font-medium">
+          <div className="text-[color:var(--text-muted)] text-sm font-medium tabular-nums">
             {currentPage + 1} / {pages.length}
           </div>
 
@@ -283,7 +283,7 @@ const ReaderView = ({
                     variant="ghost"
                     size="icon"
                     onClick={(e) => e.stopPropagation()}
-                    className="text-white hover:bg-white/20"
+                    className="text-[color:var(--text-body)] hover:bg-[var(--hover-overlay-strong)]"
                     aria-label="章节目录"
                   >
                     <List className="w-5 h-5" />
@@ -318,11 +318,12 @@ const ReaderView = ({
 
             <Popover>
             <PopoverTrigger asChild>
-              <Button 
-                variant="ghost" 
+              <Button
+                variant="ghost"
                 size="icon"
                 onClick={(e) => e.stopPropagation()}
-                className="text-white hover:bg-white/20"
+                className="text-[color:var(--text-body)] hover:bg-[var(--hover-overlay-strong)]"
+                aria-label="阅读设置"
               >
                 <Settings className="w-5 h-5" />
               </Button>
@@ -378,7 +379,7 @@ const ReaderView = ({
           {/* Chapter title */}
           {currentContent?.chapterTitle && (
             <div className="text-center mb-6 sm:mb-8">
-              <h2 className="font-display text-lg sm:text-xl md:text-2xl text-primary/80 dark:text-primary-foreground/80 font-semibold">
+              <h2 className="font-display text-lg sm:text-xl md:text-2xl text-[color:var(--text-primary)] font-semibold">
                 {currentContent.chapterTitle}
               </h2>
               <div className="w-16 sm:w-20 h-0.5 bg-primary/30 mx-auto mt-2 sm:mt-3" />
@@ -387,12 +388,12 @@ const ReaderView = ({
 
           {/* Speaker */}
           <div className="mb-3 sm:mb-4">
-            <span 
+            <span
               className={cn(
                 "inline-block px-2 sm:px-3 py-0.5 sm:py-1 rounded-full text-xs sm:text-sm font-medium",
-                currentContent?.isUser 
-                  ? "bg-blue-100 text-blue-800 dark:bg-blue-900/50 dark:text-blue-200"
-                  : "bg-rose-100 text-rose-800 dark:bg-rose-900/50 dark:text-rose-200"
+                currentContent?.isUser
+                  ? "bg-blue-500/15 text-blue-700 dark:text-blue-300"
+                  : "bg-rose-500/15 text-rose-700 dark:text-rose-300"
               )}
             >
               {currentContent?.speaker}
@@ -400,8 +401,8 @@ const ReaderView = ({
           </div>
 
           {/* Message content */}
-          <div 
-            className="text-foreground/90 leading-relaxed whitespace-pre-wrap pb-8"
+          <div
+            className="text-[color:var(--text-body)] leading-relaxed whitespace-pre-wrap pb-8"
             style={{ fontSize: `${fontSize}px`, lineHeight: 1.8, fontFamily }}
           >
             {currentContent?.content}
@@ -428,14 +429,14 @@ const ReaderView = ({
       </div>
 
       {/* Bottom progress */}
-      <div 
+      <div
         className={cn(
-          "absolute bottom-0 left-0 right-0 z-10 bg-gradient-to-t from-black/30 to-transparent transition-opacity duration-300 pb-safe",
+          "absolute bottom-0 left-0 right-0 z-10 bg-gradient-to-t from-[var(--reader-scrim)] to-transparent transition-opacity duration-300 pb-safe",
           showControls ? "opacity-100" : "opacity-0 pointer-events-none"
         )}
       >
         <div className="p-3 sm:p-4 pt-6 sm:pt-8" onClick={(e) => e.stopPropagation()}>
-          {/* Interactive progress slider */}
+          {/* Interactive progress slider —— 轨道/滑块用 Slider 自带的主题 token，不再写死白色 */}
           <Slider
             value={[currentPage]}
             onValueChange={([v]) => {
@@ -445,9 +446,10 @@ const ReaderView = ({
             min={0}
             max={Math.max(pages.length - 1, 0)}
             step={1}
-            className="mb-2 [&_[role=slider]]:bg-white [&_[role=slider]]:border-white/50 [&_[data-orientation=horizontal]>[data-orientation=horizontal]]:bg-white/80 [&_[data-orientation=horizontal]]:bg-white/20"
+            aria-label="阅读进度"
+            className="mb-2"
           />
-          <div className="text-center text-white/60 text-[11px] sm:text-xs">
+          <div className="text-center text-[color:var(--text-muted)] text-[11px] sm:text-xs">
             <span className="hidden sm:inline">拖拽进度条跳页 · 点击屏幕左右两侧翻页 · 中间区域显示/隐藏控制栏</span>
             <span className="sm:hidden">左右滑动或点击翻页</span>
           </div>
