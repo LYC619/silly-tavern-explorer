@@ -325,7 +325,7 @@ const MessageRow = memo(function MessageRow({
                   type="button"
                   data-tour="msg-edit-pencil"
                   onClick={(e) => { e.stopPropagation(); onEditMessage(message.id, index); }}
-                  className="pointer-events-auto flex h-7 w-7 items-center justify-center rounded-md bg-background/70 text-muted-foreground shadow-sm backdrop-blur-sm transition-colors hover:bg-primary/10 hover:text-primary"
+                  className="tap-target pointer-events-auto flex h-7 w-7 items-center justify-center rounded-md bg-background/70 text-muted-foreground shadow-sm backdrop-blur-sm transition-colors hover:bg-primary/10 hover:text-primary"
                   aria-label={`编辑第 ${index} 楼`}
                 >
                   <Pencil className="h-3.5 w-3.5" />
@@ -404,7 +404,7 @@ const MessageRow = memo(function MessageRow({
               type="button"
               disabled={message.swipeId <= 0}
               onClick={(e) => { e.stopPropagation(); onSwipeSelect(message.id, message.swipeId - 1); }}
-              className="flex h-5 w-5 items-center justify-center rounded hover:bg-accent hover:text-foreground disabled:opacity-30 disabled:pointer-events-none"
+              className="tap-target flex h-5 w-5 items-center justify-center rounded hover:bg-accent hover:text-foreground disabled:opacity-30 disabled:pointer-events-none"
               aria-label="上一个候选"
             >
               <ChevronLeft className="w-3.5 h-3.5" />
@@ -414,7 +414,7 @@ const MessageRow = memo(function MessageRow({
               type="button"
               disabled={message.swipeId >= message.swipeTotal - 1}
               onClick={(e) => { e.stopPropagation(); onSwipeSelect(message.id, message.swipeId + 1); }}
-              className="flex h-5 w-5 items-center justify-center rounded hover:bg-accent hover:text-foreground disabled:opacity-30 disabled:pointer-events-none"
+              className="tap-target flex h-5 w-5 items-center justify-center rounded hover:bg-accent hover:text-foreground disabled:opacity-30 disabled:pointer-events-none"
               aria-label="下一个候选"
             >
               <ChevronRight className="w-3.5 h-3.5" />

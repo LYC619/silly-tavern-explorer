@@ -252,6 +252,7 @@ export function CharacterHeader({ character, norm, onPatch, collapsed, onCollaps
                   <button
                     onClick={() => { void setTagChecked(t, false); }}
                     aria-label={`删除标签 ${t}`}
+                    className="tap-target inline-flex items-center justify-center"
                   >
                     <X className="w-3 h-3" />
                   </button>

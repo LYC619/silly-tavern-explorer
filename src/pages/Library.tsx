@@ -610,7 +610,7 @@ const Library = () => {
                           onActivate={activate(c)}
                           actions={menuFor(
                             c,
-                            'w-7 h-7 rounded-md flex items-center justify-center text-muted-foreground hover:bg-[var(--hover-overlay)] hover:text-[color:var(--text-body)]',
+                            'tap-target w-7 h-7 rounded-md flex items-center justify-center text-muted-foreground hover:bg-[var(--hover-overlay)] hover:text-[color:var(--text-body)]',
                             'w-4 h-4',
                           )}
                         />

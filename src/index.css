@@ -265,6 +265,32 @@
 }
 
 @layer components {
+  /**
+   * 触控热区兜底：视觉尺寸一个像素不动，实际可点范围补到至少 32×32。
+   *
+   * 项目里大量图标按钮是 h-6（24px）甚至 h-5（20px），复选框只有 16px，
+   * 触屏和快速操作时点不中。直接把这些按钮抬到 h-8 会改掉密集工具栏的排版，
+   * 所以改用一个透明的居中伪元素：本身够大的元素（100% ≥ 32px）不受影响，
+   * 小元素则向四周把命中区域撑到 32px。
+   *
+   * 用法：ui/button.tsx 与 ui/checkbox.tsx 已内置；裸 <button> 手动加 tap-target。
+   */
+  .tap-target {
+    position: relative;
+  }
+
+  .tap-target::after {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 100%;
+    height: 100%;
+    min-width: 32px;
+    min-height: 32px;
+    transform: translate(-50%, -50%);
+  }
+
   /* 交接包 layout.css：立绘占位容器 + 首字水印（生产环境有图时不渲染） */
   .art { width: 100%; height: 100%; position: relative; }
   .art::after {

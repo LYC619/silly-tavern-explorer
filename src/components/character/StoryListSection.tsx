@@ -83,7 +83,7 @@ function StatusChip({ story, onPatch }: { story: ArchiveStory; onPatch: (patch: 
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <button onClick={(e) => e.stopPropagation()} title="点击修改故事状态" className="shrink-0">
+        <button onClick={(e) => e.stopPropagation()} title="点击修改故事状态" className="tap-target shrink-0">
           <Badge variant="outline" className={cn('h-5 px-1.5 text-[11px] font-normal cursor-pointer hover:bg-accent', tone[status])}>
             {status}
           </Badge>

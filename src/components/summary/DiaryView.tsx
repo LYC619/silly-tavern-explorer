@@ -78,14 +78,18 @@ export function DiaryView({ content, charName }: DiaryViewProps) {
           <div className="flex items-center gap-2 text-xs text-muted-foreground font-serif">
             <span>第 {safePage + 1} / {entries.length} 篇</span>
             {entries.length > 1 && entries.length <= 12 && (
-              <span className="hidden sm:flex items-center gap-1">
+              <span className="hidden sm:flex items-center gap-0">
                 {entries.map((_, i) => (
                   <button
                     key={i}
                     onClick={() => setPage(i)}
                     aria-label={`第 ${i + 1} 篇`}
-                    className={`w-1.5 h-1.5 rounded-full transition-colors ${i === safePage ? 'bg-primary' : 'bg-border hover:bg-primary/40'}`}
-                  />
+                    className="group flex h-8 w-5 items-center justify-center"
+                  >
+                    <span
+                      className={`w-1.5 h-1.5 rounded-full transition-colors ${i === safePage ? 'bg-primary' : 'bg-border group-hover:bg-primary/40'}`}
+                    />
+                  </button>
                 ))}
               </span>
             )}
