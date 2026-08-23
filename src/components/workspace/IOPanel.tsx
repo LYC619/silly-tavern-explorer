@@ -27,6 +27,7 @@ import { getAllStoryTrees } from '@/lib/story-tree-db';
 import { summaryToObsidian, storyTreeToObsidian, downloadMarkdown } from '@/lib/obsidian-export';
 import { routeTextFileExportResult } from '@/lib/text-file-export';
 import { storyTreeToJSON } from '@/lib/story-tree-io';
+import { LOADING_LABEL } from '@/lib/ui-copy';
 
 interface IOPanelProps {
   story: ArchiveStory;
@@ -58,19 +59,33 @@ export function IOPanel({ story, branchId, line, settings, onStoryUpdate }: IOPa
   const fileRef = useRef<HTMLInputElement>(null);
   const [records, setRecords] = useState<SummaryItem[]>([]);
   const [trees, setTrees] = useState<StoryTree[]>([]);
+  const [artifactsLoading, setArtifactsLoading] = useState(true);
+  const [artifactsError, setArtifactsError] = useState<string | null>(null);
+  const [artifactsReloadKey, setArtifactsReloadKey] = useState(0);
 
   const branchName = branchId === null ? '主线' : story.branches?.find((b) => b.id === branchId)?.name ?? '分支';
 
   useEffect(() => {
     let cancelled = false;
+    setArtifactsLoading(true);
+    setArtifactsError(null);
     (async () => {
-      const [allSums, allTrees] = await Promise.all([getAllSummaries(), getAllStoryTrees()]);
-      if (cancelled) return;
-      setRecords(allSums.filter((s) => s.bookId === story.id && s.content));
-      setTrees(allTrees.filter((t) => t.bookId === story.id));
+      try {
+        const [allSums, allTrees] = await Promise.all([getAllSummaries(), getAllStoryTrees()]);
+        if (cancelled) return;
+        setRecords(allSums.filter((s) => s.bookId === story.id && s.content));
+        setTrees(allTrees.filter((t) => t.bookId === story.id));
+      } catch (error: unknown) {
+        if (cancelled) return;
+        setRecords([]);
+        setTrees([]);
+        setArtifactsError(error instanceof Error ? error.message : '无法读取总结与故事树');
+      } finally {
+        if (!cancelled) setArtifactsLoading(false);
+      }
     })();
     return () => { cancelled = true; };
-  }, [story.id]);
+  }, [story.id, artifactsReloadKey]);
 
   const markExported = () => {
     onStoryUpdate((cur) => ({ ...cur, lastExportedAt: Date.now() }));
@@ -228,7 +243,14 @@ export function IOPanel({ story, branchId, line, settings, onStoryUpdate }: IOPa
           </div>
           <ExportButton session={line.session} settings={settings} markers={line.markers} onExported={markExported} />
 
-          {(records.length > 0 || trees.length > 0) && (
+          {artifactsLoading ? (
+            <p className="text-xs text-muted-foreground" data-io-artifacts-loading>{LOADING_LABEL}</p>
+          ) : artifactsError ? (
+            <div className="space-y-2 text-xs text-destructive" data-io-artifacts-load-error>
+              <p>读取总结与故事树失败：{artifactsError}</p>
+              <Button variant="outline" size="sm" className="h-7 text-xs" onClick={() => setArtifactsReloadKey((n) => n + 1)}>重试</Button>
+            </div>
+          ) : (records.length > 0 || trees.length > 0) && (
             <>
               <Separator />
               <p className="text-xs font-medium text-muted-foreground">本故事的整理成果</p>

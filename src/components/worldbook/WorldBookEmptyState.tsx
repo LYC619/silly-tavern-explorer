@@ -8,13 +8,15 @@ interface WorldBookEmptyStateProps {
   savedItems: WorldBookItem[];
   /** 「已暂存」列表读完了没有；false 时不能断言用户没有可恢复的世界书 */
   savedLoaded?: boolean;
+  loadError?: string | null;
+  onRetry?: () => void;
   onImport: (wb: WorldBook, name: string, sourceModifiedAt?: number) => void;
   onRestore: (item: WorldBookItem) => void;
   onDelete: (item: WorldBookItem) => void;
 }
 
 /** 尚未载入世界书时的引导页：导入入口 + 从本地恢复 */
-export function WorldBookEmptyState({ savedItems, savedLoaded = true, onImport, onRestore, onDelete }: WorldBookEmptyStateProps) {
+export function WorldBookEmptyState({ savedItems, savedLoaded = true, loadError, onRetry, onImport, onRestore, onDelete }: WorldBookEmptyStateProps) {
   return (
     <div className="flex-1 flex items-center justify-center">
       <div className="text-center space-y-4 px-4 max-w-lg w-full">
@@ -25,7 +27,12 @@ export function WorldBookEmptyState({ savedItems, savedLoaded = true, onImport, 
         </p>
         <WorldBookImporter onImport={onImport} />
 
-        {!savedLoaded ? (
+        {loadError ? (
+          <div className="mt-8 space-y-2 text-sm text-destructive" data-worldbook-load-error>
+            <p>读取世界书库失败：{loadError}</p>
+            {onRetry && <button type="button" className="underline" onClick={onRetry}>重试</button>}
+          </div>
+        ) : !savedLoaded ? (
           <p className="mt-8 text-sm text-muted-foreground" data-staged-loading>{LOADING_LABEL}</p>
         ) : savedItems.length > 0 && (
           <div className="mt-8 text-left space-y-3">

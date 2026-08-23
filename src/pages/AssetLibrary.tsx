@@ -99,17 +99,21 @@ const AssetLibrary = () => {
   /** assetId → 引用它的角色名列表（绑定关系展示 + 删除提示） */
   const [refNames, setRefNames] = useState<Record<string, string[]>>({});
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [toDelete, setToDelete] = useState<AssetLibraryRow | null>(null);
   const [refFilter, setRefFilter] = useState<RefFilter>('all');
   const [sourceFilter, setSourceFilter] = useState<SourceFilter>('all');
   const worldBookInputRef = useRef<HTMLInputElement>(null);
 
   const load = useCallback(async () => {
+    setLoadError(null);
+    setLoading(true);
     try {
       const [wbs, ps, rs, chars] = await Promise.all([
-        getAllWorldBooks().catch(() => [] as WorldBookItem[]),
-        getAllPresets().catch(() => [] as PresetItem[]),
-        getAllRegexCollections().catch(() => [] as RegexCollectionItem[]),
+        getAllWorldBooks(),
+        getAllPresets(),
+        getAllRegexCollections(),
+        // 引用名称是附加信息；索引失败不应抹掉已经成功读取的资产列表。
         listCharacterIndex().catch(() => []),
       ]);
       setWorldbooks(wbs);
@@ -120,6 +124,12 @@ const AssetLibrary = () => {
         for (const ref of c.assets ?? []) (names[ref.assetId] ??= []).push(c.name);
       }
       setRefNames(names);
+    } catch (error: unknown) {
+      setWorldbooks([]);
+      setPresets([]);
+      setRegexes([]);
+      setRefNames({});
+      setLoadError(error instanceof Error ? error.message : '无法读取资产库');
     } finally {
       setLoading(false);
     }
@@ -127,7 +137,10 @@ const AssetLibrary = () => {
 
   useEffect(() => {
     if (tab !== null) void load();
-    else setLoading(false);
+    else {
+      setLoadError(null);
+      setLoading(false);
+    }
   }, [load, tab]);
 
   const rows: Record<AssetTab, AssetLibraryRow[]> = useMemo(
@@ -299,6 +312,12 @@ const AssetLibrary = () => {
 
             {loading ? (
               <p className="py-16 text-center text-sm text-muted-foreground">{LOADING_LABEL}</p>
+            ) : loadError ? (
+              <div className="flex flex-col items-center justify-center py-20 text-center gap-3" data-asset-library-load-error>
+                <p className="text-sm text-destructive">读取资产库失败：{loadError}</p>
+                <p className="text-xs text-muted-foreground">没有把读取失败当成空库，你可以重试。</p>
+                <Button size="sm" variant="outline" onClick={() => void load()}>重试</Button>
+              </div>
             ) : tabList.length === 0 ? (
               <div className="flex flex-col items-center justify-center py-20 text-center gap-3">
                 <meta.icon className="w-12 h-12 text-muted-foreground/40" />

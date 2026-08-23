@@ -20,6 +20,7 @@ import {
   getAllPresets, getPreset, savePreset, deletePreset, pruneAutoSavedPresets,
 } from '@/lib/preset-db';
 import { saveAssetWithCow } from '@/lib/asset-cow-save';
+import { buildPresetSaveItem } from '@/lib/asset-save-record';
 import { getCharacter } from '@/lib/archive-db';
 import { updateCharacterAssetReference } from '@/lib/character-asset-ref';
 import { takePendingToolFile, peekPendingToolFile } from '@/lib/tool-handoff';
@@ -318,21 +319,24 @@ export default function Preset() {
       return;
     }
 
-    const id = currentItemId || generatePresetId();
-    await savePreset({
-      id, title: fileName, preset,
-      createdAt: currentItemId ? (savedItems.find((s) => s.id === id)?.createdAt ?? now) : now,
-      updatedAt: now,
-      autoSaved: false,
-      ...(base?.derived ? { derived: base.derived } : {}),
-    });
-    // 角色上下文里保存全新预设：入库并直接挂到该角色名下
-    if (cowCharacterId && !base) {
-      await updateCharacterAssetReference(cowCharacterId, 'preset', id, id, now);
+    try {
+      const id = currentItemId || generatePresetId();
+      await savePreset(buildPresetSaveItem({ base, id, title: fileName, preset, now }));
+      // 角色上下文里保存全新预设：入库并直接挂到该角色名下
+      if (cowCharacterId && !base) {
+        const updatedCharacter = await updateCharacterAssetReference(cowCharacterId, 'preset', id, id, now);
+        if (!updatedCharacter) throw new Error('资产已保存，但角色引用切换失败：角色可能已被删除');
+      }
+      setCurrentItemId(id);
+      await refreshSaved();
+      toast({ title: '已保存', description: '可在右上角「已存预设」中查看；永久留存、纳入完整备份' });
+    } catch (error: unknown) {
+      toast({
+        title: '保存失败',
+        description: error instanceof Error ? error.message : String(error),
+        variant: 'destructive',
+      });
     }
-    setCurrentItemId(id);
-    await refreshSaved();
-    toast({ title: '已保存', description: '可在右上角「已存预设」中查看；永久留存、纳入完整备份' });
   }, [preset, fileName, currentItemId, savedItems, cowCharacterId, cowCharacterName, refreshSaved, toast]);
 
   const handleLoadItem = useCallback((item: PresetItem) => {

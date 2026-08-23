@@ -104,13 +104,15 @@ const Tools = () => {
   const [assetItems, setAssetItems] = useState<AssetPickerItem[]>([]);
   /** 首次读完之前不能显示「还没有可以处理的故事」——那是明确的误导 */
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [query, setQuery] = useState('');
 
   const loadData = useCallback(async () => {
     setLoading(true);
+    setLoadError(null);
     try {
       if (assetFocus === 'worldbook') {
-        const items = await getAllWorldBooks().catch(() => []);
+        const items = await getAllWorldBooks();
         setAssetItems(items.map((item) => ({
           id: item.id,
           title: item.title,
@@ -123,7 +125,7 @@ const Tools = () => {
         return;
       }
       if (assetFocus === 'preset') {
-        const items = await getAllPresets().catch(() => []);
+        const items = await getAllPresets();
         setAssetItems(items.map((item) => ({
           id: item.id,
           title: item.title,
@@ -138,13 +140,19 @@ const Tools = () => {
       // 故事这边仍要完整读：选择器要按消息时间戳算游玩起止（computeStoryTimeRange），
       // 楼数与标题之外真的用到了正文。角色只用到 id→名字，走轻量列表。
       const [stories, cards] = await Promise.all([
-        getAllArchiveStories().catch(() => []),
+        getAllArchiveStories(),
+        // 角色索引只是显示名补充；索引失败不能把可用的故事选择器变成空态。
         listCharacterIndex().catch(() => []),
       ]);
       const sortedStories = [...stories]
         .sort((a, b) => (b.lastViewedAt ?? b.updatedAt) - (a.lastViewedAt ?? a.updatedAt));
       setStories(sortedStories);
       setCharacters(cards);
+    } catch (error: unknown) {
+      setAssetItems([]);
+      setStories([]);
+      setCharacters([]);
+      setLoadError(error instanceof Error ? error.message : '无法读取归档数据');
     } finally {
       setLoading(false);
     }
@@ -311,7 +319,16 @@ const Tools = () => {
                 </div>
               )}
 
-              {assetFocus ? (
+              {loadError ? (
+                <div
+                  className="mt-3 flex min-h-0 flex-1 flex-col items-center justify-center rounded-lg bg-chrome px-4 py-5 text-center"
+                  data-tools-load-error
+                >
+                  <p className="text-sm text-destructive">读取失败：{loadError}</p>
+                  <p className="mt-1 text-xs text-[color:var(--text-muted)]">没有把读取失败当成空库，你可以重试。</p>
+                  <Button type="button" variant="outline" size="sm" className="mt-3" onClick={() => void loadData()}>重试</Button>
+                </div>
+              ) : assetFocus ? (
                 filteredAssetItems.length > 0 ? (
                   <div
                     data-asset-scroll-region

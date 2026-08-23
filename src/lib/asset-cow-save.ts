@@ -117,7 +117,14 @@ export async function saveAssetWithCow<T extends CowAssetLike>(
   }
 
   await save(item);
-  // 引用切换走角色写入队列，避免用旧角色快照覆盖其他字段
-  await updateCharacterAssetReference(characterId, kind, base.id, targetId, now);
+  // 引用切换走角色写入队列，避免用旧角色快照覆盖其他字段。
+  // 资产已经落库后若角色被删除或写入失败，不能把这次操作报告为成功。
+  try {
+    const updatedCharacter = await updateCharacterAssetReference(characterId, kind, base.id, targetId, now);
+    if (!updatedCharacter) throw new Error('角色可能已被删除');
+  } catch (error) {
+    const detail = error instanceof Error ? error.message : String(error);
+    throw new Error(`资产已保存，但角色引用切换失败：${detail}`);
+  }
   return { action: plan.action, targetId, title };
 }

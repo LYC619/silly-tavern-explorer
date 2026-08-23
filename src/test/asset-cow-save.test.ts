@@ -52,7 +52,7 @@ function run(baseId: string, inVault: FakeAsset[], title = '编辑器里的名�
 
 beforeEach(() => {
   saved = [];
-  updateCharacterAssetReference.mockClear().mockResolvedValue(undefined);
+  updateCharacterAssetReference.mockClear().mockResolvedValue({ id: 'char_h' });
 });
 
 describe('saveAssetWithCow', () => {
@@ -190,5 +190,20 @@ describe('saveAssetWithCow 落库前重读库内数据', () => {
     await expect(run('a_deleted', [somethingElse])).rejects.toThrow('已经不在库里');
     expect(saved).toEqual([]);
     expect(updateCharacterAssetReference).not.toHaveBeenCalled();
+  });
+
+  it('资产已写入但角色引用切换失败时抛出明确错误', async () => {
+    updateCharacterAssetReference.mockRejectedValueOnce(new Error('角色写入失败'));
+
+    await expect(run('a_shared', [mkAsset({ id: 'a_shared', title: '共享' })]))
+      .rejects.toThrow('角色引用切换失败');
+    expect(saved).toHaveLength(1);
+  });
+
+  it('角色已不存在时不把未切换引用报告为成功', async () => {
+    updateCharacterAssetReference.mockResolvedValueOnce(undefined);
+
+    await expect(run('a_shared', [mkAsset({ id: 'a_shared', title: '共享' })]))
+      .rejects.toThrow('角色引用切换失败');
   });
 });

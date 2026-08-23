@@ -156,7 +156,8 @@ const RegexTool = () => {
           // 角色上下文的全新规则集：直接入库并挂引用
           const item = buildRegexCollection(name, rules);
           await saveRegexCollection(item);
-          await updateCharacterAssetReference(cowCharacterId, 'regex', item.id, item.id);
+          const updatedCharacter = await updateCharacterAssetReference(cowCharacterId, 'regex', item.id, item.id);
+          if (!updatedCharacter) throw new Error('资产已保存，但角色引用切换失败：角色可能已被删除');
           setActiveCollectionId(item.id);
           toast({ title: `已存入资产库并关联「${cowCharacterName}」` });
         }

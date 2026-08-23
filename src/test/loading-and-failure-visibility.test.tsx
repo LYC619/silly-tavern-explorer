@@ -149,6 +149,22 @@ describe('工具页：读完之前不说「还没有可以处理的故事」', (
     expect(container.querySelector('[data-story-picker-loading]')).toBeNull();
     expect(container.textContent).toContain('还没有可以处理的故事');
   });
+
+  it('故事库读取失败时显示错误并支持重试，而不是伪装成空库', async () => {
+    getAllArchiveStories.mockRejectedValueOnce(new Error('故事库打不开'));
+    await renderTools();
+
+    const error = container.querySelector('[data-tools-load-error]');
+    expect(error?.textContent).toContain('读取失败');
+    expect(error?.textContent).toContain('故事库打不开');
+    expect(container.textContent).not.toContain('还没有可以处理的故事');
+
+    getAllArchiveStories.mockResolvedValue([]);
+    const retry = Array.from(error?.querySelectorAll('button') ?? []).find((b) => b.textContent?.trim() === '重试');
+    if (!retry) throw new Error('没有渲染出重试按钮');
+    await act(async () => { retry.click(); });
+    expect(container.querySelector('[data-tools-load-error]')).toBeNull();
+  });
 });
 
 describe('世界书空态：读完之前不下结论', () => {
@@ -193,5 +209,26 @@ describe('世界书空态：读完之前不下结论', () => {
     expect(container.querySelector('[data-staged-loading]')).toBeNull();
     expect(container.textContent).toContain('从本地恢复');
     expect(container.textContent).toContain('魔法世界');
+  });
+
+  it('暂存读取失败时显示错误和重试入口', async () => {
+    const noop = () => {};
+    await act(async () => {
+      root.render(
+        <WorldBookEmptyState
+          savedItems={[]}
+          savedLoaded
+          loadError="世界书库打不开"
+          onRetry={noop}
+          onImport={noop}
+          onRestore={noop}
+          onDelete={noop}
+        />,
+      );
+    });
+
+    const error = container.querySelector('[data-worldbook-load-error]');
+    expect(error?.textContent).toContain('世界书库打不开');
+    expect(error?.querySelector('button')?.textContent?.trim()).toBe('重试');
   });
 });

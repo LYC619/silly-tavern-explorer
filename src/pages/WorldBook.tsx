@@ -20,6 +20,7 @@ import { generateWorldBookId } from '@/types/worldbook';
 import { saveWorldBook, getAllWorldBooks, getWorldBook, deleteWorldBook, pruneAutoSavedWorldBooks } from '@/lib/worldbook-db';
 import { appendEntries } from '@/lib/worldbook-entry-copy';
 import { saveAssetWithCow } from '@/lib/asset-cow-save';
+import { buildWorldBookSaveItem } from '@/lib/asset-save-record';
 import { getCharacter } from '@/lib/archive-db';
 import { updateCharacterAssetReference } from '@/lib/character-asset-ref';
 import { executeDeleteAction } from '@/lib/destructive-action';
@@ -61,6 +62,7 @@ export default function WorldBookPage() {
   const [savedItems, setSavedItems] = useState<WorldBookItem[]>([]);
   /** 「已暂存」读完之前，空态不能断言「你没有可恢复的世界书」 */
   const [savedLoaded, setSavedLoaded] = useState(false);
+  const [savedLoadError, setSavedLoadError] = useState<string | null>(null);
   const [selectedUid, setSelectedUid] = useState<string | null>(null);
   const [viewMode, setViewMode] = useState<EntryViewMode>('card');
   const [mobileEditorOpen, setMobileEditorOpen] = useState(false);
@@ -147,7 +149,10 @@ export default function WorldBookPage() {
             variant: 'destructive',
           });
         }
-      }).catch(() => setSavedLoaded(true));
+      }).catch((error: unknown) => {
+        setSavedLoaded(true);
+        setSavedLoadError(error instanceof Error ? error.message : '无法读取世界书库');
+      });
       return;
     }
 
@@ -162,10 +167,15 @@ export default function WorldBookPage() {
         setFilename(latest.title);
         setCurrentItemId(latest.id);
       }
-    }).catch(() => setSavedLoaded(true));
+    }).catch((error: unknown) => {
+      setSavedLoaded(true);
+      setSavedLoadError(error instanceof Error ? error.message : '无法读取世界书库');
+    });
     if (!isTourCompleted('worldbook')) {
-      setTimeout(() => setShowTour(true), 500);
+      const timer = setTimeout(() => setShowTour(true), 500);
+      return () => clearTimeout(timer);
     }
+    return undefined;
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const selectEntry = useCallback((key: string) => {
@@ -274,25 +284,31 @@ export default function WorldBookPage() {
     }
 
     const id = currentItemId || generateWorldBookId();
-    const item: WorldBookItem = {
-      id,
-      title: filename,
-      worldbook,
-      createdAt: currentItemId ? (savedItems.find(s => s.id === id)?.createdAt ?? now) : now,
-      updatedAt: now,
-      autoSaved: false, // 手动保存 → 永久留存，不参与最近 5 份自动清理
-      ...(base?.derived ? { derived: base.derived } : {}),
-      ...(base?.sourceModifiedAt === undefined ? {} : { sourceModifiedAt: base.sourceModifiedAt }),
-    };
-    await saveWorldBook(item);
-    // 角色上下文里保存全新世界书：入库并直接挂到该角色名下
-    if (cowCharacterId && !base) {
-      await updateCharacterAssetReference(cowCharacterId, 'worldbook', id, id, now);
+    try {
+      const item = buildWorldBookSaveItem({
+        base,
+        id,
+        title: filename,
+        worldbook,
+        now,
+      });
+      await saveWorldBook(item);
+      // 角色上下文里保存全新世界书：入库并直接挂到该角色名下
+      if (cowCharacterId && !base) {
+        const updatedCharacter = await updateCharacterAssetReference(cowCharacterId, 'worldbook', id, id, now);
+        if (!updatedCharacter) throw new Error('资产已保存，但角色引用切换失败：角色可能已被删除');
+      }
+      setCurrentItemId(id);
+      markWorldbookClean(worldbook);
+      setSavedItems(await getAllWorldBooks());
+      toast({ title: '已保存', description: '永久留存，不会被自动清理' });
+    } catch (error: unknown) {
+      toast({
+        title: '保存失败',
+        description: error instanceof Error ? error.message : String(error),
+        variant: 'destructive',
+      });
     }
-    setCurrentItemId(id);
-    markWorldbookClean(worldbook);
-    setSavedItems(await getAllWorldBooks());
-    toast({ title: '已保存', description: '永久留存，不会被自动清理' });
   }, [worldbook, filename, currentItemId, savedItems, cowCharacterId, cowCharacterName, toast, markWorldbookClean]);
 
   // Ctrl+S / Cmd+S to save (declared after handleSaveLocal to avoid TDZ)
@@ -425,6 +441,17 @@ export default function WorldBookPage() {
               <WorldBookEmptyState
                 savedItems={savedItems}
                 savedLoaded={savedLoaded}
+                loadError={savedLoadError}
+                onRetry={() => {
+                  setSavedLoadError(null);
+                  setSavedLoaded(false);
+                  getAllWorldBooks()
+                    .then((items) => { setSavedItems(items); setSavedLoaded(true); })
+                    .catch((error: unknown) => {
+                      setSavedLoaded(true);
+                      setSavedLoadError(error instanceof Error ? error.message : '无法读取世界书库');
+                    });
+                }}
                 onImport={handleImport}
                 onRestore={(item) => {
                   hydrateWorldbook(item.worldbook);
