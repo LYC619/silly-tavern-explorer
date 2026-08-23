@@ -657,7 +657,7 @@ const NovelView = ({
             aria-label="小说阅读进度"
             className="flex-1"
           />
-          <span className="min-w-20 text-right text-xs text-muted-foreground">
+          <span data-novel-progress className="min-w-20 text-right text-xs text-muted-foreground">
             {pages.length
               ? `${currentPage + 1}${facing ? `–${currentPage + 2}` : ''} / ${pages.length}`
               : '0 / 0'}
