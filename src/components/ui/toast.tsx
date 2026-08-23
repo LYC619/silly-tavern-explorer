@@ -67,7 +67,8 @@ const ToastClose = React.forwardRef<
   <ToastPrimitives.Close
     ref={ref}
     className={cn(
-      "absolute right-2 top-2 rounded-md p-1 text-foreground/50 opacity-0 transition-opacity group-hover:opacity-100 group-[.destructive]:text-red-300 hover:text-foreground group-[.destructive]:hover:text-red-50 focus:opacity-100 focus:outline-none focus:ring-2 group-[.destructive]:focus:ring-red-400 group-[.destructive]:focus:ring-offset-red-600",
+      // 常显：原本 opacity-0 + group-hover 才出现，触屏没有 hover 等于没有关闭键
+      "tap-target absolute right-2 top-2 rounded-md p-1.5 text-foreground/60 opacity-100 transition-colors group-[.destructive]:text-red-300 hover:text-foreground group-[.destructive]:hover:text-red-50 focus:outline-none focus:ring-2 group-[.destructive]:focus:ring-red-400 group-[.destructive]:focus:ring-offset-red-600",
       className,
     )}
     toast-close=""
