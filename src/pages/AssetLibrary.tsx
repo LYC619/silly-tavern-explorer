@@ -360,16 +360,16 @@ const AssetLibrary = () => {
                             {a.title}
                           </span>
                           {a.derived && (
-                            <span className="text-[9px] px-1.5 py-px rounded-full bg-[var(--hover-overlay)] text-[color:var(--text-muted)]">派生副本</span>
+                            <span className="text-[11px] px-1.5 py-px rounded-full bg-[var(--hover-overlay)] text-[color:var(--text-muted)]">派生副本</span>
                           )}
                           {a.autoSaved && (
-                            <span className="text-[9px] px-1.5 py-px rounded-full bg-[var(--hover-overlay)] text-[color:var(--text-muted)]">自动保留</span>
+                            <span className="text-[11px] px-1.5 py-px rounded-full bg-[var(--hover-overlay)] text-[color:var(--text-muted)]">自动保留</span>
                           )}
                           {a.fromST && (
-                            <span className="text-[9px] px-1.5 py-px rounded-full bg-[var(--status-ok-bg)] text-[color:var(--status-ok)]">来自 ST</span>
+                            <span className="text-[11px] px-1.5 py-px rounded-full bg-[var(--status-ok-bg)] text-[color:var(--status-ok)]">来自 ST</span>
                           )}
                           {a.stGlobal && (
-                            <span className="text-[9px] px-1.5 py-px rounded-full bg-[var(--brand-active-bg)] text-brand">ST 全局</span>
+                            <span className="text-[11px] px-1.5 py-px rounded-full bg-[var(--brand-active-bg)] text-brand">ST 全局</span>
                           )}
                         </div>
                         <DropdownMenu>

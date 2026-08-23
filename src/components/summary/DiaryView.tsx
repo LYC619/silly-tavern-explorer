@@ -26,7 +26,7 @@ export function DiaryView({ content, charName }: DiaryViewProps) {
 
   if (entries.length === 0) {
     return (
-      <div className="rounded-lg border bg-[hsl(40_30%_97%)] dark:bg-muted/30 p-5 font-serif whitespace-pre-wrap text-sm leading-relaxed">
+      <div className="rounded-lg border bg-[var(--bg-elevated)] p-5 font-serif whitespace-pre-wrap text-sm leading-relaxed">
         {raw || '（暂无内容）'}
       </div>
     );
@@ -44,7 +44,7 @@ export function DiaryView({ content, charName }: DiaryViewProps) {
         if (e.key === 'ArrowRight') { e.preventDefault(); next(); }
       }}
     >
-      <div className="relative rounded-xl border-2 border-primary/15 bg-[hsl(40_30%_97%)] dark:bg-muted/30 shadow-warm overflow-hidden">
+      <div className="relative rounded-xl border-2 border-primary/15 bg-[var(--bg-elevated)] shadow-warm overflow-hidden">
         {/* 装订线 */}
         <div className="absolute inset-y-0 left-0 w-1.5 bg-gradient-to-b from-primary/30 via-primary/10 to-primary/30" />
 
