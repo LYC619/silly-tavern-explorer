@@ -140,8 +140,11 @@
 
   --text-primary: #e0e6f0;
   --text-body: #b8c0cf;
-  --text-muted: #7a8497;
-  --text-faint: #5a637a;
+  /* muted / faint 原为 #7a8497 / #5a637a：faint 对 bg-canvas 只有 3.1:1，
+     卡片底（bg-elevated）上更低到 2.96:1。抬到 AA 4.5:1 之上，muted 同步上移
+     以免两档并成一档。四主题里只有 midnight 低于 AA，其余三档见 theme-contrast 测试。 */
+  --text-muted: #8f99b0;
+  --text-faint: #7b849c;
   --character-label: var(--text-body);
   --brand-text: #E08A4A;
 

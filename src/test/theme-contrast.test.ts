@@ -71,3 +71,47 @@ describe('主题活动文字对比度', () => {
     expect(contrast(text, chrome)).toBeGreaterThanOrEqual(4.5);
   });
 });
+
+/** 文字四档对三层底色的对比度。三层底色都要过，卡片底（elevated）通常是最紧的一档。 */
+describe('主题文字阶梯对比度', () => {
+  const themes = ['cocoa', 'ink', 'midnight', 'cream'] as const;
+
+  function ratios(theme: string, token: string): number[] {
+    const block = themeBlock(theme);
+    const text = hex(resolvedVariable(block, token));
+    return ['--bg-canvas', '--bg-chrome', '--bg-elevated']
+      .map((surface) => contrast(text, hex(resolvedVariable(block, surface))));
+  }
+
+  it.each(themes)('%s 的正文色达到 7:1', (theme) => {
+    for (const ratio of ratios(theme, '--text-body')) expect(ratio).toBeGreaterThanOrEqual(7);
+  });
+
+  it.each(themes)('%s 的次要文字达到 AA 4.5:1', (theme) => {
+    for (const ratio of ratios(theme, '--text-muted')) expect(ratio).toBeGreaterThanOrEqual(4.5);
+  });
+
+  it('midnight 的最弱一档文字也达到 AA 4.5:1', () => {
+    for (const ratio of ratios('midnight', '--text-faint')) expect(ratio).toBeGreaterThanOrEqual(4.5);
+  });
+
+  /**
+   * cocoa / ink / cream 的 --text-faint 目前是 3.2~3.8:1（只过大字号 AA），
+   * 是否统一抬到 4.5 属于配色取舍，需要单独拍板。这里先钉住下限，防止继续下滑：
+   * midnight 原来是 2.96:1，低于任何一档，已在本轮抬起来。
+   */
+  it.each(themes)('%s 的最弱一档文字不低于大字号 AA 3:1', (theme) => {
+    for (const ratio of ratios(theme, '--text-faint')) expect(ratio).toBeGreaterThanOrEqual(3);
+  });
+
+  it.each(themes)('%s 的文字四档保持可分辨的层级', (theme) => {
+    const block = themeBlock(theme);
+    const canvas = hex(resolvedVariable(block, '--bg-canvas'));
+    const [primary, body, muted, faint] = ['--text-primary', '--text-body', '--text-muted', '--text-faint']
+      .map((token) => contrast(hex(resolvedVariable(block, token)), canvas));
+
+    expect(primary).toBeGreaterThan(body);
+    expect(body).toBeGreaterThan(muted);
+    expect(muted).toBeGreaterThan(faint);
+  });
+});
