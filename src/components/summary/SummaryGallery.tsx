@@ -77,9 +77,9 @@ export function SummaryGallery({ currentBookId, refreshKey, kind, charName, onEd
                       ? 'w-full flex items-center gap-2 rounded-md border border-primary/60 bg-primary/5 px-2 py-1.5 text-left text-sm'
                       : 'w-full flex items-center gap-2 rounded-md border border-border px-2 py-1.5 text-left text-sm hover:bg-accent/40'}
                   >
-                    <Badge variant="outline" className="text-[10px] px-1 py-0 shrink-0">{SUMMARY_KIND_LABELS[item.kind]}</Badge>
+                    <Badge variant="outline" className="text-[11px] px-1 py-0 shrink-0">{SUMMARY_KIND_LABELS[item.kind]}</Badge>
                     {item.volumeNumber != null && <span className="text-xs text-muted-foreground shrink-0">第{item.volumeNumber}卷</span>}
-                    <span className="truncate flex-1">{item.title || '（无标题）'}</span>
+                    <span className="truncate flex-1" title={item.title || '（无标题）'}>{item.title || '（无标题）'}</span>
                   </button>
                 ))}
               </div>
@@ -100,7 +100,7 @@ export function SummaryGallery({ currentBookId, refreshKey, kind, charName, onEd
                     {listOpen ? <PanelLeftClose className="w-4 h-4" /> : <PanelLeftOpen className="w-4 h-4" />}
                   </Button>
                   <div className="min-w-0">
-                    <h2 className="font-display text-xl font-semibold truncate">{active.title || SUMMARY_KIND_LABELS[active.kind]}</h2>
+                    <h2 className="font-display text-xl font-semibold truncate" title={active.title || SUMMARY_KIND_LABELS[active.kind]}>{active.title || SUMMARY_KIND_LABELS[active.kind]}</h2>
                     <p className="text-xs text-muted-foreground mt-0.5">{active.bookTitle} · 楼层 {active.floorStart}~{active.floorEnd} · {new Date(active.updatedAt).toLocaleDateString()}</p>
                   </div>
                 </div>

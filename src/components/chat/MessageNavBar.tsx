@@ -102,7 +102,7 @@ export function MessageNavBar({
             inputMode="numeric"
             aria-label="跳转到楼层"
           />
-          <span className="text-[10px] leading-none text-muted-foreground">/ {Math.max(floorCount - 1, 0)}</span>
+          <span className="text-[11px] leading-none text-muted-foreground">/ {Math.max(floorCount - 1, 0)}</span>
         </div>
 
         {/* 下一楼 */}
@@ -169,7 +169,7 @@ export function MessageNavBar({
                       <span className="mt-0.5 shrink-0 font-mono text-xs text-primary">
                         {f.floor !== null ? `#${f.floor}` : '—'}
                       </span>
-                      <span className="line-clamp-2 text-xs text-muted-foreground">{f.snippet}</span>
+                      <span className="line-clamp-2 text-xs text-muted-foreground" title={f.snippet}>{f.snippet}</span>
                     </button>
                   ))}
                 </div>

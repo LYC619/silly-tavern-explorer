@@ -66,9 +66,9 @@ export function OtherAssetPreview({ fs, file, onClose }: OtherAssetPreviewProps)
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2">
             <h3 className="truncate font-serif text-sm font-semibold text-[color:var(--text-primary)]" title={file.name}>{file.name}</h3>
-            <span className="shrink-0 rounded-full bg-[var(--status-ok-bg)] px-2 py-0.5 text-[10px] text-[color:var(--status-ok)]">只读预览</span>
+            <span className="shrink-0 rounded-full bg-[var(--status-ok-bg)] px-2 py-0.5 text-[11px] text-[color:var(--status-ok)]">只读预览</span>
           </div>
-          <p className="mt-1 truncate text-[10px] text-[color:var(--text-muted)]" title={file.path}>{file.relativePath} · {formatArchiveBytes(file.size)}</p>
+          <p className="mt-1 truncate text-[11px] text-[color:var(--text-muted)]" title={file.path}>{file.relativePath} · {formatArchiveBytes(file.size)}</p>
         </div>
         <Button type="button" variant="ghost" size="sm" className="h-7 w-7 shrink-0 p-0" onClick={onClose} aria-label="关闭预览">
           <X className="h-4 w-4" />
@@ -92,7 +92,7 @@ export function OtherAssetPreview({ fs, file, onClose }: OtherAssetPreviewProps)
         ) : content.text !== undefined ? (
           <div className="space-y-2">
             {content.jsonInvalid && (
-              <div className="flex items-center gap-2 rounded-md bg-[var(--status-warning-bg)] px-3 py-2 text-xs text-[color:var(--status-warning)]">
+              <div className="flex items-center gap-2 rounded-md bg-[var(--status-warn-bg)] px-3 py-2 text-xs text-[color:var(--status-warn)]">
                 <AlertTriangle className="h-3.5 w-3.5" />JSON 格式异常，以下按原始文本显示。
               </div>
             )}
@@ -109,7 +109,7 @@ export function OtherAssetPreview({ fs, file, onClose }: OtherAssetPreviewProps)
         )}
       </div>
 
-      <footer className="flex shrink-0 items-center gap-2 border-t border-[color:var(--hairline-inner)] px-4 py-2 text-[10px] text-[color:var(--text-muted)]">
+      <footer className="flex shrink-0 items-center gap-2 border-t border-[color:var(--hairline-inner)] px-4 py-2 text-[11px] text-[color:var(--text-muted)]">
         <ShieldCheck className="h-3.5 w-3.5 text-[color:var(--status-ok)]" />
         仅从 STE 文件库读取；不会执行代码，也不会修改归档。
       </footer>

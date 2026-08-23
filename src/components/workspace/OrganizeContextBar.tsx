@@ -17,7 +17,7 @@ export function OrganizeContextBar({ storyTitle, backLabel, onBack, onRead }: Or
     >
       <Button variant="ghost" size="sm" className="h-8 px-2 text-muted-foreground" onClick={onBack}>
         <ArrowLeft className="mr-1.5 h-4 w-4" />
-        <span className="max-w-40 truncate">{backLabel}</span>
+        <span className="max-w-40 truncate" title={backLabel}>{backLabel}</span>
       </Button>
       <span className="h-4 w-px bg-border" aria-hidden="true" />
       <p className="min-w-0 flex-1 truncate text-sm font-medium" title={storyTitle}>{storyTitle}</p>

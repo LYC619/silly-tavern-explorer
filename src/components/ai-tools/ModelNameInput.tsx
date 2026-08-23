@@ -40,6 +40,7 @@ export function ModelNameInput({ model, modelList, fetching, onModelChange, onFe
                   key={m}
                   type="button"
                   className="w-full text-left px-3 py-1.5 text-sm hover:bg-accent cursor-pointer truncate"
+                  title={m}
                   onMouseDown={(e) => e.preventDefault()}
                   onClick={() => { onModelChange(m); setShowDropdown(false); }}
                 >

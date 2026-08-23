@@ -122,7 +122,7 @@ export function LibraryImportDialog({
                     {item.character.name}
                   </span>
                   <span className={cn(
-                    'shrink-0 rounded-full px-2 py-0.5 text-[10px]',
+                    'shrink-0 rounded-full px-2 py-0.5 text-[11px]',
                     item.kind === 'blank-image'
                       ? 'bg-[var(--brand-active-bg)] text-brand'
                       : 'bg-[var(--hover-overlay)] text-[color:var(--text-muted)]',
@@ -183,7 +183,7 @@ export function LibraryImportDialog({
                     </button>
                   )}
                 </div>
-                <p className="mt-0.5 text-[10px] text-[color:var(--text-muted)]">类型会统一应用到本批全部卡片，不受下方标签开关影响；不选择则保持未分类。</p>
+                <p className="mt-0.5 text-[11px] text-[color:var(--text-muted)]">类型会统一应用到本批全部卡片，不受下方标签开关影响；不选择则保持未分类。</p>
                 <div className="mt-2 grid grid-cols-5 gap-1.5">
                   {CHARACTER_TYPES.map((option) => (
                     <button
@@ -242,7 +242,7 @@ export function LibraryImportDialog({
                   placeholder="如：历史/三国，或 收藏"
                   className="mt-1.5 h-8 text-sm"
                 />
-                <p className="mt-1 text-[10px] text-[color:var(--text-faint)]">未知的一级标签会自动加入标签管理系统。</p>
+                <p className="mt-1 text-[11px] text-[color:var(--text-faint)]">未知的一级标签会自动加入标签管理系统。</p>
               </div>
             </div>
           </section>

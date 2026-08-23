@@ -109,7 +109,7 @@ export function LibraryToolbar({
       )}
       <span className="flex-1" />
       <Select value={sortKey} onValueChange={(v) => onSortKeyChange(v as LibrarySortKey)}>
-        <SelectTrigger className="h-8 w-32 text-[13px]">
+        <SelectTrigger className="h-8 w-32 text-xs">
           <SelectValue />
         </SelectTrigger>
         <SelectContent>
@@ -134,7 +134,7 @@ export function LibraryToolbar({
             <SelectTrigger
               aria-label="分组方式"
               title="像资料库一样按字段分组展示；按多选标签分组时，一张卡可能出现在多个标签组"
-              className="h-8 w-28 text-[13px]"
+              className="h-8 w-28 text-xs"
             >
               <SelectValue />
             </SelectTrigger>
@@ -148,7 +148,7 @@ export function LibraryToolbar({
           </Select>
           {groupBy === 'tag' && (
             <Select value={groupTagCategory} onValueChange={onGroupTagCategoryChange}>
-              <SelectTrigger aria-label="标签分组分类" className="h-8 w-28 text-[13px]">
+              <SelectTrigger aria-label="标签分组分类" className="h-8 w-28 text-xs">
                 <SelectValue placeholder="选择一级标签" />
               </SelectTrigger>
               <SelectContent>

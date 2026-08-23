@@ -50,10 +50,10 @@ function TreeOutline({ nodes, depth = 0 }: { nodes: StoryNodeTree[]; depth?: num
         <div key={n.id} className="py-0.5">
           <p className="text-sm flex items-center gap-1.5 min-w-0">
             <span className={cn('w-1.5 h-1.5 rounded-full shrink-0', NODE_TYPE_DOT[n.type ?? 'custom'])} />
-            <span className="font-medium truncate">{n.title}</span>
-            {n.hint && <span className="text-xs text-muted-foreground truncate">{n.hint}</span>}
+            <span className="font-medium truncate" title={n.title}>{n.title}</span>
+            {n.hint && <span className="text-xs text-muted-foreground truncate" title={n.hint}>{n.hint}</span>}
           </p>
-          {n.content && <p className="text-xs text-muted-foreground ml-3 whitespace-pre-wrap line-clamp-3">{n.content}</p>}
+          {n.content && <p className="text-xs text-muted-foreground ml-3 whitespace-pre-wrap line-clamp-3" title={n.content}>{n.content}</p>}
           {n.children.length > 0 && <TreeOutline nodes={n.children} depth={depth + 1} />}
         </div>
       ))}
@@ -230,8 +230,8 @@ export function StoryRecordsView({ stories, kind, onGoGenerate }: StoryRecordsVi
             <Card key={t.id}>
               <CardContent className="py-3 px-4">
                 <p className="text-sm font-medium flex items-center gap-2">
-                  <span className="truncate">{t.title}</span>
-                  <Badge variant="outline" className="h-5 px-1.5 text-[10px] font-normal shrink-0">{branchNameOf(t.branchId)}</Badge>
+                  <span className="truncate" title={t.title}>{t.title}</span>
+                  <Badge variant="outline" className="h-5 px-1.5 text-[11px] font-normal shrink-0">{branchNameOf(t.branchId)}</Badge>
                   <span className="text-xs text-muted-foreground font-normal shrink-0">
                     {t.nodes.length} 个节点 · 更新于{formatListTime(t.updatedAt)}
                   </span>
@@ -252,18 +252,18 @@ export function StoryRecordsView({ stories, kind, onGoGenerate }: StoryRecordsVi
               <Card key={item.id} className="cursor-pointer" onClick={() => setExpandedId(expanded ? null : item.id)}>
                 <CardContent className="py-3 px-4">
                   <p className="text-sm font-medium flex items-center gap-2 flex-wrap">
-                    <span className="truncate">{item.title}</span>
+                    <span className="truncate" title={item.title}>{item.title}</span>
                     {item.volumeNumber !== undefined && (
-                      <Badge variant="secondary" className="h-5 px-1.5 text-[10px] font-normal shrink-0">第 {item.volumeNumber} 卷</Badge>
+                      <Badge variant="secondary" className="h-5 px-1.5 text-[11px] font-normal shrink-0">第 {item.volumeNumber} 卷</Badge>
                     )}
-                    <Badge variant="outline" className="h-5 px-1.5 text-[10px] font-normal shrink-0">{branchNameOf(item.branchId)}</Badge>
+                    <Badge variant="outline" className="h-5 px-1.5 text-[11px] font-normal shrink-0">{branchNameOf(item.branchId)}</Badge>
                   </p>
                   {/* 生成于 X · 覆盖 A-B 楼（不判断过期）；手动录入单独标 */}
                   <p className="text-xs text-muted-foreground mt-0.5" title={formatFullTime(item.updatedAt)}>
                     {manual ? '手动录入' : '生成'}于{formatListTime(item.updatedAt)}
                     {!manual && ` · 覆盖第 ${item.floorStart}-${item.floorEnd} 楼`}
                   </p>
-                  <p className={cn('text-sm text-foreground/85 whitespace-pre-wrap mt-2', !expanded && 'line-clamp-4')}>
+                  <p className={cn('text-sm text-foreground/85 whitespace-pre-wrap mt-2', !expanded && 'line-clamp-4')} title={item.content}>
                     {item.content}
                   </p>
                   {!expanded && item.content.length > 160 && (

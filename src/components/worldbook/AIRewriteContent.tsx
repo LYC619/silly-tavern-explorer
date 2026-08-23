@@ -133,7 +133,7 @@ export function AIRewriteContent({ content, onResult, compact, systemPrompt, qui
                   key={p}
                   type="button"
                   onClick={() => setInstruction(p)}
-                  className="text-[10px] px-1.5 py-0.5 rounded border border-border text-muted-foreground hover:bg-accent"
+                  className="text-[11px] px-1.5 py-0.5 rounded border border-border text-muted-foreground hover:bg-accent"
                 >
                   {p.slice(0, 6)}
                 </button>
@@ -151,7 +151,7 @@ export function AIRewriteContent({ content, onResult, compact, systemPrompt, qui
               )}
               {loading && <Loader2 className="w-4 h-4 animate-spin text-muted-foreground" />}
             </div>
-            <p className="text-[10px] text-muted-foreground">生成后先左右对照确认，不会直接替换</p>
+            <p className="text-[11px] text-muted-foreground">生成后先左右对照确认，不会直接替换</p>
           </div>
         </PopoverContent>
       </Popover>

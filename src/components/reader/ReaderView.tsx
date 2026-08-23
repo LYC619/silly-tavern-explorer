@@ -447,7 +447,7 @@ const ReaderView = ({
             step={1}
             className="mb-2 [&_[role=slider]]:bg-white [&_[role=slider]]:border-white/50 [&_[data-orientation=horizontal]>[data-orientation=horizontal]]:bg-white/80 [&_[data-orientation=horizontal]]:bg-white/20"
           />
-          <div className="text-center text-white/60 text-[10px] sm:text-xs">
+          <div className="text-center text-white/60 text-[11px] sm:text-xs">
             <span className="hidden sm:inline">拖拽进度条跳页 · 点击屏幕左右两侧翻页 · 中间区域显示/隐藏控制栏</span>
             <span className="sm:hidden">左右滑动或点击翻页</span>
           </div>

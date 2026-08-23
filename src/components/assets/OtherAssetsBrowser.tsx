@@ -157,9 +157,9 @@ function ExtensionList({ fs }: { fs: VaultFs }) {
             </div>
           </div>
           <p className="mt-3 flex-1 text-xs leading-relaxed text-[color:var(--text-body)]">{item.description ?? '这个扩展的清单没有提供简介。'}</p>
-          {item.manifestError && <p className="mt-2 text-[11px] text-[color:var(--status-warning)]">{item.manifestError}</p>}
+          {item.manifestError && <p className="mt-2 text-[11px] text-[color:var(--status-warn)]">{item.manifestError}</p>}
           <div className="mt-3 flex items-center justify-between gap-3 border-t border-[color:var(--hairline-inner)] pt-3">
-            <span className="min-w-0 truncate text-[10px] text-[color:var(--text-muted)]" title={item.directory}>{item.directory}</span>
+            <span className="min-w-0 truncate text-[11px] text-[color:var(--text-muted)]" title={item.directory}>{item.directory}</span>
             <Button type="button" variant="outline" size="sm" className="h-7 shrink-0 text-xs" onClick={() => setBrowse(item)}>查看归档文件</Button>
           </div>
         </article>
@@ -187,11 +187,11 @@ function QuickReplyList({ fs }: { fs: VaultFs }) {
           <header className="flex flex-wrap items-center gap-2 border-b border-[color:var(--hairline-inner)] px-4 py-3">
             <MessageSquareReply className="h-4 w-4 text-brand" />
             <h3 className="font-serif text-base font-semibold text-[color:var(--text-primary)]">{set.name}</h3>
-            <span className="rounded-full bg-[var(--hover-overlay)] px-2 py-0.5 text-[10px] text-[color:var(--text-muted)]">{set.items.length} 项</span>
-            {set.injectInput && <span className="rounded-full bg-[var(--brand-active-bg)] px-2 py-0.5 text-[10px] text-brand">注入输入框</span>}
-            {set.placeBeforeInput && <span className="rounded-full bg-[var(--hover-overlay)] px-2 py-0.5 text-[10px] text-[color:var(--text-body)]">放在输入框前</span>}
-            {set.disableSend && <span className="rounded-full bg-[var(--status-warning-bg)] px-2 py-0.5 text-[10px] text-[color:var(--status-warning)]">禁用发送</span>}
-            {set.parseError && <span className="ml-auto text-[11px] text-[color:var(--status-warning)]">{set.parseError}</span>}
+            <span className="rounded-full bg-[var(--hover-overlay)] px-2 py-0.5 text-[11px] text-[color:var(--text-muted)]">{set.items.length} 项</span>
+            {set.injectInput && <span className="rounded-full bg-[var(--brand-active-bg)] px-2 py-0.5 text-[11px] text-brand">注入输入框</span>}
+            {set.placeBeforeInput && <span className="rounded-full bg-[var(--hover-overlay)] px-2 py-0.5 text-[11px] text-[color:var(--text-body)]">放在输入框前</span>}
+            {set.disableSend && <span className="rounded-full bg-[var(--status-warn-bg)] px-2 py-0.5 text-[11px] text-[color:var(--status-warn)]">禁用发送</span>}
+            {set.parseError && <span className="ml-auto text-[11px] text-[color:var(--status-warn)]">{set.parseError}</span>}
           </header>
           <div className="grid grid-cols-1 gap-2 p-3 xl:grid-cols-2">
             {set.items.length === 0 ? (
@@ -200,12 +200,12 @@ function QuickReplyList({ fs }: { fs: VaultFs }) {
               <article key={`${set.path}:${item.id}`} className="rounded-lg border border-[color:var(--hairline-inner)] bg-[var(--bg-canvas)] p-3">
                 <div className="flex flex-wrap items-center gap-2">
                   <h4 className="font-medium text-[color:var(--text-primary)]">{item.label}</h4>
-                  {item.title && item.title !== item.label && <span className="text-[10px] text-[color:var(--text-muted)]">{item.title}</span>}
-                  {item.hidden && <span className="text-[10px] text-[color:var(--status-warning)]">已隐藏</span>}
-                  {item.preventAutoExecute && <span className="ml-auto text-[10px] text-[color:var(--text-muted)]">手动执行</span>}
+                  {item.title && item.title !== item.label && <span className="text-[11px] text-[color:var(--text-muted)]">{item.title}</span>}
+                {item.hidden && <span className="text-[11px] text-[color:var(--status-warn)]">已隐藏</span>}
+                  {item.preventAutoExecute && <span className="ml-auto text-[11px] text-[color:var(--text-muted)]">手动执行</span>}
                 </div>
                 <pre className="mt-2 max-h-48 overflow-auto whitespace-pre-wrap break-words rounded-md bg-[var(--hover-overlay)] p-2 font-mono text-[11px] leading-relaxed text-[color:var(--text-body)] scrollbar-thin" data-quick-reply-message>{item.message || '（空回复）'}</pre>
-                {item.triggers.length > 0 && <p className="mt-2 text-[10px] text-[color:var(--text-muted)]">触发：{item.triggers.join('、')}</p>}
+                {item.triggers.length > 0 && <p className="mt-2 text-[11px] text-[color:var(--text-muted)]">触发：{item.triggers.join('、')}</p>}
               </article>
             ))}
           </div>
@@ -254,12 +254,12 @@ function PersonaList({ fs }: { fs: VaultFs }) {
               {item.title && <span className="text-[11px] text-[color:var(--text-muted)]">{item.title}</span>}
             </div>
             <p className="mt-2 whitespace-pre-wrap text-xs leading-relaxed text-[color:var(--text-body)]">{item.description || '这个人设没有填写描述。'}</p>
-            <div className="mt-3 flex flex-wrap gap-x-3 gap-y-1 text-[10px] text-[color:var(--text-muted)]">
+            <div className="mt-3 flex flex-wrap gap-x-3 gap-y-1 text-[11px] text-[color:var(--text-muted)]">
               {item.lorebook && <span>关联世界书：{item.lorebook}</span>}
               {item.position !== undefined && <span>插入位置：{item.position}</span>}
               {item.depth !== undefined && <span>深度：{item.depth}</span>}
             </div>
-            <p className="mt-2 truncate text-[10px] text-[color:var(--text-muted)]" title={item.fileName}>{item.fileName}</p>
+            <p className="mt-2 truncate text-[11px] text-[color:var(--text-muted)]" title={item.fileName}>{item.fileName}</p>
           </div>
         </article>
       ))}
@@ -317,10 +317,10 @@ function ArchiveDirectoryView({ fs, root, title }: { fs: VaultFs; root: string; 
       <div className="flex shrink-0 items-center gap-2 rounded-lg border border-[color:var(--hairline-inner)] bg-[var(--bg-elevated)] px-3 py-2">
         <Button type="button" variant="ghost" size="sm" className="h-7 px-2" onClick={goUp} disabled={!canGoUp} aria-label="返回上一级"><ArrowLeft className="h-4 w-4" /></Button>
         <div className="min-w-0 flex-1">
-          <p className="truncate text-xs font-medium text-[color:var(--text-primary)]">{title}</p>
-          <p className="truncate text-[10px] text-[color:var(--text-muted)]" title={currentPath}>{currentPath}</p>
+          <p className="truncate text-xs font-medium text-[color:var(--text-primary)]" title={title}>{title}</p>
+          <p className="truncate text-[11px] text-[color:var(--text-muted)]" title={currentPath}>{currentPath}</p>
         </div>
-        <span className="text-[10px] text-[color:var(--text-muted)]">{files?.length ?? 0} 项</span>
+        <span className="text-[11px] text-[color:var(--text-muted)]">{files?.length ?? 0} 项</span>
       </div>
       {files === null ? <LoadState label="正在读取目录…" /> : files.length === 0 ? <EmptyState>这个归档目录是空的。</EmptyState> : (
         <div className={cn('grid min-h-0 flex-1 gap-3', preview ? 'grid-cols-[minmax(0,3fr)_minmax(280px,2fr)]' : 'grid-cols-1')}>
@@ -345,7 +345,7 @@ function ArchiveDirectoryView({ fs, root, title }: { fs: VaultFs; root: string; 
                     <span className="min-w-0 flex-1 truncate text-xs font-medium text-[color:var(--text-primary)]" title={file.name}>{file.name}</span>
                     {file.isDir && <ChevronRight className="h-3.5 w-3.5 shrink-0 text-[color:var(--text-muted)]" />}
                   </span>
-                  {!file.isDir && <span className="mt-1 block text-[10px] text-[color:var(--text-muted)]">{formatArchiveBytes(file.size)}</span>}
+                  {!file.isDir && <span className="mt-1 block text-[11px] text-[color:var(--text-muted)]">{formatArchiveBytes(file.size)}</span>}
                 </button>
               ))}
             </div>
@@ -430,7 +430,7 @@ export function OtherAssetsBrowser() {
                     title={item.description}
                   >
                     <Icon className="h-4 w-4 shrink-0" />
-                    <span className="truncate">{item.label}</span>
+                    <span className="truncate" title={item.label}>{item.label}</span>
                   </button>
                 );
               })}
@@ -444,4 +444,3 @@ export function OtherAssetsBrowser() {
     </div>
   );
 }
-

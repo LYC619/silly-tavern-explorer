@@ -421,7 +421,7 @@ const MessageRow = memo(function MessageRow({
             </button>
             {message.swipeIsSteEdit && (
               <span
-                className="ml-1 rounded border border-primary/40 px-1 py-px text-[10px] leading-none text-primary/80"
+                className="ml-1 rounded border border-primary/40 px-1 py-px text-[11px] leading-none text-primary/80"
                 title="重复导入时保留的本地改动版本（ST 新版在其他候选里）"
               >
                 STE 编辑版

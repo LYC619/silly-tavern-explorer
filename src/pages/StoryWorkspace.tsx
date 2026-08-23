@@ -334,7 +334,7 @@ const StoryWorkspace = () => {
               {story.meta.lastModel && (
                 <span className="flex items-center gap-1 min-w-0">
                   <Cpu className="w-3 h-3 shrink-0" />
-                  <span className="truncate">{story.meta.lastModel}</span>
+                  <span className="truncate" title={story.meta.lastModel}>{story.meta.lastModel}</span>
                 </span>
               )}
             </p>

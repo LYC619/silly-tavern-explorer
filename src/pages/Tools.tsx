@@ -346,14 +346,14 @@ const Tools = () => {
                         <span className="flex w-full items-center gap-2">
                           <span className="min-w-0 flex-1 truncate text-sm font-medium text-[color:var(--text-body)]" title={item.title}>{item.title}</span>
                           {item.autoSaved && (
-                            <span className="shrink-0 rounded bg-chrome px-1.5 py-0.5 text-[10px] text-[color:var(--text-muted)] ring-1 ring-[color:var(--border-normal)]">历史</span>
+                            <span className="shrink-0 rounded bg-chrome px-1.5 py-0.5 text-[11px] text-[color:var(--text-muted)] ring-1 ring-[color:var(--border-normal)]">历史</span>
                           )}
                         </span>
                         <span className="mt-1 flex w-full flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-[color:var(--text-muted)]">
                           <span>{item.meta}</span>
-                          <span className="flex min-w-0 items-center gap-1 truncate">
+                          <span className="flex min-w-0 items-center gap-1 truncate" title={item.title}>
                             <CalendarRange className="h-3 w-3 shrink-0" />
-                            <span className="truncate">
+                            <span className="truncate" title={item.title}>
                               {item.sourceModifiedAt !== undefined ? `源文件 ${formatStoryDate(item.sourceModifiedAt)}` : `STE 更新 ${formatStoryDate(item.updatedAt)}`}
                             </span>
                           </span>
@@ -388,7 +388,7 @@ const Tools = () => {
                         <span className="flex items-center gap-1"><MessageSquare className="h-3 w-3" />{floorCount} 楼</span>
                         <span className="flex min-w-0 items-center gap-1 truncate" title={`${formatStoryDate(startedAt)} - ${formatStoryDate(endedAt)}`}>
                           <CalendarRange className="h-3 w-3 shrink-0" />
-                          <span className="truncate">{formatStoryDate(startedAt)} - {formatStoryDate(endedAt)}</span>
+                          <span className="truncate" title={`${formatStoryDate(startedAt)} - ${formatStoryDate(endedAt)}`}>{formatStoryDate(startedAt)} - {formatStoryDate(endedAt)}</span>
                         </span>
                       </span>
                     </button>

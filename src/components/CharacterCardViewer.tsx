@@ -219,7 +219,7 @@ export function CharacterCardEditor({ card, edits, onEditChange, onLoadFile, por
                               {e.key.map((k, i) => <Badge key={i} variant="outline" className="text-xs font-mono">{k}</Badge>)}
                             </div>
                           )}
-                          <div className="whitespace-pre-wrap text-xs text-muted-foreground leading-relaxed line-clamp-4">{e.content}</div>
+                          <div className="whitespace-pre-wrap text-xs text-muted-foreground leading-relaxed line-clamp-4" title={e.content}>{e.content}</div>
                         </div>
                       ))}
                     </div>

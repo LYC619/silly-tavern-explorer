@@ -140,8 +140,8 @@ export function AttachPanel({ value, onChange, tokenEstimate }: AttachPanelProps
                           checked={value.worldbookUids.includes(e.uid)}
                           onCheckedChange={() => toggleUid(e.uid)}
                         />
-                        {e.constant && <Badge variant="outline" className="text-[10px] px-1 py-0 shrink-0">常驻</Badge>}
-                        <span className="truncate text-muted-foreground">{e.comment || e.content.slice(0, 30) || '(无标题)'}</span>
+                        {e.constant && <Badge variant="outline" className="text-[11px] px-1 py-0 shrink-0">常驻</Badge>}
+                        <span className="truncate text-muted-foreground" title={e.comment || e.content}>{e.comment || e.content.slice(0, 30) || '(无标题)'}</span>
                       </label>
                     ))}
                     {enabledEntries.length === 0 && (

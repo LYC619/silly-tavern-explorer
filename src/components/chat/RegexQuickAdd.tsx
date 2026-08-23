@@ -179,7 +179,7 @@ export function RegexQuickAdd({ onAddRule }: RegexQuickAddProps) {
             {wrapPreview && (
               <div className="space-y-2">
                 <Label>预览正则</Label>
-                <div className="p-3 bg-muted rounded-lg font-mono text-xs break-all">
+                <div className="p-3 bg-muted rounded-lg font-mono text-xs break-words">
                   {wrapPreview}
                 </div>
               </div>
@@ -216,7 +216,7 @@ export function RegexQuickAdd({ onAddRule }: RegexQuickAddProps) {
             {replacePreview && (
               <div className="space-y-2">
                 <Label>预览</Label>
-                <div className="p-3 bg-muted rounded-lg font-mono text-xs break-all">
+                <div className="p-3 bg-muted rounded-lg font-mono text-xs break-words">
                   {replacePreview}
                 </div>
               </div>
@@ -256,7 +256,7 @@ export function RegexQuickAdd({ onAddRule }: RegexQuickAddProps) {
             {trimPattern && (
               <div className="space-y-2">
                 <Label>预览正则</Label>
-                <div className="p-3 bg-muted rounded-lg font-mono text-xs break-all">
+                <div className="p-3 bg-muted rounded-lg font-mono text-xs break-words">
                   /{trimPattern}/gs
                 </div>
               </div>

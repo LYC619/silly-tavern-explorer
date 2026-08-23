@@ -79,7 +79,7 @@ export function EntryFilterBar({
             <Button variant={c.activeFilterCount > 0 ? 'default' : 'outline'} size="sm" className="h-8 text-xs gap-1">
               <SlidersHorizontal className="w-3.5 h-3.5" /> 筛选
               {c.activeFilterCount > 0 && (
-                <Badge variant="secondary" className="h-4 min-w-4 px-1 text-[10px] leading-none">{c.activeFilterCount}</Badge>
+                <Badge variant="secondary" className="h-4 min-w-4 px-1 text-[11px] leading-none">{c.activeFilterCount}</Badge>
               )}
             </Button>
           </PopoverTrigger>

@@ -43,8 +43,8 @@ export function RecentStoryBar({ stories, activeStoryId, onSelect, className }: 
               )}
             >
               <LinkIcon className="h-3 w-3 shrink-0 opacity-70" />
-              <span className="truncate">{story.title || '未命名故事'}</span>
-              <span className="shrink-0 text-[10px] opacity-60">{story.session.messages.length} 楼</span>
+              <span className="truncate" title={story.title || '未命名故事'}>{story.title || '未命名故事'}</span>
+              <span className="shrink-0 text-[11px] opacity-60">{story.session.messages.length} 楼</span>
             </button>
           );
         })}

@@ -124,7 +124,7 @@ function QuickEntryCard({ entry, index, onChange, onRemove }: {
           className="text-xs"
         />
       ) : (
-        <p className="text-xs text-muted-foreground line-clamp-2 whitespace-pre-wrap cursor-pointer"
+        <p className="text-xs text-muted-foreground line-clamp-2 whitespace-pre-wrap cursor-pointer" title={entry.content}
           onClick={() => setExpanded(true)}>
           {entry.content || '(无内容)'}
         </p>

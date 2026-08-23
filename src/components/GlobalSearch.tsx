@@ -113,7 +113,7 @@ export function GlobalSearch() {
           className="flex-1 min-w-0 bg-transparent outline-none text-[color:var(--text-body)] placeholder:text-[color:var(--text-faint)]"
           aria-label="全局搜索"
         />
-        <span className="text-[10px] px-1.5 py-px rounded bg-[var(--hover-overlay-strong)] text-[color:var(--text-faint)] shrink-0">Ctrl+F</span>
+        <span className="text-[11px] px-1.5 py-px rounded bg-[var(--hover-overlay-strong)] text-[color:var(--text-faint)] shrink-0">Ctrl+F</span>
       </div>
 
       {showDrop && (
@@ -125,7 +125,7 @@ export function GlobalSearch() {
           ) : (
             groups.map((g) => (
               <div key={g.kind}>
-                <p className="px-3.5 pt-1.5 pb-1 text-[10px] tracking-widest text-[color:var(--text-faint)]">
+                <p className="px-3.5 pt-1.5 pb-1 text-[11px] tracking-widest text-[color:var(--text-faint)]">
                   {SEARCH_KIND_LABEL[g.kind]}
                 </p>
                 {g.items.map((item) => {
@@ -143,9 +143,9 @@ export function GlobalSearch() {
                           : 'text-[color:var(--text-body)]',
                       )}
                     >
-                      <span className="truncate">{item.title}</span>
+                      <span className="truncate" title={item.title}>{item.title}</span>
                       {item.sub && (
-                        <span className="text-[10px] text-[color:var(--text-faint)] truncate shrink-0">{item.sub}</span>
+                        <span className="text-[11px] text-[color:var(--text-faint)] truncate shrink-0" title={item.sub}>{item.sub}</span>
                       )}
                     </button>
                   );

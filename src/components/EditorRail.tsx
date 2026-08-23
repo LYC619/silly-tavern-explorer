@@ -85,7 +85,7 @@ export function EditorRail() {
             >
               {active && <span className="absolute left-0 top-2 bottom-2 w-0.5 rounded-full bg-brand-accent" />}
               <Icon className="w-[18px] h-[18px]" />
-              <span className="whitespace-nowrap text-[10px] leading-none">{item.label}</span>
+              <span className="whitespace-nowrap text-[11px] leading-none">{item.label}</span>
             </button>
           );
         })}

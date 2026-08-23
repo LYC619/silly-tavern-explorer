@@ -297,7 +297,7 @@ const RegexTool = () => {
                     >
                       <span className="flex-1 min-w-0 truncate" title={item.title}>{item.title}</span>
                       {item.derived && (
-                        <Badge variant="outline" className="h-4 px-1 text-[10px] text-muted-foreground shrink-0">派生</Badge>
+                        <Badge variant="outline" className="h-4 px-1 text-[11px] text-muted-foreground shrink-0">派生</Badge>
                       )}
                       <span className="text-xs text-muted-foreground shrink-0">{item.rules.length} 条</span>
                       <Button variant="ghost" size="icon" className="h-7 w-7" title="载入为当前规则集" onClick={() => handleLoadCollection(item)}>
@@ -390,17 +390,17 @@ const RegexTool = () => {
                             >
                               <span className="flex-1 min-w-0 truncate" title={e.ruleName}>{e.ruleName}</span>
                               {e.disabled ? (
-                                <Badge variant="outline" className="h-5 text-[10px] text-muted-foreground shrink-0">已禁用</Badge>
+                                <Badge variant="outline" className="h-5 text-[11px] text-muted-foreground shrink-0">已禁用</Badge>
                               ) : e.invalid ? (
-                                <Badge variant="destructive" className="h-5 text-[10px] shrink-0">正则无效</Badge>
+                                <Badge variant="destructive" className="h-5 text-[11px] shrink-0">正则无效</Badge>
                               ) : !e.applied ? (
-                                <Badge variant="outline" className="h-5 text-[10px] text-muted-foreground shrink-0">
+                                <Badge variant="outline" className="h-5 text-[11px] text-muted-foreground shrink-0">
                                   不作用于{asUser ? '用户' : 'AI'}楼
                                 </Badge>
                               ) : e.matched ? (
-                                <Badge className="h-5 text-[10px] shrink-0 bg-emerald-600 hover:bg-emerald-600 text-white">命中</Badge>
+                                <Badge className="h-5 text-[11px] shrink-0 bg-emerald-600 hover:bg-emerald-600 text-white">命中</Badge>
                               ) : (
-                                <Badge variant="outline" className="h-5 text-[10px] text-muted-foreground shrink-0">未命中</Badge>
+                                <Badge variant="outline" className="h-5 text-[11px] text-muted-foreground shrink-0">未命中</Badge>
                               )}
                               {canExpand && (expanded ? <ChevronUp className="w-3.5 h-3.5 shrink-0" /> : <ChevronDown className="w-3.5 h-3.5 shrink-0" />)}
                             </button>

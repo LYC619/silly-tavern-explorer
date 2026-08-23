@@ -77,9 +77,9 @@ function FilterItem({
           : 'text-[color:var(--sidebar-text-muted)] hover:bg-[var(--hover-overlay)] hover:text-[color:var(--sidebar-text)]',
       )}
     >
-      <span className="truncate">{label}</span>
+      <span className="truncate" title={label}>{label}</span>
       {count !== undefined && (
-        <span className={cn('text-[10px] shrink-0', active ? 'opacity-90' : 'opacity-50')}>{count}</span>
+        <span className={cn('text-[11px] shrink-0', active ? 'opacity-90' : 'opacity-50')}>{count}</span>
       )}
     </button>
   );
@@ -259,13 +259,13 @@ const AssetLibrary = () => {
         <div className="flex-1 min-h-0 flex">
           <aside className="w-[var(--filter-side-width)] shrink-0 overflow-y-auto scrollbar-thin py-3 pl-6 pr-2.5 border-r border-[color:var(--hairline-inner)]">
             <div>
-              <div className="text-[10px] tracking-[1.5px] text-[color:var(--text-muted)] mb-2 pl-1.5">状态</div>
+              <div className="text-[11px] tracking-[1.5px] text-[color:var(--text-muted)] mb-2 pl-1.5">状态</div>
               <FilterItem label="全部" count={tabList.length} active={refFilter === 'all'} onClick={() => setRefFilter('all')} />
               <FilterItem label="已被引用" count={refCounts.referenced} active={refFilter === 'referenced'} onClick={() => setRefFilter(refFilter === 'referenced' ? 'all' : 'referenced')} />
               <FilterItem label="未被引用" count={refCounts.unreferenced} active={refFilter === 'unreferenced'} onClick={() => setRefFilter(refFilter === 'unreferenced' ? 'all' : 'unreferenced')} />
             </div>
             <div className="mt-4 pt-3.5 border-t border-[color:var(--hairline-inner)]">
-              <div className="text-[10px] tracking-[1.5px] text-[color:var(--text-muted)] mb-2 pl-1.5">来源</div>
+              <div className="text-[11px] tracking-[1.5px] text-[color:var(--text-muted)] mb-2 pl-1.5">来源</div>
               {(Object.keys(SOURCE_LABELS) as Exclude<SourceFilter, 'all'>[]).map((f) => (
                 <FilterItem
                   key={f}
@@ -299,7 +299,7 @@ const AssetLibrary = () => {
                     {TAB_META[t].label}
                     <span
                       className={cn(
-                        'text-[10px] px-1.5 py-px rounded-full',
+                        'text-[11px] px-1.5 py-px rounded-full',
                         active ? 'bg-[var(--brand-active-bg-strong)] text-brand' : 'bg-[var(--hover-overlay-strong)] opacity-60',
                       )}
                     >
@@ -356,7 +356,7 @@ const AssetLibrary = () => {
                           <meta.icon className="w-[15px] h-[15px]" />
                         </div>
                         <div className="flex-1 min-w-0 flex items-center gap-2 flex-wrap">
-                          <span className="font-serif text-sm font-semibold text-[color:var(--text-primary)] truncate">
+                          <span className="font-serif text-sm font-semibold text-[color:var(--text-primary)] truncate" title={a.title}>
                             {a.title}
                           </span>
                           {a.derived && (
@@ -397,21 +397,21 @@ const AssetLibrary = () => {
                       <div className="flex gap-3 py-2 border-y border-[color:var(--hairline-inner)]">
                         <div className="flex-1 flex flex-col gap-0.5">
                           <span className="text-[9.5px] tracking-wide text-[color:var(--text-muted)]">{meta.unit}</span>
-                          <span className="font-serif font-semibold text-[13px] text-[color:var(--text-primary)]">{a.itemCount}</span>
+                          <span className="font-serif font-semibold text-sm text-[color:var(--text-primary)]">{a.itemCount}</span>
                         </div>
                         <div className="flex-1 flex flex-col gap-0.5">
                           <span className="text-[9.5px] tracking-wide text-[color:var(--text-muted)]">引用角色</span>
-                          <span className="font-serif font-semibold text-[13px] text-[color:var(--text-primary)]">{refs.length}</span>
+                          <span className="font-serif font-semibold text-sm text-[color:var(--text-primary)]">{refs.length}</span>
                         </div>
                         <div className="flex-1 flex flex-col gap-0.5">
                           <span className="text-[9.5px] tracking-wide text-[color:var(--text-muted)]">STE 最后修改</span>
-                          <span className="font-serif font-semibold text-[13px] text-[color:var(--text-primary)]">
+                          <span className="font-serif font-semibold text-sm text-[color:var(--text-primary)]">
                             {new Date(a.updatedAt).toLocaleDateString('zh-CN')}
                           </span>
                         </div>
                       </div>
                       {a.sourceModifiedAt !== undefined && (
-                        <p className="text-[10px] text-[color:var(--text-muted)]">
+                        <p className="text-[11px] text-[color:var(--text-muted)]">
                           源文件最后修改：{new Date(a.sourceModifiedAt).toLocaleString('zh-CN')}
                         </p>
                       )}
@@ -423,12 +423,12 @@ const AssetLibrary = () => {
                         ) : (
                           <>
                             {refs.slice(0, 2).map((n) => (
-                              <span key={n} className="px-1.5 py-px rounded bg-[var(--hover-overlay)] text-[color:var(--text-body)] text-[10px] font-medium max-w-28 truncate">
+                              <span key={n} title={n} className="px-1.5 py-px rounded bg-[var(--hover-overlay)] text-[color:var(--text-body)] text-[11px] font-medium max-w-28 truncate">
                                 {n}
                               </span>
                             ))}
                             {refs.length > 2 && (
-                              <span className="px-1.5 py-px rounded bg-[var(--hover-overlay)] text-[color:var(--text-body)] text-[10px] font-medium">
+                              <span className="px-1.5 py-px rounded bg-[var(--hover-overlay)] text-[color:var(--text-body)] text-[11px] font-medium">
                                 +{refs.length - 2} 卡
                               </span>
                             )}

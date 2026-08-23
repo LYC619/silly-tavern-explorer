@@ -402,10 +402,10 @@ const CharacterPage = () => {
             {/* TabsList 用 flex（布局铁律：防插件包裹破坏 grid）；行右侧=统一导入钮（10.3c） */}
             <div className="flex items-center gap-2">
                <TabsList className="flex w-fit flex-wrap gap-1">
-                 <TabsTrigger value="stories">故事 {stories.length > 0 && <span className="ml-1 text-[10px] opacity-70">{stories.length}</span>}</TabsTrigger>
-                 <TabsTrigger value="notes">备注 {(character.notes?.length ?? 0) > 0 && <span className="ml-1 text-[10px] opacity-70">{character.notes!.length}</span>}</TabsTrigger>
-                 <TabsTrigger value="assets">关联资产 {assetCount > 0 && <span className="ml-1 text-[10px] opacity-70">{assetCount}</span>}</TabsTrigger>
-                 <TabsTrigger value="portraits">立绘 {portraitCount > 0 && <span className="ml-1 text-[10px] opacity-70">{portraitCount}</span>}</TabsTrigger>
+                 <TabsTrigger value="stories">故事 {stories.length > 0 && <span className="ml-1 text-[11px] opacity-70">{stories.length}</span>}</TabsTrigger>
+                 <TabsTrigger value="notes">备注 {(character.notes?.length ?? 0) > 0 && <span className="ml-1 text-[11px] opacity-70">{character.notes!.length}</span>}</TabsTrigger>
+                 <TabsTrigger value="assets">关联资产 {assetCount > 0 && <span className="ml-1 text-[11px] opacity-70">{assetCount}</span>}</TabsTrigger>
+                 <TabsTrigger value="portraits">立绘 {portraitCount > 0 && <span className="ml-1 text-[11px] opacity-70">{portraitCount}</span>}</TabsTrigger>
                  <TabsTrigger value="card-edit">角色卡编辑</TabsTrigger>
                  <TabsTrigger value="greetings">开场白</TabsTrigger>
                </TabsList>

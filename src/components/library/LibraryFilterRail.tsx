@@ -73,14 +73,14 @@ function FilterItem({
       data-library-uncategorized-item={uncategorized || undefined}
       className={cn(
         pill
-          ? 'inline-flex max-w-full items-center gap-1 rounded-full border border-[color:var(--hairline-inner)] px-2.5 py-1 text-left text-[13px] transition-colors'
-          : 'flex min-w-0 items-center justify-between gap-1 rounded-md px-2 py-1.5 text-left text-[13px] font-medium transition-colors',
+          ? 'inline-flex max-w-full items-center gap-1 rounded-full border border-[color:var(--hairline-inner)] px-2.5 py-1 text-left text-xs transition-colors'
+          : 'flex min-w-0 items-center justify-between gap-1 rounded-md px-2 py-1.5 text-left text-xs font-medium transition-colors',
         active
           ? 'bg-[var(--brand-active-bg)] text-brand'
           : 'text-[color:var(--sidebar-text)] hover:bg-[var(--hover-overlay)] hover:text-[color:var(--text-primary)]',
       )}
     >
-      <span className="truncate">{label}</span>
+      <span className="truncate" title={label}>{label}</span>
       <span className={cn('shrink-0 text-[11px]', active ? 'opacity-90' : 'opacity-75')}>{count}</span>
     </button>
   );
@@ -188,7 +188,7 @@ export function LibraryFilterRail({
                 )}
               >
                 <Icon className="h-3.5 w-3.5 shrink-0 opacity-80" />
-                <span className="min-w-0 flex-1 truncate">{option.label}</span>
+                <span className="min-w-0 flex-1 truncate" title={option.label}>{option.label}</span>
                 <span className="shrink-0 text-[11px] opacity-70">{option.count}</span>
               </button>
             );

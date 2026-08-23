@@ -50,7 +50,7 @@ export function BranchPanel({ story, activeBranchId, onSwitch, onImportBranch, o
         onClick={() => onSwitch(opts.id)}
       >
         <GitBranch className="w-3.5 h-3.5 shrink-0 opacity-60" />
-        <span className="flex-1 min-w-0 truncate">{opts.name}</span>
+        <span className="flex-1 min-w-0 truncate" title={opts.name}>{opts.name}</span>
         <span className="text-xs text-muted-foreground shrink-0">
           {opts.count} 楼{opts.lastFloor ? ` · 读到 #${opts.lastFloor}` : ''}
         </span>

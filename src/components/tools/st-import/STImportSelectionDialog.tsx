@@ -68,7 +68,7 @@ function PickRow({ checked, title, description, onCheckedChange, icon: Icon }: P
       <Checkbox checked={checked} onCheckedChange={(value) => onCheckedChange(value === true)} className="mt-0.5" />
       {Icon && <Icon className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />}
       <span className="min-w-0 flex-1">
-        <span className="block truncate text-sm font-medium text-foreground">{title}</span>
+        <span className="block truncate text-sm font-medium text-foreground" title={title}>{title}</span>
         <span className="mt-0.5 block text-xs leading-5 text-muted-foreground">{description}</span>
       </span>
     </Label>
@@ -173,7 +173,7 @@ export function STImportSelectionDialog({
                     <TabsTrigger key={section.id} value={section.id} className="gap-1.5 px-2.5">
                       <Icon className="h-3.5 w-3.5" />
                       {section.label}
-                      <span className="text-[10px] text-muted-foreground">{section.selected}/{section.found}</span>
+                      <span className="text-[11px] text-muted-foreground">{section.selected}/{section.found}</span>
                     </TabsTrigger>
                   );
                 })}

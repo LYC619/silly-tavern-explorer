@@ -75,7 +75,7 @@ export function PresetRegexEditor({ rules, onRulesChange }: PresetRegexEditorPro
                   <button className="text-muted-foreground hover:text-foreground shrink-0" onClick={() => setExpandedId(expanded ? null : rule.id)}>
                     {expanded ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
                   </button>
-                  <span className="text-sm truncate flex-1 min-w-0">{rule.name}</span>
+                  <span className="text-sm truncate flex-1 min-w-0" title={rule.name}>{rule.name}</span>
                   <button
                     className={`shrink-0 ${testId === rule.id ? 'text-primary' : 'text-muted-foreground'} hover:text-foreground`}
                     onClick={() => setTestId(testId === rule.id ? null : rule.id)}

@@ -89,20 +89,20 @@ export function StoryCardView({ nodes, selectedId, hitIds, onSelect }: StoryCard
                     selectedId === node.id && 'ring-1 ring-primary'
                   )}
                 >
-                  <span className="text-sm font-medium truncate">{node.title || '(未命名)'}</span>
-                  {node.hint && <span className="text-xs text-muted-foreground truncate">{node.hint}</span>}
+                  <span className="text-sm font-medium truncate" title={node.title || '(未命名)'}>{node.title || '(未命名)'}</span>
+                  {node.hint && <span className="text-xs text-muted-foreground truncate" title={node.hint}>{node.hint}</span>}
                   {preview.label && (
-                    <span className="text-[10px] text-primary/80 truncate">最新 · {preview.label}</span>
+                    <span className="text-[11px] text-primary/80 truncate" title={`最新 · ${preview.label}`}>最新 · {preview.label}</span>
                   )}
                   {preview.text && (
-                    <span className="line-clamp-3 whitespace-pre-line text-xs leading-relaxed text-muted-foreground">
+                    <span className="line-clamp-3 whitespace-pre-line text-xs leading-relaxed text-muted-foreground" title={preview.text}>
                       {preview.text}
                     </span>
                   )}
                   {node.tags.length > 0 && (
                     <span className="flex flex-wrap gap-1 pt-0.5">
                       {node.tags.map((tag) => (
-                        <Badge key={tag} variant="secondary" className="px-1.5 py-0 text-[10px]">{tag}</Badge>
+                        <Badge key={tag} variant="secondary" className="px-1.5 py-0 text-[11px]">{tag}</Badge>
                       ))}
                     </span>
                   )}

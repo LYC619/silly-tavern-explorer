@@ -261,15 +261,15 @@ export function OrganizePanel({ story, characterName, coverDataUrl, currentBranc
         )}
       >
         <div className="flex items-center gap-1.5">
-          <Badge variant="outline" className="text-[10px] px-1 py-0 shrink-0 max-w-[9rem] truncate">{e.kindLabel}</Badge>
+          <Badge variant="outline" title={e.kindLabel} className="text-[11px] px-1 py-0 shrink-0 max-w-[9rem] truncate">{e.kindLabel}</Badge>
           {e.volumeNumber != null && <span className="text-xs text-muted-foreground shrink-0">第{e.volumeNumber}卷</span>}
           <span className="truncate flex-1 min-w-0" title={e.title}>{e.title}</span>
         </div>
         <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
           {e.type === 'record' && <span>#{e.floorStart}–{e.floorEnd}</span>}
-          {branchName && <span className="truncate max-w-[7rem]">{branchName}</span>}
-          {e.draft && <Badge variant="outline" className="h-4 px-1 text-[10px]">草稿</Badge>}
-          {e.type === 'record' && !e.draft && !e.autoSaved && <Badge variant="secondary" className="h-4 px-1 text-[10px]">永久</Badge>}
+          {branchName && <span className="truncate max-w-[7rem]" title={branchName}>{branchName}</span>}
+          {e.draft && <Badge variant="outline" className="h-4 px-1 text-[11px]">草稿</Badge>}
+          {e.type === 'record' && !e.draft && !e.autoSaved && <Badge variant="secondary" className="h-4 px-1 text-[11px]">永久</Badge>}
           <span className="ml-auto shrink-0">
             {new Date(e.updatedAt).toLocaleDateString('zh-CN', { month: 'short', day: 'numeric' })}
           </span>

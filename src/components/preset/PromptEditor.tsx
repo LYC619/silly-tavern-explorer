@@ -218,7 +218,7 @@ export function PromptEditor({
                       >
                         {expanded ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
                       </button>
-                      <span className="text-sm truncate flex-1 min-w-0">{block ? blockDisplayName(block) : entry.identifier}</span>
+                      <span className="text-sm truncate flex-1 min-w-0" title={block ? blockDisplayName(block) : entry.identifier}>{block ? blockDisplayName(block) : entry.identifier}</span>
                       {block?.marker ? <MarkerBadge /> : isInjectionBlock(block) ? <InjectionBadge depth={block?.injection_depth as number | undefined} /> : <RoleBadge role={block?.role} />}
                       {empty && <EmptyBadge />}
                       <Switch checked={entry.enabled} onCheckedChange={() => toggleEnabled(entry.identifier)} className="scale-90" />
@@ -279,7 +279,7 @@ export function PromptEditor({
                                   className="h-7 text-xs w-16"
                                   aria-label="注入顺序"
                                 />
-                                <span className="text-[10px]">@深度=插入聊天倒数第几层；顺序=同深度排序权重</span>
+                                <span className="text-[11px]">@深度=插入聊天倒数第几层；顺序=同深度排序权重</span>
                               </div>
                             )}
                             <Textarea
@@ -315,7 +315,7 @@ export function PromptEditor({
             <div className="space-y-1.5">
               {libraryBlocks.map((block) => (
                 <div key={block.identifier} className="flex items-center gap-2 p-2 rounded-lg border border-border bg-secondary/20">
-                  <span className="text-sm truncate flex-1 min-w-0">{blockDisplayName(block)}</span>
+                  <span className="text-sm truncate flex-1 min-w-0" title={blockDisplayName(block)}>{blockDisplayName(block)}</span>
                   {block.marker ? <MarkerBadge /> : isInjectionBlock(block) ? <InjectionBadge depth={block.injection_depth as number | undefined} /> : <RoleBadge role={block.role} />}
                   {isUnreferenced(block, referenced) && <UnreferencedBadge />}
                   <Button variant="ghost" size="icon" className="h-7 w-7 shrink-0" onClick={() => addToOrder(block.identifier)} aria-label="加入激活顺序">

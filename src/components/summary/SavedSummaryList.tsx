@@ -109,11 +109,11 @@ export function SavedSummaryList({
           <div className="min-h-0 flex-1 space-y-1.5 overflow-y-auto pr-1 scrollbar-thin">
             {filtered.map((item) => (
               <div key={item.id} className="flex items-center gap-2 p-2 rounded-md border hover:bg-accent/40 text-sm">
-                <Badge variant="outline" className="text-[10px] px-1 py-0 shrink-0">{SUMMARY_KIND_LABELS[item.kind]}</Badge>
+                <Badge variant="outline" className="text-[11px] px-1 py-0 shrink-0">{SUMMARY_KIND_LABELS[item.kind]}</Badge>
                 {item.volumeNumber != null && <span className="text-xs text-muted-foreground shrink-0">第{item.volumeNumber}卷</span>}
                 <span className="truncate flex-1" title={item.title}>{item.title || '（无标题）'}</span>
                 <span className="text-xs text-muted-foreground shrink-0">{item.floorStart}~{item.floorEnd}</span>
-                {!item.autoSaved && <Badge variant="secondary" className="text-[10px] px-1 py-0 shrink-0">永久</Badge>}
+                {!item.autoSaved && <Badge variant="secondary" className="text-[11px] px-1 py-0 shrink-0">永久</Badge>}
                 <div className="flex items-center gap-0.5 shrink-0">
                   <Button variant="ghost" size="icon" className="h-7 w-7" title="查看或编辑" onClick={() => onView(item)}><Eye className="w-3.5 h-3.5" /></Button>
                   <Button variant="ghost" size="icon" className="h-7 w-7" title="用相同设置重新生成" onClick={() => onRegenerate(item)}><RotateCcw className="w-3.5 h-3.5" /></Button>

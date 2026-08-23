@@ -78,7 +78,7 @@ export function ManagedTagRow({
         <div className="flex items-center gap-1.5">
           <span className="truncate text-sm text-[color:var(--text-body)]" title={option.raw}>{option.label}</span>
           <span className={cn(
-            'shrink-0 rounded-full px-1.5 py-0.5 text-[10px]',
+            'shrink-0 rounded-full px-1.5 py-0.5 text-[11px]',
             option.builtIn
               ? 'bg-[var(--hover-overlay)] text-[color:var(--text-muted)]'
               : 'border border-dashed border-[color:var(--border-normal)] text-[color:var(--text-muted)]',

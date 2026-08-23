@@ -48,10 +48,10 @@ export function EntryListRow({ entry, entryKey, selected, onClick, onToggleEnabl
         <Switch checked={entry.enabled} onCheckedChange={onToggleEnabled} className="scale-75" />
       </td>
       <td className="px-2 py-1.5 w-8 text-center">{strategyIcon(entry)}</td>
-      <td className="px-2 py-1.5 font-medium truncate max-w-[200px]">
+      <td className="px-2 py-1.5 font-medium truncate max-w-[200px]" title={entry.comment}>
         {entry.comment || '(无标题)'}
       </td>
-      <td className="px-2 py-1.5 text-muted-foreground truncate max-w-[200px]">
+      <td className="px-2 py-1.5 text-muted-foreground truncate max-w-[200px]" title={entry.content}>
         {entry.key.join(', ')}
       </td>
       <td className="px-2 py-1.5 text-muted-foreground whitespace-nowrap">

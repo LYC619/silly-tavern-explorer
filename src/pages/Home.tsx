@@ -214,9 +214,9 @@ const Home = () => {
   return (
     <AppLayout
       titleBarContent={(
-        <div className="flex min-w-0 items-baseline gap-2 truncate" data-home-title-summary>
+        <div className="flex min-w-0 items-baseline gap-2 truncate" data-home-title-summary title={`您已经归档了 ${stories.length} 个故事`}>
           <span className="shrink-0 font-serif text-sm font-semibold text-[color:var(--text-primary)]">{greeting()}</span>
-          <span className="truncate text-[11px] text-[color:var(--text-muted)]">您已经归档了 {stories.length} 个故事</span>
+          <span className="truncate text-[11px] text-[color:var(--text-muted)]" title={`您已经归档了 ${stories.length} 个故事`}>您已经归档了 {stories.length} 个故事</span>
         </div>
       )}
     >
@@ -328,7 +328,7 @@ const Home = () => {
                           ) : <BookOpenText className="m-2 h-4 w-4 text-muted-foreground/50" />}
                         </div>
                         <span className="min-w-0 flex-1 truncate text-xs font-medium text-[color:var(--text-body)]" title={s.title}>{s.title}</span>
-                        <span className="shrink-0 text-[10px] text-[color:var(--text-muted)]">{s.floorCount} 楼</span>
+                        <span className="shrink-0 text-[11px] text-[color:var(--text-muted)]">{s.floorCount} 楼</span>
                       </button>
                     );
                   })}
@@ -363,7 +363,7 @@ const Home = () => {
                           <Icon className="h-4 w-4 shrink-0 text-[color:var(--brand-hi)]" />
                           <div className="min-w-0 flex-1">
                             <span className="block text-sm font-medium text-[color:var(--text-body)]">{tool.label}</span>
-                            <span className="mt-0.5 block truncate text-[11px] text-[color:var(--text-muted)]">{tool.description}</span>
+                            <span className="mt-0.5 block truncate text-[11px] text-[color:var(--text-muted)]" title={tool.description}>{tool.description}</span>
                           </div>
                           <ChevronRight className="h-3.5 w-3.5 shrink-0 text-[color:var(--text-faint)]" />
                         </button>
@@ -395,7 +395,7 @@ const Home = () => {
                   >
                     <span className="min-w-0">
                       <span className="block text-sm font-medium text-[color:var(--text-body)]">{cell.label}</span>
-                      <span className="mt-1 block line-clamp-2 text-[11px] leading-relaxed text-[color:var(--text-muted)]">{cell.description}</span>
+                      <span className="mt-1 block line-clamp-2 text-[11px] leading-relaxed text-[color:var(--text-muted)]" title={cell.description}>{cell.description}</span>
                     </span>
                     <span className="shrink-0 font-serif text-[17px] font-bold text-[color:var(--text-primary)]">{cell.count}</span>
                   </button>
@@ -407,7 +407,7 @@ const Home = () => {
                   >
                     <span className="min-w-0">
                       <span className="flex items-center gap-1.5 text-sm font-medium text-[color:var(--text-body)]"><KeyRound className="h-3.5 w-3.5 text-[color:var(--text-muted)]" />ST 配置</span>
-                      <span className="mt-1 block line-clamp-2 text-[11px] leading-relaxed text-[color:var(--text-muted)]">连接 SillyTavern 目录与接口</span>
+                      <span className="mt-1 block line-clamp-2 text-[11px] leading-relaxed text-[color:var(--text-muted)]" title="连接 SillyTavern 目录与接口">连接 SillyTavern 目录与接口</span>
                     </span>
                     <ChevronRight className="mt-0.5 h-3.5 w-3.5 shrink-0 text-[color:var(--text-faint)]" />
                   </button>

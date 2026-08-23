@@ -361,10 +361,10 @@ const Index = () => {
                     >
                       <MessageSquare className="w-4 h-4 text-muted-foreground shrink-0" />
                       <div className="flex-1 min-w-0">
-                        <p className="text-sm font-medium truncate">{story.title}</p>
+                        <p className="text-sm font-medium truncate" title={story.title}>{story.title}</p>
                         <p className="text-xs text-muted-foreground flex items-center gap-2 flex-wrap">
                           <span>{story.session.messages.length} 楼</span>
-                          {story.meta.lastModel && <span className="truncate">{story.meta.lastModel}</span>}
+                          {story.meta.lastModel && <span className="truncate" title={story.meta.lastModel}>{story.meta.lastModel}</span>}
                           <span className="flex items-center gap-0.5">
                             <Clock className="w-3 h-3" />
                             {new Date(story.updatedAt).toLocaleDateString()}

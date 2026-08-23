@@ -293,8 +293,8 @@ export default function CardViewer() {
               {savedItems.map((item) => (
                 <div key={item.id} className="flex items-center gap-2 p-2 rounded-md hover:bg-accent/40 text-sm">
                   {item.pngBase64 ? <Image className="w-3.5 h-3.5 text-muted-foreground shrink-0" /> : <FileJson className="w-3.5 h-3.5 text-muted-foreground shrink-0" />}
-                  <button className="flex-1 min-w-0 text-left truncate" onClick={() => loadCardItem(item)}>
-                    {item.title}{item.autoSaved && <span className="text-[10px] text-muted-foreground ml-1">(历史)</span>}
+                  <button className="flex-1 min-w-0 text-left truncate" title={item.title} onClick={() => loadCardItem(item)}>
+                    {item.title}{item.autoSaved && <span className="text-[11px] text-muted-foreground ml-1">(历史)</span>}
                   </button>
                   <button className="text-muted-foreground hover:text-destructive text-xs shrink-0" onClick={() => setDeleteTarget(item)}>删除</button>
                 </div>

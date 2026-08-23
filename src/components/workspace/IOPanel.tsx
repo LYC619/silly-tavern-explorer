@@ -258,7 +258,7 @@ export function IOPanel({ story, branchId, line, settings, onStoryUpdate }: IOPa
                 {records.map((r) => (
                   <div key={r.id} className="flex items-center gap-2 text-sm">
                     <Badge variant="outline" className="h-5 shrink-0 text-[11px] font-normal">{SUMMARY_KIND_LABELS[r.kind]}</Badge>
-                    <span className="flex-1 truncate">{r.title || SUMMARY_KIND_LABELS[r.kind]}</span>
+                    <span className="flex-1 truncate" title={r.title || SUMMARY_KIND_LABELS[r.kind]}>{r.title || SUMMARY_KIND_LABELS[r.kind]}</span>
                     <Button variant="ghost" size="sm" className="h-7 px-2 text-xs shrink-0" onClick={() => handleExportRecordMd(r)}>
                       <FileUp className="w-3.5 h-3.5 mr-1" />MD
                     </Button>
@@ -267,7 +267,7 @@ export function IOPanel({ story, branchId, line, settings, onStoryUpdate }: IOPa
                 {trees.map((t) => (
                   <div key={t.id} className="flex items-center gap-2 text-sm">
                     <Badge variant="outline" className="h-5 shrink-0 text-[11px] font-normal">故事树</Badge>
-                    <span className="flex-1 truncate">{t.title || '未命名故事树'}</span>
+                    <span className="flex-1 truncate" title={t.title || '未命名故事树'}>{t.title || '未命名故事树'}</span>
                     <Button variant="ghost" size="sm" className="h-7 px-2 text-xs shrink-0" onClick={() => handleExportTreeMd(t)}>
                       <FileUp className="w-3.5 h-3.5 mr-1" />MD
                     </Button>

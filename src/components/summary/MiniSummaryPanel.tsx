@@ -94,12 +94,12 @@ export function MiniSummaryPanel({ session }: MiniSummaryPanelProps) {
               <div key={p.floor} className="rounded-md border overflow-hidden text-sm">
                 {p.userText.trim() && (
                   <div className="px-3 py-2 bg-muted/40 text-muted-foreground">
-                    <span className="text-[10px] uppercase tracking-wide">用户 · 第{p.floor - 1}楼附近</span>
-                    <p className="mt-0.5 line-clamp-2">{p.userText.trim()}</p>
+                    <span className="text-[11px] uppercase tracking-wide">用户 · 第{p.floor - 1}楼附近</span>
+                    <p className="mt-0.5 line-clamp-2" title={p.userText.trim()}>{p.userText.trim()}</p>
                   </div>
                 )}
                 <div className="px-3 py-2">
-                  <span className="text-[10px] uppercase tracking-wide text-primary">小结 · 第{p.floor}楼</span>
+                  <span className="text-[11px] uppercase tracking-wide text-primary">小结 · 第{p.floor}楼</span>
                   <p className="mt-0.5 whitespace-pre-wrap">{p.summary}</p>
                 </div>
               </div>

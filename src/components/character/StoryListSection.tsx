@@ -84,7 +84,7 @@ function StatusChip({ story, onPatch }: { story: ArchiveStory; onPatch: (patch: 
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
         <button onClick={(e) => e.stopPropagation()} title="点击修改故事状态" className="shrink-0">
-          <Badge variant="outline" className={cn('h-5 px-1.5 text-[10px] font-normal cursor-pointer hover:bg-accent', tone[status])}>
+          <Badge variant="outline" className={cn('h-5 px-1.5 text-[11px] font-normal cursor-pointer hover:bg-accent', tone[status])}>
             {status}
           </Badge>
         </button>
@@ -173,10 +173,10 @@ export function StoryListSection({
                   >
                     <span className="w-4 border-t border-border/70 shrink-0" />
                     <GitBranch className="w-3 h-3 shrink-0 text-muted-foreground" />
-                    <span className="text-xs text-muted-foreground group-hover/branch:text-foreground transition-colors truncate">
+                    <span className="text-xs text-muted-foreground group-hover/branch:text-foreground transition-colors truncate" title={b.name}>
                       {b.name}
                     </span>
-                    <span className="text-[10px] text-muted-foreground/60 shrink-0">{b.session.messages.length} 段</span>
+                    <span className="text-[11px] text-muted-foreground/60 shrink-0">{b.session.messages.length} 段</span>
                   </button>
                 ))}
               </div>

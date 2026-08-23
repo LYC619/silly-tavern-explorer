@@ -379,9 +379,9 @@ export default function Preset() {
               {savedItems.map((item) => (
                 <div key={item.id} className="flex items-center gap-2 p-2 rounded-md hover:bg-accent/40 text-sm">
                   <FileJson className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
-                  <button className="flex-1 min-w-0 text-left truncate" onClick={() => handleLoadItem(item)}>
+                  <button className="flex-1 min-w-0 text-left truncate" title={item.title} onClick={() => handleLoadItem(item)}>
                     {item.title}
-                    {item.autoSaved && <span className="text-[10px] text-muted-foreground ml-1">(历史)</span>}
+                    {item.autoSaved && <span className="text-[11px] text-muted-foreground ml-1">(历史)</span>}
                   </button>
                   <button className="text-muted-foreground hover:text-destructive text-xs shrink-0" onClick={() => setDeleteTarget(item)}>删除</button>
                 </div>
@@ -451,8 +451,8 @@ export default function Preset() {
                     {savedItems.slice(0, 8).map((item) => (
                       <button key={item.id} className="flex items-center gap-2 w-full p-2 rounded-md hover:bg-accent/40 text-sm text-left" onClick={() => handleLoadItem(item)}>
                         <FileJson className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
-                        <span className="flex-1 min-w-0 truncate">{item.title}</span>
-                        {item.autoSaved && <span className="text-[10px] text-muted-foreground">(历史)</span>}
+                        <span className="flex-1 min-w-0 truncate" title={item.title}>{item.title}</span>
+                        {item.autoSaved && <span className="text-[11px] text-muted-foreground">(历史)</span>}
                       </button>
                     ))}
                   </div>

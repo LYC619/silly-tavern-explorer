@@ -191,7 +191,7 @@ export function InlineStoryReader({ storyId, stories, onSwitchStory, onBack, onO
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <Button variant="ghost" size="sm" className="font-display font-semibold max-w-72">
-              <span className="truncate">
+              <span className="truncate" title={story.title}>
                 {story.title}
                 {currentBranchName ? ` · ${currentBranchName}` : ''}
               </span>
@@ -210,7 +210,7 @@ export function InlineStoryReader({ storyId, stories, onSwitchStory, onBack, onO
                       : void transitionAfterFlush(() => onSwitchStory(s.id))
                   )}
                 >
-                  <span className="truncate">{s.title}</span>
+                  <span className="truncate" title={s.title}>{s.title}</span>
                 </DropdownMenuItem>
                 {/* 当前故事的分支列出在其下（含分支切换） */}
                 {s.id === story.id && (story.branches ?? []).map((b) => (
@@ -220,14 +220,14 @@ export function InlineStoryReader({ storyId, stories, onSwitchStory, onBack, onO
                     onClick={() => handleSwitchBranch(b.id)}
                   >
                     <GitBranch className="w-3.5 h-3.5 mr-1.5 shrink-0 opacity-60" />
-                    <span className="truncate">{b.name}</span>
+                    <span className="truncate" title={b.name}>{b.name}</span>
                   </DropdownMenuItem>
                 ))}
               </div>
             ))}
           </DropdownMenuContent>
         </DropdownMenu>
-        <Badge variant="outline" className="h-5 px-1.5 text-[10px] font-normal">
+        <Badge variant="outline" className="h-5 px-1.5 text-[11px] font-normal">
           {story.status ?? '未开始'}
         </Badge>
         <div className="flex-1" />

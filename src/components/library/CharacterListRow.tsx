@@ -71,6 +71,7 @@ export function CharacterListRow({
             intro ? 'text-[color:var(--text-muted)]' : 'text-[color:var(--text-faint)]',
           )}
           style={{ fontSize: introSize }}
+          title={intro ?? '暂无简介'}
         >
           {intro ?? '暂无简介'}
         </p>

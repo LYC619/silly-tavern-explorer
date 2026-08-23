@@ -113,7 +113,7 @@ export function NotesSection({ notes, onChange }: NotesSectionProps) {
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>删除这条备注？</AlertDialogTitle>
-            <AlertDialogDescription className="line-clamp-3 whitespace-pre-wrap">
+            <AlertDialogDescription className="line-clamp-3 whitespace-pre-wrap" title={toDelete?.body}>
               {toDelete?.body}
             </AlertDialogDescription>
           </AlertDialogHeader>

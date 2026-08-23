@@ -72,7 +72,7 @@ export function EntryCard({ entry, entryKey, selected, onClick, onToggleEnabled,
               </span>
             )}
             <span className={cn('w-2.5 h-2.5 rounded-full shrink-0', strategy.dot)} />
-            <span className="font-semibold text-sm truncate text-foreground">
+            <span className="font-semibold text-sm truncate text-foreground" title={entry.comment || '未命名条目'}>
               {entry.comment || '(无标题)'}
             </span>
             <span className="text-xs text-muted-foreground shrink-0">{strategy.label}</span>
@@ -117,7 +117,7 @@ export function EntryCard({ entry, entryKey, selected, onClick, onToggleEnabled,
 
         {/* Content preview */}
         {entry.content && (
-          <p className="text-xs text-muted-foreground line-clamp-3 whitespace-pre-wrap">
+          <p className="text-xs text-muted-foreground line-clamp-3 whitespace-pre-wrap" title={entry.content}>
             {contentPreview}
           </p>
         )}

@@ -392,13 +392,13 @@ const NovelView = ({
               <div className="mx-auto mt-2 h-px w-14 bg-primary/30" />
             </div>
           )}
-          <div className="mb-3 flex items-center justify-center gap-2 text-[10px] text-muted-foreground">
+          <div className="mb-3 flex items-center justify-center gap-2 text-[11px] text-muted-foreground">
             <span>#{page.startFloor}–{page.endFloor} 楼</span>
             {side === 'left' && !readOnly && polish && polishTarget && (
               <Button
                 variant="ghost"
                 size="sm"
-                className="h-6 gap-1 px-2 text-[10px] text-muted-foreground hover:text-primary"
+                className="h-6 gap-1 px-2 text-[11px] text-muted-foreground hover:text-primary"
                 onClick={() => { setPolishChapter(polishTarget); setPolishResult(''); setPolishSavedId(null); }}
                 title="用自定义记录的「小说化」模板重写本章（调用 AI，需要 API 配置）"
               >
@@ -460,17 +460,17 @@ const NovelView = ({
           <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => { goToPage(currentPage); onClose(); }} aria-label="退出小说视图">
             <X className="w-4 h-4" />
           </Button>
-          <span className="font-display font-semibold text-sm truncate max-w-[16rem]">{session.title || '未命名作品'}</span>
-          <Badge variant="outline" className="h-5 px-1.5 text-[10px] text-muted-foreground font-normal gap-1">
+          <span className="font-display font-semibold text-sm truncate max-w-[16rem]" title={session.title || '未命名作品'}>{session.title || '未命名作品'}</span>
+          <Badge variant="outline" className="h-5 px-1.5 text-[11px] text-muted-foreground font-normal gap-1">
             <BookOpenCheck className="w-3 h-3" />小说视图
           </Badge>
           {userMode === 'hide' && hiddenUserFloors > 0 && (
-            <Badge variant="outline" className="h-5 px-1.5 text-[10px] text-muted-foreground font-normal gap-1">
+            <Badge variant="outline" className="h-5 px-1.5 text-[11px] text-muted-foreground font-normal gap-1">
               <EyeOff className="w-3 h-3" />已隐藏 {hiddenUserFloors} 个用户楼层
             </Badge>
           )}
           {hiddenFloors > 0 && (
-            <Badge variant="outline" className="h-5 px-1.5 text-[10px] text-muted-foreground font-normal gap-1">
+            <Badge variant="outline" className="h-5 px-1.5 text-[11px] text-muted-foreground font-normal gap-1">
               {showHidden ? <Eye className="w-3 h-3" /> : <EyeOff className="w-3 h-3" />}
               {showHidden ? `含 ${hiddenFloors} 个隐藏楼层` : `已隐藏 ${hiddenFloors} 个隐藏楼层`}
             </Badge>
@@ -537,7 +537,7 @@ const NovelView = ({
                           onClick={() => goToPage(bookmark.pageIndex)}
                         >
                           <span className="shrink-0 font-mono text-xs text-primary">#{bookmark.floor}</span>
-                          <span className="line-clamp-2 text-xs text-muted-foreground">{bookmark.snippet}</span>
+                          <span className="line-clamp-2 text-xs text-muted-foreground" title={bookmark.snippet}>{bookmark.snippet}</span>
                         </button>
                       ))}
                     </div>

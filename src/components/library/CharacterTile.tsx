@@ -121,7 +121,7 @@ export function CharacterTile({
           {displayName}
         </p>
         {intro && (
-          <p className="leading-snug text-white/70 line-clamp-2 mt-1" style={{ fontSize: introSize }}>
+          <p className="leading-snug text-white/70 line-clamp-2 mt-1" title={intro} style={{ fontSize: introSize }}>
             {intro}
           </p>
         )}

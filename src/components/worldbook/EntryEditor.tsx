@@ -185,7 +185,7 @@ export function EntryEditor({ entry, onChange }: Props) {
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
             <Label>内容 (Content)</Label>
-            <span className="text-[10px] text-muted-foreground" title="粗略估算（CJK≈1字1token），仅供预算参考">
+            <span className="text-[11px] text-muted-foreground" title="粗略估算（CJK≈1字1token），仅供预算参考">
               {entry.content.length} 字 · ≈{estimateTokens(entry.content)} tokens
             </span>
           </div>

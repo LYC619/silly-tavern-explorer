@@ -7,7 +7,7 @@ function Stat({ label, value }: { label: string; value: string | number }) {
   return (
     <div className="rounded-lg border border-border bg-secondary/30 p-3">
       <div className="text-xs text-muted-foreground">{label}</div>
-      <div className="text-sm font-medium mt-0.5 truncate">{value}</div>
+      <div className="text-sm font-medium mt-0.5 truncate" title={String(value)}>{value}</div>
     </div>
   );
 }

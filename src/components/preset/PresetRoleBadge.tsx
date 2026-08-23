@@ -11,14 +11,14 @@ export function RoleBadge({ role }: { role?: string }) {
       : role === 'assistant'
         ? 'bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border-emerald-500/30'
         : 'bg-primary/10 text-primary border-primary/30'; // system / 默认
-  return <Badge variant="outline" className={`text-[10px] px-1.5 py-0 ${cls}`}>{label}</Badge>;
+  return <Badge variant="outline" className={`text-[11px] px-1.5 py-0 ${cls}`}>{label}</Badge>;
 }
 
 export function MarkerBadge() {
   return (
     <Badge
       variant="outline"
-      className="text-[10px] px-1.5 py-0 bg-muted text-muted-foreground border-border cursor-help"
+      className="text-[11px] px-1.5 py-0 bg-muted text-muted-foreground border-border cursor-help"
       title="系统插槽：内容由 SillyTavern 运行时自动填充（如世界书、角色描述、聊天历史），不是被禁用，也无需手动填写"
     >
       插槽
@@ -28,7 +28,7 @@ export function MarkerBadge() {
 
 export function UnreferencedBadge() {
   return (
-    <Badge variant="outline" className="text-[10px] px-1.5 py-0 bg-muted/60 text-muted-foreground border-dashed">
+    <Badge variant="outline" className="text-[11px] px-1.5 py-0 bg-muted/60 text-muted-foreground border-dashed">
       未引用
     </Badge>
   );
@@ -36,7 +36,7 @@ export function UnreferencedBadge() {
 
 export function EmptyBadge() {
   return (
-    <Badge variant="outline" className="text-[10px] px-1.5 py-0 bg-amber-500/15 text-amber-600 dark:text-amber-400 border-amber-500/30">
+    <Badge variant="outline" className="text-[11px] px-1.5 py-0 bg-amber-500/15 text-amber-600 dark:text-amber-400 border-amber-500/30">
       空条目
     </Badge>
   );
@@ -45,7 +45,7 @@ export function EmptyBadge() {
 /** ST 绝对注入块（injection_position=1）：按深度注入聊天，不按激活顺序位置 */
 export function InjectionBadge({ depth }: { depth?: number }) {
   return (
-    <Badge variant="outline" className="text-[10px] px-1.5 py-0 bg-violet-500/15 text-violet-600 dark:text-violet-400 border-violet-500/30">
+    <Badge variant="outline" className="text-[11px] px-1.5 py-0 bg-violet-500/15 text-violet-600 dark:text-violet-400 border-violet-500/30">
       注入{depth !== undefined ? ` @${depth}` : ''}
     </Badge>
   );

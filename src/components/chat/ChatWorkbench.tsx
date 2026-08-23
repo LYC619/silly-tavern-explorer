@@ -476,7 +476,7 @@ export const ChatWorkbench = forwardRef<ChatWorkbenchHandle, ChatWorkbenchProps>
                     placeholder="作品标题"
                   />
                 ) : readerMode ? (
-                  <span className="truncate max-w-[16rem] font-medium text-foreground">
+                  <span className="truncate max-w-[16rem] font-medium text-foreground" title={session.title || '未命名作品'}>
                     {session.title || '未命名作品'}
                   </span>
                 ) : (
@@ -485,7 +485,7 @@ export const ChatWorkbench = forwardRef<ChatWorkbenchHandle, ChatWorkbenchProps>
                     className="group flex items-center gap-1 min-w-0"
                     title="点击重命名（标题会自动保存，并用于导出文件名）"
                   >
-                    <span className="truncate max-w-[16rem] font-medium text-foreground">{session.title || '未命名作品'}</span>
+                    <span className="truncate max-w-[16rem] font-medium text-foreground" title={session.title || '未命名作品'}>{session.title || '未命名作品'}</span>
                     <Pencil className="w-3 h-3 shrink-0 opacity-40 group-hover:opacity-100 transition-opacity" />
                   </button>
                 )}

@@ -379,7 +379,7 @@ export function TagManagerDialog({
           </DialogHeader>
 
           <div className="grid min-h-0 grid-cols-[13rem_minmax(0,1fr)] overflow-hidden rounded-xl border border-[color:var(--border-normal)]">
-            <aside className="flex min-h-0 flex-col overflow-hidden border-r border-[color:var(--border-normal)] bg-[var(--bg-surface)] p-2">
+            <aside className="flex min-h-0 flex-col overflow-hidden border-r border-[color:var(--border-normal)] bg-[var(--bg-elevated)] p-2">
               <div className="min-h-0 flex-1 overflow-y-auto">
               <button
                 type="button"
@@ -415,7 +415,7 @@ export function TagManagerDialog({
                       <span
                         data-tag-category-insertion-line
                         className={cn(
-                          'pointer-events-none absolute left-1 right-1 z-10 h-0.5 rounded-full bg-[var(--brand)] shadow-[0_0_0_2px_var(--bg-surface)]',
+                          'pointer-events-none absolute left-1 right-1 z-10 h-0.5 rounded-full bg-[var(--brand)] shadow-[0_0_0_2px_var(--bg-elevated)]',
                           pointerDropTarget.edge === 'before' ? '-top-[3px]' : '-bottom-[3px]',
                         )}
                       />
@@ -448,7 +448,7 @@ export function TagManagerDialog({
                       )}
                     >
                     <span className="flex min-w-0 items-center gap-1.5">
-                      <span className="truncate">{category}</span>
+                      <span className="truncate" title={category}>{category}</span>
                       <span title={CATEGORY_HELP[category as keyof typeof CATEGORY_HELP] ?? '自定义标签组'} className="shrink-0 cursor-help">
                         <HelpCircle className="h-3.5 w-3.5" />
                       </span>

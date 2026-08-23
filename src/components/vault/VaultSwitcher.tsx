@@ -84,7 +84,7 @@ export function VaultSwitcher({ expanded }: { expanded: boolean }) {
           )}
         >
           <FolderOpen className="h-[18px] w-[18px] shrink-0" />
-          <span className={cn('min-w-0 truncate', expanded ? 'flex-1 text-xs' : 'text-[10px] leading-none')}>{current?.name ?? '文件库'}</span>
+          <span className={cn('min-w-0 truncate', expanded ? 'flex-1 text-xs' : 'text-[11px] leading-none')} title={current?.name ?? '文件库'}>{current?.name ?? '文件库'}</span>
         </button>
       </PopoverTrigger>
       <PopoverContent side="right" align="end" className="w-80 p-2" data-vault-switcher-menu>
@@ -92,7 +92,7 @@ export function VaultSwitcher({ expanded }: { expanded: boolean }) {
           <FolderOpen className="h-4 w-4 text-brand" />
           <div className="min-w-0 flex-1">
             <p className="text-xs font-semibold">文件库</p>
-            <p className="text-[10px] text-muted-foreground">演示库和私人库可以分开保存</p>
+            <p className="text-[11px] text-muted-foreground">演示库和私人库可以分开保存</p>
           </div>
           {loading && <RefreshCw className="h-3.5 w-3.5 animate-spin text-muted-foreground" />}
         </div>
@@ -107,8 +107,8 @@ export function VaultSwitcher({ expanded }: { expanded: boolean }) {
             >
               <Check className={cn('mt-0.5 h-3.5 w-3.5 shrink-0', profile.id === registry?.activeId ? 'text-brand' : 'text-transparent')} />
               <span className="min-w-0 flex-1">
-                <span className="block truncate text-xs font-medium">{profile.name}</span>
-                <span className="block truncate text-[10px] text-muted-foreground" title={profile.path}>{profile.path}</span>
+                <span className="block truncate text-xs font-medium" title={profile.name}>{profile.name}</span>
+                <span className="block truncate text-[11px] text-muted-foreground" title={profile.path}>{profile.path}</span>
               </span>
             </button>
           ))}

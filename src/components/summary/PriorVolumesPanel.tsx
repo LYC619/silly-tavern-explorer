@@ -48,9 +48,9 @@ export function PriorVolumesPanel({ volumes, selectedIds, onChange }: PriorVolum
             <label key={v.id} className="flex items-center gap-2 py-1 px-1 rounded hover:bg-accent cursor-pointer text-sm">
               <Checkbox checked={selectedIds.includes(v.id)} onCheckedChange={() => toggle(v.id)} />
               {v.volumeNumber != null && (
-                <Badge variant="outline" className="text-[10px] px-1 py-0 shrink-0">第{v.volumeNumber}卷</Badge>
+                <Badge variant="outline" className="text-[11px] px-1 py-0 shrink-0">第{v.volumeNumber}卷</Badge>
               )}
-              <span className="truncate">{v.title}</span>
+              <span className="truncate" title={v.title}>{v.title}</span>
               <span className="text-xs text-muted-foreground shrink-0 ml-auto">楼层 {v.floorStart}~{v.floorEnd}</span>
             </label>
           ))}

@@ -517,7 +517,7 @@ export function RegexSidebar({ rules, onRulesChange, isOpen, onClose, sampleMess
                           onClick={() => handleLoadPreset(preset)}
                           title={`加载「${preset.name}」`}
                         >
-                          <span className="truncate block">{preset.name}</span>
+                          <span className="truncate block" title={preset.name}>{preset.name}</span>
                           <span className="text-xs text-muted-foreground">
                             {preset.rules.length} 条规则
                           </span>

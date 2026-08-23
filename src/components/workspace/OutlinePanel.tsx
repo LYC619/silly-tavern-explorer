@@ -48,7 +48,7 @@ export function OutlinePanel({ session, markers, favorites, onJump }: OutlinePan
                 className="w-full flex items-center gap-1.5 rounded-md px-2 py-1 text-left text-sm hover:bg-accent/60 transition-colors"
               >
                 <BookMarked className="w-3.5 h-3.5 shrink-0 text-primary/60" />
-                <span className="flex-1 min-w-0 truncate">
+                <span className="flex-1 min-w-0 truncate" title={m.title}>
                   {m.volume ? `${m.volume} · ` : ''}{m.title}
                 </span>
                 <span className="text-xs text-muted-foreground shrink-0">#{m.messageIndex}</span>
@@ -73,7 +73,7 @@ export function OutlinePanel({ session, markers, favorites, onJump }: OutlinePan
                 className="w-full flex items-center gap-1.5 rounded-md px-2 py-1 text-left text-sm hover:bg-accent/60 transition-colors"
               >
                 <Bookmark className="w-3.5 h-3.5 shrink-0 text-amber-500/70" />
-                <span className="flex-1 min-w-0 truncate text-foreground/80">{f.snippet}</span>
+                <span className="flex-1 min-w-0 truncate text-foreground/80" title={f.snippet}>{f.snippet}</span>
                 <span className="text-xs text-muted-foreground shrink-0">#{f.index}</span>
               </button>
             ))}

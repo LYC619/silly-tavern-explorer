@@ -277,8 +277,8 @@ export function DirectorySettingsPanel() {
                 className="flex w-full items-center gap-2 rounded-md border border-border px-2.5 py-2 text-left text-xs transition-colors hover:bg-accent disabled:cursor-default disabled:opacity-70"
               >
                 <span className={profile.id === vaultRegistry.activeId ? 'h-2 w-2 rounded-full bg-primary' : 'h-2 w-2 rounded-full bg-muted-foreground/30'} />
-                <span className="min-w-0 flex-1 truncate font-medium">{profile.name}</span>
-                <span className="max-w-[16rem] truncate text-[10px] text-muted-foreground" title={profile.path}>{profile.path}</span>
+                <span className="min-w-0 flex-1 truncate font-medium" title={profile.name}>{profile.name}</span>
+                <span className="max-w-[16rem] truncate text-[11px] text-muted-foreground" title={profile.path}>{profile.path}</span>
               </button>
             ))}
           </div>

@@ -83,8 +83,8 @@ export function BindStoryDialog({ open, onOpenChange, onSelect }: BindStoryDialo
                       )}
                     </div>
                     <div className="min-w-0">
-                      <p className="text-sm font-medium truncate">{c.name}</p>
-                      {c.subtitle && <p className="text-xs text-muted-foreground truncate">{c.subtitle}</p>}
+                      <p className="text-sm font-medium truncate" title={c.name}>{c.name}</p>
+                      {c.subtitle && <p className="text-xs text-muted-foreground truncate" title={c.subtitle}>{c.subtitle}</p>}
                     </div>
                   </button>
                 ))}

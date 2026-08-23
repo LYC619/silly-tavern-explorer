@@ -233,9 +233,9 @@ export function AssetSection({ character, onAssetsChange, onQuotesChange, onRead
                         onClick={() => void handleAdd(a)}
                       >
                         <Icon className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
-                        <span className="flex-1 min-w-0 truncate">{a.title}</span>
-                        {a.derived && <Badge variant="outline" className="h-4 px-1 text-[10px] shrink-0">派生</Badge>}
-                        <span className="text-[10px] text-muted-foreground shrink-0">{KIND_META[a.kind].label}</span>
+                        <span className="flex-1 min-w-0 truncate" title={a.title}>{a.title}</span>
+                        {a.derived && <Badge variant="outline" className="h-4 px-1 text-[11px] shrink-0">派生</Badge>}
+                        <span className="text-[11px] text-muted-foreground shrink-0">{KIND_META[a.kind].label}</span>
                       </button>
                     );
                   })}
@@ -265,19 +265,19 @@ export function AssetSection({ character, onAssetsChange, onQuotesChange, onRead
                 title="点击查看条目预览"
               >
                 <Icon className="w-4 h-4 text-muted-foreground shrink-0" />
-                <span className="min-w-0 truncate font-medium">{a.title}</span>
-                <Badge variant="outline" className="h-4 px-1 text-[10px] text-muted-foreground shrink-0">{meta.label}</Badge>
+                <span className="min-w-0 truncate font-medium" title={a.title}>{a.title}</span>
+                <Badge variant="outline" className="h-4 px-1 text-[11px] text-muted-foreground shrink-0">{meta.label}</Badge>
                 {a.kind !== 'quote' && (
                   a.derived ? (
-                    <Badge variant="secondary" className="h-4 px-1 text-[10px] shrink-0" title={isOwnDerived ? '本角色的派生副本' : '其他角色的派生副本'}>
+                    <Badge variant="secondary" className="h-4 px-1 text-[11px] shrink-0" title={isOwnDerived ? '本角色的派生副本' : '其他角色的派生副本'}>
                       派生{isOwnDerived ? '' : '(他人)'}
                     </Badge>
                   ) : (
-                    <Badge variant="outline" className="h-4 px-1 text-[10px] text-muted-foreground shrink-0">共享</Badge>
+                    <Badge variant="outline" className="h-4 px-1 text-[11px] text-muted-foreground shrink-0">共享</Badge>
                   )
                 )}
                 {a.relations?.map((relation) => (
-                  <Badge key={relation} variant="outline" className="h-4 px-1 text-[10px] text-primary shrink-0">
+                  <Badge key={relation} variant="outline" className="h-4 px-1 text-[11px] text-primary shrink-0">
                     {RELATION_LABELS[relation]}
                   </Badge>
                 ))}
@@ -314,7 +314,7 @@ export function AssetSection({ character, onAssetsChange, onQuotesChange, onRead
           })}
           {broken.map((ref) => (
             <div key={`${ref.kind}-${ref.assetId}`} className="flex items-center gap-2.5 rounded-lg border border-dashed border-border px-3 py-2 text-sm text-muted-foreground">
-              <span className="min-w-0 truncate">引用的{KIND_META[ref.kind].label}已被删除</span>
+              <span className="min-w-0 truncate" title={`引用的${KIND_META[ref.kind].label}已被删除`}>引用的{KIND_META[ref.kind].label}已被删除</span>
               <Button
                 variant="ghost"
                 size="sm"
@@ -328,8 +328,8 @@ export function AssetSection({ character, onAssetsChange, onQuotesChange, onRead
           {unresolved.map((ref) => (
             <div key={`${ref.kind}-${ref.relation}-${ref.name}`} className="flex items-center gap-2.5 rounded-lg border border-dashed border-amber-500/50 px-3 py-2 text-sm">
               <Globe className="w-4 h-4 text-amber-600 shrink-0" />
-              <span className="min-w-0 truncate">未找到世界书「{ref.name}」</span>
-              <Badge variant="outline" className="ml-auto h-4 px-1 text-[10px] text-amber-700 shrink-0">
+              <span className="min-w-0 truncate" title={`未找到世界书「${ref.name}」`}>未找到世界书「{ref.name}」</span>
+              <Badge variant="outline" className="ml-auto h-4 px-1 text-[11px] text-amber-700 shrink-0">
                 {RELATION_LABELS[ref.relation]}
               </Badge>
             </div>
@@ -357,7 +357,7 @@ export function AssetSection({ character, onAssetsChange, onQuotesChange, onRead
                   <div key={i} className="rounded-lg border border-border bg-card px-3 py-2.5">
                     {e.title && <p className="text-sm font-medium mb-1">{e.title}</p>}
                     {e.keys && <p className="text-xs text-muted-foreground font-mono mb-1.5 break-all">{e.keys}</p>}
-                    {e.body && <p className="text-[13px] leading-relaxed whitespace-pre-wrap text-muted-foreground">{e.body}</p>}
+                    {e.body && <p className="text-sm leading-relaxed whitespace-pre-wrap text-muted-foreground">{e.body}</p>}
                   </div>
                 ))}
                 {preview.count > preview.entries.length && (

@@ -59,7 +59,7 @@ export function StagedWorldBookList({ items, onSelect, onDelete, variant }: Stag
         >
           <CardContent className="p-3 flex items-center justify-between">
             <div className="min-w-0">
-              <p className="font-medium text-sm truncate text-foreground">{item.title}</p>
+              <p className="font-medium text-sm truncate text-foreground" title={item.title}>{item.title}</p>
               <p className="text-xs text-muted-foreground">
                 {Object.keys(item.worldbook.entries).length} 个条目
                 <span className="mx-1">·</span>

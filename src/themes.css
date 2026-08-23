@@ -17,7 +17,9 @@
   --status-ok: #96be8c;
   --status-ok-bg: rgba(150, 190, 140, 0.15);
   --status-warn: #E0B44A;
+  --status-warn-bg: rgba(224, 180, 74, 0.15);
   --status-danger: #E06A5A;
+  --status-danger-bg: rgba(224, 106, 90, 0.15);
 
   /* 卡片/资产的分类色点 */
   --tag-review: #e08a4a;

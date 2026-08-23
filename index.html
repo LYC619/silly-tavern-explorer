@@ -4,6 +4,21 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>ST Explorer</title>
+    <script>
+      (() => {
+        const themes = ['cocoa', 'ink', 'midnight', 'cream'];
+        let theme = 'cocoa';
+        try {
+          const saved = localStorage.getItem('ste-theme');
+          if (saved && themes.includes(saved)) theme = saved;
+        } catch {
+          // 首屏脚本不能阻塞应用启动，异常时使用默认深色主题。
+        }
+        const root = document.documentElement;
+        root.setAttribute('data-theme', theme);
+        root.classList.toggle('dark', theme !== 'cream');
+      })();
+    </script>
     <meta name="description" content="ST Explorer - SillyTavern 角色卡与聊天记录的一站式归档库" />
     <meta name="author" content="ST Explorer" />
     <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%238B4513' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><path d='M8 21h12a2 2 0 0 0 2-2v-2H10v2a2 2 0 1 1-4 0V5a2 2 0 1 0-4 0v3h4'/><path d='M19 17V5a2 2 0 0 0-2-2H4'/></svg>" type="image/svg+xml">

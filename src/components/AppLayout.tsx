@@ -103,7 +103,7 @@ const SideItem = forwardRef<HTMLButtonElement, SideItemProps>(function SideItem(
     >
       {active && <span className="absolute left-0 top-2 bottom-2 w-0.5 rounded-full bg-brand-accent" />}
       <Icon className="w-[18px] h-[18px] shrink-0" />
-      <span className={cn('text-left', expanded ? 'flex-1 truncate' : 'text-[10px] leading-none whitespace-nowrap')}>
+      <span className={cn('text-left', expanded ? 'flex-1 truncate' : 'text-[11px] leading-none whitespace-nowrap')} title={label}>
         {label}
       </span>
     </button>
@@ -134,7 +134,7 @@ function SideSubItem({
       )}
     >
       <Icon className="h-3.5 w-3.5 shrink-0 opacity-80" />
-      <span className="min-w-0 flex-1 truncate">{item.label}</span>
+      <span className="min-w-0 flex-1 truncate" title={item.label}>{item.label}</span>
     </button>
   );
 }
@@ -361,7 +361,7 @@ function PersistentAppLayout({ children, titleBarContent, actions, leftActions }
 
       {/* ===== 状态栏（10.1-A6：ST 接入与数据占用挪设置页，这里只留环境+版本） ===== */}
       <footer className="h-[26px] shrink-0 bg-chrome border-t border-[color:var(--border-subtle)] flex items-center justify-between px-3.5 text-[11px] text-[color:var(--text-muted)]">
-        <span className="truncate">{client ? '客户端' : '网页版 · 数据保存在浏览器本地'}</span>
+        <span className="truncate" title={client ? '客户端' : '网页版 · 数据保存在浏览器本地'}>{client ? '客户端' : '网页版 · 数据保存在浏览器本地'}</span>
         <span className="shrink-0">STE {APP_VERSION}</span>
       </footer>
       </div>

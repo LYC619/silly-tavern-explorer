@@ -187,12 +187,12 @@ export function IntroSection({ character, norm, onPatch }: IntroSectionProps) {
       {/* 状态行 + 操作 */}
       <div className="flex items-center gap-2 flex-wrap">
         {current && (
-          <Badge variant="outline" className="h-5 px-1.5 text-[10px] text-muted-foreground font-normal">
+          <Badge variant="outline" className="h-5 px-1.5 text-[11px] text-muted-foreground font-normal">
             {current.source === 'ai' ? 'AI 简介' : '手动整理'} · {fmtTime(current.createdAt)}
           </Badge>
         )}
         {stale && (
-          <Badge variant="outline" className="h-5 px-1.5 text-[10px] gap-1 text-amber-600 border-amber-300 font-normal">
+          <Badge variant="outline" className="h-5 px-1.5 text-[11px] gap-1 text-amber-600 border-amber-300 font-normal">
             <TriangleAlert className="w-3 h-3" />
             可能已过期（关联世界书有更新）
           </Badge>
@@ -322,12 +322,12 @@ export function IntroSection({ character, norm, onPatch }: IntroSectionProps) {
               {history.map((v, i) => (
                 <div key={`${v.createdAt}-${i}`} className="rounded-md border border-border p-3 space-y-2">
                   <div className="flex items-center gap-2 flex-wrap">
-                    <Badge variant="outline" className="h-5 px-1.5 text-[10px] font-normal">
+                    <Badge variant="outline" className="h-5 px-1.5 text-[11px] font-normal">
                       {v.source === 'ai' ? 'AI 生成' : '手动整理'}
                     </Badge>
                     <span className="text-xs text-muted-foreground">{fmtTime(v.createdAt)}</span>
                     {v.source === 'ai' && v.readScope && v.readScope.length > 0 && (
-                      <span className="text-[10px] text-muted-foreground">
+                      <span className="text-[11px] text-muted-foreground">
                         读取：{describeReadScope(v.readScope, wbNames)}
                       </span>
                     )}

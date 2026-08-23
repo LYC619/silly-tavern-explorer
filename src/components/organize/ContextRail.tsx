@@ -132,11 +132,11 @@ export function ContextRail({
             <div className="flex items-center gap-1.5 mb-1">
               <p className="text-sm font-medium">生成参数</p>
               {!item.content ? (
-                <Badge variant="outline" className="h-4 px-1 text-[10px]">草稿</Badge>
+                <Badge variant="outline" className="h-4 px-1 text-[11px]">草稿</Badge>
               ) : item.autoSaved ? (
-                <Badge variant="outline" className="h-4 px-1 text-[10px]">自动暂存</Badge>
+                <Badge variant="outline" className="h-4 px-1 text-[11px]">自动暂存</Badge>
               ) : (
-                <Badge variant="secondary" className="h-4 px-1 text-[10px]">永久</Badge>
+                <Badge variant="secondary" className="h-4 px-1 text-[11px]">永久</Badge>
               )}
             </div>
             {gp ? (

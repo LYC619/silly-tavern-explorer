@@ -97,10 +97,10 @@ export function StoryTreeView({
               title={NODE_TYPE_LABELS[node.type]}
             />
           )}
-          <span className="truncate flex-1">{node.title || '(未命名)'}</span>
+          <span className="truncate flex-1" title={node.title || '(未命名)'}>{node.title || '(未命名)'}</span>
           {node.pinned && <Pin className="w-3 h-3 text-primary shrink-0" />}
           {node.archived && <Archive className="w-3 h-3 text-muted-foreground shrink-0" />}
-          {node.hint && <span className="text-xs text-muted-foreground truncate max-w-[30%] hidden sm:inline">{node.hint}</span>}
+          {node.hint && <span className="text-xs text-muted-foreground truncate max-w-[30%] hidden sm:inline" title={node.hint}>{node.hint}</span>}
           <button
             onClick={(e) => { e.stopPropagation(); onAddChild(node.id); }}
             className="shrink-0 opacity-0 group-hover:opacity-100 text-muted-foreground hover:text-foreground"

@@ -53,7 +53,7 @@ function DimensionRow({
     <div className="rounded-md border border-border p-2 space-y-1.5">
       <div className="flex items-center gap-2 flex-wrap">
         <span className="text-sm font-medium">{dim.name}</span>
-        <Badge variant="outline" className="h-4 px-1 text-[10px] text-muted-foreground font-normal">权重 {dim.weight}</Badge>
+        <Badge variant="outline" className="h-4 px-1 text-[11px] text-muted-foreground font-normal">权重 {dim.weight}</Badge>
         <Input
           type="number" min={0} max={10} step={0.5}
           value={dim.score}
@@ -403,7 +403,7 @@ export function RatingPanel({ character, norm, stories, onPatch }: RatingPanelPr
                         checked={pickedStoryIds.includes(s.id)}
                         onCheckedChange={(c) => setPickedStoryIds((prev) => (c ? [...prev, s.id] : prev.filter((x) => x !== s.id)))}
                       />
-                      故事「{s.title}」<span className="text-[10px] text-muted-foreground">（抽样节选）</span>
+                      故事「{s.title}」<span className="text-[11px] text-muted-foreground">（抽样节选）</span>
                     </Label>
                   ))}
                 </div>

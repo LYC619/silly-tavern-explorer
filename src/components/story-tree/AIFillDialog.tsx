@@ -265,12 +265,12 @@ export function AIFillDialog({ open, onOpenChange, session, nodes, onApply }: AI
                                   ? <ChevronDown className="w-3.5 h-3.5 shrink-0 text-muted-foreground" />
                                   : <ChevronRight className="w-3.5 h-3.5 shrink-0 text-muted-foreground" />}
                                 <span className={`text-xs font-mono shrink-0 ${badge.cls}`}>{badge.text}</span>
-                                <span className="text-sm truncate">{opTarget(item.op)}</span>
+                                <span className="text-sm truncate" title={opTarget(item.op)}>{opTarget(item.op)}</span>
                                 {typeLabel && (
-                                  <span className="text-[10px] px-1 rounded bg-muted text-muted-foreground shrink-0">{typeLabel}</span>
+                                  <span className="text-[11px] px-1 rounded bg-muted text-muted-foreground shrink-0">{typeLabel}</span>
                                 )}
                                 {!item.expanded && item.op.content && (
-                                  <span className="text-xs text-muted-foreground truncate">
+                                  <span className="text-xs text-muted-foreground truncate" title={item.op.content}>
                                     {item.op.content.slice(0, 60)}
                                   </span>
                                 )}
@@ -289,7 +289,7 @@ export function AIFillDialog({ open, onOpenChange, session, nodes, onApply }: AI
                               <div className="px-2 pb-2 pl-8 space-y-1.5">
                                 {item.op.op === 'insert' && (
                                   <div className="flex items-center gap-1.5">
-                                    <Label className="text-[10px] text-muted-foreground shrink-0">标题</Label>
+                                    <Label className="text-[11px] text-muted-foreground shrink-0">标题</Label>
                                     <Input
                                       value={item.op.title ?? ''}
                                       onChange={(e) => patchOp(i, { title: e.target.value })}
@@ -299,7 +299,7 @@ export function AIFillDialog({ open, onOpenChange, session, nodes, onApply }: AI
                                 )}
                                 {item.op.op !== 'archive' && (
                                   <div className="space-y-0.5">
-                                    <Label className="text-[10px] text-muted-foreground">
+                                    <Label className="text-[11px] text-muted-foreground">
                                       {item.op.op === 'insert' ? '正文' : '追加内容'}
                                     </Label>
                                     <Textarea
@@ -310,7 +310,7 @@ export function AIFillDialog({ open, onOpenChange, session, nodes, onApply }: AI
                                   </div>
                                 )}
                                 {(item.op.hint || item.op.keywords) && (
-                                  <p className="text-[10px] text-muted-foreground">
+                                  <p className="text-[11px] text-muted-foreground">
                                     {item.op.hint ? `提示：${item.op.hint}` : ''}
                                     {item.op.hint && item.op.keywords ? ' · ' : ''}
                                     {item.op.keywords

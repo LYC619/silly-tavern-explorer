@@ -76,8 +76,8 @@ export function StoryTimeline({ nodes, selectedId, hitIds, onSelect }: StoryTime
               <span className="font-mono text-[11px] text-rose-500/80 shrink-0 font-semibold">
                 {String(i + 1).padStart(2, '0')}
               </span>
-              <span className="text-sm font-semibold truncate">{event.title || '(未命名)'}</span>
-              {event.hint && <span className="text-xs text-muted-foreground truncate">{event.hint}</span>}
+              <span className="text-sm font-semibold truncate" title={event.title || '(未命名)'}>{event.title || '(未命名)'}</span>
+              {event.hint && <span className="text-xs text-muted-foreground truncate" title={event.hint}>{event.hint}</span>}
             </span>
             {event.content && (
               <span className="whitespace-pre-line text-sm leading-relaxed text-foreground/85">
@@ -87,7 +87,7 @@ export function StoryTimeline({ nodes, selectedId, hitIds, onSelect }: StoryTime
             {event.tags.length > 0 && (
               <span className="flex flex-wrap gap-1 pt-0.5">
                 {event.tags.map((tag) => (
-                  <Badge key={tag} variant="secondary" className="px-1.5 py-0 text-[10px]">{tag}</Badge>
+                  <Badge key={tag} variant="secondary" className="px-1.5 py-0 text-[11px]">{tag}</Badge>
                 ))}
               </span>
             )}

@@ -156,7 +156,7 @@ export function STImportResultDialog({ result, onClose }: STImportResultDialogPr
                     <span>{item.kind}</span>
                     <span className="min-w-0 break-all">
                       <span className="block">{item.name}{item.target ? ` → ${RELATION_LABELS[item.target] ?? item.target}` : ''}</span>
-                      {item.sourcePath && <span className="mt-0.5 block text-[10px] text-muted-foreground">{item.sourcePath}</span>}
+                      {item.sourcePath && <span className="mt-0.5 block text-[11px] text-muted-foreground">{item.sourcePath}</span>}
                     </span>
                   </div>
                 ))}
