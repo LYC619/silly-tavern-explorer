@@ -19,7 +19,7 @@ import type { WorldBook, WorldBookItem } from '@/types/worldbook';
 import { generateWorldBookId } from '@/types/worldbook';
 import { saveWorldBook, getAllWorldBooks, getWorldBook, deleteWorldBook, pruneAutoSavedWorldBooks } from '@/lib/worldbook-db';
 import { appendEntries } from '@/lib/worldbook-entry-copy';
-import { planCowSave, buildDerivedMeta } from '@/lib/asset-cow';
+import { saveAssetWithCow } from '@/lib/asset-cow-save';
 import { getCharacter } from '@/lib/archive-db';
 import { updateCharacterAssetReference } from '@/lib/character-asset-ref';
 import { executeDeleteAction } from '@/lib/destructive-action';
@@ -237,48 +237,28 @@ export default function WorldBookPage() {
 
     // 角色上下文 + 已入库的资产：写时复制（定稿第七章）——原资产不动，改动落到该角色的派生副本
     if (cowCharacterId && base) {
-      const plan = planCowSave(base, cowCharacterId, cowCharacterName, savedItems);
-      let targetId: string;
-      if (plan.action === 'update') {
-        targetId = plan.targetId;
-        await saveWorldBook({
-          ...base,
-          title: filename,
-          worldbook,
-          ...(base.derived ? { derived: { ...base.derived, updatedAt: now } } : {}),
-          updatedAt: now,
-          autoSaved: false,
-        });
+      const result = await saveAssetWithCow({
+        kind: 'worldbook',
+        base,
+        all: savedItems,
+        characterId: cowCharacterId,
+        characterName: cowCharacterName,
+        title: filename,
+        content: { worldbook, autoSaved: false },
+        newId: generateWorldBookId,
+        save: saveWorldBook,
+        now,
+      });
+      // 原地更新时 result.title 就是 filename，这行是空操作
+      setFilename(result.title);
+      if (result.action === 'update') {
         toast({ title: '已保存', description: '永久留存，不会被自动清理' });
-      } else if (plan.action === 'redirect') {
-        targetId = plan.targetId;
-        const copy = savedItems.find(s => s.id === plan.targetId)!;
-        await saveWorldBook({
-          ...copy,
-          worldbook,
-          derived: copy.derived ? { ...copy.derived, updatedAt: now } : copy.derived,
-          updatedAt: now,
-          autoSaved: false,
-        });
-        setFilename(copy.title);
-        toast({ title: `已更新派生副本「${copy.title}」`, description: '原世界书未改动' });
+      } else if (result.action === 'redirect') {
+        toast({ title: `已更新派生副本「${result.title}」`, description: '原世界书未改动' });
       } else {
-        targetId = generateWorldBookId();
-        await saveWorldBook({
-          id: targetId,
-          title: plan.copyTitle,
-          worldbook,
-          derived: buildDerivedMeta(plan.derivedFrom, cowCharacterId),
-          createdAt: now,
-          updatedAt: now,
-          autoSaved: false,
-        });
-        setFilename(plan.copyTitle);
-        toast({ title: '已生成派生副本', description: `「${plan.copyTitle}」，原世界书与其他角色不受影响` });
+        toast({ title: '已生成派生副本', description: `「${result.title}」，原世界书与其他角色不受影响` });
       }
-      // 该角色的引用切到副本
-      await updateCharacterAssetReference(cowCharacterId, 'worldbook', base.id, targetId, now);
-      setCurrentItemId(targetId);
+      setCurrentItemId(result.targetId);
       markWorldbookClean(worldbook);
       setSavedItems(await getAllWorldBooks());
       return;

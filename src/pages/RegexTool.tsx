@@ -35,7 +35,7 @@ import {
   generateRegexCollectionId,
   type RegexCollectionItem,
 } from '@/lib/regex-db';
-import { planCowSave, buildDerivedMeta } from '@/lib/asset-cow';
+import { saveAssetWithCow } from '@/lib/asset-cow-save';
 import { getCharacter, getAllArchiveStories } from '@/lib/archive-db';
 import { updateCharacterAssetReference } from '@/lib/character-asset-ref';
 import { executeDeleteAction } from '@/lib/destructive-action';
@@ -134,43 +134,24 @@ const RegexTool = () => {
         // 角色上下文：写时复制决策
         const base = activeCollectionId ? collections.find((c) => c.id === activeCollectionId) : undefined;
         if (base) {
-          const plan = planCowSave(base, cowCharacterId, cowCharacterName, collections);
-          let targetId: string;
-          if (plan.action === 'update') {
-            targetId = plan.targetId;
-            await saveRegexCollection({
-              ...base,
-              title: name,
-              rules: JSON.parse(JSON.stringify(rules)),
-              ...(base.derived ? { derived: { ...base.derived, updatedAt: Date.now() } } : {}),
-              updatedAt: Date.now(),
-            });
-          } else if (plan.action === 'redirect') {
-            targetId = plan.targetId;
-            const copy = collections.find((c) => c.id === plan.targetId)!;
-            await saveRegexCollection({
-              ...copy,
-              rules: JSON.parse(JSON.stringify(rules)),
-              derived: copy.derived ? { ...copy.derived, updatedAt: Date.now() } : copy.derived,
-              updatedAt: Date.now(),
-            });
-            toast({ title: `已更新派生副本「${copy.title}」` });
-          } else {
-            targetId = generateRegexCollectionId();
-            const now = Date.now();
-            await saveRegexCollection({
-              id: targetId,
-              title: plan.copyTitle,
-              rules: JSON.parse(JSON.stringify(rules)),
-              derived: buildDerivedMeta(plan.derivedFrom, cowCharacterId),
-              createdAt: now,
-              updatedAt: now,
-            });
-            toast({ title: '已生成派生副本', description: `「${plan.copyTitle}」，原规则集未改动` });
+          const result = await saveAssetWithCow({
+            kind: 'regex',
+            base,
+            all: collections,
+            characterId: cowCharacterId,
+            characterName: cowCharacterName,
+            title: name,
+            content: { rules: JSON.parse(JSON.stringify(rules)) },
+            newId: generateRegexCollectionId,
+            save: saveRegexCollection,
+          });
+          // 原地更新这条历来不提示，与世界书/预设的「已保存」不一致；统一文案是另一件事
+          if (result.action === 'redirect') {
+            toast({ title: `已更新派生副本「${result.title}」` });
+          } else if (result.action === 'copy') {
+            toast({ title: '已生成派生副本', description: `「${result.title}」，原规则集未改动` });
           }
-          // 角色引用切到目标副本
-          await updateCharacterAssetReference(cowCharacterId, 'regex', base.id, targetId);
-          setActiveCollectionId(targetId);
+          setActiveCollectionId(result.targetId);
         } else {
           // 角色上下文的全新规则集：直接入库并挂引用
           const item = buildRegexCollection(name, rules);

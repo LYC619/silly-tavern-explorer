@@ -19,7 +19,7 @@ import { parsePreset, getActiveOrder } from '@/lib/preset-parser';
 import {
   getAllPresets, getPreset, savePreset, deletePreset, pruneAutoSavedPresets,
 } from '@/lib/preset-db';
-import { planCowSave, buildDerivedMeta } from '@/lib/asset-cow';
+import { saveAssetWithCow } from '@/lib/asset-cow-save';
 import { getCharacter } from '@/lib/archive-db';
 import { updateCharacterAssetReference } from '@/lib/character-asset-ref';
 import { takePendingToolFile, peekPendingToolFile } from '@/lib/tool-handoff';
@@ -283,38 +283,28 @@ export default function Preset() {
     const base = currentItemId ? savedItems.find((s) => s.id === currentItemId) : undefined;
 
     if (cowCharacterId && base) {
-      const plan = planCowSave(base, cowCharacterId, cowCharacterName, savedItems);
-      let targetId: string;
-      if (plan.action === 'update') {
-        targetId = plan.targetId;
-        await savePreset({
-          ...base, title: fileName, preset,
-          ...(base.derived ? { derived: { ...base.derived, updatedAt: now } } : {}),
-          updatedAt: now, autoSaved: false,
-        });
+      const result = await saveAssetWithCow({
+        kind: 'preset',
+        base,
+        all: savedItems,
+        characterId: cowCharacterId,
+        characterName: cowCharacterName,
+        title: fileName,
+        content: { preset, autoSaved: false },
+        newId: generatePresetId,
+        save: savePreset,
+        now,
+      });
+      // 原地更新时 result.title 就是 fileName，这行是空操作
+      setFileName(result.title);
+      if (result.action === 'update') {
         toast({ title: '已保存', description: '永久留存、纳入完整备份' });
-      } else if (plan.action === 'redirect') {
-        targetId = plan.targetId;
-        const copy = savedItems.find((s) => s.id === plan.targetId)!;
-        await savePreset({
-          ...copy, preset,
-          derived: copy.derived ? { ...copy.derived, updatedAt: now } : copy.derived,
-          updatedAt: now, autoSaved: false,
-        });
-        setFileName(copy.title);
-        toast({ title: `已更新派生副本「${copy.title}」`, description: '原预设未改动' });
+      } else if (result.action === 'redirect') {
+        toast({ title: `已更新派生副本「${result.title}」`, description: '原预设未改动' });
       } else {
-        targetId = generatePresetId();
-        await savePreset({
-          id: targetId, title: plan.copyTitle, preset,
-          derived: buildDerivedMeta(plan.derivedFrom, cowCharacterId),
-          createdAt: now, updatedAt: now, autoSaved: false,
-        });
-        setFileName(plan.copyTitle);
-        toast({ title: '已生成派生副本', description: `「${plan.copyTitle}」，原预设与其他角色不受影响` });
+        toast({ title: '已生成派生副本', description: `「${result.title}」，原预设与其他角色不受影响` });
       }
-      await updateCharacterAssetReference(cowCharacterId, 'preset', base.id, targetId, now);
-      setCurrentItemId(targetId);
+      setCurrentItemId(result.targetId);
       await refreshSaved();
       return;
     }
