@@ -31,7 +31,7 @@ import { cn } from '@/lib/utils';
 import { classifyAssetSource, type AssetSource } from '@/lib/asset-source';
 import type { WorldBookItem } from '@/types/worldbook';
 import type { PresetItem } from '@/types/preset';
-import type { RegexCollectionItem } from '@/lib/regex-db';
+import type { RegexCollectionItem } from '@/types/regex';
 import { getAllWorldBooks, deleteWorldBook, saveWorldBook } from '@/lib/worldbook-db';
 import { readWorldBookUpload, worldBookItemFromUpload } from '@/lib/worldbook-file-import';
 import { getAllPresets, deletePreset } from '@/lib/preset-db';

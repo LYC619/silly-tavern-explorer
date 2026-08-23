@@ -1,26 +1,11 @@
 /**
- * 正则规则集资产（2.0 阶段5，定稿第六/七章「规则入资产库」）。
- * 一条资产 = 一套命名的规则集（RegexRule[]），与世界书/预设同级的独立资产，
- * 支持引用 + 写时复制（derived 字段）。当前编辑中的规则仍走 localStorage
- * （session-storage），资产库负责持久化收藏与跨角色共享。
+ * 正则规则集资产的数据访问（2.0 阶段5，定稿第六/七章「规则入资产库」）。
+ * 记录类型见 `@/types/regex`——放在那边是为了断开
+ * regex-db → lib/repo → vault/active → vault-backend → regex-db 这条循环依赖。
  */
 import type { RegexRule } from '@/types/chat';
-import type { DerivedAssetMeta, EmbeddedAssetMeta } from '@/types/archive';
+import type { RegexCollectionItem } from '@/types/regex';
 import { createRepo } from '@/lib/repo';
-
-export interface RegexCollectionItem {
-  id: string;
-  title: string;
-  rules: RegexRule[];
-  /** 写时复制派生副本的元数据；无 = 原生资产 */
-  derived?: DerivedAssetMeta;
-  /** 从 ST 目录导入时的来源绝对路径（阶段9.11，重复导入判定） */
-  sourcePath?: string;
-  /** 从角色卡内置正则提取时记录，用于按角色+内容哈希幂等导入。 */
-  embedded?: EmbeddedAssetMeta;
-  createdAt: number;
-  updatedAt: number;
-}
 
 const repo = createRepo<RegexCollectionItem>('regexes');
 

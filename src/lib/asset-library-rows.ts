@@ -1,4 +1,4 @@
-import type { RegexCollectionItem } from '@/lib/regex-db';
+import type { RegexCollectionItem } from '@/types/regex';
 import type { PresetItem } from '@/types/preset';
 import type { WorldBookItem } from '@/types/worldbook';
 

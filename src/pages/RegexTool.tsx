@@ -33,8 +33,8 @@ import {
   deleteRegexCollection,
   buildRegexCollection,
   generateRegexCollectionId,
-  type RegexCollectionItem,
 } from '@/lib/regex-db';
+import type { RegexCollectionItem } from '@/types/regex';
 import { saveAssetWithCow } from '@/lib/asset-cow-save';
 import { getCharacter, getAllArchiveStories } from '@/lib/archive-db';
 import { updateCharacterAssetReference } from '@/lib/character-asset-ref';

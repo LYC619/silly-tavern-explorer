@@ -26,7 +26,7 @@ import type { WorldBookItem, WorldBook } from '@/types/worldbook';
 import type { PresetItem } from '@/types/preset';
 import type { CardItem } from '@/types/character-card';
 import type { RatingTemplateItem } from '@/types/rating';
-import type { RegexCollectionItem } from '@/lib/regex-db';
+import type { RegexCollectionItem } from '@/types/regex';
 import { parsePreset, exportPreset } from '@/lib/preset-parser';
 import { serializeChatJsonl } from '@/lib/adapters/st/chat-jsonl';
 import type { VaultFs } from './fs';

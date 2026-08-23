@@ -12,7 +12,7 @@ import type { SummaryItem, SummaryKind } from '@/types/summary';
 import type { WorldBookItem, WorldBookEntry } from '@/types/worldbook';
 import type { PresetItem } from '@/types/preset';
 import type { CardItem } from '@/types/character-card';
-import type { RegexCollectionItem } from '@/lib/regex-db';
+import type { RegexCollectionItem } from '@/types/regex';
 import type { ChatSession, ChatMessage, STRawMessage } from '@/types/chat';
 import type { STCharacterCard } from '@/lib/png-parser';
 
