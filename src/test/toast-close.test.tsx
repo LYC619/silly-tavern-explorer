@@ -3,7 +3,8 @@
  *
  * shadcn 默认写法是 `opacity-0 group-hover:opacity-100`：鼠标不悬停就完全透明。
  * 触屏根本没有 hover 状态，等于这条 toast 没有关闭键，只能等它自己超时消失。
- * 同时热区只有 24×24（p-1 + 16px 图标）。
+ * 同时热区只有 24×24（p-1 + 16px 图标）；绝对定位的关闭键使用 p-2 直接撑到 32px，
+ * 不使用依赖 relative 定位基准的 tap-target 伪元素。
  */
 import { act } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
@@ -58,8 +59,8 @@ describe('Toast 关闭键', () => {
     await renderToast();
 
     const className = closeButton().className;
-    expect(className.split(/\s+/)).toContain('tap-target');
-    expect(className).toContain('p-1.5');
+    expect(className.split(/\s+/)).not.toContain('tap-target');
+    expect(className).toContain('p-2');
     expect(className).toContain('text-foreground/60');
   });
 
