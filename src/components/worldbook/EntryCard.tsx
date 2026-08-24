@@ -21,7 +21,7 @@ interface Props {
 }
 
 function groupColor(group: string): string {
-  if (!group) return 'hsl(var(--muted))';
+  if (!group) return 'var(--bg-elevated-strong)';
   let hash = 0;
   for (let i = 0; i < group.length; i++) hash = group.charCodeAt(i) + ((hash << 5) - hash);
   const hue = Math.abs(hash) % 360;

@@ -75,8 +75,8 @@ export function StoryTreeView({
             node.archived && 'opacity-50',
             isDimmed && 'opacity-35',
             zone === 'inside' && 'ring-1 ring-primary bg-primary/5',
-            zone === 'before' && 'shadow-[inset_0_2px_0_0_hsl(var(--primary))]',
-            zone === 'after' && 'shadow-[inset_0_-2px_0_0_hsl(var(--primary))]'
+            zone === 'before' && 'shadow-[inset_0_2px_0_0_var(--brand)]',
+            zone === 'after' && 'shadow-[inset_0_-2px_0_0_var(--brand)]'
           )}
           style={{ paddingLeft: `${depth * 16 + 4}px` }}
         >

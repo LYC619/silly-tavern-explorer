@@ -3,15 +3,40 @@
    ============================================================
    四套主题共享同一套 CSS 变量名，切换主题 = 切换 <html data-theme>
    开发者：只需保证所有组件使用 var(--xxx)，不要硬编码颜色
+
+   ---------- 两套命名，一个事实源 ----------
+   项目代码只用项目自己的命名（--bg-canvas / --text-body / --status-* ……）。
+   shadcn 组件内部用的是它自带的一套（--background / --foreground / --muted ……），
+   那套在每个主题块末尾的「shadcn 适配层」里映射到本主题的取值，不自己定颜色。
+   所以：改颜色只改主题块顶部的 HSL 三元组，两侧一起跟随，不会像以前那样
+   （index.css 里手抄一份 HSL）改了一边漏另一边——midnight 的 muted 抬了 AA，
+   shadcn 那份还留在旧值上，就是这么来的。
+
+   为什么留着 HSL 三元组这一层：Tailwind v3 要靠裸三元组补 / <alpha-value>，
+   bg-primary/90、text-foreground/60 这类透明度修饰符才有效。项目变量则要能
+   直接进 CSS，所以用 hsl() 包一层。两边同源。
+
+   例外（有意不映射，别顺手接上）：
+   - --border / --input / --sidebar-border：项目侧是半透明白叠加，shadcn 要的是
+     不透明色值，这里存的是压平后的等效色。
+   - --destructive：那是「实心底 + 白字」的按钮底色；--status-danger 是正文用的
+     浅色，白字压上去只有 1.6:1。两者角色不同。
    ============================================================ */
 
 /* ---------- 全局品牌色（跨主题不变） ---------- */
 :root {
-  --brand: #E08A4A;
+  --brand-hsl: 25.6 70.8% 58.4%;
+  --brand: hsl(var(--brand-hsl));
   --brand-hi: #F0A15C;
   --brand-active-bg: rgba(224, 138, 74, 0.14);
   --brand-active-bg-strong: rgba(224, 138, 74, 0.20);
   --brand-hairline: rgba(224, 138, 74, 0.30);
+
+  /* 主色的 shadcn 适配：四套主题同一个品牌色，不必逐主题重复 */
+  --primary: var(--brand-hsl);
+  --ring: var(--brand-hsl);
+  --sidebar-primary: var(--brand-hsl);
+  --sidebar-ring: var(--brand-hsl);
 
   /* 语义色兜底：四组各有「文字色 + 背景色」两个变量，每套主题再各自覆盖一份。
      这里的值等于 cocoa（默认主题），只在 <html> 还没拿到 data-theme 时兜底，
@@ -31,7 +56,8 @@
   --titlebar-close-bg: #c42b1c;
   --titlebar-close-text: #ffffff;
 
-  /* 卡片/资产的分类色点 */  --tag-review: #e08a4a;
+  /* 卡片/资产的分类色点 */
+  --tag-review: #e08a4a;
   --tag-people: #a08acc;
   --tag-play: #8ac0a8;
   --tag-scene: #c0a08a;
@@ -59,11 +85,21 @@
    ① 主题 · 深咖啡（默认，推荐主色）
    ============================================================ */
 [data-theme="cocoa"] {
+  /* HSL 三元组 = 这套主题的单一事实源。下面项目变量用 hsl() 包一层，
+     shadcn 适配层直接吃裸三元组，改色只改这一处。理由见文件头。 */
+  --canvas-hsl: 25.7 30.4% 9%;
+  --chrome-hsl: 30 36.8% 7.5%;
+  --elevated-hsl: 30 38.5% 10.2%;
+  --elevated-strong-hsl: 30 35.5% 12.2%;
+  --text-primary-hsl: 36 40% 90.2%;
+  --text-body-hsl: 40 17.3% 79.6%;
+  --text-muted-hsl: 39.1 20.9% 56.9%;
+
   /* 三层底色（浅 → 深）；chrome 与 canvas 色差收窄（0801 反馈：侧栏与主区割裂） */
-  --bg-canvas: #1e1610;         /* 主区背景 */
-  --bg-chrome: #1a130c;         /* 标题栏 / 状态栏 / 侧栏 */
-  --bg-elevated: #241a10;       /* 卡片、面板 */
-  --bg-elevated-strong: #2a1f14;/* 卡片 hover / continue card */
+  --bg-canvas: hsl(var(--canvas-hsl));            /* 主区背景 */
+  --bg-chrome: hsl(var(--chrome-hsl));            /* 标题栏 / 状态栏 / 侧栏 */
+  --bg-elevated: hsl(var(--elevated-hsl));        /* 卡片、面板 */
+  --bg-elevated-strong: hsl(var(--elevated-strong-hsl)); /* 卡片 hover / continue card */
 
   /* 边线 & 分隔 */
   --border-subtle: rgba(255, 255, 255, 0.04);
@@ -72,9 +108,9 @@
   --hairline-inner: rgba(255, 255, 255, 0.03);
 
   /* 文字 */
-  --text-primary: #f0e8dc;
-  --text-body: #d4cec2;
-  --text-muted: #a8987a;
+  --text-primary: hsl(var(--text-primary-hsl));
+  --text-body: hsl(var(--text-body-hsl));
+  --text-muted: hsl(var(--text-muted-hsl));
   --text-faint: #7a6f5d;
   --character-label: var(--text-body);
   --brand-text: #E08A4A;
@@ -110,25 +146,54 @@
 
   /* 阅读器控制栏的渐隐底：本主题 bg-canvas 的半透明版本 */
   --reader-scrim: rgba(30, 22, 16, 0.88);
+
+  /* shadcn 适配层：只做映射，不自己定取值。见文件头「两套命名」一节。 */
+  --background: var(--canvas-hsl);
+  --foreground: var(--text-primary-hsl);
+  --card: var(--elevated-hsl);
+  --card-foreground: var(--text-primary-hsl);
+  --popover: var(--elevated-strong-hsl);
+  --popover-foreground: var(--text-primary-hsl);
+  --secondary: var(--elevated-strong-hsl);
+  --secondary-foreground: var(--text-body-hsl);
+  --muted: var(--elevated-strong-hsl);
+  --muted-foreground: var(--text-muted-hsl);
+  --accent: var(--elevated-strong-hsl);
+  --accent-foreground: var(--text-primary-hsl);
+  --sidebar-background: var(--chrome-hsl);
+  --sidebar-foreground: var(--text-body-hsl);
+  --sidebar-accent: var(--elevated-hsl);
+  --sidebar-accent-foreground: var(--text-primary-hsl);
+  --border: 28 15.7% 16.3%;     /* 项目侧是半透明白，shadcn 要不透明值，见文件头 */
+  --input: 28 21.3% 17.5%;
+  --sidebar-border: 33 13% 13.5%;
 }
 
 /* ============================================================
    ② 主题 · 墨黑
    ============================================================ */
 [data-theme="ink"] {
-  --bg-canvas: #0e0e10;
-  --bg-chrome: #0b0b0d;
-  --bg-elevated: #131316;
-  --bg-elevated-strong: #16161a;
+  --canvas-hsl: 240 6.7% 5.9%;
+  --chrome-hsl: 240 8.3% 4.7%;
+  --elevated-hsl: 240 7.3% 8%;
+  --elevated-strong-hsl: 240 8.3% 9.4%;
+  --text-primary-hsl: 40 24% 90.2%;
+  --text-body-hsl: 38.2 9.1% 76.3%;
+  --text-muted-hsl: 40 6% 51.2%;
+
+  --bg-canvas: hsl(var(--canvas-hsl));
+  --bg-chrome: hsl(var(--chrome-hsl));
+  --bg-elevated: hsl(var(--elevated-hsl));
+  --bg-elevated-strong: hsl(var(--elevated-strong-hsl));
 
   --border-subtle: rgba(255, 255, 255, 0.04);
   --border-normal: rgba(255, 255, 255, 0.08);
   --border-strong: rgba(255, 255, 255, 0.15);
   --hairline-inner: rgba(255, 255, 255, 0.03);
 
-  --text-primary: #ece8e0;
-  --text-body: #c8c4bd;
-  --text-muted: #8a857b;
+  --text-primary: hsl(var(--text-primary-hsl));
+  --text-body: hsl(var(--text-body-hsl));
+  --text-muted: hsl(var(--text-muted-hsl));
   --text-faint: #6a655c;
   --character-label: var(--text-body);
   --brand-text: #E08A4A;
@@ -157,28 +222,57 @@
 
   --mark-bg: rgba(221, 181, 84, 0.35);
   --mark-text: var(--text-primary);
+
+  /* shadcn 适配层 */
+  --background: var(--canvas-hsl);
+  --foreground: var(--text-primary-hsl);
+  --card: var(--elevated-hsl);
+  --card-foreground: var(--text-primary-hsl);
+  --popover: var(--elevated-strong-hsl);
+  --popover-foreground: var(--text-primary-hsl);
+  --secondary: var(--elevated-strong-hsl);
+  --secondary-foreground: var(--text-body-hsl);
+  --muted: var(--elevated-strong-hsl);
+  --muted-foreground: var(--text-muted-hsl);
+  --accent: var(--elevated-strong-hsl);
+  --accent-foreground: var(--text-primary-hsl);
+  --sidebar-background: var(--chrome-hsl);
+  --sidebar-foreground: var(--text-body-hsl);
+  --sidebar-accent: var(--elevated-hsl);
+  --sidebar-accent-foreground: var(--text-primary-hsl);
+  --border: 240 2.9% 13.3%;
+  --input: 240 3.8% 15.5%;
+  --sidebar-border: 240 3.4% 11.4%;
 }
 
 /* ============================================================
    ③ 主题 · 深夜蓝
    ============================================================ */
 [data-theme="midnight"] {
-  --bg-canvas: #0f131c;
-  --bg-chrome: #0c0f17;
-  --bg-elevated: #131824;
-  --bg-elevated-strong: #171d2b;
+  --canvas-hsl: 221.5 30.2% 8.4%;
+  --chrome-hsl: 223.6 31.4% 6.9%;
+  --elevated-hsl: 222.4 30.9% 10.8%;
+  --elevated-strong-hsl: 222 30.3% 12.9%;
+  --text-primary-hsl: 217.5 34.8% 91%;
+  --text-body-hsl: 219.1 19.3% 76.7%;
+  --text-muted-hsl: 221.8 17.3% 62.5%;
+
+  --bg-canvas: hsl(var(--canvas-hsl));
+  --bg-chrome: hsl(var(--chrome-hsl));
+  --bg-elevated: hsl(var(--elevated-hsl));
+  --bg-elevated-strong: hsl(var(--elevated-strong-hsl));
 
   --border-subtle: rgba(255, 255, 255, 0.04);
   --border-normal: rgba(255, 255, 255, 0.08);
   --border-strong: rgba(255, 255, 255, 0.15);
   --hairline-inner: rgba(255, 255, 255, 0.03);
 
-  --text-primary: #e0e6f0;
-  --text-body: #b8c0cf;
+  --text-primary: hsl(var(--text-primary-hsl));
+  --text-body: hsl(var(--text-body-hsl));
   /* muted / faint 原为 #7a8497 / #5a637a：faint 对 bg-canvas 只有 3.1:1，
      卡片底（bg-elevated）上更低到 2.96:1。抬到 AA 4.5:1 之上，muted 同步上移
      以免两档并成一档。四主题里只有 midnight 低于 AA，其余三档见 theme-contrast 测试。 */
-  --text-muted: #8f99b0;
+  --text-muted: hsl(var(--text-muted-hsl));
   --text-faint: #7b849c;
   --character-label: var(--text-body);
   --brand-text: #E08A4A;
@@ -207,25 +301,54 @@
 
   --mark-bg: rgba(220, 182, 92, 0.35);
   --mark-text: var(--text-primary);
+
+  /* shadcn 适配层 */
+  --background: var(--canvas-hsl);
+  --foreground: var(--text-primary-hsl);
+  --card: var(--elevated-hsl);
+  --card-foreground: var(--text-primary-hsl);
+  --popover: var(--elevated-strong-hsl);
+  --popover-foreground: var(--text-primary-hsl);
+  --secondary: var(--elevated-strong-hsl);
+  --secondary-foreground: var(--text-body-hsl);
+  --muted: var(--elevated-strong-hsl);
+  --muted-foreground: var(--text-muted-hsl);
+  --accent: var(--elevated-strong-hsl);
+  --accent-foreground: var(--text-primary-hsl);
+  --sidebar-background: var(--chrome-hsl);
+  --sidebar-foreground: var(--text-body-hsl);
+  --sidebar-accent: var(--elevated-hsl);
+  --sidebar-accent-foreground: var(--text-primary-hsl);
+  --border: 220 15% 15.7%;
+  --input: 225 17.4% 18%;
+  --sidebar-border: 222 15.2% 12.9%;
 }
 
 /* ============================================================
    ④ 主题 · 米色典雅（原文档皮肤，浅色）
    ============================================================ */
 [data-theme="cream"] {
-  --bg-canvas: #f5f0e6;
-  --bg-chrome: #efe9db;
-  --bg-elevated: #fbf8f1;
-  --bg-elevated-strong: #ffffff;
+  --canvas-hsl: 40 42.9% 93.1%;
+  --chrome-hsl: 42 38.5% 89.8%;
+  --elevated-hsl: 42 55.6% 96.5%;
+  --elevated-strong-hsl: 0 0% 100%;
+  --text-primary-hsl: 26.7 27.3% 12.9%;
+  --text-body-hsl: 33.3 13.8% 25.5%;
+  --text-muted-hsl: 35.5 11.5% 37.6%;
+
+  --bg-canvas: hsl(var(--canvas-hsl));
+  --bg-chrome: hsl(var(--chrome-hsl));
+  --bg-elevated: hsl(var(--elevated-hsl));
+  --bg-elevated-strong: hsl(var(--elevated-strong-hsl));
 
   --border-subtle: #e6ddc9;
   --border-normal: #d4c7a8;
   --border-strong: #d4cec2;
   --hairline-inner: #e6ddc9;
 
-  --text-primary: #2a2018;
-  --text-body: #4a4238;
-  --text-muted: #6b6255;
+  --text-primary: hsl(var(--text-primary-hsl));
+  --text-body: hsl(var(--text-body-hsl));
+  --text-muted: hsl(var(--text-muted-hsl));
   --text-faint: #8a7d6a;
   --character-label: var(--text-body);
   --brand-text: #8A4A18;
@@ -256,6 +379,27 @@
 
   --mark-bg: rgba(224, 180, 74, 0.45);
   --mark-text: var(--text-primary);
+
+  /* shadcn 适配层 */
+  --background: var(--canvas-hsl);
+  --foreground: var(--text-primary-hsl);
+  --card: var(--elevated-hsl);
+  --card-foreground: var(--text-primary-hsl);
+  --popover: var(--elevated-strong-hsl);
+  --popover-foreground: var(--text-primary-hsl);
+  --secondary: var(--elevated-strong-hsl);
+  --secondary-foreground: var(--text-body-hsl);
+  --muted: var(--elevated-strong-hsl);
+  --muted-foreground: var(--text-muted-hsl);
+  --accent: var(--elevated-strong-hsl);
+  --accent-foreground: var(--text-primary-hsl);
+  --sidebar-background: var(--chrome-hsl);
+  --sidebar-foreground: var(--text-body-hsl);
+  --sidebar-accent: var(--elevated-hsl);
+  --sidebar-accent-foreground: var(--text-primary-hsl);
+  --border: 42 33.8% 74.5%;
+  --input: 40 17.3% 79.6%;
+  --sidebar-border: 42 33.8% 74.5%;
 }
 
 /* Character Page uses a slightly stronger secondary text hierarchy. The page

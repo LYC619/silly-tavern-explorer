@@ -26,6 +26,34 @@ function resolvedVariable(block: string, name: string, seen = new Set<string>())
   return resolvedVariable(block, reference, new Set([...seen, name]));
 }
 
+/** `25.7 30.4% 9%` → RGB。主题的单一事实源是这种裸 HSL 三元组。 */
+function hslTriplet(value: string): Rgb {
+  const parts = value.trim().split(/\s+/);
+  if (parts.length !== 3) throw new Error(`expected "H S% L%", received ${value}`);
+  const h = Number.parseFloat(parts[0]);
+  const s = Number.parseFloat(parts[1]) / 100;
+  const l = Number.parseFloat(parts[2]) / 100;
+  if ([h, s, l].some(Number.isNaN)) throw new Error(`expected "H S% L%", received ${value}`);
+  const a = s * Math.min(l, 1 - l);
+  const f = (n: number) => {
+    const k = (n + h / 30) % 12;
+    return l - a * Math.max(-1, Math.min(k - 3, Math.min(9 - k, 1)));
+  };
+  return [f(0), f(8), f(4)].map((v) => Math.round(v * 255)) as Rgb;
+}
+
+/**
+ * 主题变量既可能是 `#rrggbb`，也可能是 `hsl(var(--xxx-hsl))`——后者是 2.x 起
+ * 的写法：三元组是事实源，项目变量包一层 hsl()，shadcn 适配层直接吃三元组。
+ */
+function color(block: string, name: string): Rgb {
+  const value = resolvedVariable(block, name);
+  const wrapped = value.match(/^hsl\(\s*var\((--[^)]+)\)\s*\)$/)?.[1];
+  if (wrapped) return hslTriplet(resolvedVariable(block, wrapped));
+  if (value.startsWith('#')) return hex(value);
+  return hslTriplet(value);
+}
+
 function hex(value: string): Rgb {
   const match = value.match(/^#([0-9a-f]{6})$/i);
   if (!match) throw new Error(`expected hex color, received ${value}`);
@@ -76,7 +104,7 @@ describe('语义色对比度', () => {
   it.each(themes)('%s 定义了四组语义色的文字色与背景色', (theme) => {
     const block = themeBlock(theme);
     for (const group of groups) {
-      expect(() => hex(variable(block, `--status-${group}`))).not.toThrow();
+      expect(() => color(block, `--status-${group}`)).not.toThrow();
       expect(() => rgba(variable(block, `--status-${group}-bg`))).not.toThrow();
     }
   });
@@ -84,9 +112,9 @@ describe('语义色对比度', () => {
   it.each(themes)('%s 的语义色文字在三层底色上达到 AA 4.5:1', (theme) => {
     const block = themeBlock(theme);
     for (const group of groups) {
-      const text = hex(variable(block, `--status-${group}`));
+      const text = color(block, `--status-${group}`);
       for (const surface of surfaces) {
-        const ratio = contrast(text, hex(resolvedVariable(block, surface)));
+        const ratio = contrast(text, color(block, surface));
         expect(ratio, `${theme}/${group} on ${surface}`).toBeGreaterThanOrEqual(4.5);
       }
     }
@@ -95,10 +123,10 @@ describe('语义色对比度', () => {
   it.each(themes)('%s 的语义色文字压在自己的色片上仍达到 AA 4.5:1', (theme) => {
     const block = themeBlock(theme);
     for (const group of groups) {
-      const text = hex(variable(block, `--status-${group}`));
+      const text = color(block, `--status-${group}`);
       const tint = rgba(variable(block, `--status-${group}-bg`));
       for (const surface of surfaces) {
-        const filled = composite(tint.color, tint.alpha, hex(resolvedVariable(block, surface)));
+        const filled = composite(tint.color, tint.alpha, color(block, surface));
         const ratio = contrast(text, filled);
         expect(ratio, `${theme}/${group} on tinted ${surface}`).toBeGreaterThanOrEqual(4.5);
       }
@@ -120,16 +148,16 @@ describe('主题活动文字对比度', () => {
 
   it.each(['cocoa', 'ink', 'midnight', 'cream'])('%s 的活动文字在侧栏底色上达到 4.5:1', (theme) => {
     const block = themeBlock(theme);
-    const text = hex(variable(block, '--brand-text'));
-    const chrome = hex(variable(block, '--bg-chrome'));
+    const text = color(block, '--brand-text');
+    const chrome = color(block, '--bg-chrome');
     expect(contrast(text, chrome)).toBeGreaterThanOrEqual(4.5);
   });
 
   it.each(['cocoa', 'ink', 'midnight', 'cream'])('%s 的侧栏辅助文字在页面与侧栏底色上均达到 4.5:1', (theme) => {
     const block = themeBlock(theme);
-    const text = hex(resolvedVariable(block, '--sidebar-text-faint'));
-    const canvas = hex(resolvedVariable(block, '--bg-canvas'));
-    const chrome = hex(resolvedVariable(block, '--bg-chrome'));
+    const text = color(block, '--sidebar-text-faint');
+    const canvas = color(block, '--bg-canvas');
+    const chrome = color(block, '--bg-chrome');
     expect(contrast(text, canvas)).toBeGreaterThanOrEqual(4.5);
     expect(contrast(text, chrome)).toBeGreaterThanOrEqual(4.5);
   });
@@ -141,9 +169,9 @@ describe('主题文字阶梯对比度', () => {
 
   function ratios(theme: string, token: string): number[] {
     const block = themeBlock(theme);
-    const text = hex(resolvedVariable(block, token));
+    const text = color(block, token);
     return ['--bg-canvas', '--bg-chrome', '--bg-elevated']
-      .map((surface) => contrast(text, hex(resolvedVariable(block, surface))));
+      .map((surface) => contrast(text, color(block, surface)));
   }
 
   it.each(themes)('%s 的正文色达到 7:1', (theme) => {
@@ -169,9 +197,9 @@ describe('主题文字阶梯对比度', () => {
 
   it.each(themes)('%s 的文字四档保持可分辨的层级', (theme) => {
     const block = themeBlock(theme);
-    const canvas = hex(resolvedVariable(block, '--bg-canvas'));
+    const canvas = color(block, '--bg-canvas');
     const [primary, body, muted, faint] = ['--text-primary', '--text-body', '--text-muted', '--text-faint']
-      .map((token) => contrast(hex(resolvedVariable(block, token)), canvas));
+      .map((token) => contrast(color(block, token), canvas));
 
     expect(primary).toBeGreaterThan(body);
     expect(body).toBeGreaterThan(muted);

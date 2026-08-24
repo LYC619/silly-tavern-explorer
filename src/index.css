@@ -6,251 +6,96 @@
 @tailwind utilities;
 
 @layer base {
+  /**
+   * shadcn 变量的取值不在这里——每套主题的映射在 themes.css 的「shadcn 适配层」，
+   * 那边和项目变量同源。这里只留三类：
+   *   ① 四套主题共用、与主题无关的（--radius、前景白字）
+   *   ② shadcn 没有、项目自己加的（气泡色、纸纹、阴影）
+   *   ③ 拿不到 data-theme 时的兜底（等于 cocoa）
+   * index.html 在渲染前就会把 data-theme 定成四套之一，所以 ③ 实际上不会生效，
+   * 留着是防止首屏脚本异常时整页没有颜色。
+   */
   :root {
-    /* Warm parchment theme */
-    --background: 38 40% 96%;
-    --foreground: 25 30% 15%;
-
-    --card: 40 35% 94%;
-    --card-foreground: 25 30% 15%;
-
-    --popover: 40 35% 98%;
-    --popover-foreground: 25 30% 15%;
-
-    --primary: 25 60% 45%;
-    --primary-foreground: 40 30% 98%;
-
-    --secondary: 35 25% 88%;
-    --secondary-foreground: 25 30% 20%;
-
-    --muted: 35 20% 90%;
-    --muted-foreground: 25 15% 45%;
-
-    --accent: 15 70% 55%;
-    --accent-foreground: 40 30% 98%;
-
-    --destructive: 0 65% 50%;
-    --destructive-foreground: 40 30% 98%;
-
-    --border: 30 20% 85%;
-    --input: 30 20% 88%;
-    --ring: 25 60% 45%;
-
     --radius: 0.75rem;
 
-    /* Custom tokens */
-    --user-bubble: 200 60% 50%;
-    --user-bubble-foreground: 200 60% 98%;
-    --char-bubble: 25 50% 92%;
-    --char-bubble-foreground: 25 30% 15%;
-    
-    --paper-texture: linear-gradient(135deg, hsl(38 40% 96%) 0%, hsl(35 35% 93%) 50%, hsl(38 40% 95%) 100%);
+    /* 装饰性金色渐变（.gold-gradient / .text-gradient）：跨主题不变。
+       别改成 --brand-hi → --brand：那两档比这里亮，上面压的
+       text-primary-foreground（白）会掉到 2:1。 */
     --gold-accent: linear-gradient(135deg, hsl(35 70% 50%) 0%, hsl(25 60% 45%) 100%);
-    --shadow-warm: 0 4px 20px hsl(25 30% 20% / 0.1);
-    --shadow-card: 0 2px 12px hsl(25 30% 20% / 0.08);
 
-    --sidebar-background: 35 30% 92%;
-    --sidebar-foreground: 25 30% 20%;
-    --sidebar-primary: 25 60% 45%;
-    --sidebar-primary-foreground: 40 30% 98%;
-    --sidebar-accent: 35 25% 88%;
-    --sidebar-accent-foreground: 25 30% 20%;
-    --sidebar-border: 30 20% 82%;
-    --sidebar-ring: 25 60% 45%;
-  }
+    --primary-foreground: 0 0% 100%;
+    --destructive-foreground: 0 0% 100%;
+    /* 实心底 + 白字的破坏性按钮。不接 --status-danger：那是正文用的浅色，
+       白字压上去对比度不够，见 themes.css 文件头。 */
+    --destructive: 7 68.4% 61.6%;
 
-  [data-theme="cocoa"] {
-    --background: 26 30.4% 9%;
+    /* 兜底（= cocoa）：正常情况下被 themes.css 的主题块覆盖 */
+    --background: 25.7 30.4% 9%;
     --foreground: 36 40% 90.2%;
-
     --card: 30 38.5% 10.2%;
     --card-foreground: 36 40% 90.2%;
-
     --popover: 30 35.5% 12.2%;
     --popover-foreground: 36 40% 90.2%;
-
-    --primary: 26 70.8% 58.4%;
-    --primary-foreground: 0 0% 100%;
-
     --secondary: 30 35.5% 12.2%;
     --secondary-foreground: 40 17.3% 79.6%;
-
     --muted: 30 35.5% 12.2%;
-    --muted-foreground: 39 20.9% 56.9%;
-
+    --muted-foreground: 39.1 20.9% 56.9%;
     --accent: 30 35.5% 12.2%;
     --accent-foreground: 36 40% 90.2%;
-
-    --destructive: 7 68.4% 61.6%;
-    --destructive-foreground: 0 0% 100%;
-
     --border: 28 15.7% 16.3%;
     --input: 28 21.3% 17.5%;
-    --ring: 26 70.8% 58.4%;
-
-    --user-bubble: 200 50% 35%;
-    --user-bubble-foreground: 200 60% 95%;
-    --char-bubble: 30 35.5% 12.2%;
-    --char-bubble-foreground: 36 40% 90.2%;
-
-    --paper-texture: linear-gradient(135deg, #1e1610 0%, #241a10 50%, #1e1610 100%);
-    --shadow-warm: 0 4px 20px rgba(0, 0, 0, 0.45);
-    --shadow-card: 0 2px 12px rgba(0, 0, 0, 0.35);
-
-    --sidebar-background: 36 33.3% 5.9%;
+    --sidebar-background: 30 36.8% 7.5%;
     --sidebar-foreground: 40 17.3% 79.6%;
-    --sidebar-primary: 26 70.8% 58.4%;
     --sidebar-primary-foreground: 0 0% 100%;
     --sidebar-accent: 30 38.5% 10.2%;
     --sidebar-accent-foreground: 36 40% 90.2%;
     --sidebar-border: 33 13% 13.5%;
-    --sidebar-ring: 26 70.8% 58.4%;
+  }
+
+  /* 主题相关但 shadcn 没有的自定义 token */
+  [data-theme="cocoa"] {
+    --user-bubble: 200 50% 35%;
+    --user-bubble-foreground: 200 60% 95%;
+    --char-bubble: var(--elevated-strong-hsl);
+    --char-bubble-foreground: var(--text-primary-hsl);
+
+    --paper-texture: linear-gradient(135deg, hsl(var(--canvas-hsl)) 0%, hsl(var(--elevated-hsl)) 50%, hsl(var(--canvas-hsl)) 100%);
+    --shadow-warm: 0 4px 20px rgba(0, 0, 0, 0.45);
+    --shadow-card: 0 2px 12px rgba(0, 0, 0, 0.35);
   }
 
   [data-theme="ink"] {
-    --background: 240 6.7% 5.9%;
-    --foreground: 40 24% 90.2%;
-
-    --card: 240 7.3% 8%;
-    --card-foreground: 40 24% 90.2%;
-
-    --popover: 240 8.3% 9.4%;
-    --popover-foreground: 40 24% 90.2%;
-
-    --primary: 26 70.8% 58.4%;
-    --primary-foreground: 0 0% 100%;
-
-    --secondary: 240 8.3% 9.4%;
-    --secondary-foreground: 38 9.1% 76.3%;
-
-    --muted: 240 8.3% 9.4%;
-    --muted-foreground: 40 6% 51.2%;
-
-    --accent: 240 8.3% 9.4%;
-    --accent-foreground: 40 24% 90.2%;
-
-    --destructive: 7 68.4% 61.6%;
-    --destructive-foreground: 0 0% 100%;
-
-    --border: 240 2.9% 13.3%;
-    --input: 240 3.8% 15.5%;
-    --ring: 26 70.8% 58.4%;
-
     --user-bubble: 200 50% 35%;
     --user-bubble-foreground: 200 60% 95%;
-    --char-bubble: 240 8.3% 9.4%;
-    --char-bubble-foreground: 40 24% 90.2%;
+    --char-bubble: var(--elevated-strong-hsl);
+    --char-bubble-foreground: var(--text-primary-hsl);
 
-    --paper-texture: linear-gradient(135deg, #0e0e10 0%, #131316 50%, #0e0e10 100%);
+    --paper-texture: linear-gradient(135deg, hsl(var(--canvas-hsl)) 0%, hsl(var(--elevated-hsl)) 50%, hsl(var(--canvas-hsl)) 100%);
     --shadow-warm: 0 4px 20px rgba(0, 0, 0, 0.45);
     --shadow-card: 0 2px 12px rgba(0, 0, 0, 0.35);
-
-    --sidebar-background: 240 11.1% 3.5%;
-    --sidebar-foreground: 38 9.1% 76.3%;
-    --sidebar-primary: 26 70.8% 58.4%;
-    --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 240 7.3% 8%;
-    --sidebar-accent-foreground: 40 24% 90.2%;
-    --sidebar-border: 240 3.4% 11.4%;
-    --sidebar-ring: 26 70.8% 58.4%;
   }
 
   [data-theme="midnight"] {
-    --background: 222 30.2% 8.4%;
-    --foreground: 218 34.8% 91%;
-
-    --card: 222 30.9% 10.8%;
-    --card-foreground: 218 34.8% 91%;
-
-    --popover: 222 30.3% 12.9%;
-    --popover-foreground: 218 34.8% 91%;
-
-    --primary: 26 70.8% 58.4%;
-    --primary-foreground: 0 0% 100%;
-
-    --secondary: 222 30.3% 12.9%;
-    --secondary-foreground: 219 19.3% 76.7%;
-
-    --muted: 222 30.3% 12.9%;
-    --muted-foreground: 219 12.2% 53.5%;
-
-    --accent: 222 30.3% 12.9%;
-    --accent-foreground: 218 34.8% 91%;
-
-    --destructive: 7 68.4% 61.6%;
-    --destructive-foreground: 0 0% 100%;
-
-    --border: 220 15% 15.7%;
-    --input: 225 17.4% 18%;
-    --ring: 26 70.8% 58.4%;
-
     --user-bubble: 200 50% 35%;
     --user-bubble-foreground: 200 60% 95%;
-    --char-bubble: 222 30.3% 12.9%;
-    --char-bubble-foreground: 218 34.8% 91%;
+    --char-bubble: var(--elevated-strong-hsl);
+    --char-bubble-foreground: var(--text-primary-hsl);
 
-    --paper-texture: linear-gradient(135deg, #0f131c 0%, #131824 50%, #0f131c 100%);
+    --paper-texture: linear-gradient(135deg, hsl(var(--canvas-hsl)) 0%, hsl(var(--elevated-hsl)) 50%, hsl(var(--canvas-hsl)) 100%);
     --shadow-warm: 0 4px 20px rgba(0, 0, 0, 0.45);
     --shadow-card: 0 2px 12px rgba(0, 0, 0, 0.35);
-
-    --sidebar-background: 224 40.7% 5.3%;
-    --sidebar-foreground: 219 19.3% 76.7%;
-    --sidebar-primary: 26 70.8% 58.4%;
-    --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 222 30.9% 10.8%;
-    --sidebar-accent-foreground: 218 34.8% 91%;
-    --sidebar-border: 222 15.2% 12.9%;
-    --sidebar-ring: 26 70.8% 58.4%;
   }
 
   [data-theme="cream"] {
-    --background: 40 42.9% 93.1%;
-    --foreground: 27 27.3% 12.9%;
-
-    --card: 42 55.6% 96.5%;
-    --card-foreground: 27 27.3% 12.9%;
-
-    --popover: 0 0% 100%;
-    --popover-foreground: 27 27.3% 12.9%;
-
-    --primary: 26 70.8% 58.4%;
-    --primary-foreground: 0 0% 100%;
-
-    --secondary: 0 0% 100%;
-    --secondary-foreground: 33 13.8% 25.5%;
-
-    --muted: 0 0% 100%;
-    --muted-foreground: 35 11.5% 37.6%;
-
-    --accent: 0 0% 100%;
-    --accent-foreground: 27 27.3% 12.9%;
-
-    --destructive: 7 68.4% 61.6%;
-    --destructive-foreground: 0 0% 100%;
-
-    --border: 42 33.8% 74.5%;
-    --input: 40 17.3% 79.6%;
-    --ring: 26 70.8% 58.4%;
-
     --user-bubble: 200 60% 50%;
     --user-bubble-foreground: 200 60% 98%;
-    --char-bubble: 0 0% 100%;
-    --char-bubble-foreground: 27 27.3% 12.9%;
+    --char-bubble: var(--elevated-strong-hsl);
+    --char-bubble-foreground: var(--text-primary-hsl);
 
-    --paper-texture: linear-gradient(135deg, #f5f0e6 0%, #fbf8f1 50%, #f5f0e6 100%);
+    --paper-texture: linear-gradient(135deg, hsl(var(--canvas-hsl)) 0%, hsl(var(--elevated-hsl)) 50%, hsl(var(--canvas-hsl)) 100%);
     --shadow-warm: 0 4px 20px hsl(25 30% 20% / 0.1);
     --shadow-card: 0 2px 12px hsl(25 30% 20% / 0.08);
-
-    --sidebar-background: 41 35.5% 87.8%;
-    --sidebar-foreground: 33 13.8% 25.5%;
-    --sidebar-primary: 26 70.8% 58.4%;
-    --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 42 55.6% 96.5%;
-    --sidebar-accent-foreground: 27 27.3% 12.9%;
-    --sidebar-border: 42 33.8% 74.5%;
-    --sidebar-ring: 26 70.8% 58.4%;
   }
-
 }
 
 @layer base {
@@ -340,7 +185,7 @@
   }
 
   .decorative-border {
-    border: 1px solid hsl(var(--border));
+    border: 1px solid var(--border-normal);
     position: relative;
   }
 
@@ -348,7 +193,7 @@
     content: '';
     position: absolute;
     inset: 4px;
-    border: 1px solid hsl(var(--border) / 0.5);
+    border: 1px solid var(--border-subtle);
     pointer-events: none;
   }
 
@@ -356,7 +201,7 @@
   .reading-flow {
     line-height: 1.9;
     letter-spacing: 0.02em;
-    color: hsl(var(--foreground) / 0.9);
+    color: var(--text-body);
   }
   /* 每个段落独立缩进——text-indent 只缩进块首行，多段消息须逐段成 <p> 才能段段缩进 */
   .reading-flow .reading-paragraph {
@@ -371,7 +216,7 @@
 @layer utilities {
   .scrollbar-thin {
     scrollbar-width: thin;
-    scrollbar-color: hsl(var(--muted-foreground) / 0.3) transparent;
+    scrollbar-color: hsl(var(--text-muted-hsl) / 0.3) transparent;
   }
 
   .scrollbar-thin::-webkit-scrollbar {
@@ -383,7 +228,7 @@
   }
 
   .scrollbar-thin::-webkit-scrollbar-thumb {
-    background: hsl(var(--muted-foreground) / 0.3);
+    background: hsl(var(--text-muted-hsl) / 0.3);
     border-radius: 3px;
   }
 
@@ -396,11 +241,11 @@
   }
 
   .library-scrollbar-auto-hide[data-scrolling='true'] {
-    scrollbar-color: hsl(var(--muted-foreground) / 0.3) transparent;
+    scrollbar-color: hsl(var(--text-muted-hsl) / 0.3) transparent;
   }
 
   .library-scrollbar-auto-hide[data-scrolling='true']::-webkit-scrollbar-thumb {
-    background: hsl(var(--muted-foreground) / 0.3);
+    background: hsl(var(--text-muted-hsl) / 0.3);
   }
 
   .animate-fade-in {
