@@ -61,7 +61,7 @@ export function MiniSummaryPanel({ session }: MiniSummaryPanelProps) {
         <Input
           value={regex}
           onChange={(e) => handleRegexChange(e.target.value)}
-          className="h-8 font-mono text-xs"
+          className="font-mono text-xs"
           placeholder={DEFAULT_REGEX}
         />
         <p className="text-xs text-muted-foreground">
@@ -73,10 +73,10 @@ export function MiniSummaryPanel({ session }: MiniSummaryPanelProps) {
         <Badge variant="secondary" className="font-normal">找到 {pairs.length} 条小结</Badge>
         {pairs.length > 0 && (
           <div className="flex gap-1">
-            <Button variant="ghost" size="sm" className="h-7 gap-1" onClick={handleCopy}>
+            <Button variant="ghost" size="sm" className="gap-1" onClick={handleCopy}>
               <Copy className="w-3.5 h-3.5" />复制
             </Button>
-            <Button variant="ghost" size="sm" className="h-7 gap-1" onClick={() => void handleExport()}>
+            <Button variant="ghost" size="sm" className="gap-1" onClick={() => void handleExport()}>
               <Upload className="w-3.5 h-3.5" />导出
             </Button>
           </div>

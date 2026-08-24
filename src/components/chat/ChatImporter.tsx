@@ -304,7 +304,6 @@ export function ChatImporter({ onImport, initialFile }: ChatImporterProps) {
                       value={dialogueUserName}
                       onChange={(e) => setDialogueUserName(e.target.value)}
                       placeholder="User"
-                      className="h-8"
                     />
                   </div>
                   <div className="space-y-1">
@@ -314,7 +313,6 @@ export function ChatImporter({ onImport, initialFile }: ChatImporterProps) {
                       value={dialogueCharName}
                       onChange={(e) => setDialogueCharName(e.target.value)}
                       placeholder="AI"
-                      className="h-8"
                     />
                   </div>
                 </div>

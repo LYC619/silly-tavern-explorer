@@ -336,7 +336,7 @@ export function RegexSidebar({ rules, onRulesChange, isOpen, onClose, sampleMess
                   <Button
                     variant="ghost"
                     size="sm"
-                    className="h-7 text-xs"
+                    className="text-xs"
                     onClick={() =>
                       setEditingId(editingId === rule.id ? null : rule.id)
                     }
@@ -352,7 +352,6 @@ export function RegexSidebar({ rules, onRulesChange, isOpen, onClose, sampleMess
                     <Button
                       variant="ghost"
                       size="sm"
-                      className="h-7"
                       onClick={() => handleDeleteRule(rule.id)}
                       aria-label="删除规则"
                     >
@@ -373,7 +372,7 @@ export function RegexSidebar({ rules, onRulesChange, isOpen, onClose, sampleMess
                       onChange={(e) =>
                         handleUpdateRule(rule.id, { name: e.target.value })
                       }
-                      className="h-8 text-sm"
+                      className="text-sm"
                     />
                   </div>
 
@@ -401,7 +400,7 @@ export function RegexSidebar({ rules, onRulesChange, isOpen, onClose, sampleMess
                         })
                       }
                       placeholder="留空表示删除"
-                      className="h-8 text-sm"
+                      className="text-sm"
                     />
                   </div>
 
@@ -446,7 +445,7 @@ export function RegexSidebar({ rules, onRulesChange, isOpen, onClose, sampleMess
                     <Button
                       variant={previewId === rule.id ? 'secondary' : 'outline'}
                       size="sm"
-                      className="w-full gap-1 h-7 text-xs"
+                      className="w-full gap-1 text-xs"
                       onClick={() => onPreviewChange(previewId === rule.id ? null : rule)}
                     >
                       <Eye className="w-3 h-3" />
@@ -493,9 +492,9 @@ export function RegexSidebar({ rules, onRulesChange, isOpen, onClose, sampleMess
                     onChange={(e) => setPresetName(e.target.value)}
                     onKeyDown={(e) => { if (e.key === 'Enter') handleSavePreset(); }}
                     placeholder="预设名称"
-                    className="h-8 text-sm"
+                    className="text-sm"
                   />
-                  <Button size="sm" className="h-8 shrink-0" onClick={handleSavePreset}>
+                  <Button size="sm" className="shrink-0" onClick={handleSavePreset}>
                     保存
                   </Button>
                 </div>
@@ -525,7 +524,7 @@ export function RegexSidebar({ rules, onRulesChange, isOpen, onClose, sampleMess
                         <Button
                           variant="ghost"
                           size="sm"
-                          className="h-6 w-6 p-0 shrink-0"
+                          className="w-6 p-0 shrink-0"
                           onClick={() => handleDeletePreset(preset.id)}
                           aria-label="删除预设"
                         >

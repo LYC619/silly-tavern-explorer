@@ -218,7 +218,7 @@ export function AIUpdateDialog({ open, onOpenChange, existingEntries, onAppend }
                       <p className="text-xs text-muted-foreground">
                         修改会自动记住。注意保留 {'{ "entries": ... }'} 的 JSON 输出约定，否则无法解析并入。
                       </p>
-                      <Button variant="ghost" size="sm" className="h-6 gap-1 text-xs" onClick={handlePromptReset}>
+                      <Button variant="ghost" size="sm" className="gap-1 text-xs" onClick={handlePromptReset}>
                         <RotateCcw className="w-3 h-3" />恢复默认
                       </Button>
                     </div>

@@ -196,7 +196,7 @@ export function BatchProcessor({ session, floorStart, floorEnd, systemPrompt, bu
                   max={50}
                   value={segmentSize}
                   onChange={(e) => setSegmentSize(Math.max(5, Math.min(50, parseInt(e.target.value) || 10)))}
-                  className="w-24 h-8"
+                  className="w-24"
                 />
               </div>
               <div className="space-y-1">
@@ -207,7 +207,7 @@ export function BatchProcessor({ session, floorStart, floorEnd, systemPrompt, bu
                   max={10}
                   value={concurrency}
                   onChange={(e) => setConcurrency(Math.max(1, Math.min(10, parseInt(e.target.value) || 3)))}
-                  className="w-24 h-8"
+                  className="w-24"
                 />
               </div>
               <div className="flex items-center gap-2 h-8">
@@ -244,7 +244,7 @@ export function BatchProcessor({ session, floorStart, floorEnd, systemPrompt, bu
                     <Button
                       variant="destructive"
                       size="sm"
-                      className="h-6 px-2"
+                      className="px-2"
                       onClick={() => { abortRef.current = true; }}
                     >
                       <Square className="w-3 h-3 mr-1" />
@@ -267,7 +267,7 @@ export function BatchProcessor({ session, floorStart, floorEnd, systemPrompt, bu
                           第 {r.index + 1}/{r.total} 段 {r.done ? '✓' : '⏳'}
                         </span>
                         {r.done && r.content && (
-                          <Button variant="ghost" size="sm" className="h-6 px-2" onClick={() => handleCopy(r.content)}>
+                          <Button variant="ghost" size="sm" className="px-2" onClick={() => handleCopy(r.content)}>
                             <Copy className="w-3 h-3" />
                           </Button>
                         )}

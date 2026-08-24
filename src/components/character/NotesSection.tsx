@@ -48,7 +48,7 @@ export function NotesSection({ notes, onChange }: NotesSectionProps) {
     <div className="space-y-3">
       <div className="flex items-center justify-between">
         <span className="text-xs text-muted-foreground">角色级速记（玩卡心得），不写入角色卡文件</span>
-        <Button variant="outline" size="sm" className="h-7" onClick={() => setEditor({ body: '' })}>
+        <Button variant="outline" size="sm" onClick={() => setEditor({ body: '' })}>
           <Plus className="w-3.5 h-3.5 mr-1" />
           新建备注
         </Button>
@@ -71,13 +71,13 @@ export function NotesSection({ notes, onChange }: NotesSectionProps) {
                 </span>
                 <div className="ml-auto flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                   <Button
-                    variant="ghost" size="icon" className="h-6 w-6" aria-label="编辑备注"
+                    variant="ghost" size="icon" aria-label="编辑备注"
                     onClick={() => setEditor({ id: n.id, body: n.body })}
                   >
                     <PenLine className="w-3.5 h-3.5" />
                   </Button>
                   <Button
-                    variant="ghost" size="icon" className="h-6 w-6 text-muted-foreground hover:text-destructive" aria-label="删除备注"
+                    variant="ghost" size="icon" className="text-muted-foreground hover:text-destructive" aria-label="删除备注"
                     onClick={() => setToDelete(n)}
                   >
                     <Trash2 className="w-3.5 h-3.5" />

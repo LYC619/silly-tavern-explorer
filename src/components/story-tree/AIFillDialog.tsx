@@ -211,7 +211,7 @@ export function AIFillDialog({ open, onOpenChange, session, nodes, onApply }: AI
                   <p className="text-xs text-muted-foreground">
                     修改会自动记住。注意保留 JSON ops 输出格式约定，否则无法解析。
                   </p>
-                  <Button variant="ghost" size="sm" className="h-6 gap-1 text-xs" onClick={handlePromptReset}>
+                  <Button variant="ghost" size="sm" className="gap-1 text-xs" onClick={handlePromptReset}>
                     <RotateCcw className="w-3 h-3" />恢复默认
                   </Button>
                 </div>
@@ -278,7 +278,7 @@ export function AIFillDialog({ open, onOpenChange, session, nodes, onApply }: AI
                               <Button
                                 variant="ghost"
                                 size="icon"
-                                className="h-6 w-6 shrink-0 text-muted-foreground hover:text-destructive"
+                                className="shrink-0 text-muted-foreground hover:text-destructive"
                                 onClick={() => removeItem(i)}
                                 title="删除此操作"
                               >
@@ -290,10 +290,10 @@ export function AIFillDialog({ open, onOpenChange, session, nodes, onApply }: AI
                                 {item.op.op === 'insert' && (
                                   <div className="flex items-center gap-1.5">
                                     <Label className="text-[11px] text-muted-foreground shrink-0">标题</Label>
-                                    <Input
+                                    <Input size="sm"
                                       value={item.op.title ?? ''}
                                       onChange={(e) => patchOp(i, { title: e.target.value })}
-                                      className="h-7 text-sm"
+                                      className="text-sm"
                                     />
                                   </div>
                                 )}

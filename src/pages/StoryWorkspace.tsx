@@ -341,7 +341,7 @@ const StoryWorkspace = () => {
             {!story.characterId && (
               <div className="px-1.5 mt-2 space-y-1.5">
                 <Badge variant="outline" className="h-5 text-[11px] text-muted-foreground">未绑定</Badge>
-                <Button variant="outline" size="sm" className="w-full h-7 text-xs" onClick={() => setBindOpen(true)}>
+                <Button variant="outline" size="sm" className="w-full text-xs" onClick={() => setBindOpen(true)}>
                   <Link2 className="w-3.5 h-3.5 mr-1" />
                   绑定到角色
                 </Button>

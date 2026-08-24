@@ -42,7 +42,7 @@ export function EntryFilterBar({
             value={c.searchQuery}
             onChange={(e) => c.setSearchQuery(e.target.value)}
             placeholder="搜索…"
-            className="h-8 pl-8 pr-7 text-sm"
+            className="pl-8 pr-7 text-sm"
           />
           {c.searchQuery && (
             <button className="absolute right-2 top-1/2 -translate-y-1/2" onClick={() => c.setSearchQuery('')}>
@@ -76,7 +76,7 @@ export function EntryFilterBar({
         {/* 筛选 Popover */}
         <Popover>
           <PopoverTrigger asChild>
-            <Button variant={c.activeFilterCount > 0 ? 'default' : 'outline'} size="sm" className="h-8 text-xs gap-1">
+            <Button variant={c.activeFilterCount > 0 ? 'default' : 'outline'} size="sm" className="text-xs gap-1">
               <SlidersHorizontal className="w-3.5 h-3.5" /> 筛选
               {c.activeFilterCount > 0 && (
                 <Badge variant="secondary" className="h-4 min-w-4 px-1 text-[11px] leading-none">{c.activeFilterCount}</Badge>
@@ -115,7 +115,7 @@ export function EntryFilterBar({
               </Select>
             </div>
             {c.hasFilters && (
-              <Button variant="ghost" size="sm" className="h-7 text-xs w-full" onClick={c.clearFilters}>
+              <Button variant="ghost" size="sm" className="text-xs w-full" onClick={c.clearFilters}>
                 <X className="w-3 h-3 mr-1" /> 清除筛选
               </Button>
             )}
@@ -136,11 +136,11 @@ export function EntryFilterBar({
 
         <div className="flex-1" />
         <div data-tour="wb-view-toggle" className="flex items-center gap-0">
-          <Button variant={viewMode === 'card' ? 'default' : 'ghost'} size="icon" className="h-7 w-7"
+          <Button variant={viewMode === 'card' ? 'default' : 'ghost'} size="icon"
             onClick={() => onViewModeChange('card')} aria-label="卡片视图">
             <LayoutGrid className="w-4 h-4" />
           </Button>
-          <Button variant={viewMode === 'list' ? 'default' : 'ghost'} size="icon" className="h-7 w-7"
+          <Button variant={viewMode === 'list' ? 'default' : 'ghost'} size="icon"
             onClick={() => onViewModeChange('list')} aria-label="列表视图">
             <List className="w-4 h-4" />
           </Button>
@@ -149,10 +149,10 @@ export function EntryFilterBar({
 
       {/* 行2：新增 / 批量 / 前缀归类 */}
       <div className="flex items-center gap-1.5 flex-wrap">
-        <Button variant="outline" size="sm" className="h-7 text-xs" onClick={onAddEntry}>
+        <Button variant="outline" size="sm" className="text-xs" onClick={onAddEntry}>
           <Plus className="w-3.5 h-3.5 mr-1" /> 新增
         </Button>
-        <Button variant="outline" size="sm" className="h-7 text-xs"
+        <Button variant="outline" size="sm" className="text-xs"
           onClick={onEnterBatch} data-tour="wb-batch">
           <CheckSquare className="w-3.5 h-3.5 mr-1" /> 批量
         </Button>
@@ -173,12 +173,12 @@ interface EntryPaginationProps {
 export function EntryPagination({ page, totalPages, onPageChange }: EntryPaginationProps) {
   return (
     <div className="flex items-center justify-center gap-3 pt-2 pb-4">
-      <Button variant="outline" size="sm" className="h-7 text-xs"
+      <Button variant="outline" size="sm" className="text-xs"
         disabled={page <= 1} onClick={() => onPageChange((p) => Math.max(1, p - 1))}>
         <ChevronLeft className="w-3.5 h-3.5 mr-0.5" /> 上一页
       </Button>
       <span className="text-xs text-muted-foreground">第 {page} / {totalPages} 页</span>
-      <Button variant="outline" size="sm" className="h-7 text-xs"
+      <Button variant="outline" size="sm" className="text-xs"
         disabled={page >= totalPages} onClick={() => onPageChange((p) => Math.min(totalPages, p + 1))}>
         下一页 <ChevronRight className="w-3.5 h-3.5 ml-0.5" />
       </Button>

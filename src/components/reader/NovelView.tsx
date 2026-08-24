@@ -398,7 +398,7 @@ const NovelView = ({
               <Button
                 variant="ghost"
                 size="sm"
-                className="h-6 gap-1 px-2 text-[11px] text-muted-foreground hover:text-primary"
+                className="gap-1 px-2 text-[11px] text-muted-foreground hover:text-primary"
                 onClick={() => { setPolishChapter(polishTarget); setPolishResult(''); setPolishSavedId(null); }}
                 title="用自定义记录的「小说化」模板重写本章（调用 AI，需要 API 配置）"
               >
@@ -457,7 +457,7 @@ const NovelView = ({
       {/* ===== 顶栏 ===== */}
       <div className="shrink-0 border-b border-border/60 bg-card/70 backdrop-blur-sm">
         <div className="flex items-center gap-2 px-4 py-2 flex-wrap">
-          <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => { goToPage(currentPage); onClose(); }} aria-label="退出小说视图">
+          <Button variant="ghost" size="icon" onClick={() => { goToPage(currentPage); onClose(); }} aria-label="退出小说视图">
             <X className="w-4 h-4" />
           </Button>
           <span className="font-display font-semibold text-sm truncate max-w-[16rem]" title={session.title || '未命名作品'}>{session.title || '未命名作品'}</span>
@@ -493,7 +493,7 @@ const NovelView = ({
             {chapterNav.length > 1 && (
               <Popover>
                 <PopoverTrigger asChild>
-                  <Button variant="outline" size="sm" className="h-8 gap-1">
+                  <Button variant="outline" size="sm" className="gap-1">
                     <List className="w-3.5 h-3.5" />目录
                   </Button>
                 </PopoverTrigger>
@@ -518,7 +518,7 @@ const NovelView = ({
 
             <Popover>
               <PopoverTrigger asChild>
-                <Button variant="outline" size="icon" className="h-8 w-8" aria-label="书签列表" title="书签列表">
+                <Button variant="outline" size="icon" aria-label="书签列表" title="书签列表">
                   <Bookmark className="w-3.5 h-3.5" />
                 </Button>
               </PopoverTrigger>
@@ -548,7 +548,7 @@ const NovelView = ({
 
             {/* AI 章节建议 */}
             {onMarkersChange && !readOnly && (
-              <Button variant="outline" size="sm" className="h-8 gap-1" onClick={() => setChapterDialogOpen(true)}>
+              <Button variant="outline" size="sm" className="gap-1" onClick={() => setChapterDialogOpen(true)}>
                 <Sparkles className="w-3.5 h-3.5" />AI 章节
               </Button>
             )}
@@ -556,7 +556,7 @@ const NovelView = ({
             {/* 外观 */}
             <Popover>
               <PopoverTrigger asChild>
-                <Button variant="outline" size="sm" className="h-8" aria-label="外观设置">
+                <Button variant="outline" size="sm" aria-label="外观设置">
                   <Settings className="w-3.5 h-3.5" />
                 </Button>
               </PopoverTrigger>
@@ -613,7 +613,7 @@ const NovelView = ({
         <Button
           variant="ghost"
           size="icon"
-          className="absolute left-2 top-1/2 h-10 w-10 -translate-y-1/2"
+          className="absolute left-2 top-1/2 -translate-y-1/2"
           onClick={(event) => { event.stopPropagation(); goToPage(currentPage - 2); }}
           disabled={currentPage <= 0 || pages.length === 0}
           aria-label="上一页"
@@ -624,7 +624,7 @@ const NovelView = ({
         <Button
           variant="ghost"
           size="icon"
-          className="absolute right-2 top-1/2 h-10 w-10 -translate-y-1/2"
+          className="absolute right-2 top-1/2 -translate-y-1/2"
           onClick={(event) => { event.stopPropagation(); goToPage(currentPage + 2); }}
           disabled={currentPage >= lastSpreadStart || pages.length === 0}
           aria-label="下一页"
@@ -639,7 +639,6 @@ const NovelView = ({
           <Button
             variant="ghost"
             size="icon"
-            className="h-8 w-8"
             onClick={toggleCurrentBookmark}
             disabled={!currentMessageId || !onFavoritesChange}
             aria-label={currentIsBookmarked ? '移除当前页书签' : '收藏当前页楼层'}
@@ -699,10 +698,10 @@ const NovelView = ({
                     onCheckedChange={(c) => setSuggestions((prev) => prev!.map((x, j) => (j === i ? { ...x, picked: !!c } : x)))}
                   />
                   <span className="text-xs text-muted-foreground w-16 shrink-0">#{s.floor} 楼</span>
-                  <Input
+                  <Input size="sm"
                     value={s.title}
                     onChange={(e) => setSuggestions((prev) => prev!.map((x, j) => (j === i ? { ...x, title: e.target.value } : x)))}
-                    className="h-7 text-sm"
+                    className="text-sm"
                   />
                 </div>
               ))}

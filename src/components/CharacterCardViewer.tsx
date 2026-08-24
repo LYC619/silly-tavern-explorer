@@ -142,14 +142,14 @@ export function CharacterCardEditor({ card, edits, onEditChange, onLoadFile, por
                 <div className="space-y-1.5">
                   <div className="flex items-center gap-1.5 text-sm font-medium text-muted-foreground">
                     <Tag className="w-3.5 h-3.5" /> 标签 (tags)
-                    <Button variant="ghost" size="icon" className="h-6 w-6 ml-1" onClick={() => addArrayItem('tags')} aria-label="添加标签">
+                    <Button variant="ghost" size="icon" className="ml-1" onClick={() => addArrayItem('tags')} aria-label="添加标签">
                       <Plus className="w-3.5 h-3.5" />
                     </Button>
                   </div>
                   <div className="flex items-center gap-1.5 flex-wrap">
                     {edits.tags.map((t, i) => (
                       <div key={i} className="flex items-center gap-1">
-                        <Input value={t} onChange={(e) => setArrayItem('tags', i, e.target.value)} className="h-7 text-xs w-32" />
+                        <Input size="sm" value={t} onChange={(e) => setArrayItem('tags', i, e.target.value)} className="text-xs w-32" />
                         <button onClick={() => removeArrayItem('tags', i)} className="text-muted-foreground hover:text-destructive" aria-label="删除标签">
                           <X className="w-3.5 h-3.5" />
                         </button>
@@ -168,7 +168,7 @@ export function CharacterCardEditor({ card, edits, onEditChange, onLoadFile, por
                 <div className="space-y-1.5">
                   <div className="flex items-center gap-1.5 text-sm font-medium text-muted-foreground">
                     <MessageSquare className="w-3.5 h-3.5" /> 备选开场白 (alternate_greetings) · {edits.alternateGreetings.length}
-                    <Button variant="ghost" size="icon" className="h-6 w-6 ml-1" onClick={() => addArrayItem('alternateGreetings')} aria-label="添加备选开场白">
+                    <Button variant="ghost" size="icon" className="ml-1" onClick={() => addArrayItem('alternateGreetings')} aria-label="添加备选开场白">
                       <Plus className="w-3.5 h-3.5" />
                     </Button>
                   </div>
@@ -197,7 +197,7 @@ export function CharacterCardEditor({ card, edits, onEditChange, onLoadFile, por
                         <Button
                           variant="outline"
                           size="sm"
-                          className="h-6 px-2 text-xs ml-auto"
+                          className="px-2 text-xs ml-auto"
                           onClick={onStashWorldBook}
                           title="把这本内嵌世界书暂存到「世界书」页，可在那里编辑/导出"
                         >
@@ -236,7 +236,7 @@ export function CharacterCardEditor({ card, edits, onEditChange, onLoadFile, por
                         <Button
                           variant="outline"
                           size="sm"
-                          className="h-6 px-2 text-xs ml-auto"
+                          className="px-2 text-xs ml-auto"
                           onClick={onStashRegex}
                           title="把这些内嵌正则存为正则预设，到「聊天处理」页『正则 → 预设管理』里加载"
                         >

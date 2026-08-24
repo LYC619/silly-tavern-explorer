@@ -17,11 +17,17 @@ const buttonVariants = cva(
         ghost: "hover:bg-accent hover:text-accent-foreground",
         link: "text-primary underline-offset-4 hover:underline",
       },
+      /**
+       * 高度栅格 28 / 32 / 36，和 Input 三档一一对齐（见 docs/ui-conventions.md）：
+       * 纯图标按钮 28（icon），带文字按钮 32（default / sm，差别只在内边距），
+       * 表单主体区域 36（lg）。同一行里的按钮和输入框必须同档。
+       * 28px 低于 32px 的最小点击区，靠基础样式里的 tap-target 把热区补回去。
+       */
       size: {
-        default: "h-10 px-4 py-2",
-        sm: "h-9 rounded-md px-3",
-        lg: "h-11 rounded-md px-8",
-        icon: "h-10 w-10",
+        default: "h-8 px-3 py-1",
+        sm: "h-8 rounded-md px-2.5",
+        lg: "h-9 rounded-md px-6",
+        icon: "h-7 w-7",
       },
     },
     defaultVariants: {

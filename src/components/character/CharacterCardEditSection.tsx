@@ -24,7 +24,7 @@ function Field({
       {multiline ? (
         <Textarea value={value} onChange={(event) => onChange(event.target.value)} className="min-h-[92px] text-sm leading-relaxed" />
       ) : (
-        <Input value={value} onChange={(event) => onChange(event.target.value)} className="h-9 text-sm" />
+        <Input size="lg" value={value} onChange={(event) => onChange(event.target.value)} className="text-sm" />
       )}
     </label>
   );

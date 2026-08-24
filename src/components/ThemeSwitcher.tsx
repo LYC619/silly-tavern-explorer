@@ -18,7 +18,7 @@ export function ThemeSwitcher({
     <Popover>
       <PopoverTrigger asChild>
         {trigger ?? (
-          <Button variant="ghost" size="icon" className="h-8 w-8" title="主题" aria-label="切换主题">
+          <Button variant="ghost" size="icon" title="主题" aria-label="切换主题">
             <Palette className="w-4 h-4" />
           </Button>
         )}

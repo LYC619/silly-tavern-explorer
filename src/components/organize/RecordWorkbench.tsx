@@ -498,7 +498,6 @@ export const RecordWorkbench = forwardRef<RecordWorkbenchHandle, RecordWorkbench
                       value={diaryOwner}
                       onChange={(e) => setDiaryOwner(e.target.value)}
                       placeholder={charName || '角色名'}
-                      className="h-8"
                     />
                   </div>
                 )}
@@ -518,7 +517,7 @@ export const RecordWorkbench = forwardRef<RecordWorkbenchHandle, RecordWorkbench
                       title="本次生成的卷号：默认 = 已有最大卷号 + 1，可直接改"
                     >
                       <Label htmlFor="volume-num" className="text-xs text-muted-foreground">第</Label>
-                      <Input
+                      <Input size="lg"
                         id="volume-num"
                         type="number"
                         min={1}
@@ -527,7 +526,7 @@ export const RecordWorkbench = forwardRef<RecordWorkbenchHandle, RecordWorkbench
                           const n = parseInt(e.target.value, 10);
                           setVolumeOverride(Number.isFinite(n) && n >= 1 ? n : null);
                         }}
-                        className="h-9 w-16 text-center"
+                        className="w-16 text-center"
                       />
                       <Label htmlFor="volume-num" className="text-xs text-muted-foreground">卷</Label>
                     </div>
@@ -565,7 +564,7 @@ export const RecordWorkbench = forwardRef<RecordWorkbenchHandle, RecordWorkbench
             {sidePanel}
             {!streaming && resultContent && (
               <div className="flex justify-end">
-                <Button variant="outline" size="sm" className="h-7 gap-1" onClick={() => setPreview((v) => !v)}>
+                <Button variant="outline" size="sm" className="gap-1" onClick={() => setPreview((v) => !v)}>
                   {preview ? <Pencil className="w-3.5 h-3.5" /> : <BookOpen className="w-3.5 h-3.5" />}
                   {preview ? '回到编辑' : '排版预览'}
                 </Button>

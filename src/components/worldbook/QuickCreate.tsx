@@ -86,13 +86,13 @@ function QuickEntryCard({ entry, index, onChange, onRemove }: {
     <div className="border rounded-lg bg-card p-3 space-y-2">
       <div className="flex items-center gap-2">
         <span className="text-xs text-muted-foreground shrink-0">#{index + 1}</span>
-        <Input
+        <Input size="sm"
           value={entry.title}
           onChange={(e) => onChange({ ...entry, title: e.target.value })}
-          className="h-7 text-sm font-medium"
+          className="text-sm font-medium"
           placeholder="标题"
         />
-        <Button variant="ghost" size="icon" className="h-7 w-7 shrink-0" onClick={onRemove}>
+        <Button variant="ghost" size="icon" className="shrink-0" onClick={onRemove}>
           <X className="w-3.5 h-3.5" />
         </Button>
       </div>
@@ -105,13 +105,13 @@ function QuickEntryCard({ entry, index, onChange, onRemove }: {
             {k} <X className="w-3 h-3 ml-0.5" />
           </Badge>
         ))}
-        <Input
+        <Input size="sm"
           value={keyInput}
           onChange={(e) => setKeyInput(e.target.value)}
           onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); addKeywords(keyInput); setKeyInput(''); } }}
           onBlur={() => { if (keyInput.trim()) { addKeywords(keyInput); setKeyInput(''); } }}
           placeholder="添加关键词"
-          className="h-6 text-xs w-24 inline-flex"
+          className="text-xs w-24 inline-flex"
         />
       </div>
 
@@ -130,13 +130,13 @@ function QuickEntryCard({ entry, index, onChange, onRemove }: {
         </p>
       )}
       {expanded && (
-        <Button variant="ghost" size="sm" className="text-xs h-6" onClick={() => setExpanded(false)}>收起</Button>
+        <Button variant="ghost" size="sm" className="text-xs" onClick={() => setExpanded(false)}>收起</Button>
       )}
 
       {/* Position & Order */}
       <div className="flex gap-2 items-center text-xs">
         <Select value={String(entry.position)} onValueChange={(v) => onChange({ ...entry, position: Number(v) })}>
-          <SelectTrigger className="h-6 text-xs w-36">
+          <SelectTrigger className="h-7 text-xs w-36">
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
@@ -146,11 +146,11 @@ function QuickEntryCard({ entry, index, onChange, onRemove }: {
           </SelectContent>
         </Select>
         <span className="text-muted-foreground">Order:</span>
-        <Input
+        <Input size="sm"
           type="number"
           value={entry.order}
           onChange={(e) => onChange({ ...entry, order: Number(e.target.value) })}
-          className="h-6 w-16 text-xs"
+          className="w-16 text-xs"
         />
       </div>
     </div>
@@ -291,18 +291,18 @@ export function QuickCreate({ existingWorldbook, onAddToWorldbook }: Props) {
           {defaultPosition === 6 && (
             <div className="space-y-1">
               <Label className="text-xs">默认深度</Label>
-              <Input type="number" value={defaultDepth} onChange={(e) => setDefaultDepth(Number(e.target.value))} className="h-8" />
+              <Input type="number" value={defaultDepth} onChange={(e) => setDefaultDepth(Number(e.target.value))} />
             </div>
           )}
 
           <div className="space-y-1">
             <Label className="text-xs">起始 Order</Label>
-            <Input type="number" value={defaultOrder} onChange={(e) => setDefaultOrder(Number(e.target.value))} className="h-8" />
+            <Input type="number" value={defaultOrder} onChange={(e) => setDefaultOrder(Number(e.target.value))} />
           </div>
 
           <div className="space-y-1">
             <Label className="text-xs">Order 递增步长</Label>
-            <Input type="number" value={orderStep} onChange={(e) => setOrderStep(Number(e.target.value))} className="h-8" />
+            <Input type="number" value={orderStep} onChange={(e) => setOrderStep(Number(e.target.value))} />
           </div>
 
           <div className="space-y-1">

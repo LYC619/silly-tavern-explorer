@@ -201,7 +201,7 @@ export function SummaryWorkspace({
             sidePanel={
               detailMode ? (
                 <div className="flex shrink-0 items-center justify-between border-b border-[color:var(--border-subtle)] pb-2">
-                  <Button variant="ghost" size="sm" className="h-7 gap-1.5" onClick={backToList}>
+                  <Button variant="ghost" size="sm" className="gap-1.5" onClick={backToList}>
                     <ArrowLeft className="h-3.5 w-3.5" />返回已生成总结
                   </Button>
                   <span className="text-xs text-muted-foreground">{selectedRecord?.title || '新总结'}</span>

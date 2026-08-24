@@ -95,7 +95,7 @@ export function FloorRangePicker({ total, start, end, onChange, suggestedStart, 
               value={startStr}
               onChange={(e) => editStart(e.target.value)}
               onBlur={normalize}
-              className="w-24 h-8"
+              className="w-24"
             />
           </div>
           <span className="pb-2 text-muted-foreground">→</span>
@@ -109,7 +109,7 @@ export function FloorRangePicker({ total, start, end, onChange, suggestedStart, 
               value={endStr}
               onChange={(e) => editEnd(e.target.value)}
               onBlur={normalize}
-              className="w-24 h-8"
+              className="w-24"
             />
           </div>
         </div>
@@ -148,13 +148,13 @@ export function FloorRangePicker({ total, start, end, onChange, suggestedStart, 
                       <span className="font-mono text-primary shrink-0 w-8 text-right">#{a.floor}</span>
                       <span className="truncate flex-1" title={a.label}>{a.label}</span>
                       <Button
-                        variant="ghost" size="sm" className="h-5 px-1.5 text-xs shrink-0"
+                        variant="ghost" size="sm" className="px-1.5 text-xs shrink-0"
                         onClick={() => onChange(clamp(a.floor), Math.max(clamp(a.floor), end))}
                       >
                         起
                       </Button>
                       <Button
-                        variant="ghost" size="sm" className="h-5 px-1.5 text-xs shrink-0"
+                        variant="ghost" size="sm" className="px-1.5 text-xs shrink-0"
                         onClick={() => onChange(Math.min(start, clamp(a.floor)), clamp(a.floor))}
                       >
                         止

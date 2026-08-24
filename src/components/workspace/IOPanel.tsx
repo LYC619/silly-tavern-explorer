@@ -248,7 +248,7 @@ export function IOPanel({ story, branchId, line, settings, onStoryUpdate }: IOPa
           ) : artifactsError ? (
             <div className="space-y-2 text-xs text-destructive" data-io-artifacts-load-error>
               <p>读取总结与故事树失败：{artifactsError}</p>
-              <Button variant="outline" size="sm" className="h-7 text-xs" onClick={() => setArtifactsReloadKey((n) => n + 1)}>重试</Button>
+              <Button variant="outline" size="sm" className="text-xs" onClick={() => setArtifactsReloadKey((n) => n + 1)}>重试</Button>
             </div>
           ) : (records.length > 0 || trees.length > 0) && (
             <>
@@ -259,7 +259,7 @@ export function IOPanel({ story, branchId, line, settings, onStoryUpdate }: IOPa
                   <div key={r.id} className="flex items-center gap-2 text-sm">
                     <Badge variant="outline" className="h-5 shrink-0 text-[11px] font-normal">{SUMMARY_KIND_LABELS[r.kind]}</Badge>
                     <span className="flex-1 truncate" title={r.title || SUMMARY_KIND_LABELS[r.kind]}>{r.title || SUMMARY_KIND_LABELS[r.kind]}</span>
-                    <Button variant="ghost" size="sm" className="h-7 px-2 text-xs shrink-0" onClick={() => handleExportRecordMd(r)}>
+                    <Button variant="ghost" size="sm" className="px-2 text-xs shrink-0" onClick={() => handleExportRecordMd(r)}>
                       <FileUp className="w-3.5 h-3.5 mr-1" />MD
                     </Button>
                   </div>
@@ -268,10 +268,10 @@ export function IOPanel({ story, branchId, line, settings, onStoryUpdate }: IOPa
                   <div key={t.id} className="flex items-center gap-2 text-sm">
                     <Badge variant="outline" className="h-5 shrink-0 text-[11px] font-normal">故事树</Badge>
                     <span className="flex-1 truncate" title={t.title || '未命名故事树'}>{t.title || '未命名故事树'}</span>
-                    <Button variant="ghost" size="sm" className="h-7 px-2 text-xs shrink-0" onClick={() => handleExportTreeMd(t)}>
+                    <Button variant="ghost" size="sm" className="px-2 text-xs shrink-0" onClick={() => handleExportTreeMd(t)}>
                       <FileUp className="w-3.5 h-3.5 mr-1" />MD
                     </Button>
-                    <Button variant="ghost" size="sm" className="h-7 px-2 text-xs shrink-0" onClick={() => handleExportTreeJson(t)}>
+                    <Button variant="ghost" size="sm" className="px-2 text-xs shrink-0" onClick={() => handleExportTreeJson(t)}>
                       <FileJson className="w-3.5 h-3.5 mr-1" />JSON
                     </Button>
                   </div>

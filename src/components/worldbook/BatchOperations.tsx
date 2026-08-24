@@ -77,32 +77,32 @@ export function BatchOperations({
 
   const actionButtons = (
     <>
-      <Button variant="outline" size="sm" className="h-7 text-xs" disabled={count === 0}
+      <Button variant="outline" size="sm" className="text-xs" disabled={count === 0}
         onClick={() => setPrefixOpen(true)}>
         <TextCursorInput className="w-3.5 h-3.5 mr-1" /> 加前缀
       </Button>
-      <Button variant="outline" size="sm" className="h-7 text-xs" disabled={count === 0}
+      <Button variant="outline" size="sm" className="text-xs" disabled={count === 0}
         onClick={() => setPositionOpen(true)}>
         <MapPin className="w-3.5 h-3.5 mr-1" /> 改位置
       </Button>
-      <Button variant="outline" size="sm" className="h-7 text-xs" disabled={count === 0}
+      <Button variant="outline" size="sm" className="text-xs" disabled={count === 0}
         onClick={() => setStrategyOpen(true)}>
         <Zap className="w-3.5 h-3.5 mr-1" /> 改策略
       </Button>
-      <Button variant="outline" size="sm" className="h-7 text-xs" disabled={count === 0}
+      <Button variant="outline" size="sm" className="text-xs" disabled={count === 0}
         onClick={() => onBatchEnable(true)}>
         <ToggleRight className="w-3.5 h-3.5 mr-1" /> 全部启用
       </Button>
-      <Button variant="outline" size="sm" className="h-7 text-xs" disabled={count === 0}
+      <Button variant="outline" size="sm" className="text-xs" disabled={count === 0}
         onClick={() => onBatchEnable(false)}>
         <ToggleLeft className="w-3.5 h-3.5 mr-1" /> 全部停用
       </Button>
-      <Button variant="outline" size="sm" className="h-7 text-xs" disabled={count === 0 || copyTargets.length === 0}
+      <Button variant="outline" size="sm" className="text-xs" disabled={count === 0 || copyTargets.length === 0}
         title={copyTargets.length === 0 ? '资产库里没有其他世界书可作为目标' : '把选中条目复制或转移到另一本已入库的世界书'}
         onClick={() => setCopyOpen(true)}>
         <FolderInput className="w-3.5 h-3.5 mr-1" /> 复制/转移
       </Button>
-      <Button variant="destructive" size="sm" className="h-7 text-xs" disabled={count === 0}
+      <Button variant="destructive" size="sm" className="text-xs" disabled={count === 0}
         onClick={() => setDeleteOpen(true)}>
         <Trash2 className="w-3.5 h-3.5 mr-1" /> 删除
       </Button>
@@ -119,10 +119,10 @@ export function BatchOperations({
         <span className="text-xs text-muted-foreground mr-1 hidden md:inline">
           （按住 Shift 点选可连选一段）
         </span>
-        <Button variant="ghost" size="sm" className="h-7 text-xs" onClick={onSelectAll}>
+        <Button variant="ghost" size="sm" className="text-xs" onClick={onSelectAll}>
           <CheckCheck className="w-3.5 h-3.5 mr-1" /> 全选({totalFiltered})
         </Button>
-        <Button variant="ghost" size="sm" className="h-7 text-xs" onClick={onDeselectAll} disabled={count === 0}>
+        <Button variant="ghost" size="sm" className="text-xs" onClick={onDeselectAll} disabled={count === 0}>
           <XCircle className="w-3.5 h-3.5 mr-1" /> 取消全选
         </Button>
 
@@ -132,7 +132,7 @@ export function BatchOperations({
         {isMobile ? (
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="outline" size="sm" className="h-7 text-xs" disabled={count === 0}>
+              <Button variant="outline" size="sm" className="text-xs" disabled={count === 0}>
                 <MoreHorizontal className="w-3.5 h-3.5 mr-1" /> 操作
               </Button>
             </DropdownMenuTrigger>
@@ -165,7 +165,7 @@ export function BatchOperations({
         )}
 
         <div className="flex-1" />
-        <Button variant="ghost" size="sm" className="h-7 text-xs" onClick={onExitBatch}>
+        <Button variant="ghost" size="sm" className="text-xs" onClick={onExitBatch}>
           <X className="w-3.5 h-3.5 mr-1" /> 退出批量
         </Button>
       </div>
@@ -231,7 +231,7 @@ export function BatchOperations({
                 <div className="flex items-center gap-2">
                   <Label className="w-12 text-sm">深度</Label>
                   <Input type="number" value={posDepth} onChange={(e) => setPosDepth(Number(e.target.value))}
-                    className="h-8 w-20" min={0} />
+                    className="w-20" min={0} />
                 </div>
                 <div>
                   <Label className="text-sm mb-1 block">角色</Label>

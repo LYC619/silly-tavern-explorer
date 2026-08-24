@@ -149,12 +149,12 @@ export function StoryTreeWorkspace({ story, currentBranchId, initialTarget }: St
                     <SelectTrigger className="h-8 w-52 shrink-0"><SelectValue placeholder="选择故事树" /></SelectTrigger>
                     <SelectContent>{trees.map((item) => <SelectItem key={item.id} value={item.id}>{item.title}（{item.nodes.length} 节点）</SelectItem>)}</SelectContent>
                   </Select>
-                  <Input value={title} onChange={(event) => onTitleChange(event.target.value)} className="h-8 flex-1 min-w-[160px]" placeholder="故事树名称" />
+                  <Input value={title} onChange={(event) => onTitleChange(event.target.value)} className="flex-1 min-w-[160px]" placeholder="故事树名称" />
                   <div className="flex items-center gap-1 ml-auto">
-                    <Button variant="outline" size="sm" className="h-8 gap-1" onClick={createTree}><Plus className="w-4 h-4" />新建</Button>
-                    <label><Button variant="ghost" size="sm" className="h-8 gap-1" asChild><span><Download className="w-4 h-4" />导入</span></Button><input type="file" accept=".json,application/json" className="hidden" onChange={(event) => { const file = event.target.files?.[0]; if (file) void importTree(file); event.target.value = ''; }} /></label>
-                    <DropdownMenu><DropdownMenuTrigger asChild><Button variant="ghost" size="sm" className="h-8 gap-1"><Upload className="w-4 h-4" />导出</Button></DropdownMenuTrigger><DropdownMenuContent align="end"><DropdownMenuItem onSelect={exportJSON}>JSON（可再次导入）</DropdownMenuItem><DropdownMenuItem onSelect={exportMarkdown}>Markdown（Obsidian 友好）</DropdownMenuItem></DropdownMenuContent></DropdownMenu>
-                    <Button variant="ghost" size="sm" className="h-8 gap-1 text-destructive" onClick={() => setDeleteOpen(true)}><Trash2 className="w-4 h-4" />删除</Button>
+                    <Button variant="outline" size="sm" className="gap-1" onClick={createTree}><Plus className="w-4 h-4" />新建</Button>
+                    <label><Button variant="ghost" size="sm" className="gap-1" asChild><span><Download className="w-4 h-4" />导入</span></Button><input type="file" accept=".json,application/json" className="hidden" onChange={(event) => { const file = event.target.files?.[0]; if (file) void importTree(file); event.target.value = ''; }} /></label>
+                    <DropdownMenu><DropdownMenuTrigger asChild><Button variant="ghost" size="sm" className="gap-1"><Upload className="w-4 h-4" />导出</Button></DropdownMenuTrigger><DropdownMenuContent align="end"><DropdownMenuItem onSelect={exportJSON}>JSON（可再次导入）</DropdownMenuItem><DropdownMenuItem onSelect={exportMarkdown}>Markdown（Obsidian 友好）</DropdownMenuItem></DropdownMenuContent></DropdownMenu>
+                    <Button variant="ghost" size="sm" className="gap-1 text-destructive" onClick={() => setDeleteOpen(true)}><Trash2 className="w-4 h-4" />删除</Button>
                   </div>
                 </CardContent>
               </Card>

@@ -83,7 +83,7 @@ export function BranchPanel({ story, activeBranchId, onSwitch, onImportBranch, o
         <Button
           variant="ghost"
           size="sm"
-          className="h-6 px-1.5 text-xs text-muted-foreground"
+          className="px-1.5 text-xs text-muted-foreground"
           onClick={() => fileRef.current?.click()}
           title="把 ST 里同一故事的另一份聊天文件（JSONL/JSON）导入为分支"
         >

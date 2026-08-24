@@ -226,10 +226,10 @@ export function StoryMindmap({ forest, selectedId, onSelect, title }: StoryMindm
         <p className="text-xs text-muted-foreground flex-1 min-w-0">
           角色右侧的浅色子块 = 各卷变化摘要，点子块看该卷全文；点击节点在下方编辑。
         </p>
-        <Button variant="outline" size="sm" className="h-7 gap-1 text-xs" onClick={handleExportPng} disabled={exporting}>
+        <Button variant="outline" size="sm" className="gap-1 text-xs" onClick={handleExportPng} disabled={exporting}>
           {exporting ? <Loader2 className="w-3 h-3 animate-spin" /> : <Upload className="w-3 h-3" />}导出 PNG
         </Button>
-        <Button variant="outline" size="sm" className="h-7 gap-1 text-xs" onClick={handleExportSvg}>
+        <Button variant="outline" size="sm" className="gap-1 text-xs" onClick={handleExportSvg}>
           <Upload className="w-3 h-3" />导出 SVG
         </Button>
       </div>

@@ -54,14 +54,14 @@ function DimensionRow({
       <div className="flex items-center gap-2 flex-wrap">
         <span className="text-sm font-medium">{dim.name}</span>
         <Badge variant="outline" className="h-4 px-1 text-[11px] text-muted-foreground font-normal">权重 {dim.weight}</Badge>
-        <Input
+        <Input size="sm"
           type="number" min={0} max={10} step={0.5}
           value={dim.score}
           onChange={(e) => {
             const n = parseFloat(e.target.value);
             onScoreChange(Number.isFinite(n) ? clampHalf(n) : 0);
           }}
-          className="h-7 w-20 ml-auto text-center"
+          className="w-20 ml-auto text-center"
         />
         <span className="text-xs text-muted-foreground">/ 10</span>
       </div>
@@ -277,11 +277,11 @@ export function RatingPanel({ character, norm, stories, onPatch }: RatingPanelPr
           ))}
         </SelectContent>
       </Select>
-      <Button variant="outline" size="sm" className="h-8 gap-1" onClick={handleCopyTemplate} title="内置模板不可改；复制一份自定义副本后可改维度/权重/提示词">
+      <Button variant="outline" size="sm" className="gap-1" onClick={handleCopyTemplate} title="内置模板不可改；复制一份自定义副本后可改维度/权重/提示词">
         <Copy className="w-3.5 h-3.5" />复制
       </Button>
       {!template.builtin && (
-        <Button variant="outline" size="sm" className="h-8 gap-1" onClick={() => { setEditTpl({ ...template, dimensions: template.dimensions.map((d) => ({ ...d })) }); setManageOpen(true); }}>
+        <Button variant="outline" size="sm" className="gap-1" onClick={() => { setEditTpl({ ...template, dimensions: template.dimensions.map((d) => ({ ...d })) }); setManageOpen(true); }}>
           <Settings2 className="w-3.5 h-3.5" />编辑
         </Button>
       )}
@@ -292,7 +292,7 @@ export function RatingPanel({ character, norm, stories, onPatch }: RatingPanelPr
 
   return (
     <>
-      <Button variant="outline" size="sm" className="h-8 gap-1" onClick={() => setOpen(true)}>
+      <Button variant="outline" size="sm" className="gap-1" onClick={() => setOpen(true)}>
         <Star className={`w-4 h-4 ${character.rating !== undefined ? 'fill-amber-400 text-amber-400' : 'text-muted-foreground'}`} />
         {character.rating !== undefined ? String(character.rating) : '未评分'}
       </Button>
@@ -325,11 +325,11 @@ export function RatingPanel({ character, norm, stories, onPatch }: RatingPanelPr
             <TabsContent value="direct" className="space-y-3 pt-2">
               <div className="flex items-center gap-2">
                 <Label className="text-sm shrink-0">总分</Label>
-                <Input
+                <Input size="lg"
                   type="number" min={0} max={10} step={0.5}
                   value={directScore}
                   onChange={(e) => setDirectScore(e.target.value)}
-                  className="h-9 w-24 text-center"
+                  className="w-24 text-center"
                 />
                 <span className="text-sm text-muted-foreground">/ 10</span>
               </div>
@@ -474,7 +474,7 @@ export function RatingPanel({ character, norm, stories, onPatch }: RatingPanelPr
                 <div className="flex items-center justify-between">
                   <Label className="text-xs text-muted-foreground">维度与权重</Label>
                   <Button
-                    variant="outline" size="sm" className="h-6 gap-1"
+                    variant="outline" size="sm" className="gap-1"
                     onClick={() => setEditTpl({ ...editTpl, dimensions: [...editTpl.dimensions, { name: `维度 ${editTpl.dimensions.length + 1}`, weight: 10 }] })}
                   >
                     <Plus className="w-3 h-3" />加维度
@@ -485,7 +485,7 @@ export function RatingPanel({ character, norm, stories, onPatch }: RatingPanelPr
                     <Input
                       value={d.name}
                       onChange={(e) => setEditTpl({ ...editTpl, dimensions: editTpl.dimensions.map((x, j) => (j === i ? { ...x, name: e.target.value } : x)) })}
-                      className="h-8 w-32"
+                      className="w-32"
                       placeholder="维度名"
                     />
                     <Input
@@ -495,17 +495,17 @@ export function RatingPanel({ character, norm, stories, onPatch }: RatingPanelPr
                         const n = parseFloat(e.target.value);
                         setEditTpl({ ...editTpl, dimensions: editTpl.dimensions.map((x, j) => (j === i ? { ...x, weight: Number.isFinite(n) ? n : 0 } : x)) });
                       }}
-                      className="h-8 w-20 text-center"
+                      className="w-20 text-center"
                       title="权重"
                     />
                     <Input
                       value={d.hint ?? ''}
                       onChange={(e) => setEditTpl({ ...editTpl, dimensions: editTpl.dimensions.map((x, j) => (j === i ? { ...x, hint: e.target.value } : x)) })}
-                      className="h-8 flex-1 min-w-32"
+                      className="flex-1 min-w-32"
                       placeholder="该维度看什么（进提示词）"
                     />
                     <Button
-                      variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-destructive"
+                      variant="ghost" size="icon" className="text-muted-foreground hover:text-destructive"
                       onClick={() => setEditTpl({ ...editTpl, dimensions: editTpl.dimensions.filter((_, j) => j !== i) })}
                       aria-label="删除维度"
                     >

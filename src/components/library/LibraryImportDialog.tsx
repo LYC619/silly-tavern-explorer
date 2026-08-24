@@ -240,7 +240,7 @@ export function LibraryImportDialog({
                   value={customTag}
                   onChange={(event) => setCustomTag(event.target.value)}
                   placeholder="如：历史/三国，或 收藏"
-                  className="mt-1.5 h-8 text-sm"
+                  className="mt-1.5 text-sm"
                 />
                 <p className="mt-1 text-[11px] text-[color:var(--text-faint)]">未知的一级标签会自动加入标签管理系统。</p>
               </div>

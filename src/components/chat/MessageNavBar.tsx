@@ -83,7 +83,7 @@ export function MessageNavBar({
         {/* 上一楼 */}
         <Tooltip>
           <TooltipTrigger asChild>
-            <Button aria-label="上一楼" variant="ghost" size="icon" className="h-8 w-8" onClick={onPrev} disabled={currentFloor <= 0}>
+            <Button aria-label="上一楼" variant="ghost" size="icon" onClick={onPrev} disabled={currentFloor <= 0}>
               <ChevronUp className="h-4 w-4" />
             </Button>
           </TooltipTrigger>
@@ -92,13 +92,13 @@ export function MessageNavBar({
 
         {/* 楼层号输入 + 当前/总楼 */}
         <div className="flex flex-col items-center gap-0.5">
-          <Input
+          <Input size="sm"
             value={floorInput}
             onChange={(e) => { setEditing(true); setFloorInput(e.target.value.replace(/[^0-9]/g, '')); }}
             onFocus={() => setEditing(true)}
             onBlur={commitJump}
             onKeyDown={(e) => { if (e.key === 'Enter') { e.currentTarget.blur(); } }}
-            className="h-7 w-11 px-1 text-center text-xs"
+            className="w-11 px-1 text-center text-xs"
             inputMode="numeric"
             aria-label="跳转到楼层"
           />
@@ -108,7 +108,7 @@ export function MessageNavBar({
         {/* 下一楼 */}
         <Tooltip>
           <TooltipTrigger asChild>
-            <Button aria-label="下一楼" variant="ghost" size="icon" className="h-8 w-8" onClick={onNext} disabled={currentFloor >= floorCount - 1}>
+            <Button aria-label="下一楼" variant="ghost" size="icon" onClick={onNext} disabled={currentFloor >= floorCount - 1}>
               <ChevronDown className="h-4 w-4" />
             </Button>
           </TooltipTrigger>
@@ -123,7 +123,6 @@ export function MessageNavBar({
             <Button
               variant="ghost"
               size="icon"
-              className="h-8 w-8"
               disabled={!currentMessageId}
               onClick={() => currentMessageId && onToggleFavorite(currentMessageId)}
             >
@@ -138,7 +137,7 @@ export function MessageNavBar({
           <Tooltip>
             <TooltipTrigger asChild>
               <PopoverTrigger asChild>
-                <Button variant="ghost" size="icon" className="relative h-8 w-8">
+                <Button variant="ghost" size="icon" className="relative">
                   <Bookmark className="h-4 w-4" />
                   {favorites.length > 0 && (
                     <span className="absolute -right-0.5 -top-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-primary px-1 text-[11px] font-medium text-primary-foreground">

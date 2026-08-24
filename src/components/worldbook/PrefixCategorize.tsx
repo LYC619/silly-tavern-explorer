@@ -136,7 +136,7 @@ export function PrefixCategorize({ entries, onApply, startOrder = 100, stepOrder
 
   return (
     <>
-      <Button variant="outline" size="sm" className="h-7 text-xs" onClick={handleOpen}>
+      <Button variant="outline" size="sm" className="text-xs" onClick={handleOpen}>
         <Tags className="w-3.5 h-3.5 mr-1" /> 前缀归类
       </Button>
 
@@ -177,9 +177,9 @@ export function PrefixCategorize({ entries, onApply, startOrder = 100, stepOrder
                       onChange={(e) => setNewTagInput(e.target.value)}
                       onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); handleAddNewTag(); } }}
                       placeholder="新标签名"
-                      className="h-8 w-32 text-xs"
+                      className="w-32 text-xs"
                     />
-                    <Button variant="outline" size="icon" className="h-8 w-8 shrink-0" onClick={handleAddNewTag} disabled={!newTagInput.trim()}>
+                    <Button variant="outline" size="icon" className="shrink-0" onClick={handleAddNewTag} disabled={!newTagInput.trim()}>
                       <Plus className="w-3.5 h-3.5" />
                     </Button>
                   </div>
@@ -219,11 +219,11 @@ export function PrefixCategorize({ entries, onApply, startOrder = 100, stepOrder
               <div className="flex gap-3 items-end">
                 <div className="space-y-1">
                   <Label className="text-xs">起始 Order</Label>
-                  <Input type="number" value={start} onChange={(e) => setStart(Number(e.target.value))} className="h-8 w-24" />
+                  <Input type="number" value={start} onChange={(e) => setStart(Number(e.target.value))} className="w-24" />
                 </div>
                 <div className="space-y-1">
                   <Label className="text-xs">步长</Label>
-                  <Input type="number" value={step} onChange={(e) => setStep(Number(e.target.value))} className="h-8 w-24" />
+                  <Input type="number" value={step} onChange={(e) => setStep(Number(e.target.value))} className="w-24" />
                 </div>
                 <p className="text-xs text-muted-foreground pb-1">
                   {untaggedEntries.length} 个未分类条目，共 {Object.keys(entries).length} 个条目将重新编号

@@ -223,7 +223,6 @@ export function TreeWorkbench({ tree, session, onChanged, renderHeader }: TreeWo
         <Input
           value={treeTitle}
           onChange={(e) => handleTitleChange(e.target.value)}
-          className="h-8"
           placeholder="故事树名称"
         />
       )}
@@ -233,18 +232,18 @@ export function TreeWorkbench({ tree, session, onChanged, renderHeader }: TreeWo
         <Card className="min-w-0" style={{ flex: fullRowView ? '1 1 100%' : '2 1 230px' }}>
           <CardContent className="p-3 space-y-2 min-h-[60vh]">
             <div className="flex items-center gap-1 flex-wrap">
-              <Button variant="outline" size="sm" className="h-7 gap-1" onClick={handleAddRoot}>
+              <Button variant="outline" size="sm" className="gap-1" onClick={handleAddRoot}>
                 <Plus className="w-3.5 h-3.5" />根节点
               </Button>
               {session && (
-                <Button variant="outline" size="sm" className="h-7 gap-1" onClick={() => setAiFillOpen(true)}>
+                <Button variant="outline" size="sm" className="gap-1" onClick={() => setAiFillOpen(true)}>
                   <Sparkles className="w-3.5 h-3.5" />AI 生成
                 </Button>
               )}
-              <Button variant="ghost" size="icon" className="h-7 w-7" title="撤销 (Ctrl+Z)" onClick={undo} disabled={!canUndo}>
+              <Button variant="ghost" size="icon" title="撤销 (Ctrl+Z)" onClick={undo} disabled={!canUndo}>
                 <Undo2 className="w-4 h-4" />
               </Button>
-              <Button variant="ghost" size="icon" className="h-7 w-7" title="重做 (Ctrl+Shift+Z)" onClick={redo} disabled={!canRedo}>
+              <Button variant="ghost" size="icon" title="重做 (Ctrl+Shift+Z)" onClick={redo} disabled={!canRedo}>
                 <Redo2 className="w-4 h-4" />
               </Button>
               <Select value={viewMode} onValueChange={(v) => setViewMode(v as typeof viewMode)}>
@@ -260,10 +259,10 @@ export function TreeWorkbench({ tree, session, onChanged, renderHeader }: TreeWo
               </Select>
               {viewMode === 'tree' && (
                 <>
-                  <Button variant="ghost" size="icon" className="h-7 w-7" title="全部展开" onClick={expandAll}>
+                  <Button variant="ghost" size="icon" title="全部展开" onClick={expandAll}>
                     <ChevronsUpDown className="w-4 h-4" />
                   </Button>
-                  <Button variant="ghost" size="icon" className="h-7 w-7" title="全部折叠" onClick={collapseAll}>
+                  <Button variant="ghost" size="icon" title="全部折叠" onClick={collapseAll}>
                     <ChevronsDownUp className="w-4 h-4" />
                   </Button>
                 </>
@@ -272,7 +271,7 @@ export function TreeWorkbench({ tree, session, onChanged, renderHeader }: TreeWo
                 <Button
                   variant={showArchived ? 'default' : 'ghost'}
                   size="sm"
-                  className="h-7 gap-1 ml-auto"
+                  className="gap-1 ml-auto"
                   onClick={() => setShowArchived((s) => !s)}
                 >
                   <Archive className="w-3.5 h-3.5" />归档 {archivedCount}
@@ -283,11 +282,11 @@ export function TreeWorkbench({ tree, session, onChanged, renderHeader }: TreeWo
             {nodes.length > 0 && (
               <div className="relative">
                 <Search className="absolute left-2 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
-                <Input
+                <Input size="sm"
                   value={query}
                   onChange={(e) => setQuery(e.target.value)}
                   placeholder="搜索标题 / 提示 / 正文 / 标签"
-                  className="h-7 pl-7 pr-7 text-xs"
+                  className="pl-7 pr-7 text-xs"
                 />
                 {query && (
                   <button

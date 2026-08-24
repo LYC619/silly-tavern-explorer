@@ -135,7 +135,7 @@ function ExtensionList({ fs }: { fs: VaultFs }) {
   if (browse) {
     return (
       <div className="flex h-full min-h-0 flex-col gap-3">
-        <Button type="button" variant="ghost" size="sm" className="h-8 w-fit" onClick={() => setBrowse(null)}><ArrowLeft className="mr-1.5 h-4 w-4" />返回扩展列表</Button>
+        <Button type="button" variant="ghost" size="sm" className="w-fit" onClick={() => setBrowse(null)}><ArrowLeft className="mr-1.5 h-4 w-4" />返回扩展列表</Button>
         <ArchiveDirectoryView fs={fs} root={`extensions/${browse.directory}`} title={browse.name} />
       </div>
     );
@@ -160,7 +160,7 @@ function ExtensionList({ fs }: { fs: VaultFs }) {
           {item.manifestError && <p className="mt-2 text-[11px] text-[color:var(--status-warn)]">{item.manifestError}</p>}
           <div className="mt-3 flex items-center justify-between gap-3 border-t border-[color:var(--hairline-inner)] pt-3">
             <span className="min-w-0 truncate text-[11px] text-[color:var(--text-muted)]" title={item.directory}>{item.directory}</span>
-            <Button type="button" variant="outline" size="sm" className="h-7 shrink-0 text-xs" onClick={() => setBrowse(item)}>查看归档文件</Button>
+            <Button type="button" variant="outline" size="sm" className="shrink-0 text-xs" onClick={() => setBrowse(item)}>查看归档文件</Button>
           </div>
         </article>
       ))}
@@ -315,7 +315,7 @@ function ArchiveDirectoryView({ fs, root, title }: { fs: VaultFs; root: string; 
   return (
     <div className="flex min-h-0 flex-1 flex-col gap-3">
       <div className="flex shrink-0 items-center gap-2 rounded-lg border border-[color:var(--hairline-inner)] bg-[var(--bg-elevated)] px-3 py-2">
-        <Button type="button" variant="ghost" size="sm" className="h-7 px-2" onClick={goUp} disabled={!canGoUp} aria-label="返回上一级"><ArrowLeft className="h-4 w-4" /></Button>
+        <Button type="button" variant="ghost" size="sm" className="px-2" onClick={goUp} disabled={!canGoUp} aria-label="返回上一级"><ArrowLeft className="h-4 w-4" /></Button>
         <div className="min-w-0 flex-1">
           <p className="truncate text-xs font-medium text-[color:var(--text-primary)]" title={title}>{title}</p>
           <p className="truncate text-[11px] text-[color:var(--text-muted)]" title={currentPath}>{currentPath}</p>

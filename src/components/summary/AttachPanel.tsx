@@ -162,7 +162,7 @@ export function AttachPanel({ value, onChange, tokenEstimate }: AttachPanelProps
           <Button
             variant="ghost"
             size="sm"
-            className="h-7 gap-1 text-muted-foreground"
+            className="gap-1 text-muted-foreground"
             onClick={() => onChange({ presetId: null, worldbookId: null, worldbookMode: 'constant', worldbookUids: [] })}
           >
             <X className="w-3.5 h-3.5" />清除挂载

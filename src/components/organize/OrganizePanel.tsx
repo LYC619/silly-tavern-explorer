@@ -286,13 +286,13 @@ export function OrganizePanel({ story, characterName, coverDataUrl, currentBranc
         <div className="flex items-center gap-1.5">
           <p className="text-sm font-medium flex-1">{fixedKind ? FIXED_KIND_META[fixedKind].label : '资源索引'}</p>
           {fixedKind && fixedKind !== 'tree' ? (
-            <Button size="sm" className="h-7 gap-1 px-2" onClick={() => handleNewRecord(fixedKind)}>
+            <Button size="sm" className="gap-1 px-2" onClick={() => handleNewRecord(fixedKind)}>
               <Plus className="w-3.5 h-3.5" />新建
             </Button>
           ) : (
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button size="sm" className="h-7 gap-1 px-2">
+                <Button size="sm" className="gap-1 px-2">
                   <Plus className="w-3.5 h-3.5" />新建
                 </Button>
               </DropdownMenuTrigger>
@@ -326,11 +326,11 @@ export function OrganizePanel({ story, characterName, coverDataUrl, currentBranc
 
         <div className="relative">
           <Search className="absolute left-2 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
-          <Input
+          <Input size="sm"
             value={filter.query}
             onChange={(e) => setFilter((f) => ({ ...f, query: e.target.value }))}
             placeholder="搜索标题 / 模板名"
-            className="h-7 pl-7 text-xs"
+            className="pl-7 text-xs"
           />
         </div>
         <div className="flex items-center gap-1.5">
@@ -374,7 +374,7 @@ export function OrganizePanel({ story, characterName, coverDataUrl, currentBranc
           <Button
             variant={sel?.type === 'mini' ? 'default' : 'ghost'}
             size="sm"
-            className="h-7 gap-1 w-full justify-start text-xs"
+            className="gap-1 w-full justify-start text-xs"
             onClick={() => setSel({ type: 'mini' })}
             title="用正则从聊天里提取每楼 AI 自带的小结（只读，不调 AI）"
           >

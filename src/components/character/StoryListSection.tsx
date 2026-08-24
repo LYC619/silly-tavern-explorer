@@ -57,11 +57,11 @@ function RatingPopover({ story, onPatch }: { story: ArchiveStory; onPatch: (patc
           <Slider value={[draft]} onValueChange={([v]) => setDraft(v)} min={0} max={10} step={0.5} />
           <div className="flex justify-end gap-2">
             {story.rating !== undefined && (
-              <Button variant="ghost" size="sm" className="h-7 text-xs text-muted-foreground" onClick={() => { onPatch({ rating: undefined }); setOpen(false); }}>
+              <Button variant="ghost" size="sm" className="text-xs text-muted-foreground" onClick={() => { onPatch({ rating: undefined }); setOpen(false); }}>
                 清除
               </Button>
             )}
-            <Button size="sm" className="h-7 text-xs" onClick={() => { onPatch({ rating: draft }); setOpen(false); }}>
+            <Button size="sm" className="text-xs" onClick={() => { onPatch({ rating: draft }); setOpen(false); }}>
               确定
             </Button>
           </div>
@@ -136,22 +136,22 @@ export function StoryListSection({
                 </div>
                 {/* 三按钮：阅读 · 处理 · 导出（+hover 删除） */}
                 <div className="flex items-center gap-1.5 shrink-0" onClick={(e) => e.stopPropagation()}>
-                  <Button variant="outline" size="sm" className="h-7 px-2.5 text-xs" onClick={() => onRead(story.id)}>
+                  <Button variant="outline" size="sm" className="px-2.5 text-xs" onClick={() => onRead(story.id)}>
                     <BookOpen className="w-3.5 h-3.5 mr-1" />
                     阅读
                   </Button>
-                  <Button variant="outline" size="sm" className="h-7 px-2.5 text-xs" onClick={() => onProcess(story.id)} title="进入故事工作区（编辑器）">
+                  <Button variant="outline" size="sm" className="px-2.5 text-xs" onClick={() => onProcess(story.id)} title="进入故事工作区（编辑器）">
                     <Settings2 className="w-3.5 h-3.5 mr-1" />
                     处理
                   </Button>
-                  <Button variant="outline" size="sm" className="h-7 px-2.5 text-xs" onClick={() => onExport(story.id)} title="进入工作区「导入与导出」">
+                  <Button variant="outline" size="sm" className="px-2.5 text-xs" onClick={() => onExport(story.id)} title="进入工作区「导入与导出」">
                     <Upload className="w-3.5 h-3.5 mr-1" />
                     导出
                   </Button>
                   <Button
                     variant="ghost"
                     size="icon"
-                    className="h-7 w-7 opacity-0 group-hover:opacity-100 text-destructive"
+                    className="opacity-0 group-hover:opacity-100 text-destructive"
                     onClick={() => onDelete(story)}
                     aria-label="删除故事"
                   >

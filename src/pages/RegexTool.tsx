@@ -276,7 +276,7 @@ const RegexTool = () => {
                   value={collectionName}
                   onChange={(e) => setCollectionName(e.target.value)}
                   placeholder="规则集名称（如：清理思维链套装）"
-                  className="h-8 basis-64 grow"
+                  className="basis-64 grow"
                 />
                 <Button size="sm" onClick={handleSaveAsCollection}>
                   <Save className="w-4 h-4 mr-1.5" />
@@ -300,13 +300,13 @@ const RegexTool = () => {
                         <Badge variant="outline" className="h-4 px-1 text-[11px] text-muted-foreground shrink-0">派生</Badge>
                       )}
                       <span className="text-xs text-muted-foreground shrink-0">{item.rules.length} 条</span>
-                      <Button variant="ghost" size="icon" className="h-7 w-7" title="载入为当前规则集" onClick={() => handleLoadCollection(item)}>
+                      <Button variant="ghost" size="icon" title="载入为当前规则集" onClick={() => handleLoadCollection(item)}>
                         <FolderOpen className="w-3.5 h-3.5" />
                       </Button>
                       <Button
                         variant="ghost"
                         size="icon"
-                        className="h-7 w-7 text-muted-foreground hover:text-destructive"
+                        className="text-muted-foreground hover:text-destructive"
                         title="删除"
                         onClick={() => setDeleteTarget(item)}
                       >
@@ -344,7 +344,7 @@ const RegexTool = () => {
                   value={pickFloor}
                   onChange={(e) => setPickFloor(e.target.value.replace(/\D/g, ''))}
                   placeholder="楼层号"
-                  className="h-8 w-24"
+                  className="w-24"
                   disabled={!pickStory}
                 />
                 <Button size="sm" variant="outline" onClick={handlePickFloor} disabled={!pickStory || !pickFloor}>

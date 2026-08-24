@@ -70,7 +70,7 @@ export function OtherAssetPreview({ fs, file, onClose }: OtherAssetPreviewProps)
           </div>
           <p className="mt-1 truncate text-[11px] text-[color:var(--text-muted)]" title={file.path}>{file.relativePath} · {formatArchiveBytes(file.size)}</p>
         </div>
-        <Button type="button" variant="ghost" size="sm" className="h-7 w-7 shrink-0 p-0" onClick={onClose} aria-label="关闭预览">
+        <Button type="button" variant="ghost" size="sm" className="w-7 shrink-0 p-0" onClick={onClose} aria-label="关闭预览">
           <X className="h-4 w-4" />
         </Button>
       </header>

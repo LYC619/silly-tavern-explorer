@@ -76,14 +76,14 @@ export function SummaryResultEditor({
                 quickPresets={REWRITE_PRESETS}
               />
             )}
-            <Button variant="ghost" size="sm" className="h-8 gap-1" onClick={handleCopy} disabled={!content}>
+            <Button variant="ghost" size="sm" className="gap-1" onClick={handleCopy} disabled={!content}>
               {copied ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
               复制
             </Button>
-            <Button variant="ghost" size="sm" className="h-8 gap-1" onClick={handleDownload} disabled={!content}>
+            <Button variant="ghost" size="sm" className="gap-1" onClick={handleDownload} disabled={!content}>
               <Upload className="w-3.5 h-3.5" />导出 .md
             </Button>
-            <Button size="sm" className="h-8 gap-1" onClick={onSave} disabled={!content || saving}>
+            <Button size="sm" className="gap-1" onClick={onSave} disabled={!content || saving}>
               {savedPermanent ? <Bookmark className="w-3.5 h-3.5" /> : <Save className="w-3.5 h-3.5" />}
               {savedPermanent ? '已保存' : '保存'}
             </Button>
@@ -98,7 +98,6 @@ export function SummaryResultEditor({
             value={title}
             onChange={(e) => onTitleChange(e.target.value)}
             placeholder="总结标题（生成后可自动提取，也可手改）"
-            className="h-8"
           />
         </div>
         {kind === 'diary' && !streaming && content && (
@@ -106,7 +105,7 @@ export function SummaryResultEditor({
             <Button
               variant={!diaryView ? 'default' : 'ghost'}
               size="sm"
-              className="h-7 gap-1"
+              className="gap-1"
               onClick={() => setDiaryView(false)}
             >
               <Pencil className="w-3.5 h-3.5" />编辑
@@ -114,7 +113,7 @@ export function SummaryResultEditor({
             <Button
               variant={diaryView ? 'default' : 'ghost'}
               size="sm"
-              className="h-7 gap-1"
+              className="gap-1"
               onClick={() => setDiaryView(true)}
             >
               <BookOpen className="w-3.5 h-3.5" />日记本

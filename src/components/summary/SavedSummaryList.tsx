@@ -93,11 +93,11 @@ export function SavedSummaryList({
         <div className="flex shrink-0 items-center gap-2 text-xs">
           <span className="text-sm font-medium">{SUMMARY_KIND_LABELS[kind]}</span>
           <span className="text-muted-foreground">共 {filtered.length} 条</span>
-          <Button variant="ghost" size="icon" className="ml-auto h-7 w-7" aria-label="手动添加总结" title="手动添加总结" onClick={onAdd}>
+          <Button variant="ghost" size="icon" className="ml-auto" aria-label="手动添加总结" title="手动添加总结" onClick={onAdd}>
             <Plus className="h-4 w-4" />
           </Button>
           {filtered.length > 0 && (
-            <Button variant="outline" size="sm" className="h-7 gap-1 px-2" onClick={() => void handleExportAll()}>
+            <Button variant="outline" size="sm" className="gap-1 px-2" onClick={() => void handleExportAll()}>
               <Upload className="w-3 h-3" />导出全部
             </Button>
           )}
@@ -115,10 +115,10 @@ export function SavedSummaryList({
                 <span className="text-xs text-muted-foreground shrink-0">{item.floorStart}~{item.floorEnd}</span>
                 {!item.autoSaved && <Badge variant="secondary" className="text-[11px] px-1 py-0 shrink-0">永久</Badge>}
                 <div className="flex items-center gap-0.5 shrink-0">
-                  <Button variant="ghost" size="icon" className="h-7 w-7" title="查看或编辑" onClick={() => onView(item)}><Eye className="w-3.5 h-3.5" /></Button>
-                  <Button variant="ghost" size="icon" className="h-7 w-7" title="用相同设置重新生成" onClick={() => onRegenerate(item)}><RotateCcw className="w-3.5 h-3.5" /></Button>
-                  <Button variant="ghost" size="icon" className="h-7 w-7" title="导出 Markdown" onClick={() => void handleExport(item)}><Upload className="w-3.5 h-3.5" /></Button>
-                  <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" title="删除" onClick={() => setDeleteId(item.id)}><Trash2 className="w-3.5 h-3.5" /></Button>
+                  <Button variant="ghost" size="icon" title="查看或编辑" onClick={() => onView(item)}><Eye className="w-3.5 h-3.5" /></Button>
+                  <Button variant="ghost" size="icon" title="用相同设置重新生成" onClick={() => onRegenerate(item)}><RotateCcw className="w-3.5 h-3.5" /></Button>
+                  <Button variant="ghost" size="icon" title="导出 Markdown" onClick={() => void handleExport(item)}><Upload className="w-3.5 h-3.5" /></Button>
+                  <Button variant="ghost" size="icon" className="text-destructive" title="删除" onClick={() => setDeleteId(item.id)}><Trash2 className="w-3.5 h-3.5" /></Button>
                 </div>
               </div>
             ))}

@@ -72,7 +72,7 @@ export function DiaryView({ content, charName }: DiaryViewProps) {
 
         {/* 页脚翻页条 */}
         <div className="flex items-center justify-between border-t border-border/60 bg-background/40 px-3 py-2">
-          <Button variant="ghost" size="sm" className="h-7 gap-1" onClick={prev} disabled={safePage === 0}>
+          <Button variant="ghost" size="sm" className="gap-1" onClick={prev} disabled={safePage === 0}>
             <ChevronLeft className="w-3.5 h-3.5" />上一篇
           </Button>
           <div className="flex items-center gap-2 text-xs text-muted-foreground font-serif">
@@ -94,7 +94,7 @@ export function DiaryView({ content, charName }: DiaryViewProps) {
               </span>
             )}
           </div>
-          <Button variant="ghost" size="sm" className="h-7 gap-1" onClick={next} disabled={safePage === entries.length - 1}>
+          <Button variant="ghost" size="sm" className="gap-1" onClick={next} disabled={safePage === entries.length - 1}>
             下一篇<ChevronRight className="w-3.5 h-3.5" />
           </Button>
         </div>

@@ -71,10 +71,10 @@ export function LibraryToolbar({
           placeholder="搜索角色或标签"
           value={searchQuery}
           onChange={(e) => onSearchChange(e.target.value)}
-          className="h-8 w-40 pl-7 text-sm"
+          className="w-40 pl-7 text-sm"
         />
       </div>
-      <Button aria-label="标签管理" variant="outline" size="sm" className="h-8" onClick={onOpenTagManager}>
+      <Button aria-label="标签管理" variant="outline" size="sm" onClick={onOpenTagManager}>
         <Tags className="w-3.5 h-3.5 mr-1.5" />
         标签管理
       </Button>
@@ -82,7 +82,6 @@ export function LibraryToolbar({
         <Button
           variant={batchMode ? 'default' : 'outline'}
           size="sm"
-          className="h-8"
           onClick={onToggleBatchMode}
         >
           {batchMode ? '退出批量' : '批量管理'}
@@ -120,8 +119,7 @@ export function LibraryToolbar({
       </Select>
       <Button
         variant="outline"
-        size="sm"
-        className="h-8 w-8 p-0"
+        size="icon"
         title={sortAsc ? '当前升序，点击切换降序' : '当前降序，点击切换升序'}
         aria-label="切换排序方向"
         onClick={onSortAscToggle}
@@ -163,7 +161,7 @@ export function LibraryToolbar({
       {/* 外观：视图 / 卡片大小 / 字体大小 */}
       <Popover>
         <PopoverTrigger asChild>
-          <Button variant="outline" size="sm" className="h-8" title="外观：视图、卡片与字体大小">
+          <Button variant="outline" size="sm" title="外观：视图、卡片与字体大小">
             <SlidersHorizontal className="w-3.5 h-3.5 mr-1.5" />
             外观
           </Button>
@@ -219,7 +217,7 @@ export function LibraryToolbar({
           </div>
         </PopoverContent>
       </Popover>
-      <Button size="sm" className="h-8" onClick={() => fileInputRef.current?.click()}>
+      <Button size="sm" onClick={() => fileInputRef.current?.click()}>
         <Plus className="w-4 h-4 mr-1.5" />
         导入角色卡
       </Button>

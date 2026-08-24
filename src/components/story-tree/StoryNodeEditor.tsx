@@ -33,7 +33,6 @@ export function StoryNodeEditor({ node, onChange, onDelete }: StoryNodeEditorPro
             id="node-title"
             value={node.title}
             onChange={(e) => onChange({ title: e.target.value })}
-            className="h-8"
           />
         </div>
         <div className="space-y-1 w-28 shrink-0">
@@ -65,7 +64,6 @@ export function StoryNodeEditor({ node, onChange, onDelete }: StoryNodeEditorPro
           id="node-hint"
           value={node.hint}
           onChange={(e) => onChange({ hint: e.target.value })}
-          className="h-8"
         />
       </div>
       <div className="space-y-1">
@@ -74,13 +72,13 @@ export function StoryNodeEditor({ node, onChange, onDelete }: StoryNodeEditorPro
           {hasSections && (
             <div className="flex items-center gap-1">
               <Button
-                variant={byVolume ? 'default' : 'ghost'} size="sm" className="h-6 px-2 gap-1 text-xs"
+                variant={byVolume ? 'default' : 'ghost'} size="sm" className="px-2 gap-1 text-xs"
                 onClick={() => setByVolume(true)}
               >
                 <Layers className="w-3 h-3" />分卷
               </Button>
               <Button
-                variant={!byVolume ? 'default' : 'ghost'} size="sm" className="h-6 px-2 gap-1 text-xs"
+                variant={!byVolume ? 'default' : 'ghost'} size="sm" className="px-2 gap-1 text-xs"
                 onClick={() => setByVolume(false)}
               >
                 <Pencil className="w-3 h-3" />编辑
@@ -120,7 +118,6 @@ export function StoryNodeEditor({ node, onChange, onDelete }: StoryNodeEditorPro
           id="node-tags"
           value={node.tags.join(', ')}
           onChange={(e) => onChange({ tags: e.target.value.split(',').map((t) => t.trim()).filter(Boolean) })}
-          className="h-8"
           placeholder="人物, 关系, 地点…"
         />
       </div>
@@ -133,7 +130,7 @@ export function StoryNodeEditor({ node, onChange, onDelete }: StoryNodeEditorPro
           <Checkbox checked={node.archived} onCheckedChange={(v) => onChange({ archived: v === true })} />
           <Archive className="w-3.5 h-3.5" />归档
         </label>
-        <Button variant="ghost" size="sm" className="h-7 gap-1 text-destructive ml-auto" onClick={onDelete}>
+        <Button variant="ghost" size="sm" className="gap-1 text-destructive ml-auto" onClick={onDelete}>
           <Trash2 className="w-3.5 h-3.5" />删除节点（含子节点）
         </Button>
       </div>

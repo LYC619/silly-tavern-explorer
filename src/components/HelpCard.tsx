@@ -11,7 +11,7 @@ export function HelpCard({ children }: HelpCardProps) {
   return (
     <Popover>
       <PopoverTrigger asChild>
-        <Button variant="ghost" size="icon" className="h-6 w-6" title="帮助说明">
+        <Button variant="ghost" size="icon" title="帮助说明">
           <HelpCircle className="w-4 h-4 text-muted-foreground" />
         </Button>
       </PopoverTrigger>

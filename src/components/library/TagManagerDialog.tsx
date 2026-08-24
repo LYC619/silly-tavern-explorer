@@ -469,12 +469,12 @@ export function TagManagerDialog({
                       if (event.key === 'Enter' && newCategory.trim()) void handleAddCategory();
                     }}
                     placeholder="如：历史"
-                    className="h-8 min-w-0 text-xs"
+                    className="min-w-0 text-xs"
                   />
                   <Button
                     type="button"
                     size="icon"
-                    className="h-8 w-8 shrink-0"
+                    className="shrink-0"
                     aria-label="新增一级标签"
                     disabled={busy || !newCategory.trim()}
                     onClick={() => void handleAddCategory()}
@@ -492,14 +492,14 @@ export function TagManagerDialog({
                   新增到“{activeCategory}”分类；新标签创建后可稍后批量分配给角色。
                 </p>
                 <div className="flex items-center gap-2">
-                  <Input
+                  <Input size="lg"
                     value={newLabel}
                     onChange={(event) => setNewLabel(event.target.value)}
                     onKeyDown={(event) => {
                       if (event.key === 'Enter' && newLabel.trim()) void handleAdd();
                     }}
                     placeholder="输入标签名称"
-                    className="h-9 min-w-0 flex-1"
+                    className="min-w-0 flex-1"
                   />
                   <Button
                     type="button"
@@ -592,7 +592,7 @@ export function TagManagerDialog({
                 <Button
                   type="button"
                   size="sm"
-                  className="h-8 shrink-0"
+                  className="shrink-0"
                   disabled={busy || (!assignmentOption && !assignmentType) || selectedCharacters.length === 0}
                   onClick={() => void (assignmentType ? assignSelectedType() : assignSelectedTag())}
                 >

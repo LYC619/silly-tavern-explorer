@@ -172,7 +172,7 @@ export function CharacterHeader({ character, norm, onPatch, collapsed, onCollaps
         <h1 className="font-serif text-2xl font-semibold tracking-wide text-[color:var(--text-primary)] truncate" title={displayName}>
           {displayName}
         </h1>
-        <Button variant="ghost" size="icon" className="h-7 w-7 shrink-0" onClick={openMeta} aria-label="编辑展示信息">
+        <Button variant="ghost" size="icon" className="shrink-0" onClick={openMeta} aria-label="编辑展示信息">
           <Pencil className="w-3.5 h-3.5" />
         </Button>
         <span className="flex-1" />
@@ -260,7 +260,7 @@ export function CharacterHeader({ character, norm, onPatch, collapsed, onCollaps
               ))}
               <Popover onOpenChange={(open) => { if (open) void refreshTagPreferences(); }}>
                 <PopoverTrigger asChild>
-                  <Button variant="outline" size="sm" className="h-6 px-1.5 text-xs text-muted-foreground">
+                  <Button variant="outline" size="sm" className="px-1.5 text-xs text-muted-foreground">
                     <Plus className="w-3 h-3 mr-0.5" />标签
                   </Button>
                 </PopoverTrigger>
@@ -298,7 +298,7 @@ export function CharacterHeader({ character, norm, onPatch, collapsed, onCollaps
                   </div>
                 </PopoverContent>
               </Popover>
-              <Input
+              <Input size="sm"
                 value={newTag}
                 onChange={(e) => setNewTag(e.target.value)}
                 onKeyDown={(e) => {
@@ -307,7 +307,7 @@ export function CharacterHeader({ character, norm, onPatch, collapsed, onCollaps
                   }
                 }}
                 placeholder="自建：类别/子标签"
-                className="h-6 w-32 text-xs"
+                className="w-32 text-xs"
               />
             </div>
           </motion.div>
@@ -324,15 +324,15 @@ export function CharacterHeader({ character, norm, onPatch, collapsed, onCollaps
           <div className="grid grid-cols-3 gap-3">
             <div>
               <Label className="text-xs text-muted-foreground">展示名</Label>
-              <Input value={metaDraft.name} onChange={(e) => setMetaDraft({ ...metaDraft, name: e.target.value })} placeholder={character.name} className="h-8 mt-1" />
+              <Input value={metaDraft.name} onChange={(e) => setMetaDraft({ ...metaDraft, name: e.target.value })} placeholder={character.name} className="mt-1" />
             </div>
             <div>
               <Label className="text-xs text-muted-foreground">作者</Label>
-              <Input value={metaDraft.creator} onChange={(e) => setMetaDraft({ ...metaDraft, creator: e.target.value })} placeholder={norm.creator || '未知'} className="h-8 mt-1" />
+              <Input value={metaDraft.creator} onChange={(e) => setMetaDraft({ ...metaDraft, creator: e.target.value })} placeholder={norm.creator || '未知'} className="mt-1" />
             </div>
             <div>
               <Label className="text-xs text-muted-foreground">来源</Label>
-              <Input value={metaDraft.source} onChange={(e) => setMetaDraft({ ...metaDraft, source: e.target.value })} placeholder="如 类脑 / Discord" className="h-8 mt-1" />
+              <Input value={metaDraft.source} onChange={(e) => setMetaDraft({ ...metaDraft, source: e.target.value })} placeholder="如 类脑 / Discord" className="mt-1" />
             </div>
           </div>
           {/* 简介编辑与 AI 生成（IntroSection 完整能力：手动编辑/AI 草稿比较/历史/过期提示） */}
@@ -355,14 +355,14 @@ export function CharacterHeader({ character, norm, onPatch, collapsed, onCollaps
           </AlertDialogHeader>
           {tierConfirm && (
             <div className="flex items-center gap-2">
-              <Input
+              <Input size="lg"
                 type="number"
                 min={0}
                 max={10}
                 step={0.5}
                 value={tierConfirm.value}
                 onChange={(e) => setTierConfirm({ ...tierConfirm, value: Number(e.target.value) })}
-                className="h-9 w-24"
+                className="w-24"
                 aria-label="评分"
               />
               <span className="text-sm text-muted-foreground">/ 10</span>

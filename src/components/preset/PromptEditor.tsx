@@ -150,10 +150,10 @@ export function PromptEditor({
             </Select>
           )}
           <div className="ml-auto flex items-center gap-1">
-            <Button variant="ghost" size="icon" className="h-8 w-8" onClick={onUndo} disabled={!canUndo} aria-label="撤销">
+            <Button variant="ghost" size="icon" onClick={onUndo} disabled={!canUndo} aria-label="撤销">
               <Undo2 className="w-4 h-4" />
             </Button>
-            <Button variant="ghost" size="icon" className="h-8 w-8" onClick={onRedo} disabled={!canRedo} aria-label="重做">
+            <Button variant="ghost" size="icon" onClick={onRedo} disabled={!canRedo} aria-label="重做">
               <Redo2 className="w-4 h-4" />
             </Button>
           </div>
@@ -165,7 +165,7 @@ export function PromptEditor({
             <h3 className="text-sm font-medium">激活顺序（{order.length}）</h3>
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button variant="ghost" size="sm" className="h-7 px-2 text-xs">
+                <Button variant="ghost" size="sm" className="px-2 text-xs">
                   <Plus className="w-3.5 h-3.5 mr-1" /> 新建块
                 </Button>
               </DropdownMenuTrigger>
@@ -222,7 +222,7 @@ export function PromptEditor({
                       {block?.marker ? <MarkerBadge /> : isInjectionBlock(block) ? <InjectionBadge depth={block?.injection_depth as number | undefined} /> : <RoleBadge role={block?.role} />}
                       {empty && <EmptyBadge />}
                       <Switch checked={entry.enabled} onCheckedChange={() => toggleEnabled(entry.identifier)} className="scale-90" />
-                      <Button variant="ghost" size="icon" className="h-7 w-7 shrink-0" onClick={() => removeFromOrder(entry.identifier)} aria-label="移除">
+                      <Button variant="ghost" size="icon" className="shrink-0" onClick={() => removeFromOrder(entry.identifier)} aria-label="移除">
                         <Trash2 className="w-3.5 h-3.5" />
                       </Button>
                     </div>
@@ -233,11 +233,11 @@ export function PromptEditor({
                         ) : (
                           <div className="space-y-1">
                             <div className="flex items-center gap-1.5">
-                              <Input
+                              <Input size="sm"
                                 value={block?.name ?? ''}
                                 onChange={(e) => onBlockNameChange(entry.identifier, e.target.value)}
                                 placeholder="块名称"
-                                className="h-7 text-xs flex-1"
+                                className="text-xs flex-1"
                               />
                               <Select
                                 value={block?.role ?? 'system'}
@@ -264,19 +264,19 @@ export function PromptEditor({
                             {isInjectionBlock(block) && (
                               <div className="flex items-center gap-2 text-xs text-muted-foreground">
                                 <span className="shrink-0">注入深度</span>
-                                <Input
+                                <Input size="sm"
                                   type="number"
                                   value={String(block?.injection_depth ?? 4)}
                                   onChange={(e) => onBlockInjectionChange(entry.identifier, 'injection_depth', Number(e.target.value) || 0)}
-                                  className="h-7 text-xs w-16"
+                                  className="text-xs w-16"
                                   aria-label="注入深度"
                                 />
                                 <span className="shrink-0">顺序</span>
-                                <Input
+                                <Input size="sm"
                                   type="number"
                                   value={String(block?.injection_order ?? 100)}
                                   onChange={(e) => onBlockInjectionChange(entry.identifier, 'injection_order', Number(e.target.value) || 0)}
-                                  className="h-7 text-xs w-16"
+                                  className="text-xs w-16"
                                   aria-label="注入顺序"
                                 />
                                 <span className="text-[11px]">@深度=插入聊天倒数第几层；顺序=同深度排序权重</span>
@@ -308,7 +308,7 @@ export function PromptEditor({
             <h3 className="text-sm font-medium">提示词库（{libraryBlocks.length}）</h3>
             <div className="ml-auto relative">
               <Search className="w-3.5 h-3.5 absolute left-2 top-1/2 -translate-y-1/2 text-muted-foreground" />
-              <Input value={librarySearch} onChange={(e) => setLibrarySearch(e.target.value)} placeholder="搜索" className="h-7 pl-7 text-xs w-36" />
+              <Input size="sm" value={librarySearch} onChange={(e) => setLibrarySearch(e.target.value)} placeholder="搜索" className="pl-7 text-xs w-36" />
             </div>
           </div>
           <ScrollArea className="h-[160px] pr-2">
@@ -318,7 +318,7 @@ export function PromptEditor({
                   <span className="text-sm truncate flex-1 min-w-0" title={blockDisplayName(block)}>{blockDisplayName(block)}</span>
                   {block.marker ? <MarkerBadge /> : isInjectionBlock(block) ? <InjectionBadge depth={block.injection_depth as number | undefined} /> : <RoleBadge role={block.role} />}
                   {isUnreferenced(block, referenced) && <UnreferencedBadge />}
-                  <Button variant="ghost" size="icon" className="h-7 w-7 shrink-0" onClick={() => addToOrder(block.identifier)} aria-label="加入激活顺序">
+                  <Button variant="ghost" size="icon" className="shrink-0" onClick={() => addToOrder(block.identifier)} aria-label="加入激活顺序">
                     <Plus className="w-3.5 h-3.5" />
                   </Button>
                 </div>
@@ -338,9 +338,9 @@ export function PromptEditor({
           <span className="text-xs text-muted-foreground">~{totalTokens} tokens</span>
           <div className="ml-auto flex items-center gap-1">
             <Label className="text-xs text-muted-foreground">char</Label>
-            <Input value={charName} onChange={(e) => setCharName(e.target.value)} className="h-7 text-xs w-24" />
+            <Input size="sm" value={charName} onChange={(e) => setCharName(e.target.value)} className="text-xs w-24" />
             <Label className="text-xs text-muted-foreground">user</Label>
-            <Input value={userName} onChange={(e) => setUserName(e.target.value)} className="h-7 text-xs w-24" />
+            <Input size="sm" value={userName} onChange={(e) => setUserName(e.target.value)} className="text-xs w-24" />
           </div>
         </div>
         <ScrollArea className="h-[600px] pr-2">

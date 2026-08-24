@@ -198,19 +198,19 @@ export function IntroSection({ character, norm, onPatch }: IntroSectionProps) {
           </Badge>
         )}
         <span title={hasApiKey ? undefined : '未配置 AI API：前往「AI 配置」页填好后可用'}>
-          <Button variant="outline" size="sm" className="h-7 gap-1" disabled={!hasApiKey} onClick={openGenerate}>
+          <Button variant="outline" size="sm" className="gap-1" disabled={!hasApiKey} onClick={openGenerate}>
             <Sparkles className="w-3.5 h-3.5" />
             {current ? '重新生成简介' : '生成 AI 简介'}
           </Button>
         </span>
         <Button
-          variant="ghost" size="sm" className="h-7 gap-1 text-muted-foreground"
+          variant="ghost" size="sm" className="gap-1 text-muted-foreground"
           onClick={() => { setEditDraft(current?.content ?? norm.description); setEditOpen(true); }}
         >
           <Pencil className="w-3.5 h-3.5" />编辑
         </Button>
         {history.length > 0 && (
-          <Button variant="ghost" size="sm" className="h-7 gap-1 text-muted-foreground" onClick={() => setHistoryOpen(true)}>
+          <Button variant="ghost" size="sm" className="gap-1 text-muted-foreground" onClick={() => setHistoryOpen(true)}>
             <History className="w-3.5 h-3.5" />历史 {history.length}
           </Button>
         )}
@@ -331,7 +331,7 @@ export function IntroSection({ character, norm, onPatch }: IntroSectionProps) {
                         读取：{describeReadScope(v.readScope, wbNames)}
                       </span>
                     )}
-                    <Button variant="outline" size="sm" className="h-6 ml-auto" onClick={() => { void handleRestore(i).catch(() => {}); }}>
+                    <Button variant="outline" size="sm" className="ml-auto" onClick={() => { void handleRestore(i).catch(() => {}); }}>
                       恢复此版
                     </Button>
                   </div>

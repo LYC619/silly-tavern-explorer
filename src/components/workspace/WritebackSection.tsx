@@ -115,7 +115,7 @@ export function WritebackSection({ story, onStoryUpdate }: Props) {
                   <Button
                     size="sm"
                     variant="ghost"
-                    className="h-6 px-2 text-xs"
+                    className="px-2 text-xs"
                     onClick={() => setPending({ kind: 'restore', backupFile: w.backupFile! })}
                   >
                     <Undo2 className="w-3 h-3 mr-1" />

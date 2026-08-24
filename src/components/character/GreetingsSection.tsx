@@ -58,7 +58,7 @@ export function GreetingsSection({ edits, onEditChange }: GreetingsSectionProps)
             <Button
               variant="ghost"
               size="icon"
-              className="mt-1 h-8 w-8 shrink-0 text-[color:var(--text-muted)] hover:text-destructive"
+              className="mt-1 shrink-0 text-[color:var(--text-muted)] hover:text-destructive"
               onClick={() => onEditChange('alternateGreetings', edits.alternateGreetings.filter((_, i) => i !== index))}
               aria-label={`删除备选开场白 ${index + 1}`}
             >

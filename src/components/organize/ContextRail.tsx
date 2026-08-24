@@ -105,7 +105,7 @@ export function ContextRail({
                 <Button
                   variant="outline"
                   size="sm"
-                  className="h-7 gap-1 w-full"
+                  className="gap-1 w-full"
                   disabled={!branchExists}
                   onClick={() => onJumpToChat(item.branchId ?? null, item.floorStart)}
                   title={branchExists ? '切到该分支并滚动到起始楼层' : '来源分支已删除，无法跳转'}
@@ -161,17 +161,17 @@ export function ContextRail({
         <CardContent className="p-3 space-y-1.5">
           <p className="text-sm font-medium mb-1">操作</p>
           {isRecord && onRegenerate && (
-            <Button variant="outline" size="sm" className="h-7 gap-1 w-full" onClick={onRegenerate}>
+            <Button variant="outline" size="sm" className="gap-1 w-full" onClick={onRegenerate}>
               <RotateCcw className="w-3.5 h-3.5" />重新生成（回填设置）
             </Button>
           )}
-          <Button variant="outline" size="sm" className="h-7 gap-1 w-full" onClick={onCopy}>
+          <Button variant="outline" size="sm" className="gap-1 w-full" onClick={onCopy}>
             <CopyPlus className="w-3.5 h-3.5" />复制为新{isRecord ? '记录' : '树'}
           </Button>
           {onExportJson ? (
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button variant="outline" size="sm" className="h-7 gap-1 w-full">
+                <Button variant="outline" size="sm" className="gap-1 w-full">
                   <Upload className="w-3.5 h-3.5" />导出
                 </Button>
               </DropdownMenuTrigger>
@@ -181,17 +181,17 @@ export function ContextRail({
               </DropdownMenuContent>
             </DropdownMenu>
           ) : (
-            <Button variant="outline" size="sm" className="h-7 gap-1 w-full" onClick={onExportMd}>
+            <Button variant="outline" size="sm" className="gap-1 w-full" onClick={onExportMd}>
               <Upload className="w-3.5 h-3.5" />导出 .md
             </Button>
           )}
           {isRecord && onShareImage && (
-            <Button variant="outline" size="sm" className="h-7 gap-1 w-full" onClick={onShareImage} title="生成可直接分享的长图（故事名+封面+正文）">
+            <Button variant="outline" size="sm" className="gap-1 w-full" onClick={onShareImage} title="生成可直接分享的长图（故事名+封面+正文）">
               <ImageDown className="w-3.5 h-3.5" />生成分享长图
             </Button>
           )}
           <Separator className="my-1" />
-          <Button variant="outline" size="sm" className="h-7 gap-1 w-full text-destructive" onClick={onDelete}>
+          <Button variant="outline" size="sm" className="gap-1 w-full text-destructive" onClick={onDelete}>
             <Trash2 className="w-3.5 h-3.5" />删除
           </Button>
         </CardContent>

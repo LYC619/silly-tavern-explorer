@@ -126,7 +126,7 @@ export function BatchTagDialog({ open, onOpenChange, targets, allCharacters, onD
               value={custom}
               onChange={(e) => setCustom(e.target.value)}
               placeholder="如 世界观/蒸汽朋克"
-              className="h-8 text-sm"
+              className="text-sm"
             />
           </section>
         </div>

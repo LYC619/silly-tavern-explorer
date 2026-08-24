@@ -188,7 +188,7 @@ export function StoryRecordsView({ stories, kind, onGoGenerate }: StoryRecordsVi
           <Button
             variant="outline"
             size="sm"
-            className="h-8 text-xs"
+            className="text-xs"
             onClick={() => setManualOpen(true)}
             disabled={!branchSelectionReady}
             title={branchSelectionReady ? undefined : '请先选择主线或具体分支'}
@@ -201,7 +201,7 @@ export function StoryRecordsView({ stories, kind, onGoGenerate }: StoryRecordsVi
           <Button
             variant="outline"
             size="sm"
-            className="h-8 text-xs"
+            className="text-xs"
             onClick={() => onGoGenerate(story.id, kind, selectedBranchId)}
             disabled={!branchSelectionReady}
             title={branchSelectionReady ? undefined : '请先选择主线或具体分支'}

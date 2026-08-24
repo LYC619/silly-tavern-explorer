@@ -112,7 +112,7 @@ export function AIRewriteContent({ content, onResult, compact, systemPrompt, qui
             type="button"
             variant="ghost"
             size="sm"
-            className={compact ? 'h-6 px-2 text-xs text-muted-foreground hover:text-foreground' : 'h-7 px-2 text-xs'}
+            className={compact ? 'px-2 text-xs text-muted-foreground hover:text-foreground' : 'px-2 text-xs'}
             title="用 AI 改写当前内容"
           >
             <Wand2 className="w-3.5 h-3.5 mr-1" /> AI 改写
@@ -141,11 +141,11 @@ export function AIRewriteContent({ content, onResult, compact, systemPrompt, qui
             </div>
             <div className="flex items-center gap-2">
               {!loading ? (
-                <Button size="sm" className="h-7 text-xs gap-1" onClick={run}>
+                <Button size="sm" className="text-xs gap-1" onClick={run}>
                   <Wand2 className="w-3.5 h-3.5" /> 生成改写
                 </Button>
               ) : (
-                <Button size="sm" variant="destructive" className="h-7 text-xs gap-1" onClick={() => abortRef.current?.abort()}>
+                <Button size="sm" variant="destructive" className="text-xs gap-1" onClick={() => abortRef.current?.abort()}>
                   <StopCircle className="w-3.5 h-3.5" /> 停止
                 </Button>
               )}

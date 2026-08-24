@@ -374,7 +374,7 @@ const Index = () => {
                       <Button
                         variant="ghost"
                         size="icon"
-                        className="h-8 w-8 shrink-0 text-muted-foreground hover:text-destructive"
+                        className="shrink-0 text-muted-foreground hover:text-destructive"
                         onClick={(e) => { e.stopPropagation(); setDeleteTarget(story); }}
                         aria-label="删除暂存记录"
                       >

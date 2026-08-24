@@ -89,7 +89,7 @@ export function PresetRegexEditor({ rules, onRulesChange }: PresetRegexEditorPro
                   <div className="space-y-3 px-2 pb-2 pt-1 border-t border-border/50">
                     <div className="space-y-1.5">
                       <Label className="text-xs">规则名称</Label>
-                      <Input value={rule.name} onChange={(e) => updateRule(rule.id, { name: e.target.value })} className="h-8 text-sm" />
+                      <Input value={rule.name} onChange={(e) => updateRule(rule.id, { name: e.target.value })} className="text-sm" />
                     </div>
                     <div className="space-y-1.5">
                       <Label className="text-xs">匹配正则</Label>
@@ -99,7 +99,7 @@ export function PresetRegexEditor({ rules, onRulesChange }: PresetRegexEditorPro
                     <div className="space-y-1.5">
                       <Label className="text-xs">替换为</Label>
                       <Input value={rule.replaceString} onChange={(e) => updateRule(rule.id, { replaceString: e.target.value })}
-                        placeholder="留空表示删除" className="h-8 text-sm" />
+                        placeholder="留空表示删除" className="text-sm" />
                     </div>
                     <div className="space-y-1.5">
                       <Label className="text-xs">应用于</Label>

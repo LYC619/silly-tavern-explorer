@@ -134,7 +134,6 @@ export function CharacterImportDialog({
               value={quoteTitle}
               onChange={(e) => setQuoteTitle(e.target.value)}
               placeholder="引用标题（可空）"
-              className="h-8"
               disabled={busy}
             />
             <Textarea

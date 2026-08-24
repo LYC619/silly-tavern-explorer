@@ -37,7 +37,7 @@ export function StagedWorldBookList({ items, onSelect, onDelete, variant }: Stag
             <Button
               variant="ghost"
               size="icon"
-              className="h-7 w-7 text-muted-foreground hover:text-destructive"
+              className="text-muted-foreground hover:text-destructive"
               onClick={(e) => { e.stopPropagation(); onDelete(item); }}
               aria-label="删除暂存"
             >
@@ -70,7 +70,7 @@ export function StagedWorldBookList({ items, onSelect, onDelete, variant }: Stag
             <Button
               variant="ghost"
               size="icon"
-              className="h-7 w-7 shrink-0"
+              className="shrink-0"
               aria-label="删除"
               onClick={(e) => { e.stopPropagation(); onDelete(item); }}
             >

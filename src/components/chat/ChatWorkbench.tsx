@@ -463,7 +463,7 @@ export const ChatWorkbench = forwardRef<ChatWorkbenchHandle, ChatWorkbenchProps>
               <div className="flex items-center gap-2 text-sm text-muted-foreground min-w-0 flex-wrap">
                 {titleBadge}
                 {!readerMode && titleEditing ? (
-                  <Input
+                  <Input size="sm"
                     autoFocus
                     value={titleDraft}
                     onChange={(e) => setTitleDraft(e.target.value)}
@@ -472,7 +472,7 @@ export const ChatWorkbench = forwardRef<ChatWorkbenchHandle, ChatWorkbenchProps>
                       if (e.key === 'Enter') commitTitleEdit();
                       if (e.key === 'Escape') setTitleEditing(false);
                     }}
-                    className="h-7 w-64 max-w-full"
+                    className="w-64 max-w-full"
                     placeholder="作品标题"
                   />
                 ) : readerMode ? (

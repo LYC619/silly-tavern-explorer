@@ -57,7 +57,6 @@ export function BindStoryDialog({ open, onOpenChange, onSelect }: BindStoryDialo
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
                 placeholder="搜索角色名"
-                className="h-8"
               />
             )}
             {/* 原生滚动：Radix ScrollArea 在 max-h 弹性容器里拿不到确定高度，列表会溢出无滚动条 */}

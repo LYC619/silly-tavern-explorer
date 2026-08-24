@@ -69,8 +69,8 @@ function TagInput({ tags, onChange, dashed = false, placeholder = '' }: {
           autoFocus
         />
         <div className="flex items-center gap-2">
-          <Button size="sm" className="h-7 text-xs" onClick={applyBulk}>应用</Button>
-          <Button size="sm" variant="ghost" className="h-7 text-xs" onClick={() => setBulkMode(false)}>取消</Button>
+          <Button size="sm" className="text-xs" onClick={applyBulk}>应用</Button>
+          <Button size="sm" variant="ghost" className="text-xs" onClick={() => setBulkMode(false)}>取消</Button>
           <span className="text-xs text-muted-foreground">编辑 / 删除多个后整体替换</span>
         </div>
       </div>
@@ -108,7 +108,7 @@ function TagInput({ tags, onChange, dashed = false, placeholder = '' }: {
         onKeyDown={handleKeyDown}
         onBlur={() => { if (input.trim()) { addTags(input); setInput(''); } }}
         placeholder={placeholder}
-        className="h-8 text-sm"
+        className="text-sm"
       />
     </div>
   );
@@ -127,7 +127,7 @@ export function EntryEditor({ entry, onChange }: Props) {
       {/* Title */}
       <div className="space-y-1">
         <Label>标题 / Memo</Label>
-        <Input value={entry.comment} onChange={(e) => update('comment', e.target.value)} className="h-8" />
+        <Input value={entry.comment} onChange={(e) => update('comment', e.target.value)} />
       </div>
 
       {/* Enabled */}
@@ -195,7 +195,7 @@ export function EntryEditor({ entry, onChange }: Props) {
               type="button"
               variant="ghost"
               size="sm"
-              className="h-6 px-2 text-xs text-muted-foreground hover:text-foreground"
+              className="px-2 text-xs text-muted-foreground hover:text-foreground"
               onClick={() => setContentExpanded(true)}
               title="放大编辑"
             >
@@ -252,7 +252,7 @@ export function EntryEditor({ entry, onChange }: Props) {
         <div className="flex gap-3">
           <div className="space-y-1 flex-1">
             <Label>深度 (Depth)</Label>
-            <Input type="number" value={entry.depth} onChange={(e) => update('depth', Number(e.target.value))} className="h-8" />
+            <Input type="number" value={entry.depth} onChange={(e) => update('depth', Number(e.target.value))} />
           </div>
           <div className="space-y-1 flex-1">
             <Label>角色 (Role)</Label>
@@ -273,7 +273,7 @@ export function EntryEditor({ entry, onChange }: Props) {
       {/* Order */}
       <div className="space-y-1">
         <Label>Order</Label>
-        <Input type="number" value={entry.order} onChange={(e) => update('order', Number(e.target.value))} className="h-8" />
+        <Input type="number" value={entry.order} onChange={(e) => update('order', Number(e.target.value))} />
       </div>
 
       {/* Probability */}
@@ -285,7 +285,7 @@ export function EntryEditor({ entry, onChange }: Props) {
       {/* Group */}
       <div className="space-y-1">
         <Label>Inclusion Group</Label>
-        <Input value={entry.group} onChange={(e) => update('group', e.target.value)} className="h-8" placeholder="分组名称" />
+        <Input value={entry.group} onChange={(e) => update('group', e.target.value)} placeholder="分组名称" />
       </div>
 
       {/* Advanced: Timing */}
@@ -297,15 +297,15 @@ export function EntryEditor({ entry, onChange }: Props) {
         <CollapsibleContent className="space-y-3 pt-2">
           <div className="space-y-1">
             <Label>Sticky (轮次)</Label>
-            <Input type="number" value={entry.sticky} onChange={(e) => update('sticky', Number(e.target.value))} className="h-8" />
+            <Input type="number" value={entry.sticky} onChange={(e) => update('sticky', Number(e.target.value))} />
           </div>
           <div className="space-y-1">
             <Label>Cooldown (轮次)</Label>
-            <Input type="number" value={entry.cooldown} onChange={(e) => update('cooldown', Number(e.target.value))} className="h-8" />
+            <Input type="number" value={entry.cooldown} onChange={(e) => update('cooldown', Number(e.target.value))} />
           </div>
           <div className="space-y-1">
             <Label>Delay (轮次)</Label>
-            <Input type="number" value={entry.delay} onChange={(e) => update('delay', Number(e.target.value))} className="h-8" />
+            <Input type="number" value={entry.delay} onChange={(e) => update('delay', Number(e.target.value))} />
           </div>
         </CollapsibleContent>
       </Collapsible>

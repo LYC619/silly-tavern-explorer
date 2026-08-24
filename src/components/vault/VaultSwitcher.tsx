@@ -114,7 +114,7 @@ export function VaultSwitcher({ expanded }: { expanded: boolean }) {
           ))}
         </div>
         <div className="mt-2 border-t border-border pt-2">
-          <Button type="button" variant="outline" size="sm" className="h-8 w-full justify-start gap-1.5" disabled={loading} onClick={() => void addVault()}>
+          <Button type="button" variant="outline" size="sm" className="w-full justify-start gap-1.5" disabled={loading} onClick={() => void addVault()}>
             <Plus className="h-3.5 w-3.5" />
             打开或新增一个库
           </Button>

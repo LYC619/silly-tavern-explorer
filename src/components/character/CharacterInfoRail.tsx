@@ -146,7 +146,7 @@ export function CharacterInfoRail({
       {/* 操作抽屉 */}
       <Sheet open={drawerOpen} onOpenChange={setDrawerOpen}>
         <SheetTrigger asChild>
-          <Button variant="outline" size="sm" className="w-full mt-4 h-8">
+          <Button variant="outline" size="sm" className="w-full mt-4">
             <Wrench className="w-3.5 h-3.5 mr-1.5" />
             操作
           </Button>

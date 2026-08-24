@@ -200,17 +200,17 @@ export function AssetSection({ character, onAssetsChange, onQuotesChange, onRead
     <div className="space-y-3">
       <div className="flex items-center gap-1.5 flex-wrap">
         <span className="text-xs text-muted-foreground mr-auto">世界书 / 预设 / 正则（引用制）+ 引用摘录</span>
-        <Button variant="outline" size="sm" className="h-7" title="重新扫描卡内嵌的世界书/正则并入库挂关联" onClick={() => void handleReadEmbedded()}>
+        <Button variant="outline" size="sm" title="重新扫描卡内嵌的世界书/正则并入库挂关联" onClick={() => void handleReadEmbedded()}>
           <PackageOpen className="w-3.5 h-3.5 mr-1" />
           读取内置资源
         </Button>
-        <Button variant="outline" size="sm" className="h-7" onClick={onOpenImport}>
+        <Button variant="outline" size="sm" onClick={onOpenImport}>
           <Download className="w-3.5 h-3.5 mr-1" />
           导入资产
         </Button>
         <Popover open={addOpen} onOpenChange={setAddOpen}>
           <PopoverTrigger asChild>
-            <Button variant="outline" size="sm" className="h-7">
+            <Button variant="outline" size="sm">
               <Plus className="w-3.5 h-3.5 mr-1" />
               添加引用
             </Button>
@@ -289,7 +289,7 @@ export function AssetSection({ character, onAssetsChange, onQuotesChange, onRead
                   <Button
                     variant="outline"
                     size="sm"
-                    className="h-7 shrink-0"
+                    className="shrink-0"
                     onClick={(e) => { e.stopPropagation(); openEditor(a); }}
                   >
                     <Wrench className="w-3.5 h-3.5 mr-1" />
@@ -299,7 +299,7 @@ export function AssetSection({ character, onAssetsChange, onQuotesChange, onRead
                 <Button
                   variant="ghost"
                   size="icon"
-                  className="h-7 w-7 shrink-0 text-muted-foreground hover:text-destructive"
+                  className="shrink-0 text-muted-foreground hover:text-destructive"
                   onClick={(e) => {
                     e.stopPropagation();
                     if (a.kind === 'quote') setQuoteToDelete(quotes.find((q) => q.id === a.id) ?? null);
@@ -318,7 +318,7 @@ export function AssetSection({ character, onAssetsChange, onQuotesChange, onRead
               <Button
                 variant="ghost"
                 size="sm"
-                className="ml-auto h-7"
+                className="ml-auto"
                 onClick={() => void handleRemove(ref.kind, ref.assetId)}
               >
                 移除失效引用

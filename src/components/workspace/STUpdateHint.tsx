@@ -74,7 +74,7 @@ export function STUpdateHint({ story, onStoryUpdate }: Props) {
       <Button size="sm" onClick={handleApply} disabled={merging}>
         {merging ? '导入中…' : '导入更新'}
       </Button>
-      <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => setDismissed(true)} aria-label="忽略本次更新提示">
+      <Button size="icon" variant="ghost" onClick={() => setDismissed(true)} aria-label="忽略本次更新提示">
         <X className="h-4 w-4" />
       </Button>
     </Card>

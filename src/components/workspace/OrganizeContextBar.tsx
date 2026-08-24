@@ -15,13 +15,13 @@ export function OrganizeContextBar({ storyTitle, backLabel, onBack, onRead }: Or
       className="flex h-11 shrink-0 items-center gap-2 border-b border-border bg-background/95 px-3 backdrop-blur-sm"
       data-organize-context-bar
     >
-      <Button variant="ghost" size="sm" className="h-8 px-2 text-muted-foreground" onClick={onBack}>
+      <Button variant="ghost" size="sm" className="px-2 text-muted-foreground" onClick={onBack}>
         <ArrowLeft className="mr-1.5 h-4 w-4" />
         <span className="max-w-40 truncate" title={backLabel}>{backLabel}</span>
       </Button>
       <span className="h-4 w-px bg-border" aria-hidden="true" />
       <p className="min-w-0 flex-1 truncate text-sm font-medium" title={storyTitle}>{storyTitle}</p>
-      <Button variant="outline" size="sm" className="h-8 shrink-0" onClick={onRead}>
+      <Button variant="outline" size="sm" className="shrink-0" onClick={onRead}>
         <BookOpenText className="mr-1.5 h-4 w-4" />
         阅读与编辑
       </Button>

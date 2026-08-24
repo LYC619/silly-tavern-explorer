@@ -104,7 +104,7 @@ export function TemplatePicker({
             ))}
           </SelectContent>
         </Select>
-        <Button variant="outline" size="sm" className="h-8 gap-1" onClick={() => setEditOpen(true)}>
+        <Button variant="outline" size="sm" className="gap-1" onClick={() => setEditOpen(true)}>
           <Pencil className="w-3.5 h-3.5" />
           {isBuiltin ? '查看' : '编辑'}
         </Button>

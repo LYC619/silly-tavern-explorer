@@ -96,7 +96,7 @@ export function SummaryGallery({ currentBookId, refreshKey, kind, charName, onEd
             <div className="flex h-full min-h-0 flex-col gap-4">
               <div className="flex shrink-0 items-start justify-between gap-2 flex-wrap">
                 <div className="min-w-0 flex items-start gap-1.5">
-                  <Button variant="ghost" size="icon" className="h-7 w-7 shrink-0 mt-0.5" onClick={() => setListOpen((open) => !open)} title={listOpen ? '收起列表' : '展开列表'}>
+                  <Button variant="ghost" size="icon" className="shrink-0 mt-0.5" onClick={() => setListOpen((open) => !open)} title={listOpen ? '收起列表' : '展开列表'}>
                     {listOpen ? <PanelLeftClose className="w-4 h-4" /> : <PanelLeftOpen className="w-4 h-4" />}
                   </Button>
                   <div className="min-w-0">
@@ -105,9 +105,9 @@ export function SummaryGallery({ currentBookId, refreshKey, kind, charName, onEd
                   </div>
                 </div>
                 <div className="flex items-center gap-1 shrink-0">
-                  <Button variant="ghost" size="sm" className="h-7 gap-1" onClick={copyActive}><Copy className="w-3.5 h-3.5" />复制</Button>
-                  <Button variant="ghost" size="sm" className="h-7 gap-1" onClick={() => void downloadActive()}><Upload className="w-3.5 h-3.5" />.md</Button>
-                  {onEdit && <Button variant="outline" size="sm" className="h-7 gap-1" onClick={() => onEdit(active)}><Pencil className="w-3.5 h-3.5" />去编辑</Button>}
+                  <Button variant="ghost" size="sm" className="gap-1" onClick={copyActive}><Copy className="w-3.5 h-3.5" />复制</Button>
+                  <Button variant="ghost" size="sm" className="gap-1" onClick={() => void downloadActive()}><Upload className="w-3.5 h-3.5" />.md</Button>
+                  {onEdit && <Button variant="outline" size="sm" className="gap-1" onClick={() => onEdit(active)}><Pencil className="w-3.5 h-3.5" />去编辑</Button>}
                 </div>
               </div>
               <div data-summary-content-scroll className="min-h-0 flex-1 overflow-y-auto pr-1 scrollbar-thin">

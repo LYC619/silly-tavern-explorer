@@ -240,7 +240,7 @@ const AssetLibrary = () => {
               <Button
                 variant="outline"
                 size="sm"
-                className="h-8 self-center"
+                className="self-center"
                 aria-label="导入世界书"
                 onClick={() => worldBookInputRef.current?.click()}
               >
@@ -249,7 +249,7 @@ const AssetLibrary = () => {
               </Button>
             </>
           )}
-          <Button size="sm" className="h-8 self-center" onClick={() => navigate(meta.toolPath)}>
+          <Button size="sm" className="self-center" onClick={() => navigate(meta.toolPath)}>
             <Plus className="w-4 h-4 mr-1.5" />
             打开{meta.toolLabel}
           </Button>
@@ -374,7 +374,7 @@ const AssetLibrary = () => {
                         </div>
                         <DropdownMenu>
                           <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
-                            <Button variant="ghost" size="sm" className="h-7 w-7 p-0 shrink-0" aria-label="更多操作">
+                            <Button variant="ghost" size="sm" className="w-7 p-0 shrink-0" aria-label="更多操作">
                               <MoreVertical className="w-4 h-4" />
                             </Button>
                           </DropdownMenuTrigger>

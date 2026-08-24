@@ -43,7 +43,7 @@ export function LibraryPager({
       {paged && (
         <div className="flex items-center gap-1">
           <Button
-            variant="outline" size="sm" className="h-8 w-8 p-0"
+            variant="outline" size="icon"
             disabled={page <= 1}
             onClick={() => onPageChange((p) => p - 1)}
             aria-label="上一页"
@@ -54,7 +54,7 @@ export function LibraryPager({
             {page} / {pageCount}
           </span>
           <Button
-            variant="outline" size="sm" className="h-8 w-8 p-0"
+            variant="outline" size="icon"
             disabled={page >= pageCount}
             onClick={() => onPageChange((p) => p + 1)}
             aria-label="下一页"
@@ -86,11 +86,11 @@ export function LibraryBatchBar({
   return (
     <div className="fixed bottom-10 left-1/2 -translate-x-1/2 z-40 flex items-center gap-2 rounded-full border border-border bg-card px-4 py-2 shadow-lg flex-wrap">
       <span className="text-sm">已选 {selectedCount} 个</span>
-      <Button variant="ghost" size="sm" className="h-7 px-2 text-xs" onClick={onSelectAllToggle}>
+      <Button variant="ghost" size="sm" className="px-2 text-xs" onClick={onSelectAllToggle}>
         {allSelected ? '清空' : '全选筛选结果'}
       </Button>
       <Button
-        variant="outline" size="sm" className="h-7 px-3 text-xs"
+        variant="outline" size="sm" className="px-3 text-xs"
         disabled={selectedCount === 0}
         onClick={onTag}
       >
@@ -98,7 +98,7 @@ export function LibraryBatchBar({
         打标签
       </Button>
       <Button
-        variant="outline" size="sm" className="h-7 px-3 text-xs"
+        variant="outline" size="sm" className="px-3 text-xs"
         disabled={selectedCount === 0 || exporting}
         onClick={onExport}
       >
@@ -106,14 +106,14 @@ export function LibraryBatchBar({
         {exporting ? '导出中…' : '导出'}
       </Button>
       <Button
-        variant="destructive" size="sm" className="h-7 px-3 text-xs"
+        variant="destructive" size="sm" className="px-3 text-xs"
         disabled={selectedCount === 0}
         onClick={onDelete}
       >
         <Trash2 className="w-3.5 h-3.5 mr-1" />
         删除
       </Button>
-      <Button variant="ghost" size="sm" className="h-7 px-2 text-xs text-muted-foreground" onClick={onExit}>
+      <Button variant="ghost" size="sm" className="px-2 text-xs text-muted-foreground" onClick={onExit}>
         取消
       </Button>
     </div>

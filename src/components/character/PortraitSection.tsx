@@ -183,11 +183,11 @@ export function PortraitSection({ character, onPatch, onOpenImport }: PortraitSe
           按行组织：一行可以是一个角色，也可以是剧情的一个阶段。行内横向滚动，也可展开成网格。
         </span>
         <div className="ml-auto flex gap-1.5 shrink-0">
-          <Button variant="outline" size="sm" className="h-7" onClick={() => void handleAddRow()}>
+          <Button variant="outline" size="sm" onClick={() => void handleAddRow()}>
             <Plus className="w-3.5 h-3.5 mr-1" />
             新建分行
           </Button>
-          <Button variant="outline" size="sm" className="h-7" onClick={onOpenImport}>
+          <Button variant="outline" size="sm" onClick={onOpenImport}>
             <Download className="w-3.5 h-3.5 mr-1" />
             导入立绘
           </Button>
@@ -232,14 +232,14 @@ export function PortraitSection({ character, onPatch, onOpenImport }: PortraitSe
                 <span className="text-xs text-muted-foreground shrink-0">{row.items.length} 张</span>
                 <div className="ml-auto flex gap-1 shrink-0">
                   {row.items.length > 0 && (
-                    <Button variant="ghost" size="sm" className="h-6 px-2 text-xs" onClick={() => toggleExpand(row.rowId)}>
+                    <Button variant="ghost" size="sm" className="px-2 text-xs" onClick={() => toggleExpand(row.rowId)}>
                       {open ? <ChevronUp className="w-3.5 h-3.5 mr-0.5" /> : <ChevronDown className="w-3.5 h-3.5 mr-0.5" />}
                       {open ? '收起' : '展开'}
                     </Button>
                   )}
                   {!row.isStray && (
                     <Button
-                      variant="ghost" size="sm" className="h-6 px-2 text-xs"
+                      variant="ghost" size="sm" className="px-2 text-xs"
                       onClick={() => {
                         importRowId.current = row.rowId;
                         fileRef.current?.click();

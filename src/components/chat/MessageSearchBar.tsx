@@ -19,14 +19,14 @@ export function MessageSearchBar({ query, onQueryChange, total, current, onNext,
   return (
     <div className="flex items-center gap-1 rounded-md border border-border bg-background px-2 py-1">
       <Search className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
-      <Input
+      <Input size="sm"
         value={query}
         onChange={(e) => onQueryChange(e.target.value)}
         onKeyDown={(e) => {
           if (e.key === 'Enter') { e.preventDefault(); if (e.shiftKey) onPrev(); else onNext(); }
         }}
         placeholder="搜索正文…"
-        className="h-6 w-40 border-0 bg-transparent px-1 text-sm shadow-none focus-visible:ring-0"
+        className="w-40 border-0 bg-transparent px-1 text-sm shadow-none focus-visible:ring-0"
         aria-label="搜索消息正文"
       />
       {hasQuery && (
@@ -34,14 +34,14 @@ export function MessageSearchBar({ query, onQueryChange, total, current, onNext,
           {total > 0 ? `${current}/${total}` : '无结果'}
         </span>
       )}
-      <Button variant="ghost" size="icon" className="h-6 w-6" onClick={onPrev} disabled={total === 0} aria-label="上一个命中">
+      <Button variant="ghost" size="icon" onClick={onPrev} disabled={total === 0} aria-label="上一个命中">
         <ChevronUp className="h-3.5 w-3.5" />
       </Button>
-      <Button variant="ghost" size="icon" className="h-6 w-6" onClick={onNext} disabled={total === 0} aria-label="下一个命中">
+      <Button variant="ghost" size="icon" onClick={onNext} disabled={total === 0} aria-label="下一个命中">
         <ChevronDown className="h-3.5 w-3.5" />
       </Button>
       {hasQuery && (
-        <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => onQueryChange('')} aria-label="清除搜索">
+        <Button variant="ghost" size="icon" onClick={() => onQueryChange('')} aria-label="清除搜索">
           <X className="h-3.5 w-3.5" />
         </Button>
       )}

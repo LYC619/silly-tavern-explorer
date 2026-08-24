@@ -410,7 +410,7 @@ const CharacterPage = () => {
                  <TabsTrigger value="greetings">开场白</TabsTrigger>
                </TabsList>
                {TAB_IMPORT_KIND[activeTab] && (
-                 <Button variant="outline" size="sm" className="ml-auto h-8" onClick={() => setImportOpen(true)}>
+                 <Button variant="outline" size="sm" className="ml-auto" onClick={() => setImportOpen(true)}>
                    <Download className="w-3.5 h-3.5 mr-1" />
                    导入
                  </Button>

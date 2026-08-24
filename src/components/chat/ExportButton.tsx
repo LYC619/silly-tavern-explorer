@@ -328,13 +328,13 @@ export function ExportButton({ session, settings, markers = [], onSettingsChange
             <div className="flex items-center space-x-2">
               <RadioGroupItem value="recent" id="range-recent" />
               <Label htmlFor="range-recent" className="font-normal cursor-pointer">最近</Label>
-              <Input
+              <Input size="sm"
                 type="number"
                 min={1}
                 max={session.messages.length}
                 value={recentCount}
                 onChange={(e) => setRecentCount(Math.max(1, parseInt(e.target.value) || 1))}
-                className="w-20 h-7 text-xs"
+                className="w-20 text-xs"
                 disabled={exportRange !== 'recent'}
               />
               <span className="text-xs text-muted-foreground">条</span>
@@ -342,23 +342,23 @@ export function ExportButton({ session, settings, markers = [], onSettingsChange
             <div className="flex items-center space-x-2">
               <RadioGroupItem value="custom" id="range-custom" />
               <Label htmlFor="range-custom" className="font-normal cursor-pointer">自定义</Label>
-              <Input
+              <Input size="sm"
                 type="number"
                 min={0}
                 max={session.messages.length - 1}
                 value={customStart}
                 onChange={(e) => setCustomStart(Math.max(0, parseInt(e.target.value) || 0))}
-                className="w-16 h-7 text-xs"
+                className="w-16 text-xs"
                 disabled={exportRange !== 'custom'}
               />
               <span className="text-xs text-muted-foreground">~</span>
-              <Input
+              <Input size="sm"
                 type="number"
                 min={0}
                 max={session.messages.length - 1}
                 value={customEnd}
                 onChange={(e) => setCustomEnd(Math.max(0, parseInt(e.target.value) || 0))}
-                className="w-16 h-7 text-xs"
+                className="w-16 text-xs"
                 disabled={exportRange !== 'custom'}
               />
               <span className="text-xs text-muted-foreground">楼</span>
