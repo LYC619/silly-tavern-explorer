@@ -29,27 +29,7 @@
        白字压上去对比度不够，见 themes.css 文件头。 */
     --destructive: 7 68.4% 61.6%;
 
-    /* 兜底（= cocoa）：正常情况下被 themes.css 的主题块覆盖 */
-    --background: 25.7 30.4% 9%;
-    --foreground: 36 40% 90.2%;
-    --card: 30 38.5% 10.2%;
-    --card-foreground: 36 40% 90.2%;
-    --popover: 30 35.5% 12.2%;
-    --popover-foreground: 36 40% 90.2%;
-    --secondary: 30 35.5% 12.2%;
-    --secondary-foreground: 40 17.3% 79.6%;
-    --muted: 30 35.5% 12.2%;
-    --muted-foreground: 39.1 20.9% 56.9%;
-    --accent: 30 35.5% 12.2%;
-    --accent-foreground: 36 40% 90.2%;
-    --border: 28 15.7% 16.3%;
-    --input: 28 21.3% 17.5%;
-    --sidebar-background: 30 36.8% 7.5%;
-    --sidebar-foreground: 40 17.3% 79.6%;
     --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 30 38.5% 10.2%;
-    --sidebar-accent-foreground: 36 40% 90.2%;
-    --sidebar-border: 33 13% 13.5%;
   }
 
   /* 主题相关但 shadcn 没有的自定义 token */

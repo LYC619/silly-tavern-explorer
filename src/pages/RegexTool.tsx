@@ -398,7 +398,7 @@ const RegexTool = () => {
                                   不作用于{asUser ? '用户' : 'AI'}楼
                                 </Badge>
                               ) : e.matched ? (
-                                <Badge variant="outline" className="h-5 text-[11px] shrink-0 bg-[var(--status-ok-bg)] text-[color:var(--status-ok)] border-[color:var(--status-ok)]/40">命中</Badge>
+                                <Badge variant="outline" className="h-5 text-[11px] shrink-0 bg-[var(--status-ok-bg)] text-[color:var(--status-ok)] border-[var(--status-ok-bg)]">命中</Badge>
                               ) : (
                                 <Badge variant="outline" className="h-5 text-[11px] text-muted-foreground shrink-0">未命中</Badge>
                               )}

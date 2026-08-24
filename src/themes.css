@@ -38,6 +38,29 @@
   --sidebar-primary: var(--brand-hsl);
   --sidebar-ring: var(--brand-hsl);
 
+  /* shadcn 兜底（= cocoa）：必须和主题块处在同一文件中，且位于主题块之前。
+     index.css 的 :root 会在导入之后输出，若把这些变量留在那里，它会以相同
+     specificity 覆盖 data-theme 的映射，导致切换主题后所有 shadcn 控件仍用 cocoa。 */
+  --background: 25.7 30.4% 9%;
+  --foreground: 36 40% 90.2%;
+  --card: 30 38.5% 10.2%;
+  --card-foreground: 36 40% 90.2%;
+  --popover: 30 35.5% 12.2%;
+  --popover-foreground: 36 40% 90.2%;
+  --secondary: 30 35.5% 12.2%;
+  --secondary-foreground: 40 17.3% 79.6%;
+  --muted: 30 35.5% 12.2%;
+  --muted-foreground: 39.1 20.9% 56.9%;
+  --accent: 30 35.5% 12.2%;
+  --accent-foreground: 36 40% 90.2%;
+  --sidebar-background: 30 36.8% 7.5%;
+  --sidebar-foreground: 40 17.3% 79.6%;
+  --sidebar-accent: 30 38.5% 10.2%;
+  --sidebar-accent-foreground: 36 40% 90.2%;
+  --border: 28 15.7% 16.3%;
+  --input: 28 21.3% 17.5%;
+  --sidebar-border: 33 13% 13.5%;
+
   /* 语义色兜底：四组各有「文字色 + 背景色」两个变量，每套主题再各自覆盖一份。
      这里的值等于 cocoa（默认主题），只在 <html> 还没拿到 data-theme 时兜底，
      真正生效的是下面四个主题块里的定义。四组的用法见 docs/ui-conventions.md。 */

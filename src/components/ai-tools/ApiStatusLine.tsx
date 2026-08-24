@@ -35,7 +35,7 @@ export function ApiStatusLine() {
   }
 
   return (
-    <div className="flex items-center gap-2 flex-wrap rounded-md border border-[color:var(--status-warn)]/40 bg-[var(--status-warn-bg)] px-3 py-2 text-sm">
+    <div className="flex items-center gap-2 flex-wrap rounded-md border border-[var(--status-warn-bg)] bg-[var(--status-warn-bg)] px-3 py-2 text-sm">
       <AlertCircle className="w-4 h-4 text-[color:var(--status-warn)] shrink-0" />
       <span>尚未配置 API Key，生成功能不可用。</span>
       <Button variant="outline" size="sm" className="ml-auto" onClick={() => navigate('/settings')}>
