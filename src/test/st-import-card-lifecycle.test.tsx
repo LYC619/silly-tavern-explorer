@@ -7,6 +7,8 @@ const mocks = vi.hoisted(() => ({
   createTauriFs: vi.fn(),
   importSelected: vi.fn(),
   pickDirectory: vi.fn(),
+  pickSTBackupImport: vi.fn(),
+  cleanupSTBackupImport: vi.fn(),
   scanSTUserDir: vi.fn(),
   setAppConfig: vi.fn(),
   toast: vi.fn(),
@@ -16,6 +18,8 @@ vi.mock('@/lib/vault/tauri-fs', () => ({
   createTauriFs: mocks.createTauriFs,
   isTauri: () => true,
   pickDirectory: mocks.pickDirectory,
+  pickSTBackupImport: mocks.pickSTBackupImport,
+  cleanupSTBackupImport: mocks.cleanupSTBackupImport,
   setAppConfig: mocks.setAppConfig,
 }));
 
@@ -29,8 +33,9 @@ vi.mock('@/hooks/use-toast', () => ({
 }));
 
 vi.mock('@/components/tools/st-import/STImportSelectionDialog', () => ({
-  STImportSelectionDialog: ({ onImport }: { onImport: () => void }) => (
+  STImportSelectionDialog: ({ onImport, onCancel }: { onImport: () => void; onCancel: () => void }) => (
     <div data-testid="st-import-selection">
+      <button type="button" onClick={onCancel}>取消导入</button>
       <button type="button" onClick={onImport}>确认导入</button>
     </div>
   ),
@@ -94,6 +99,8 @@ beforeEach(() => {
   document.body.appendChild(container);
   root = createRoot(container);
   mocks.pickDirectory.mockResolvedValue('D:/SillyTavern');
+  mocks.pickSTBackupImport.mockResolvedValue({ root: 'C:/Temp/ste-st-import-1', displayName: 'backup.zip' });
+  mocks.cleanupSTBackupImport.mockResolvedValue(undefined);
   mocks.createTauriFs.mockReturnValue({});
   mocks.scanSTUserDir.mockResolvedValue(scan);
   mocks.setAppConfig.mockResolvedValue(undefined);
@@ -124,7 +131,7 @@ describe('STImportCard lifecycle', () => {
     expect(document.querySelector('[data-testid="st-import-selection"]')).not.toBeNull();
     expect(onChanged).not.toHaveBeenCalled();
 
-    const importButton = document.querySelector<HTMLButtonElement>('[data-testid="st-import-selection"] button');
+    const importButton = document.querySelector<HTMLButtonElement>('[data-testid="st-import-selection"] button:last-child');
     await act(async () => {
       importButton?.click();
       await Promise.resolve();
@@ -142,5 +149,63 @@ describe('STImportCard lifecycle', () => {
       await Promise.resolve();
     });
     expect(onChanged).toHaveBeenCalledTimes(1);
+  });
+
+  it('imports a backup through the temporary root without persisting stRoot, then cleans it up', async () => {
+    await act(async () => {
+      root.render(<STImportCard />);
+    });
+
+    const buttons = container.querySelectorAll<HTMLButtonElement>('button');
+    await act(async () => {
+      buttons[1]?.click();
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    expect(mocks.createTauriFs).toHaveBeenCalledWith('C:/Temp/ste-st-import-1');
+    expect(mocks.setAppConfig).not.toHaveBeenCalledWith('stRoot', expect.anything());
+    expect(document.querySelector('[data-testid="st-import-selection"]')).not.toBeNull();
+
+    const importButton = document.querySelector<HTMLButtonElement>('[data-testid="st-import-selection"] button:last-child');
+    await act(async () => {
+      importButton?.click();
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    expect(mocks.importSelected).toHaveBeenCalledWith(expect.anything(), expect.objectContaining({
+      stRoot: 'C:/Temp/ste-st-import-1',
+      sourceLabel: 'backup.zip',
+    }));
+    expect(mocks.cleanupSTBackupImport).toHaveBeenCalledWith('C:/Temp/ste-st-import-1');
+  });
+
+  it('cleans up a backup when the selection is cancelled or scanning fails', async () => {
+    await act(async () => {
+      root.render(<STImportCard />);
+    });
+    let buttons = container.querySelectorAll<HTMLButtonElement>('button');
+    await act(async () => {
+      buttons[1]?.click();
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+    const cancelButton = document.querySelector<HTMLButtonElement>('[data-testid="st-import-selection"] button:first-child');
+    await act(async () => {
+      cancelButton?.click();
+      await Promise.resolve();
+    });
+    expect(mocks.cleanupSTBackupImport).toHaveBeenCalledWith('C:/Temp/ste-st-import-1');
+
+    mocks.cleanupSTBackupImport.mockClear();
+    mocks.scanSTUserDir.mockRejectedValueOnce(new Error('坏包'));
+    buttons = container.querySelectorAll<HTMLButtonElement>('button');
+    await act(async () => {
+      buttons[1]?.click();
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+    expect(mocks.cleanupSTBackupImport).toHaveBeenCalledWith('C:/Temp/ste-st-import-1');
   });
 });

@@ -586,6 +586,7 @@ describe('importSelected', () => {
 
     const summary = await importSelected(st, {
       stRoot: 'C:/ST',
+      sourceLabel: 'backup.zip',
       characters: [],
       strayChats: [],
       worldbooks: [],
@@ -602,6 +603,7 @@ describe('importSelected', () => {
     expect(files).toContain('资产/其他/SillyTavern/assets/bgm/theme.mp3');
     expect(files).toContain('说明/SillyTavern 导入说明.md');
     expect(files).toContain('说明/SillyTavern 最近一次导入.json');
+    expect(JSON.parse(await vaultFs.readText('说明/SillyTavern 最近一次导入.json')).sourceRoot).toBe('backup.zip');
     const guide = await vaultFs.readText('说明/SillyTavern 导入说明.md');
     expect(guide).toContain('世界书关系');
     expect(guide).toContain('同一路径再次导入');

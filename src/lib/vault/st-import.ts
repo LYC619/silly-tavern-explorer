@@ -546,6 +546,8 @@ export async function scanSTUserDir(fs: VaultFs): Promise<STScanResult> {
 export interface STImportPlan {
   /** 用户所选目录的绝对路径（与 createTauriFs 的 root 一致）；sourcePath = stRoot + '/' + 相对路径 */
   stRoot: string;
+  /** 导入说明中展示的来源名称；zip 临时目录不应暴露给用户时使用。 */
+  sourceLabel?: string;
   /** 勾选的角色（连带各自勾选的聊天） */
   characters: Array<Pick<STScanCharacter, 'name' | 'pngPath'> & { chats: Array<Pick<STScanChat, 'name' | 'path'>> }>;
   /** 勾选的散聊天 → 未绑定故事（进 临时/） */
@@ -1135,7 +1137,7 @@ export async function importSelected(stFs: VaultFs, plan: STImportPlan): Promise
       // 这是应用维护的导入规则说明；每次导入刷新，避免升级后旧库继续展示过时范围。
       await vaultFs.writeText(guidePath, ST_IMPORT_GUIDE);
       await vaultFs.writeText('说明/SillyTavern 最近一次导入.json', JSON.stringify({
-        sourceRoot: plan.stRoot,
+        sourceRoot: plan.sourceLabel ?? plan.stRoot,
         importedAt: new Date().toISOString(),
         summary,
       }, null, 2));

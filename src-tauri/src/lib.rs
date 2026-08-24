@@ -8,6 +8,8 @@ use std::sync::Mutex;
 use tauri::Manager;
 use tauri_plugin_dialog::DialogExt;
 
+mod st_backup_import;
+
 /// 文件库(FileVault)的 Rust 侧原语：列目录/读写文本与二进制/删除/改名 + 应用配置读写。
 /// 策略与映射逻辑全部在 TS 层（src/lib/vault/），这里保持薄且可单测。
 /// 铁律：删除类命令只删调用方点名的单个文件/空目录，绝不递归删——"不认识的文件永不删改"。
@@ -16,6 +18,7 @@ use tauri_plugin_dialog::DialogExt;
 struct AuthorizedRootSet {
     roots: HashSet<PathBuf>,
     persistent: HashSet<PathBuf>,
+    temporary: HashSet<PathBuf>,
 }
 
 #[derive(Default)]
@@ -45,6 +48,30 @@ impl AuthorizedRoots {
 
     fn authorize(&self, root: &Path) -> Result<PathBuf, String> {
         self.authorize_inner(root, false)
+    }
+
+    fn authorize_temporary(&self, root: &Path) -> Result<PathBuf, String> {
+        let canonical = self.authorize_inner(root, false)?;
+        let mut state = self
+            .state
+            .lock()
+            .map_err(|_| "文件访问授权状态已损坏".to_string())?;
+        state.temporary.insert(canonical.clone());
+        Ok(canonical)
+    }
+
+    fn revoke_temporary(&self, root: &Path) -> Result<PathBuf, String> {
+        let canonical = fs::canonicalize(root)
+            .map_err(|e| format!("解析临时导入目录失败 {}: {e}", root.display()))?;
+        let mut state = self
+            .state
+            .lock()
+            .map_err(|_| "文件访问授权状态已损坏".to_string())?;
+        if !state.temporary.remove(&canonical) {
+            return Err(format!("拒绝清理非本次导入的临时目录: {}", root.display()));
+        }
+        state.roots.remove(&canonical);
+        Ok(canonical)
     }
 
     fn authorize_persistent(&self, root: &Path) -> Result<PathBuf, String> {
@@ -729,7 +756,9 @@ pub fn run() {
             vault_pick_authorized_directory,
             config_get,
             config_set,
-            config_repair
+            config_repair,
+            st_backup_import::prepare_st_backup_import,
+            st_backup_import::cleanup_st_backup_import
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

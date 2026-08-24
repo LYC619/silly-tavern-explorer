@@ -100,6 +100,22 @@ export async function setVaultRoot(path: string): Promise<void> {
   await setAppConfig(VAULT_ROOT_KEY, path);
 }
 
+export interface PreparedSTBackup {
+  root: string;
+  displayName: string;
+}
+
+/** 选择并解压一个 SillyTavern zip；返回只在本次导入期间有效的临时根目录。 */
+export async function pickSTBackupImport(): Promise<PreparedSTBackup | null> {
+  const value = await invoke<{ root: string; display_name: string } | null>('prepare_st_backup_import');
+  return value ? { root: value.root, displayName: value.display_name } : null;
+}
+
+/** 清理 pickSTBackupImport 创建的一次性临时根目录。 */
+export function cleanupSTBackupImport(root: string): Promise<void> {
+  return invoke('cleanup_st_backup_import', { root });
+}
+
 /** 弹系统目录选择器；用户取消返回 null */
 export async function pickDirectory(
   title: string,
