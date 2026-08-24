@@ -77,13 +77,13 @@ function renderPreviewHighlight(content: string, rule: RegexRule): React.ReactNo
     const matched = m[0];
     if (matched.length === 0) { g.lastIndex++; continue; }
     nodes.push(
-      <span key={`d${key}`} className="bg-red-100 dark:bg-red-950/40 text-red-600 dark:text-red-400 line-through rounded-sm px-0.5">
+      <span key={`d${key}`} className="bg-[var(--status-danger-bg)] text-[color:var(--status-danger)] line-through rounded-sm px-0.5">
         {matched}
       </span>
     );
     if (rule.replaceString) {
       nodes.push(
-        <span key={`r${key}`} className="bg-green-100 dark:bg-green-950/40 text-green-700 dark:text-green-400 rounded-sm px-0.5">
+        <span key={`r${key}`} className="bg-[var(--status-ok-bg)] text-[color:var(--status-ok)] rounded-sm px-0.5">
           {rule.replaceString}
         </span>
       );
@@ -110,7 +110,7 @@ function renderTextWithSearch(text: string, query: string): React.ReactNode {
       <mark
         key={`s${key}`}
         data-search-match="true"
-        className="rounded-sm bg-yellow-200 px-0.5 text-inherit dark:bg-yellow-500/40"
+        className="rounded-sm bg-[var(--mark-bg)] px-0.5 text-[color:var(--mark-text)]"
       >
         {text.slice(idx, idx + query.length)}
       </mark>

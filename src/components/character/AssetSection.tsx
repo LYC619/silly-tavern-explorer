@@ -326,10 +326,10 @@ export function AssetSection({ character, onAssetsChange, onQuotesChange, onRead
             </div>
           ))}
           {unresolved.map((ref) => (
-            <div key={`${ref.kind}-${ref.relation}-${ref.name}`} className="flex items-center gap-2.5 rounded-lg border border-dashed border-amber-500/50 px-3 py-2 text-sm">
-              <Globe className="w-4 h-4 text-amber-600 shrink-0" />
+            <div key={`${ref.kind}-${ref.relation}-${ref.name}`} className="flex items-center gap-2.5 rounded-lg border border-dashed border-[color:var(--status-warn)]/50 px-3 py-2 text-sm">
+              <Globe className="w-4 h-4 text-[color:var(--status-warn)] shrink-0" />
               <span className="min-w-0 truncate" title={`未找到世界书「${ref.name}」`}>未找到世界书「{ref.name}」</span>
-              <Badge variant="outline" className="ml-auto h-4 px-1 text-[11px] text-amber-700 shrink-0">
+              <Badge variant="outline" className="ml-auto h-4 px-1 text-[11px] text-[color:var(--status-warn)] shrink-0">
                 {RELATION_LABELS[ref.relation]}
               </Badge>
             </div>

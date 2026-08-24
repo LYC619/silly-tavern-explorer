@@ -188,7 +188,7 @@ export function AIRewriteContent({ content, onResult, compact, systemPrompt, qui
                   part.removed ? null : (
                     <span
                       key={i}
-                      className={part.added ? 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-400' : undefined}
+                      className={part.added ? 'bg-[var(--status-ok-bg)] text-[color:var(--status-ok)]' : undefined}
                     >
                       {part.value}
                     </span>

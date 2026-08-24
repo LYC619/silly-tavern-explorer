@@ -63,7 +63,7 @@ export function VaultGate({ children }: { children: React.ReactNode }) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-background">
         <div className="max-w-md space-y-4 rounded-lg border p-8 text-center">
-          <AlertTriangle className="mx-auto h-10 w-10 text-amber-500" />
+          <AlertTriangle className="mx-auto h-10 w-10 text-[color:var(--status-warn)]" />
           <h1 className="text-xl font-semibold">应用配置需要修复</h1>
           <p className="text-sm text-muted-foreground">
             STE 无法读取系统配置文件。你的角色、故事和其他库文件不在这个配置文件里，不会被删除或修改。

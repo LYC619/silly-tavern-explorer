@@ -128,8 +128,8 @@ export function PresetExport({ preset, originalPreset, activeCharacterId, fileNa
         <div>
           <h3 className="text-sm font-medium mb-1">变更对比（导入时 ↔ 当前{mode === 'smart' ? '智能' : mode === 'group' ? '分组' : '完整'}导出）</h3>
           <p className="text-xs text-muted-foreground mb-2">
-            <span className="text-emerald-600 dark:text-emerald-400">绿色 = 新增/改后</span>，
-            <span className="text-red-600 dark:text-red-400">红色 = 原值/删除</span>；灰色为未变行
+            <span className="text-[color:var(--status-ok)]">绿色 = 新增/改后</span>，
+            <span className="text-[color:var(--status-danger)]">红色 = 原值/删除</span>；灰色为未变行
           </p>
           <ScrollArea className="h-[420px] rounded-md border">
             {diffParts === null ? (
@@ -141,9 +141,9 @@ export function PresetExport({ preset, originalPreset, activeCharacterId, fileNa
                 {diffParts.flatMap((part, i) => {
                   const sign = part.added ? '+' : part.removed ? '-' : ' ';
                   const cls = part.added
-                    ? 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-400'
+                    ? 'bg-[var(--status-ok-bg)] text-[color:var(--status-ok)]'
                     : part.removed
-                      ? 'bg-red-500/15 text-red-700 dark:text-red-400'
+                      ? 'bg-[var(--status-danger-bg)] text-[color:var(--status-danger)]'
                       : 'text-muted-foreground';
                   // 每个 part 可能含多行，逐行加 +/- 前缀，便于阅读
                   const lines = part.value.replace(/\n$/, '').split('\n');

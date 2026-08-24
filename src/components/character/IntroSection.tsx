@@ -192,7 +192,7 @@ export function IntroSection({ character, norm, onPatch }: IntroSectionProps) {
           </Badge>
         )}
         {stale && (
-          <Badge variant="outline" className="h-5 px-1.5 text-[11px] gap-1 text-amber-600 border-amber-300 font-normal">
+          <Badge variant="outline" className="h-5 px-1.5 text-[11px] gap-1 text-[color:var(--status-warn)] border-[color:var(--status-warn)]/40 font-normal">
             <TriangleAlert className="w-3 h-3" />
             可能已过期（关联世界书有更新）
           </Badge>

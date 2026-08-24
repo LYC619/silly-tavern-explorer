@@ -36,7 +36,7 @@ export function UnreferencedBadge() {
 
 export function EmptyBadge() {
   return (
-    <Badge variant="outline" className="text-[11px] px-1.5 py-0 bg-amber-500/15 text-amber-600 dark:text-amber-400 border-amber-500/30">
+    <Badge variant="outline" className="text-[11px] px-1.5 py-0 bg-[var(--status-warn-bg)] text-[color:var(--status-warn)] border-[color:var(--status-warn)]/30">
       空条目
     </Badge>
   );

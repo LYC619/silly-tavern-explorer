@@ -356,8 +356,8 @@ export function DataSettingsPanel({ onDataChanged }: DataSettingsPanelProps) {
                     <div key={s.key} className="flex items-center justify-between rounded-md bg-muted/50 px-2 py-1.5">
                       <span className="font-medium">{s.label}</span>
                       <span className="flex gap-2.5">
-                        {s.add > 0 && <span className="text-emerald-600 dark:text-emerald-400">新增 {s.add}</span>}
-                        {s.overwrite > 0 && <span className="text-amber-600 dark:text-amber-400">覆盖 {s.overwrite}</span>}
+                        {s.add > 0 && <span className="text-[color:var(--status-ok)]">新增 {s.add}</span>}
+                        {s.overwrite > 0 && <span className="text-[color:var(--status-warn)]">覆盖 {s.overwrite}</span>}
                         {s.skipped > 0 && <span className="text-muted-foreground">跳过 {s.skipped}</span>}
                       </span>
                     </div>
@@ -367,7 +367,7 @@ export function DataSettingsPanel({ onDataChanged }: DataSettingsPanelProps) {
                 )}
               </div>
               {pendingImport.preview.totalOverwrite > 0 && (
-                <div className="flex items-start gap-1.5 text-xs text-amber-600 dark:text-amber-400">
+                <div className="flex items-start gap-1.5 text-xs text-[color:var(--status-warn)]">
                   <AlertCircle className="w-3.5 h-3.5 mt-0.5 shrink-0" />
                   <span>将覆盖 {pendingImport.preview.totalOverwrite} 条现有记录（同 id）。如需保险，可先取消、「导出完整备份」留档后再恢复。</span>
                 </div>

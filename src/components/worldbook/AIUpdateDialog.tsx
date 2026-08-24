@@ -253,7 +253,7 @@ export function AIUpdateDialog({ open, onOpenChange, existingEntries, onAppend }
                         <Sparkles className="w-4 h-4" /> 并入世界书（{parsed.count} 条新条目）
                       </Button>
                     ) : (
-                      <p className="text-xs text-amber-600 dark:text-amber-400">AI 返回的内容不是有效的世界书 JSON，可点「停止」后重试或调整选择范围。</p>
+                      <p className="text-xs text-[color:var(--status-warn)]">AI 返回的内容不是有效的世界书 JSON，可点「停止」后重试或调整选择范围。</p>
                     )
                   )}
                 </div>

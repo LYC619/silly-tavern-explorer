@@ -80,7 +80,7 @@ export function STImportResultDialog({ result, onClose }: STImportResultDialogPr
         <div className="min-h-0 overflow-y-auto border-y border-border px-6 py-4">
           <div className="flex items-start gap-3 rounded border border-border bg-muted/30 p-3">
             {status.needsAttention
-              ? <AlertCircle className="mt-0.5 h-5 w-5 shrink-0 text-amber-500" />
+              ? <AlertCircle className="mt-0.5 h-5 w-5 shrink-0 text-[color:var(--status-warn)]" />
               : <CheckCircle2 className="mt-0.5 h-5 w-5 shrink-0 text-primary" />}
             <div>
               <p className="text-sm font-medium">{status.title}</p>

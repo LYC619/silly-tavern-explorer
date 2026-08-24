@@ -97,7 +97,7 @@ export function ClientTitleBar({ titleBarContent }: ClientTitleBarProps) {
           onClick={close}
           aria-label="关闭窗口"
           title="关闭"
-          className="flex h-full w-11 items-center justify-center text-[color:var(--text-muted)] transition-colors hover:bg-red-600 hover:text-white"
+          className="flex h-full w-11 items-center justify-center text-[color:var(--text-muted)] transition-colors hover:bg-[var(--titlebar-close-bg)] hover:text-[color:var(--titlebar-close-text)]"
         >
           <X className="h-[18px] w-[18px]" strokeWidth={1.6} />
         </button>

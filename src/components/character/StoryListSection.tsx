@@ -76,9 +76,9 @@ function StatusChip({ story, onPatch }: { story: ArchiveStory; onPatch: (patch: 
   const status = story.status ?? '未开始';
   const tone: Record<StoryStatus, string> = {
     未开始: 'text-muted-foreground',
-    进行中: 'text-sky-600 dark:text-sky-400 border-sky-500/40',
-    已完结: 'text-emerald-600 dark:text-emerald-400 border-emerald-500/40',
-    已搁置: 'text-amber-600 dark:text-amber-400 border-amber-500/40',
+    进行中: 'text-[color:var(--status-info)] border-[color:var(--status-info)]/40',
+    已完结: 'text-[color:var(--status-ok)] border-[color:var(--status-ok)]/40',
+    已搁置: 'text-[color:var(--status-warn)] border-[color:var(--status-warn)]/40',
   };
   return (
     <DropdownMenu>

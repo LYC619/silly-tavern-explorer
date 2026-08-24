@@ -41,8 +41,8 @@ interface OpItem {
 }
 
 const OP_BADGE: Record<TreeOp['op'], { text: string; cls: string }> = {
-  insert: { text: '+ 新增', cls: 'text-emerald-600 dark:text-emerald-400' },
-  update: { text: '~ 更新', cls: 'text-amber-600 dark:text-amber-400' },
+  insert: { text: '+ 新增', cls: 'text-[color:var(--status-ok)]' },
+  update: { text: '~ 更新', cls: 'text-[color:var(--status-warn)]' },
   archive: { text: '⊘ 归档', cls: 'text-muted-foreground' },
 };
 

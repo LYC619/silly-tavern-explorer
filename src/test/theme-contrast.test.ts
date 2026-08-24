@@ -49,6 +49,69 @@ function contrast(a: Rgb, b: Rgb): number {
   return (high + 0.05) / (low + 0.05);
 }
 
+function rgba(value: string): { color: Rgb; alpha: number } {
+  const match = value.match(/^rgba\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)\s*,\s*([\d.]+)\s*\)$/);
+  if (!match) throw new Error(`expected rgba color, received ${value}`);
+  return {
+    color: [Number(match[1]), Number(match[2]), Number(match[3])] as Rgb,
+    alpha: Number(match[4]),
+  };
+}
+
+/** 半透明前景压在底色上的实际观感色——语义色的 -bg 都是 rgba 色片。 */
+function composite(fg: Rgb, alpha: number, bg: Rgb): Rgb {
+  return fg.map((c, i) => Math.round(c * alpha + bg[i] * (1 - alpha))) as Rgb;
+}
+
+/**
+ * 语义色四组：每套主题各定义一份，文字色要在三层底色上过 AA，
+ * 也要在自己那片 -bg 色片上过 AA（徽章是「浅色底 + 同色文字」的组合，
+ * 色片会把底色抬亮，是四种组合里最紧的一档）。
+ */
+describe('语义色对比度', () => {
+  const themes = ['cocoa', 'ink', 'midnight', 'cream'] as const;
+  const groups = ['ok', 'warn', 'danger', 'info'] as const;
+  const surfaces = ['--bg-canvas', '--bg-chrome', '--bg-elevated'] as const;
+
+  it.each(themes)('%s 定义了四组语义色的文字色与背景色', (theme) => {
+    const block = themeBlock(theme);
+    for (const group of groups) {
+      expect(() => hex(variable(block, `--status-${group}`))).not.toThrow();
+      expect(() => rgba(variable(block, `--status-${group}-bg`))).not.toThrow();
+    }
+  });
+
+  it.each(themes)('%s 的语义色文字在三层底色上达到 AA 4.5:1', (theme) => {
+    const block = themeBlock(theme);
+    for (const group of groups) {
+      const text = hex(variable(block, `--status-${group}`));
+      for (const surface of surfaces) {
+        const ratio = contrast(text, hex(resolvedVariable(block, surface)));
+        expect(ratio, `${theme}/${group} on ${surface}`).toBeGreaterThanOrEqual(4.5);
+      }
+    }
+  });
+
+  it.each(themes)('%s 的语义色文字压在自己的色片上仍达到 AA 4.5:1', (theme) => {
+    const block = themeBlock(theme);
+    for (const group of groups) {
+      const text = hex(variable(block, `--status-${group}`));
+      const tint = rgba(variable(block, `--status-${group}-bg`));
+      for (const surface of surfaces) {
+        const filled = composite(tint.color, tint.alpha, hex(resolvedVariable(block, surface)));
+        const ratio = contrast(text, filled);
+        expect(ratio, `${theme}/${group} on tinted ${surface}`).toBeGreaterThanOrEqual(4.5);
+      }
+    }
+  });
+
+  it.each(themes)('%s 的四组语义色互不相同', (theme) => {
+    const block = themeBlock(theme);
+    const values = groups.map((group) => variable(block, `--status-${group}`).toLowerCase());
+    expect(new Set(values).size).toBe(groups.length);
+  });
+});
+
 describe('主题活动文字对比度', () => {
   it.each(['cocoa', 'ink', 'midnight', 'cream'])('%s 的角色页辅助文字使用正文级 token', (theme) => {
     const block = themeBlock(theme);

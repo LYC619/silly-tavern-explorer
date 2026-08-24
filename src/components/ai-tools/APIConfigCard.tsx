@@ -107,10 +107,10 @@ export function APIConfigCard() {
         {testResult && (
           <div className={`flex items-center gap-2 text-sm rounded-md border px-3 py-2 ${
             testResult.ok
-              ? 'border-primary/30 bg-primary/5 text-foreground'
-              : 'border-amber-500/40 bg-amber-500/10 text-amber-700 dark:text-amber-400'
+              ? 'border-[color:var(--status-ok)]/40 bg-[var(--status-ok-bg)] text-[color:var(--status-ok)]'
+              : 'border-[color:var(--status-warn)]/40 bg-[var(--status-warn-bg)] text-[color:var(--status-warn)]'
           }`}>
-            {testResult.ok ? <Check className="w-4 h-4 text-primary shrink-0" /> : <AlertCircle className="w-4 h-4 shrink-0" />}
+            {testResult.ok ? <Check className="w-4 h-4 shrink-0" /> : <AlertCircle className="w-4 h-4 shrink-0" />}
             <span className="break-all">{testResult.text}</span>
           </div>
         )}

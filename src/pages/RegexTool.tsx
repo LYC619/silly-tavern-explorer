@@ -398,7 +398,7 @@ const RegexTool = () => {
                                   不作用于{asUser ? '用户' : 'AI'}楼
                                 </Badge>
                               ) : e.matched ? (
-                                <Badge className="h-5 text-[11px] shrink-0 bg-emerald-600 hover:bg-emerald-600 text-white">命中</Badge>
+                                <Badge variant="outline" className="h-5 text-[11px] shrink-0 bg-[var(--status-ok-bg)] text-[color:var(--status-ok)] border-[color:var(--status-ok)]/40">命中</Badge>
                               ) : (
                                 <Badge variant="outline" className="h-5 text-[11px] text-muted-foreground shrink-0">未命中</Badge>
                               )}
@@ -411,7 +411,7 @@ const RegexTool = () => {
                                   <del className="bg-destructive/15 text-destructive rounded px-0.5">{diff.removed.slice(0, 400)}</del>
                                 )}
                                 {diff.added && (
-                                  <ins className="bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 no-underline rounded px-0.5">
+                                  <ins className="bg-[var(--status-ok-bg)] text-[color:var(--status-ok)] no-underline rounded px-0.5">
                                     {diff.added.slice(0, 400)}
                                   </ins>
                                 )}
