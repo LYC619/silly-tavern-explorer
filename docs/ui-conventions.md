@@ -94,3 +94,100 @@
 
 `<Sonner />` 看起来零调用是因为它的唯一调用方在 `register-sw.ts` 里直接 `import { toast }
 from 'sonner'`，不经过 hook。删掉它，网页版的更新提示会静默消失，而且不报错。
+
+## 六、视觉约定
+
+下面七条都有契约测试守着，改约定就要连着测试一起改。「哪个测试」一栏写的是
+失败时会先红的那个文件。
+
+| 约定 | 哪个测试 |
+|---|---|
+| 最小字号 11px，不许 `text-[10px]` 及以下 | `frontend-mechanical-fixes` |
+| SVG 的 `fontSize` 同样不低于 11 | `frontend-mechanical-fixes` |
+| 可点区域最小 32×32 | `tap-target` |
+| 组件里不写死 hsl/hex，一律走主题变量 | `frontend-mechanical-fixes` |
+| 状态含义只用四组语义色 token | `frontend-mechanical-fixes` / `theme-contrast` |
+| 输入框三档 sm 28 / md 32 / lg 36 | `control-height-grid` / `control-size-behavior` |
+| 按钮：纯图标 28、带文字 32、表单主体 36 | `control-height-grid` / `control-size-behavior` |
+| 项目代码只用项目变量，不写 shadcn 变量名 | `theme-token-mapping` |
+
+### 字号下限 11px
+
+比 11px 小的中文在普通屏上已经糊了。两处容易漏：
+
+1. **SVG 的 `fontSize={9}`** 不是 Tailwind 类，扫类名的规则看不见它。故事树导图
+   原来用 9/10px 画节点副标题，而那张图是 1:1 渲染的（没有 viewBox 缩放），
+   屏幕上就是 9px。抬字号时要顺手调 `fitText` 的截断预算，否则文字会顶出节点框。
+2. **算出来的字号**。卡面字号是 `基准值 × fontScale`，简介基准 12px 乘上
+   `FONT_MIN = 0.85` 正好落到 10px。下限夹在 `cardFontSizes()` 里，不是靠抬
+   `FONT_MIN`——那样名称也跟着抬，卡面就没有层级差了。
+
+### 点击区域 32px
+
+**视觉尺寸和点击热区是两件事。** 纯图标按钮视觉上是 28px，热区靠 `index.css`
+里 `.tap-target` 的透明伪元素补到 32×32：本身够大的元素不受影响，小元素才向四周
+撑开。`ui/button.tsx` 和 `ui/checkbox.tsx` 已内置，**裸 `<button>` 要自己加**。
+
+### 颜色：只走主题变量
+
+组件里不许出现 `text-[#e08a4a]`、`bg-[hsl(25_60%_45%)]` 这类字面量——浅色分支写死
+的颜色在深色主题首屏（`.dark` 还没挂上）会闪一下，而且换不了肤。
+
+`rgba(...)` 不在此列：立绘之上的黑底白字胶囊要的就是与主题无关的半透明黑。
+
+### 语义色只有四组
+
+| 组 | 什么时候用 | 例子 |
+|---|---|---|
+| `--status-ok` | 成功、新增、命中、已完结 | diff 的新增行、正则命中徽章 |
+| `--status-warn` | 需要注意但没坏 | 未配置 API Key、引用已失效、内容可能过期 |
+| `--status-danger` | 删除、失败、破坏性结果 | diff 的删除行、被正则删掉的片段 |
+| `--status-info` | 中性的进行中状态 | 故事状态「进行中」 |
+
+每组两个变量：`--status-x` 是**文字色**，`--status-x-bg` 是**半透明色片**。
+四套主题各定义一份，浅底的 cream 必须单独压暗——深色三主题那套浅色值在米色底上
+只有 1.8:1。`theme-contrast` 会验四组 × 四主题 × 三层底色，且文字压在自己的色片上
+也要过 AA（色片会抬亮底色，是最紧的一档）。
+
+**别拿 `--status-danger` 当实心底色。** 它是给正文用的浅色，白字压上去只有 1.6:1。
+需要「实心红底 + 白字」的地方用 shadcn 的 `--destructive`（破坏性按钮），
+标题栏关闭键用 `--titlebar-close-bg`（那是 Windows 的窗口惯例，不是语义状态）。
+
+**分类色不是状态色，别硬塞进四组。** 世界书的三种激活策略、故事树的四类节点、
+消息的发言人两侧——这些数量随枚举走，压成四组会丢掉可分辨性。它们和 `--tag-*`
+同族。`frontend-mechanical-fixes` 里有一张白名单，连着理由一起写。
+搜索命中高亮也不是状态，它走 `--mark-bg` / `--mark-text`。
+
+### 高度栅格 28 / 32 / 36
+
+同一行里的控件必须同档，这是这三个数字唯一的意义。
+
+| 档 | 高度 | 用在哪 | 配什么 |
+|---|---|---|---|
+| sm | 28px | 工具栏、表格内、行内小字段 | `<Input size="sm">` + `<Button size="icon">` |
+| md | 32px | 默认 | `<Input>` + `<Button>` / `<Button size="sm">` |
+| lg | 36px | 表单主体区域 | `<Input size="lg">` + `<Button size="lg">` |
+
+- **不要在调用处写 `className="h-7"`**，用 `size`。契约测试会拦。
+- 带文字的按钮 `default` 和 `sm` 都是 32px，差别只在内边距。
+- 输入框三档的字号都写成 `text-base md:text-*`：iOS Safari 会在字号小于 16px 的
+  输入框获焦时整页放大，移动端必须留在 16px。
+- `TabsTrigger` 不受这条约束——它嵌在 `h-8` 的 `TabsList` 里，比外框矮一档是
+  shadcn 的内缩样式，不是一个 24px 的控件。
+
+### 两套变量命名
+
+**项目代码只写项目变量**：`--bg-canvas` / `--bg-elevated` / `--text-body` /
+`--text-muted` / `--status-*` 这一套。
+
+shadcn 组件内部用的是它自带的一套（`--background` / `--foreground` / `--muted`……），
+那套在 `themes.css` 每个主题块末尾的「shadcn 适配层」里映射过去，**组件内部不用改**。
+改颜色只改主题块顶部的 HSL 三元组，两侧一起跟随。
+
+留着三元组这一层是有原因的：Tailwind v3 要靠裸三元组补 `/ <alpha-value>`，
+`bg-primary/90`、`text-foreground/60` 这类透明度修饰符才有效。项目变量则要能直接
+进 CSS，所以包一层 `hsl()`。
+
+`text-muted-foreground` 这类 **utility 类可以照常用**——这条约定管的是
+`var(--muted-foreground)` 这种直接引用变量名的写法。类名走的正是适配层。
+

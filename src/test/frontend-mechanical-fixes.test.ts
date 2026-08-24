@@ -61,6 +61,25 @@ describe('前端机械修复契约', () => {
   });
 
   /**
+   * SVG 里的字号走 fontSize 属性，不是 Tailwind 类，上面那条扫不到。
+   * 故事树导图曾用 9px / 10px 画节点副标题——1:1 渲染，没有 viewBox 缩放，
+   * 屏幕上就是 9px。
+   */
+  it('SVG 文本的字号不低于 11px', () => {
+    const offenders: string[] = [];
+    for (const file of componentFiles()) {
+      const source = readFileSync(file, 'utf8');
+      for (const match of source.matchAll(/fontSize=\{(\d+(?:\.\d+)?)\}/g)) {
+        if (Number(match[1]) < 11) {
+          const line = source.slice(0, match.index!).split('\n').length;
+          offenders.push(`${relative(file)}:${line} ${match[0]}`);
+        }
+      }
+    }
+    expect(offenders).toEqual([]);
+  });
+
+  /**
    * 组件不许写死颜色字面量：浅色分支写死的 hsl 在深色主题首屏（还没加 .dark）
    * 会闪一下，也换不了肤。rgba 不在此列——立绘之上的黑底白字胶囊是有意为之的例外。
    */

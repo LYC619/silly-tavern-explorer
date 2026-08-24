@@ -25,6 +25,19 @@ export const CARD_W_DEFAULT = 200;
 export const FONT_MIN = 0.85;
 export const FONT_MAX = 1.3;
 
+/** 全项目字号下限（docs/ui-conventions.md 第六节）。 */
+export const MIN_FONT_PX = 11;
+
+/**
+ * 卡面各处字号。基准值乘 fontScale 之后统一夹到 11px 下限——简介的基准是
+ * 12px，光乘 FONT_MIN 会算出 10px，比契约里禁掉的那档还小。下限写在这里而不是
+ * 抬 FONT_MIN，是为了让名称仍能跟着缩到 13px，保住名称与简介的层级差。
+ */
+export function cardFontSizes(scale: number): { name: number; intro: number; rowName: number } {
+  const clamp = (base: number) => Math.max(MIN_FONT_PX, Math.round(base * scale));
+  return { name: clamp(15), intro: clamp(12), rowName: clamp(14) };
+}
+
 /** 每页张数选项；'all' = 不分页 */
 export const PAGE_SIZES = ['12', '24', '48', '96', 'all'] as const;
 export type PageSize = (typeof PAGE_SIZES)[number];

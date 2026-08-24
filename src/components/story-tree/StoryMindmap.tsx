@@ -271,8 +271,10 @@ export function StoryMindmap({ forest, selectedId, onSelect, title }: StoryMindm
             const selected = selectedId === b.nodeId && !b.isSection;
             const accent = b.type ? TYPE_COLOR[b.type] : null;
             // 小节子块：正文摘要占两行（点击弹全文）；普通节点：标题 + 提示
+            // 第二行的截断预算按 11px 字号算：原来是 9~10px 配 15~16 单位，字号
+            // 抬到 11px（全项目字号下限）后同样的单位数会超出 NODE_W。
             const line1 = b.isSection ? cutByUnits(b.title, 12.5).head : fitText(b.title || '(未命名)', 12.5);
-            const line2 = b.isSection ? fitText(cutByUnits(b.title, 12.5).rest, 15) : (b.sub ? fitText(b.sub, 15) : '');
+            const line2 = b.isSection ? fitText(cutByUnits(b.title, 12.5).rest, 13.5) : (b.sub ? fitText(b.sub, 13.5) : '');
             return (
               <g
                 key={b.key}
@@ -302,13 +304,13 @@ export function StoryMindmap({ forest, selectedId, onSelect, title }: StoryMindm
                   <>
                     <text x={b.x + 10} y={b.y + 18} fontSize={11} fill={INK}>{line1}</text>
                     {line2
-                      ? <text x={b.x + 10} y={b.y + 34} fontSize={10} fill={INK_SUB}>{line2}</text>
-                      : <text x={b.x + 10} y={b.y + 34} fontSize={9} fill={SECTION_LABEL}>{fitText(b.sectionLabel ?? '', 16)}</text>}
+                      ? <text x={b.x + 10} y={b.y + 34} fontSize={11} fill={INK_SUB}>{line2}</text>
+                      : <text x={b.x + 10} y={b.y + 34} fontSize={11} fill={SECTION_LABEL}>{fitText(b.sectionLabel ?? '', 13.5)}</text>}
                   </>
                 ) : (
                   <>
                     <text x={b.x + 12} y={b.y + 19} fontSize={12} fontWeight={600} fill={INK}>{line1}</text>
-                    {line2 && <text x={b.x + 12} y={b.y + 36} fontSize={10} fill={INK_SUB}>{line2}</text>}
+                    {line2 && <text x={b.x + 12} y={b.y + 36} fontSize={11} fill={INK_SUB}>{line2}</text>}
                   </>
                 )}
               </g>

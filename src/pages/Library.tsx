@@ -24,7 +24,7 @@ import {
 } from '@/components/library/LibraryImportDialog';
 import { LibraryListHeader } from '@/components/library/LibraryListHeader';
 import { LibraryToolbar } from '@/components/library/LibraryToolbar';
-import type { ActiveFilterChip } from '@/lib/library-view';
+import { cardFontSizes, type ActiveFilterChip } from '@/lib/library-view';
 import { LibraryPager, LibraryBatchBar } from '@/components/library/LibraryPager';
 import { CharacterTile } from '@/components/library/CharacterTile';
 import { CharacterListRow } from '@/components/library/CharacterListRow';
@@ -457,8 +457,7 @@ const Library = () => {
     }))),
   ];
 
-  const nameSize = Math.round(15 * prefs.fontScale);
-  const introSize = Math.round(12 * prefs.fontScale);
+  const { name: nameSize, intro: introSize, rowName: rowNameSize } = cardFontSizes(prefs.fontScale);
 
   /** 卡面与列表行共用的一份接线：点击 = 批量选择或进角色页 */
   const activate = (c: ArchiveCharacter) => (shiftKey: boolean) => {
@@ -603,7 +602,7 @@ const Library = () => {
                           character={c}
                           storyCount={storyCounts[c.id] ?? 0}
                           timestamp={lastPlayed[c.id] ?? c.updatedAt}
-                          nameSize={Math.round(14 * prefs.fontScale)}
+                          nameSize={rowNameSize}
                           introSize={introSize}
                           batchMode={selection.batchMode}
                           selected={selection.selected.has(c.id)}
