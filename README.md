@@ -6,7 +6,7 @@
   <img alt="version" src="https://img.shields.io/badge/version-0.9-8B5A2B" />
   <img alt="platform" src="https://img.shields.io/badge/platform-Windows%20%7C%20Web-4B5563" />
   <img alt="stack" src="https://img.shields.io/badge/React%2018%20%C2%B7%20Vite%205%20%C2%B7%20Tauri%202-informational" />
-  <img alt="license" src="https://img.shields.io/badge/license-MIT-3f7d43" />
+  <img alt="license" src="https://img.shields.io/badge/license-AGPL--3.0-3f7d43" />
 </p>
 
 > **数据不出本机。** 角色、故事、世界书、预设、正则、总结、故事树全部保存在本地——网页版存在浏览器 IndexedDB，客户端存在你指定的文件库目录（明文文件，可直接用资源管理器查看）。只有你主动使用 AI 功能时，才会把当前选中的内容发送到**你自己配置**的 OpenAI 兼容接口；API Key 也只保存在本地（明文，同源脚本可读，不等于加密），请确保接口地址与密钥来自同一个可信提供商。
@@ -212,4 +212,4 @@ docker run -d -p 8080:80 st-explorer
 
 ## 许可
 
-MIT
+[AGPL-3.0-only](./LICENSE)。可以自由使用、修改、分发；但修改后若拿去提供网络服务，改动后的源码同样要以 AGPL 开放给该服务的使用者。

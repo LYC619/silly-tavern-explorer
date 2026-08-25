@@ -449,7 +449,7 @@ export function AboutSettingsPanel() {
             <ExternalLink className="w-3 h-3" />
             GitHub
           </a>
-          <p className="text-xs text-muted-foreground">MIT License</p>
+          <p className="text-xs text-muted-foreground">AGPL-3.0-only</p>
         </div>
       </section>
     </div>

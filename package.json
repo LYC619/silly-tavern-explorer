@@ -3,7 +3,7 @@
   "private": true,
   "version": "0.9.0",
   "description": "ST Explorer - SillyTavern 角色卡与聊天记录的本地归档工作台",
-  "license": "MIT",
+  "license": "AGPL-3.0-only",
   "repository": {
     "type": "git",
     "url": "https://github.com/LYC619/silly-tavern-explorer.git"

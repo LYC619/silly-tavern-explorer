@@ -41,7 +41,7 @@ describe('版本号单一来源一致性', () => {
     expect(cargoField('name')).toBe('ste-explorer');
     expect(cargoField('description')).toBe('ST Explorer - SillyTavern 聊天记录、世界书、预设与资产管理工具');
     expect(cargo).toMatch(/^authors\s*=\s*\["LYC619"\]$/m);
-    expect(cargoField('license')).toBe('MIT');
+    expect(cargoField('license')).toBe('AGPL-3.0-only');
     expect(cargoField('repository')).toBe('https://github.com/LYC619/silly-tavern-explorer');
   });
 });
