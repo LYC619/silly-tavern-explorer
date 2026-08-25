@@ -65,14 +65,12 @@
 
 ## 界面一览
 
-<!-- 截图位于 docs/screenshots/usage/（当前未纳入 git 跟踪）。确认入库后取消下面的注释即可显示。
 ![首页](docs/screenshots/usage/01-home.png)
 ![编辑区](docs/screenshots/usage/02-tools.png)
 ![聊天处理工作台](docs/screenshots/usage/03-chat-workbench.png)
 ![角色库](docs/screenshots/usage/04-library.png)
 ![其他资产](docs/screenshots/usage/05-assets.png)
 ![设置](docs/screenshots/usage/06-settings.png)
--->
 
 ## 快速开始
 
