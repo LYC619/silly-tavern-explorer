@@ -3,7 +3,7 @@ setlocal EnableExtensions
 chcp 65001 >nul
 
 echo ========================================
-echo   ST-Explore - 客户端开发模式（Tauri）
+echo   ST Explorer - 客户端开发模式（Tauri）
 echo ========================================
 echo.
 

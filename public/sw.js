@@ -1,7 +1,7 @@
 // 缓存版本随发布版本走：改这里的 CACHE_VERSION 会换掉整个 cache 名，
 // activate 时自动清掉所有旧版本 cache，避免旧资源长期堆积、也便于按版本排查。
 // 发布时与 package.json / APP_VERSION 一起改（version-sync 测试会校验三者一致）。
-const CACHE_VERSION = 'v0.18.0';
+const CACHE_VERSION = 'v0.9.0';
 const CACHE_NAME = 'st-chat-' + CACHE_VERSION;
 
 self.addEventListener('install', (event) => {

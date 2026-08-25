@@ -29,7 +29,7 @@ import { getAllCharacters, getAllArchiveStories } from '@/lib/archive-db';
 import { getAllWorldBooks } from '@/lib/worldbook-db';
 import { resetAllTours } from '@/lib/tour-steps';
 
-export const APP_VERSION = 'v0.18.0';
+export const APP_VERSION = 'v0.9.0';
 
 interface StorageDetail {
   label: string;
@@ -438,7 +438,7 @@ export function AboutSettingsPanel() {
           关于
         </h3>
         <div className="text-sm space-y-1">
-          <p className="font-medium">ST 聊天记录处理器</p>
+          <p className="font-medium">ST Explorer</p>
           <p className="text-muted-foreground text-xs">{APP_VERSION}</p>
           <a
             href="https://github.com/LYC619/silly-tavern-explorer"

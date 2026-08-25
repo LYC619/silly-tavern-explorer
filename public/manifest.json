@@ -1,7 +1,7 @@
 {
-  "name": "ST 聊天记录处理器",
-  "short_name": "ST Chat",
-  "description": "SillyTavern 聊天记录导入、编辑、导出工具",
+  "name": "ST Explorer",
+  "short_name": "STE",
+  "description": "SillyTavern 角色卡与聊天记录的本地归档工作台",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#f5f0e8",

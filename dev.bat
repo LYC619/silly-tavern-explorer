@@ -3,7 +3,7 @@ setlocal EnableExtensions
 chcp 65001 >nul
 
 echo ========================================
-echo   ST-Explore - Web 开发模式（热更新）
+echo   ST Explorer - Web 开发模式（热更新）
 echo ========================================
 echo.
 

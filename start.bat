@@ -3,7 +3,7 @@ setlocal EnableExtensions
 
 chcp 65001 >nul
 echo ========================================
-echo   ST-Explore Web 预览版
+echo   ST Explorer Web 预览版
 echo ========================================
 echo.
 

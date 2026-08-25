@@ -298,7 +298,7 @@ export async function renderShareImage(
   ctx.stroke();
   ctx.font = `13px ${FONT_UI}`;
   ctx.fillStyle = PALETTE.sub;
-  ctx.fillText('SillyTavern Explorer · 故事归档分享', pad, fy + 28);
+  ctx.fillText('ST Explorer · 故事归档分享', pad, fy + 28);
   const dateStr = new Date().toLocaleDateString('zh-CN');
   const dw = ctx.measureText(dateStr).width;
   ctx.fillText(dateStr, width - pad - dw, fy + 28);
