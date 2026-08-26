@@ -15,6 +15,7 @@ import {
 import { isTauri, getAppConfig } from '@/lib/vault/tauri-fs';
 import { STAIConfigDialog } from '@/components/tools/STAIConfigDialog';
 import { STImportCard } from '@/components/tools/STImportCard';
+import { isEmptyVault } from '@/lib/vault/empty-vault';
 import { AppLayout } from '@/components/AppLayout';
 import { NsfwImage } from '@/components/NsfwImage';
 import { CharacterTile } from '@/components/library/CharacterTile';
@@ -99,6 +100,13 @@ const Home = () => {
   const characterRailRef = useRef<HTMLDivElement>(null);
   /** A6：已接入（stRoot 已配置）则不再显示接入卡；null = 还没查完，先不显示防闪烁 */
   const [stConnected, setStConnected] = useState<boolean | null>(null);
+  const emptyVault = !loadFailed && isEmptyVault({
+    characters: characters.length,
+    stories: stories.length,
+    worldbooks: assetCounts.worldbooks,
+    presets: assetCounts.presets,
+    regexes: assetCounts.regexes,
+  });
 
   const loadData = useCallback(async () => {
     try {
@@ -240,7 +248,7 @@ const Home = () => {
         )}
 
         {/* 接入 ST 目录：仅客户端且未接入时显示（A6）；网页版组件自隐藏 */}
-        {stConnected === false && (
+        {(stConnected === false || emptyVault) && (
           <div className="shrink-0 empty:hidden">
             <STImportCard onChanged={handleSTChanged} />
           </div>
