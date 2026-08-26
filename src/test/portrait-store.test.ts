@@ -9,6 +9,7 @@ import {
   archiveOldCard, currentStillInRows, buildPortraitSnapshot,
   promotePortraitItem,
   addPortraitFiles, setPortraitAsCard, createPortraitRow, renamePortraitRow, loadPortraitViews,
+  renamePortraitItem, removePortraitItem, replacePortraitItem,
   CARD_ROW_TITLE, DEFAULT_ROW_TITLE, STRAY_ROW_ID,
 } from '@/lib/portrait-store';
 import { createMemFs } from '@/lib/vault/fs';
@@ -201,6 +202,17 @@ describe('网页版 addPortraitFiles / setPortraitAsCard', () => {
     const cardRow2 = patch2.portraitRows!.find((r) => r.title === CARD_ROW_TITLE)!;
     expect(cardRow2.items).toHaveLength(1); // 没多归档
     expect(patch2.portraitCurrentId).toBe(old.id);
+  });
+
+  it('支持网页端立绘重命名、替换和删除，并同步当前卡面指针', async () => {
+    const c = baseChar({ portraitRows: [row('r1', '日常', [item('p1', { name: 'a.png', dataBase64: 'AAAA', mime: 'image/png' })])], portraitCurrentId: 'p1' });
+    const renamed = await renamePortraitItem(c, 'p1', '新名.png');
+    expect(renamed.portraitRows![0].items[0].name).toBe('新名.png');
+    const replaced = await replacePortraitItem({ ...c, ...renamed } as ArchiveCharacter, 'p1', pngFile('b.png'));
+    expect(replaced.portraitRows![0].items[0]).toMatchObject({ name: 'b.png', mime: 'image/png' });
+    const removed = await removePortraitItem({ ...c, ...replaced } as ArchiveCharacter, 'p1');
+    expect(removed.portraitCurrentId).toBeUndefined();
+    expect(removed.portraitRows![0].items).toHaveLength(0);
   });
 });
 

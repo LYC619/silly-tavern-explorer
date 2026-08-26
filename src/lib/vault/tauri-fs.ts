@@ -64,6 +64,29 @@ export function readAbsText(path: string): Promise<string> {
   return invoke('vault_read_abs_text', { path });
 }
 
+/** 按绝对路径读二进制（仅客户端原生文件选择器导入使用）。 */
+export function readAbsBinary(path: string): Promise<string> {
+  return invoke('vault_read_abs_binary', { path });
+}
+
+export interface PickedChatFile {
+  name: string;
+  base64: string;
+}
+
+export async function pickChatFile(): Promise<PickedChatFile | null> {
+  if (!isTauri()) return null;
+  return (await invoke<{ name: string; base64: string } | null>('pick_chat_file')) ?? null;
+}
+
+/** 客户端原生文件选择器；网页版返回 null，由调用方回退隐藏 input。 */
+export async function pickFile(filters: { name: string; extensions: string[] }[]): Promise<string | null> {
+  if (!isTauri()) return null;
+  const { open } = await import('@tauri-apps/plugin-dialog');
+  const selected = await open({ multiple: false, directory: false, filters });
+  return typeof selected === 'string' ? selected : null;
+}
+
 /** 按绝对路径写文本（7.5 写回 ST 用；Rust 侧临时文件+rename 原子写） */
 export function writeAbsText(path: string, content: string): Promise<void> {
   return invoke('vault_write_abs_text', { path, content });

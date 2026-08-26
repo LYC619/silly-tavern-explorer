@@ -309,6 +309,87 @@ export async function renamePortraitRow(c: ArchiveCharacter, rowId: string, titl
   return { portraitRows: rows };
 }
 
+/** 重命名受管立绘条目；散图没有 itemId，不能通过此 API修改。 */
+export async function renamePortraitItem(
+  c: ArchiveCharacter,
+  itemId: string,
+  name: string,
+): Promise<Partial<ArchiveCharacter>> {
+  const next = name.trim();
+  if (!next) throw new Error('立绘名称不能为空');
+  const rows = (c.portraitRows ?? []).map((row) => ({ ...row, items: [...row.items] }));
+  const hit = rows.flatMap((row) => row.items.map((item) => ({ row, item }))).find(({ item }) => item.id === itemId);
+  if (!hit) throw new Error('立绘不存在');
+  const { row, item } = hit;
+  if (item.name === next) return {};
+  if (item.fileName && item.fileName !== next) {
+    const ctx = await vaultCtx(c.id);
+    if (ctx) {
+      const dir = rowDirPath(ctx, row.title);
+      const target = uniqueFileName(new Set((await ctx.vault.fs.list(dir)).map((entry) => entry.name).filter((n) => n !== item.fileName)), next);
+      await ctx.vault.fs.rename(`${dir}/${item.fileName}`, `${dir}/${target}`);
+      item.fileName = target;
+    }
+  }
+  item.name = next;
+  await writeSnapshot(c.id, rows, c.portraitCurrentId);
+  return { portraitRows: rows };
+}
+
+/** 删除受管立绘条目；当前卡面会被清空，但不会删除角色卡 PNG。 */
+export async function removePortraitItem(c: ArchiveCharacter, itemId: string): Promise<Partial<ArchiveCharacter>> {
+  const rows = (c.portraitRows ?? []).map((row) => ({ ...row, items: [...row.items] }));
+  let removed: PortraitItem | undefined;
+  for (const row of rows) {
+    const index = row.items.findIndex((item) => item.id === itemId);
+    if (index >= 0) {
+      [removed] = row.items.splice(index, 1);
+      if (removed.fileName) {
+        const ctx = await vaultCtx(c.id);
+        if (ctx) await ctx.vault.fs.removeFile(`${rowDirPath(ctx, row.title)}/${removed.fileName}`);
+      }
+      break;
+    }
+  }
+  if (!removed) throw new Error('立绘不存在');
+  const patch: Partial<ArchiveCharacter> = { portraitRows: rows };
+  if (c.portraitCurrentId === itemId) patch.portraitCurrentId = undefined;
+  await writeSnapshot(c.id, rows, patch.portraitCurrentId ?? c.portraitCurrentId);
+  return patch;
+}
+
+/** 替换受管立绘内容。先写新文件/数据，成功后删除旧文件，避免失败时丢失原图。 */
+export async function replacePortraitItem(
+  c: ArchiveCharacter,
+  itemId: string,
+  file: File,
+): Promise<Partial<ArchiveCharacter>> {
+  const mime = file.type || mimeOfName(file.name);
+  if (!mime || !Object.values(IMAGE_MIME).includes(mime)) throw new Error('不支持的图片格式');
+  const rows = (c.portraitRows ?? []).map((row) => ({ ...row, items: [...row.items] }));
+  const hit = rows.flatMap((row) => row.items.map((item) => ({ row, item }))).find(({ item }) => item.id === itemId);
+  if (!hit) throw new Error('立绘不存在');
+  const { row, item } = hit;
+  const b64 = await blobToBase64(file);
+  const ctx = await vaultCtx(c.id);
+  if (ctx) {
+    const dir = rowDirPath(ctx, row.title);
+    const oldName = item.fileName ?? uniqueFileName(new Set((await ctx.vault.fs.list(dir)).map((entry) => entry.name)), file.name);
+    const nextName = uniqueFileName(new Set((await ctx.vault.fs.list(dir)).map((entry) => entry.name).filter((n) => n !== oldName)), oldName);
+    const tempName = uniqueFileName(new Set((await ctx.vault.fs.list(dir)).map((entry) => entry.name)), `${oldName}.replace`);
+    await ctx.vault.fs.writeBinary(`${dir}/${tempName}`, b64);
+    if (oldName !== tempName) await ctx.vault.fs.removeFile(`${dir}/${oldName}`).catch(() => {});
+    await ctx.vault.fs.rename(`${dir}/${tempName}`, `${dir}/${nextName}`);
+    item.fileName = nextName;
+  } else {
+    item.dataBase64 = b64;
+  }
+  item.name = file.name;
+  item.mime = mime;
+  await writeSnapshot(c.id, rows, c.portraitCurrentId);
+  return { portraitRows: rows };
+}
+
 /** Blob → 纯 base64（FileReader.readAsDataURL：浏览器/ jsdom 都在，且免大文件手动拼 binary string） */
 function blobToBase64(blob: Blob): Promise<string> {
   return new Promise((res, rej) => {

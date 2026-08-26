@@ -663,6 +663,37 @@ fn vault_read_abs_text(
 }
 
 #[tauri::command]
+fn vault_read_abs_binary(
+    roots: tauri::State<'_, AuthorizedRoots>,
+    path: String,
+) -> Result<String, String> {
+    read_binary_impl(&authorized_read_absolute_path(&roots, &path)?)
+}
+
+#[derive(serde::Serialize)]
+struct PickedChatFile {
+    name: String,
+    base64: String,
+}
+
+#[tauri::command]
+fn pick_chat_file(app: tauri::AppHandle) -> Result<Option<PickedChatFile>, String> {
+    let Some(selected) = app
+        .dialog()
+        .file()
+        .set_title("选择聊天或角色卡文件")
+        .add_filter("聊天与角色卡", &["jsonl", "json", "txt", "png"])
+        .blocking_pick_file()
+    else {
+        return Ok(None);
+    };
+    let path = selected.into_path().map_err(|e| format!("选择结果不是本机文件: {e}"))?;
+    let name = path.file_name().and_then(|n| n.to_str()).unwrap_or("导入文件").to_string();
+    let bytes = std::fs::read(&path).map_err(|e| format!("读取文件失败 {}: {e}", path.display()))?;
+    Ok(Some(PickedChatFile { name, base64: base64::engine::general_purpose::STANDARD.encode(bytes) }))
+}
+
+#[tauri::command]
 fn vault_write_abs_text(
     roots: tauri::State<'_, AuthorizedRoots>,
     path: String,
@@ -752,6 +783,8 @@ pub fn run() {
             vault_mkdir,
             vault_stat,
             vault_read_abs_text,
+            vault_read_abs_binary,
+            pick_chat_file,
             vault_write_abs_text,
             vault_pick_authorized_directory,
             config_get,

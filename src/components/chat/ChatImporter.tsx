@@ -18,6 +18,7 @@ import type { ChatMessage, ChatSession, CharacterInfo, STMetadata } from '@/type
 import { extractCharacterFromPng, getCharacterName, getFirstMessage } from '@/lib/png-parser';
 import { scanTxtSpeakers, parseTxtDialogue } from '@/lib/txt-import';
 import { parseJsonl, parseJson, parseSTDate, isTrueSystemMessage } from '@/lib/adapters/st/chat-jsonl';
+import { isTauri, pickChatFile } from '@/lib/vault/tauri-fs';
 
 // 解析逻辑已抽至 @/lib/adapters/st/chat-jsonl（2.0 阶段0）；这里转发保持旧导入路径兼容
 export { parseSTDate, isTrueSystemMessage };
@@ -237,6 +238,23 @@ export function ChatImporter({ onImport, initialFile }: ChatImporterProps) {
     if (file) processFile(file);
   }, [processFile]);
 
+  const handleNativeFileSelect = useCallback(async () => {
+    if (!isTauri()) return;
+    try {
+      const picked = await pickChatFile();
+      if (!picked) return;
+      const name = picked.name;
+      const lower = name.toLowerCase();
+      const bytes = Uint8Array.from(atob(picked.base64), (ch) => ch.charCodeAt(0));
+      const file = new File([bytes], name, { type: lower.endsWith('.png') ? 'image/png' : 'text/plain' });
+      await processFile(file);
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : '无法读取所选文件';
+      setError(msg);
+      toast({ title: '导入失败', description: msg, variant: 'destructive' });
+    }
+  }, [processFile, toast]);
+
   return (
     <>
       <Card
@@ -257,12 +275,17 @@ export function ChatImporter({ onImport, initialFile }: ChatImporterProps) {
               拖拽 JSONL/JSON/TXT/PNG 文件到此处，或点击选择文件
             </p>
           </div>
-          <label>
+          <label className={isTauri() ? 'hidden' : undefined}>
             <input type="file" accept=".jsonl,.json,.txt,.png" onChange={handleFileSelect} className="hidden" />
             <Button variant="outline" className="cursor-pointer" asChild>
               <span><FileText className="w-4 h-4 mr-2" />选择文件</span>
             </Button>
           </label>
+          {isTauri() && (
+            <Button variant="outline" className="cursor-pointer" onClick={() => void handleNativeFileSelect()}>
+              <FileText className="w-4 h-4 mr-2" />选择文件
+            </Button>
+          )}
           {error && (
             <div className="flex items-center gap-2 text-sm text-destructive animate-fade-in">
               <AlertCircle className="w-4 h-4" />{error}

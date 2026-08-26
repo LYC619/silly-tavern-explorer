@@ -6,7 +6,7 @@
  * 图片按需读：视图只带路径，缩略图滚进可视区才取字节（PortraitThumb）。
  */
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { Images, Plus, ChevronDown, ChevronUp, Download } from 'lucide-react';
+import { Images, Plus, ChevronDown, ChevronUp, Download, ChevronLeft, ChevronRight, Pencil, Trash2, Replace } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog';
@@ -16,7 +16,7 @@ import type { ArchiveCharacter } from '@/types/archive';
 import type { CharacterPatch } from '@/lib/character-write';
 import {
   loadPortraitViews, loadPortraitImage, createPortraitRow, renamePortraitRow, addPortraitFiles, setPortraitAsCard,
-  rowTitleConflict, rowDirOf, ensureRowTitle,
+  rowTitleConflict, rowDirOf, ensureRowTitle, renamePortraitItem, removePortraitItem, replacePortraitItem,
   type PortraitViewRow, type PortraitViewItem,
 } from '@/lib/portrait-store';
 import { LOADING_LABEL } from '@/lib/ui-copy';
@@ -84,10 +84,11 @@ export function PortraitSection({ character, onPatch, onOpenImport }: PortraitSe
   const { toast } = useToast();
   const [views, setViews] = useState<PortraitViewRow[] | null>(null);
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
-  const [lightbox, setLightbox] = useState<{ name: string; url: string } | null>(null);
+  const [lightbox, setLightbox] = useState<{ rowId: string; index: number; name: string; url: string } | null>(null);
   const [renameDrafts, setRenameDrafts] = useState<Record<string, string>>({});
   const fileRef = useRef<HTMLInputElement>(null);
   const importRowId = useRef<string | null>(null);
+  const replaceItemId = useRef<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -166,6 +167,64 @@ export function PortraitSection({ character, onPatch, onOpenImport }: PortraitSe
       // 父层已提示失败。
     }
   };
+
+  const handleRenameItem = async (item: PortraitViewItem) => {
+    if (!item.itemId) return;
+    const next = window.prompt('重命名立绘', item.name);
+    if (next == null || next.trim() === item.name) return;
+    try {
+      await onPatch((current) => renamePortraitItem(current, item.itemId!, next));
+      setViews((current) => current?.map((row) => ({ ...row, items: row.items.map((entry) => entry.itemId === item.itemId ? { ...entry, name: next.trim() } : entry) })) ?? null);
+    } catch (error) {
+      toast({ title: '重命名失败', description: error instanceof Error ? error.message : undefined, variant: 'destructive' });
+    }
+  };
+
+  const handleRemoveItem = async (item: PortraitViewItem) => {
+    if (!item.itemId || !window.confirm(`确定删除「${item.name}」？此操作不可撤销。`)) return;
+    try {
+      await onPatch((current) => removePortraitItem(current, item.itemId!));
+      setViews((current) => current?.map((row) => ({ ...row, items: row.items.filter((entry) => entry.itemId !== item.itemId) })) ?? null);
+      setLightbox(null);
+      toast({ title: '立绘已删除' });
+    } catch (error) {
+      toast({ title: '删除失败', description: error instanceof Error ? error.message : undefined, variant: 'destructive' });
+    }
+  };
+
+  const handleReplaceItem = (item: PortraitViewItem) => {
+    if (!item.itemId) return;
+    replaceItemId.current = item.itemId;
+    fileRef.current?.click();
+  };
+
+  const openLightbox = async (row: PortraitViewRow, index: number) => {
+    const item = row.items[index];
+    if (!item) return;
+    const url = await loadPortraitImage(item);
+    if (url) setLightbox({ rowId: row.rowId, index, name: item.name, url });
+  };
+
+  const moveLightbox = useCallback(async (delta: number) => {
+    if (!lightbox) return;
+    const row = views?.find((entry) => entry.rowId === lightbox.rowId);
+    if (!row || row.items.length < 2) return;
+    const index = (lightbox.index + delta + row.items.length) % row.items.length;
+    const item = row.items[index];
+    const url = await loadPortraitImage(item);
+    if (url) setLightbox({ rowId: row.rowId, index, name: item.name, url });
+  }, [lightbox, views]);
+
+  useEffect(() => {
+    if (!lightbox) return;
+    const onKey = (event: KeyboardEvent) => {
+      if (event.target instanceof HTMLInputElement || event.target instanceof HTMLTextAreaElement || event.target instanceof HTMLElement && event.target.isContentEditable) return;
+      if (event.key === 'ArrowLeft') { event.preventDefault(); void moveLightbox(-1); }
+      if (event.key === 'ArrowRight') { event.preventDefault(); void moveLightbox(1); }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [lightbox, moveLightbox]);
 
   const toggleExpand = useCallback((rowId: string) => {
     setExpanded((cur) => {
@@ -265,7 +324,7 @@ export function PortraitSection({ character, onPatch, onOpenImport }: PortraitSe
                 >
                   {row.items.map((item, i) => (
                     <div key={item.itemId ?? `${row.rowId}-stray-${i}`} className={cn('group/pc', !open && 'w-28 shrink-0')}>
-                      <PortraitThumb item={item} onOpen={(url) => setLightbox({ name: item.name, url })} />
+                      <PortraitThumb item={item} onOpen={(url) => setLightbox({ rowId: row.rowId, index: i, name: item.name, url })} />
                       <div className="mt-1 flex items-center gap-1 text-[11px] leading-tight">
                         <span
                           className="min-w-0 truncate text-muted-foreground"
@@ -285,6 +344,13 @@ export function PortraitSection({ character, onPatch, onOpenImport }: PortraitSe
                           </button>
                         )}
                       </div>
+                      {item.itemId && (
+                        <div className="mt-1 flex gap-1 opacity-0 group-hover/pc:opacity-100 focus-within:opacity-100 transition-opacity">
+                          <button className="tap-target text-muted-foreground" onClick={() => void handleRenameItem(item)} title="重命名立绘" aria-label="重命名立绘"><Pencil className="w-3 h-3" /></button>
+                          <button className="tap-target text-muted-foreground" onClick={() => handleReplaceItem(item)} title="替换立绘" aria-label="替换立绘"><Replace className="w-3 h-3" /></button>
+                          <button className="tap-target text-destructive" onClick={() => void handleRemoveItem(item)} title="删除立绘" aria-label="删除立绘"><Trash2 className="w-3 h-3" /></button>
+                        </div>
+                      )}
                     </div>
                   ))}
                 </div>
@@ -300,14 +366,32 @@ export function PortraitSection({ character, onPatch, onOpenImport }: PortraitSe
         multiple
         accept="image/png,image/jpeg,image/webp,image/gif"
         className="hidden"
-        onChange={(e) => void handleImportFiles(Array.from(e.target.files ?? []))}
+        onChange={(e) => {
+          const files = Array.from(e.target.files ?? []);
+          const replaceId = replaceItemId.current;
+          replaceItemId.current = null;
+          if (replaceId && files[0]) {
+            void onPatch((current) => replacePortraitItem(current, replaceId, files[0])).then((saved) => {
+              setViews(null);
+              return loadPortraitViews(saved).then(setViews);
+            }).catch((error) => toast({ title: '替换失败', description: error instanceof Error ? error.message : undefined, variant: 'destructive' }));
+          } else {
+            void handleImportFiles(files);
+          }
+        }}
       />
 
       {/* lightbox */}
       <Dialog open={!!lightbox} onOpenChange={(v) => !v && setLightbox(null)}>
         <DialogContent className="max-w-3xl p-2 bg-transparent border-0 shadow-none">
           <DialogTitle className="sr-only">{lightbox?.name}</DialogTitle>
-          {lightbox && <img src={lightbox.url} alt={lightbox.name} className="w-full max-h-[85vh] object-contain rounded-lg" />}
+          {lightbox && (
+            <div className="relative flex items-center justify-center">
+              <button className="tap-target absolute left-1 top-1/2 -translate-y-1/2 z-10 rounded-full bg-background/80 p-2" onClick={() => void moveLightbox(-1)} title="上一张" aria-label="上一张"><ChevronLeft className="w-5 h-5" /></button>
+              <img src={lightbox.url} alt={lightbox.name} className="w-full max-h-[85vh] object-contain rounded-lg" />
+              <button className="tap-target absolute right-1 top-1/2 -translate-y-1/2 z-10 rounded-full bg-background/80 p-2" onClick={() => void moveLightbox(1)} title="下一张" aria-label="下一张"><ChevronRight className="w-5 h-5" /></button>
+            </div>
+          )}
         </DialogContent>
       </Dialog>
     </div>
