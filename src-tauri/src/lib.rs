@@ -662,10 +662,38 @@ fn vault_read_abs_text(
     read_text_impl(&authorized_read_absolute_path(&roots, &path)?)
 }
 
-#[derive(serde::Serialize)]
+#[derive(Serialize, Debug)]
 struct PickedChatFile {
     name: String,
     base64: String,
+}
+
+/// 原生选择器读入上限。这条路径要同时驻留原始字节、base64 文本、IPC 副本与前端
+/// atob 结果，峰值内存约为文件体积的四到五倍，所以先按体积挡住再读盘。
+/// 需要支持更大的档案时应改成分片/流式读取，而不是抬高这个常量。
+const MAX_PICKED_FILE_BYTES: u64 = 64 * 1024 * 1024;
+
+fn read_picked_file_impl(path: &Path, max_bytes: u64) -> Result<PickedChatFile, String> {
+    let size = fs::metadata(path)
+        .map_err(|e| format!("读取文件信息失败 {}: {e}", path.display()))?
+        .len();
+    if size > max_bytes {
+        return Err(format!(
+            "文件过大：{:.1} MB，上限 {} MB。请先在 SillyTavern 侧拆分或精简后再导入。",
+            size as f64 / (1024.0 * 1024.0),
+            max_bytes / (1024 * 1024)
+        ));
+    }
+    let name = path
+        .file_name()
+        .and_then(|n| n.to_str())
+        .unwrap_or("导入文件")
+        .to_string();
+    let bytes = fs::read(path).map_err(|e| format!("读取文件失败 {}: {e}", path.display()))?;
+    Ok(PickedChatFile {
+        name,
+        base64: base64::engine::general_purpose::STANDARD.encode(bytes),
+    })
 }
 
 #[tauri::command]
@@ -680,9 +708,7 @@ fn pick_chat_file(app: tauri::AppHandle) -> Result<Option<PickedChatFile>, Strin
         return Ok(None);
     };
     let path = selected.into_path().map_err(|e| format!("选择结果不是本机文件: {e}"))?;
-    let name = path.file_name().and_then(|n| n.to_str()).unwrap_or("导入文件").to_string();
-    let bytes = std::fs::read(&path).map_err(|e| format!("读取文件失败 {}: {e}", path.display()))?;
-    Ok(Some(PickedChatFile { name, base64: base64::engine::general_purpose::STANDARD.encode(bytes) }))
+    read_picked_file_impl(&path, MAX_PICKED_FILE_BYTES).map(Some)
 }
 
 #[tauri::command]
@@ -923,6 +949,29 @@ mod tests {
         write_binary_impl(&file, &payload).unwrap();
         assert_eq!(read_binary_impl(&file).unwrap(), payload);
         assert!(write_binary_impl(&file, "not-base64!!!").is_err());
+        let _ = fs::remove_dir_all(&root);
+    }
+
+    #[test]
+    fn picked_file_guards_size_before_reading() {
+        let root = temp_root("pick");
+        let file = root.join("聊天.jsonl");
+        fs::write(&file, b"{\"mes\":\"hi\"}").unwrap();
+
+        let picked = read_picked_file_impl(&file, MAX_PICKED_FILE_BYTES).unwrap();
+        assert_eq!(picked.name, "聊天.jsonl");
+        assert_eq!(
+            base64::engine::general_purpose::STANDARD
+                .decode(picked.base64)
+                .unwrap(),
+            b"{\"mes\":\"hi\"}"
+        );
+
+        // 超限在读盘前就返回错误，且提示里带上体积
+        let err = read_picked_file_impl(&file, 4).unwrap_err();
+        assert!(err.contains("文件过大"), "实际错误: {err}");
+
+        assert!(read_picked_file_impl(&root.join("不存在.jsonl"), MAX_PICKED_FILE_BYTES).is_err());
         let _ = fs::remove_dir_all(&root);
     }
 
