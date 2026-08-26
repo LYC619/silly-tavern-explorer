@@ -309,7 +309,7 @@ export function RegexSidebar({ rules, onRulesChange, isOpen, onClose, sampleMess
               onDragOver={(e) => handleDragOver(e, index)}
               onDrop={() => handleDrop(index)}
               onDragEnd={handleDragEnd}
-              className={`p-3 rounded-lg border transition-colors ${
+            className={`min-w-0 max-w-full overflow-hidden p-3 rounded-lg border transition-colors ${
                 rule.disabled
                   ? 'bg-muted/30 border-muted'
                   : 'bg-secondary/30 border-border'
@@ -324,7 +324,7 @@ export function RegexSidebar({ rules, onRulesChange, isOpen, onClose, sampleMess
                     onCheckedChange={() => handleToggleRule(rule.id)}
                   />
                   <span
-                    className={`text-sm font-medium truncate ${
+                    className={`min-w-0 flex-1 text-sm font-medium line-clamp-2 break-words ${
                       rule.disabled ? 'text-muted-foreground' : ''
                     }`}
                     title={rule.name}
@@ -385,7 +385,7 @@ export function RegexSidebar({ rules, onRulesChange, isOpen, onClose, sampleMess
                         handleUpdateRule(rule.id, { findRegex: e.target.value })
                       }
                       placeholder="/pattern/flags 或纯 pattern"
-                      className="text-xs font-mono min-h-[60px]"
+                      className="max-w-full text-xs font-mono min-h-[60px] break-words"
                     />
                   </div>
 

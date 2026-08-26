@@ -93,6 +93,19 @@ describe('readerMode capability boundary', () => {
     expect(html).not.toContain('删除规则');
   });
 
+  it('keeps long regex content wrapped instead of splitting every character', () => {
+    const html = renderToStaticMarkup(
+      <RegexSidebar
+        rules={[{ ...rule, name: '很长的正则规则名称', findRegex: 'a'.repeat(120) }]}
+        onRulesChange={vi.fn()}
+        isOpen
+        readOnly
+      />,
+    );
+    expect(html).toContain('break-words');
+    expect(html).not.toContain('break-all');
+  });
+
   it('keeps novel reading controls but hides write-producing AI actions', () => {
     const story = buildStoryFromSession(session, 'character-1');
     const html = renderToStaticMarkup(
