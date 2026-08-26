@@ -39,6 +39,8 @@ import { cn } from '@/lib/utils';
 import { normalizeStoryTitle } from '@/lib/story-rename';
 import { IMPORT_KINDS, type CharacterImportKind, type CharacterImportResult } from '@/lib/character-import';
 import { importFilesForCharacter } from '@/lib/character-import';
+import { getAllSummaries, saveSummary } from '@/lib/summary-db';
+import { getAllStoryTrees, saveStoryTree } from '@/lib/story-tree-db';
 import { commitCharacterPatch, type CharacterPatch } from '@/lib/character-write';
 import {
   buildEditorChatPath,
@@ -486,7 +488,17 @@ const CharacterPage = () => {
                       onDelete={setStoryToDelete}
                       onPatchStory={(sid, patch) => void patchStory(sid, patch)}
                       onRenameStory={async (sid, title) => {
-                        await patchStory(sid, { title: normalizeStoryTitle(title) });
+                        const nextTitle = normalizeStoryTitle(title);
+                        await patchStory(sid, { title: nextTitle });
+                        // 关联记录保留 bookTitle 作为故事被删除后的回退；重命名时同步更新，
+                        // 避免从角色页进入总结/故事树仍显示旧标题。
+                        const [summaries, trees] = await Promise.all([getAllSummaries(), getAllStoryTrees()]);
+                        await Promise.all([
+                          ...summaries.filter((summary) => summary.bookId === sid && summary.bookTitle !== nextTitle)
+                            .map((summary) => saveSummary({ ...summary, bookTitle: nextTitle, updatedAt: Date.now() })),
+                          ...trees.filter((tree) => tree.bookId === sid && tree.bookTitle !== nextTitle)
+                            .map((tree) => saveStoryTree({ ...tree, bookTitle: nextTitle, updatedAt: Date.now() })),
+                        ]);
                       }}
                     />
                   )}
