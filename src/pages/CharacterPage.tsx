@@ -5,7 +5,7 @@
  *   + tab 导航（故事/备注/关联资产/立绘）+ tab 行右侧统一导入钮（10.3c，按当前 tab 预选类型）
  * - patchCharacter：评分→评价档位标签单向联动（10.0）+ 标签变化同步 nsfw 字段
  */
-import { useState, useEffect, useMemo, useCallback } from 'react';
+import { useState, useEffect, useMemo, useCallback, useLayoutEffect, useRef } from 'react';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { ArrowLeft, ChevronRight, BookOpen, Download } from 'lucide-react';
 import { AppLayout } from '@/components/AppLayout';
@@ -96,6 +96,13 @@ const CharacterPage = () => {
   const [cardEdits, setCardEdits] = useState<CardEdits | null>(null);
   const [displayNameDraft, setDisplayNameDraft] = useState('');
   const [cardSaving, setCardSaving] = useState(false);
+  const contentColumnRef = useRef<HTMLDivElement>(null);
+
+  useLayoutEffect(() => {
+    // AppLayout 保留 main 节点跨路由复用时，浏览器可能恢复旧 scrollTop；
+    // 角色页每次切换角色都从标题开始，避免标题被顶部 chrome 截掉。
+    contentColumnRef.current?.scrollTo({ top: 0, behavior: 'auto' });
+  }, [id]);
 
   const load = useCallback(async () => {
     if (!id) return;
@@ -391,7 +398,7 @@ const CharacterPage = () => {
         />
 
         {/* ===== 主列：头部 + tabs（就地阅读时头部收起，返回列表自动展开） ===== */}
-        <div className="flex-1 min-w-0 flex flex-col overflow-y-auto scrollbar-thin">
+        <div ref={contentColumnRef} className="flex-1 min-w-0 flex flex-col overflow-y-auto scrollbar-thin">
           <CharacterHeader
             character={character}
             norm={norm}
