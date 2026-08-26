@@ -6,6 +6,7 @@ import NovelView from '@/components/reader/NovelView';
 import { buildStoryFromSession } from '@/lib/archive-db';
 import { getDefaultExportSettings } from '@/lib/session-storage';
 import type { ChatSession, RegexRule } from '@/types/chat';
+import { formatMessageModelLabel } from '@/lib/story-meta';
 
 const rule: RegexRule = {
   id: 'reader-rule',
@@ -104,6 +105,10 @@ describe('readerMode capability boundary', () => {
     );
     expect(html).toContain('break-words');
     expect(html).not.toContain('break-all');
+  });
+
+  it('exposes the active generation model when the ST message contains one', () => {
+    expect(formatMessageModelLabel({ extra: { model: 'gpt-test' } })).toBe('gpt-test');
   });
 
   it('keeps novel reading controls but hides write-producing AI actions', () => {

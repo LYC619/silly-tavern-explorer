@@ -28,6 +28,12 @@ export function extractMessageModel(raw: STRawMessage | undefined): string | und
   return typeof m === 'string' && m ? m : undefined;
 }
 
+/** UI-safe model label; keeps display code from duplicating swipe fallback logic. */
+export function formatMessageModelLabel(raw: STRawMessage | undefined): string | undefined {
+  const model = extractMessageModel(raw);
+  return model?.trim() || undefined;
+}
+
 /** 提取整个故事使用过的模型：按首次出现顺序去重 + 最近一次出现的模型 */
 export function extractModels(messages: ChatMessage[]): { modelsUsed: string[]; lastModel?: string } {
   const seen = new Set<string>();

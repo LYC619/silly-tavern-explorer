@@ -1,9 +1,10 @@
 import { forwardRef, useMemo, useState, useEffect, useLayoutEffect, useRef, useImperativeHandle, useCallback, memo } from 'react';
 import { useVirtualizer } from '@tanstack/react-virtual';
 import { User, Bot, Bookmark, BookmarkPlus, Pencil, EyeOff, MessageSquareDashed, ChevronLeft, ChevronRight } from 'lucide-react';
-import type { ChatSession, ThemeStyle, RegexRule, ChapterMarker } from '@/types/chat';
+import type { ChatSession, ThemeStyle, RegexRule, ChapterMarker, STRawMessage } from '@/types/chat';
 import { applyRegexRules, parseRegex } from '@/lib/regex-processor';
 import { parseSTDate } from '@/lib/adapters/st/chat-jsonl';
+import { formatMessageModelLabel } from '@/lib/story-meta';
 import { swipeCount, currentSwipeId, isOOCMessage, isSteEditedSwipe } from '@/lib/chat-edit';
 import { calculateSearchRevealScrollTop, cycleSearchPosition, floorJudgementLine, resolveTopVisibleIndex, type SearchDirection } from '@/lib/chat-navigation';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
@@ -244,6 +245,11 @@ const MessageRow = memo(function MessageRow({
   const isUser = message.role === 'user';
   const isNewSpeaker = message.isNewSpeaker;
   const hasMarker = !!marker;
+  const rawData = message.rawData as STRawMessage | undefined;
+  const model = !isUser ? formatMessageModelLabel(rawData) : undefined;
+  const generationHint = rawData?.gen_started || rawData?.gen_finished
+    ? `生成：${rawData.gen_started ?? '未记录'} → ${rawData.gen_finished ?? '未记录'}`
+    : undefined;
 
   return (
     <div>
@@ -360,6 +366,7 @@ const MessageRow = memo(function MessageRow({
             <div className={isUser ? 'text-right' : 'text-left'}>
               <div className={classes.name}>
                 {message.name || (isUser ? userName : charName)}
+                {model && <span className="ml-2 text-[11px] text-muted-foreground/80" title={generationHint}>{model}</span>}
               </div>
               <div className={`inline-block ${classes.content} ${
                 isUser ? 'bubble-user' : 'bubble-char'
@@ -384,6 +391,7 @@ const MessageRow = memo(function MessageRow({
             {(theme === 'minimal' || theme === 'elegant' || isNewSpeaker) && (
               <div className={classes.name}>
                 {message.name || (isUser ? userName : charName)}
+                {model && <span className="ml-2 text-[11px] text-muted-foreground/80" title={generationHint}>{model}</span>}
                 {(() => {
                   // 优先用导入时解析好的 timestamp；旧数据(timestamp 为空)则从 rawData.send_date 兜底实时解析，
                   // 这样无需重新导入也能显示时间戳。
