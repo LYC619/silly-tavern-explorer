@@ -20,7 +20,6 @@ import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
 import type { ArchiveStory } from '@/types/archive';
 import type { SummaryItem, SummaryKind } from '@/types/summary';
-import { generateSummaryId } from '@/types/summary';
 import type { StoryTree, StoryNodeTree } from '@/types/story-tree';
 import { NODE_TYPE_DOT } from '@/types/story-tree';
 import { getAllSummaries, saveSummary } from '@/lib/summary-db';
@@ -28,6 +27,8 @@ import { getAllStoryTrees } from '@/lib/story-tree-db';
 import { toForest } from '@/lib/story-tree-model';
 import { loadAPIConfig } from '@/components/ai-tools';
 import { formatFullTime, formatListTime } from '@/lib/time-display';
+import { buildManualSummaryItem } from '@/lib/summary-factory';
+import { MarkdownLite } from '@/components/MarkdownLite';
 
 export type RecordViewKind = 'volume' | 'diary' | 'tree';
 
@@ -71,6 +72,7 @@ export function StoryRecordsView({ stories, kind, onGoGenerate }: StoryRecordsVi
   const [manualOpen, setManualOpen] = useState(false);
   const [manualTitle, setManualTitle] = useState('');
   const [manualContent, setManualContent] = useState('');
+  const [manualVolume, setManualVolume] = useState('');
   const hasAI = !!loadAPIConfig().apiKey;
 
   const story = stories.find((s) => s.id === storyId) ?? null;
@@ -124,24 +126,26 @@ export function StoryRecordsView({ stories, kind, onGoGenerate }: StoryRecordsVi
 
   const handleManualSave = async () => {
     if (!story || !branchSelectionReady || !manualContent.trim()) return;
-    const now = Date.now();
-    const item: SummaryItem = {
-      id: generateSummaryId(),
-      bookId: story.id,
-      bookTitle: story.title,
+    const hasVolumeInput = manualVolume.trim().length > 0;
+    const parsedVolume = hasVolumeInput ? Number(manualVolume) : undefined;
+    if (hasVolumeInput && (parsedVolume === undefined || !Number.isInteger(parsedVolume) || parsedVolume < 1)) {
+      toast({ title: '卷号无效', description: '请输入大于 0 的整数卷号', variant: 'destructive' });
+      return;
+    }
+    const item = buildManualSummaryItem({
+      story,
       kind: kind as SummaryKind,
-      title: manualTitle.trim() || `手动录入 · ${formatFullTime(now)}`,
-      branchId: selectedBranchId ?? undefined,
-      floorStart: 0,
-      floorEnd: Math.max(story.session.messages.length - 1, 0),
-      content: manualContent.trim(),
-      createdAt: now,
-      updatedAt: now,
-    };
+      branchId: selectedBranchId,
+      content: manualContent,
+      title: manualTitle,
+      volumeNumber: parsedVolume,
+      existingVolumes: summaries.filter((summary) => summary.kind === 'volume' && summary.branchId === (selectedBranchId ?? undefined)),
+    });
     await saveSummary(item);
     setManualOpen(false);
     setManualTitle('');
     setManualContent('');
+    setManualVolume('');
     toast({ title: `已保存${KIND_LABELS[kind]}`, description: '手动录入的条目也可在处理区继续编辑' });
   };
 
@@ -263,9 +267,9 @@ export function StoryRecordsView({ stories, kind, onGoGenerate }: StoryRecordsVi
                     {manual ? '手动录入' : '生成'}于{formatListTime(item.updatedAt)}
                     {!manual && ` · 覆盖第 ${item.floorStart}-${item.floorEnd} 楼`}
                   </p>
-                  <p className={cn('text-sm text-foreground/85 whitespace-pre-wrap mt-2', !expanded && 'line-clamp-4')} title={item.content}>
-                    {item.content}
-                  </p>
+                  <div className={cn('text-sm text-foreground/85 mt-2', !expanded && 'line-clamp-4')} title={item.content}>
+                    {expanded ? <MarkdownLite text={item.content} /> : item.content}
+                  </div>
                   {!expanded && item.content.length > 160 && (
                     <p className="text-xs text-primary/80 mt-1">点击展开全文</p>
                   )}
@@ -288,6 +292,16 @@ export function StoryRecordsView({ stories, kind, onGoGenerate }: StoryRecordsVi
               onChange={(e) => setManualTitle(e.target.value)}
               placeholder="标题（留空自动按时间命名）"
             />
+            {kind === 'volume' && (
+              <Input
+                type="number"
+                min={1}
+                step={1}
+                value={manualVolume}
+                onChange={(e) => setManualVolume(e.target.value)}
+                placeholder="卷号（留空自动取下一卷）"
+              />
+            )}
             <Textarea
               value={manualContent}
               onChange={(e) => setManualContent(e.target.value)}
