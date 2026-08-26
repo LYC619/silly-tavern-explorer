@@ -662,14 +662,6 @@ fn vault_read_abs_text(
     read_text_impl(&authorized_read_absolute_path(&roots, &path)?)
 }
 
-#[tauri::command]
-fn vault_read_abs_binary(
-    roots: tauri::State<'_, AuthorizedRoots>,
-    path: String,
-) -> Result<String, String> {
-    read_binary_impl(&authorized_read_absolute_path(&roots, &path)?)
-}
-
 #[derive(serde::Serialize)]
 struct PickedChatFile {
     name: String,
@@ -783,7 +775,6 @@ pub fn run() {
             vault_mkdir,
             vault_stat,
             vault_read_abs_text,
-            vault_read_abs_binary,
             pick_chat_file,
             vault_write_abs_text,
             vault_pick_authorized_directory,

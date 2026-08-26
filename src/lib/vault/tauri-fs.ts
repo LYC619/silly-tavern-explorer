@@ -64,11 +64,6 @@ export function readAbsText(path: string): Promise<string> {
   return invoke('vault_read_abs_text', { path });
 }
 
-/** 按绝对路径读二进制（仅客户端原生文件选择器导入使用）。 */
-export function readAbsBinary(path: string): Promise<string> {
-  return invoke('vault_read_abs_binary', { path });
-}
-
 export interface PickedChatFile {
   name: string;
   base64: string;
