@@ -5,7 +5,7 @@
  * 当前就地阅读中的故事左侧高亮条。
  */
 import { useState } from 'react';
-import { BookOpen, GitBranch, Settings2, Star, Trash2, Upload } from 'lucide-react';
+import { BookOpen, GitBranch, Pencil, Settings2, Star, Trash2, Upload } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Slider } from '@/components/ui/slider';
@@ -18,6 +18,7 @@ import type { ArchiveStory, StoryStatus } from '@/types/archive';
 import { STORY_STATUSES } from '@/lib/archive-db';
 import { formatWordCount } from '@/lib/story-meta';
 import { formatListTime, formatFullTime } from '@/lib/time-display';
+import { normalizeStoryTitle } from '@/lib/story-rename';
 
 interface StoryListSectionProps {
   stories: ArchiveStory[];
@@ -30,6 +31,7 @@ interface StoryListSectionProps {
   onExport: (id: string) => void;
   onDelete: (story: ArchiveStory) => void;
   onPatchStory: (id: string, patch: Partial<ArchiveStory>) => void;
+  onRenameStory?: (id: string, title: string) => Promise<void>;
 }
 
 /** 行内评分 popover：0-10 分、0.5 步进；可清除 */
@@ -101,8 +103,20 @@ function StatusChip({ story, onPatch }: { story: ArchiveStory; onPatch: (patch: 
 }
 
 export function StoryListSection({
-  stories, activeStoryId, onRead, onProcess, onExport, onDelete, onPatchStory,
+  stories, activeStoryId, onRead, onProcess, onExport, onDelete, onPatchStory, onRenameStory,
 }: StoryListSectionProps) {
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [draft, setDraft] = useState('');
+  const beginRename = (story: ArchiveStory) => {
+    setEditingId(story.id);
+    setDraft(story.title);
+  };
+  const commitRename = async (story: ArchiveStory) => {
+    if (!onRenameStory) return;
+    const title = normalizeStoryTitle(draft);
+    if (title !== story.title) await onRenameStory(story.id, title);
+    setEditingId(null);
+  };
   return (
     <div className="space-y-2">
       {stories.map((story) => {
@@ -122,7 +136,23 @@ export function StoryListSection({
               <div className="py-3 px-4 flex items-center gap-3 flex-wrap">
                 <div className="flex-1 min-w-48">
                   <p className="font-medium text-sm flex items-center gap-2 min-w-0">
-                    <span className="truncate" title={story.title}>{story.title}</span>
+                    {editingId === story.id ? (
+                      <input
+                        autoFocus
+                        value={draft}
+                        onChange={(event) => setDraft(event.target.value)}
+                        onClick={(event) => event.stopPropagation()}
+                        onBlur={() => { void commitRename(story).catch(() => setEditingId(null)); }}
+                        onKeyDown={(event) => {
+                          if (event.key === 'Enter') { event.preventDefault(); void commitRename(story).catch(() => setEditingId(null)); }
+                          if (event.key === 'Escape') setEditingId(null);
+                        }}
+                        className="min-w-0 flex-1 rounded border border-primary/50 bg-background px-1.5 py-0.5 text-sm"
+                        aria-label="故事名称"
+                      />
+                    ) : (
+                      <span className="truncate" title={story.title}>{story.title}</span>
+                    )}
                     <StatusChip story={story} onPatch={(p) => onPatchStory(story.id, p)} />
                   </p>
                   <p className="text-xs text-muted-foreground flex items-center gap-3 flex-wrap mt-0.5">
@@ -148,6 +178,11 @@ export function StoryListSection({
                     <Upload className="w-3.5 h-3.5 mr-1" />
                     导出
                   </Button>
+                  {onRenameStory && editingId !== story.id && (
+                    <Button variant="ghost" size="icon" className="shrink-0" onClick={() => beginRename(story)} aria-label="重命名故事" title="重命名故事">
+                      <Pencil className="w-3.5 h-3.5" />
+                    </Button>
+                  )}
                   <Button
                     variant="ghost"
                     size="icon"

@@ -36,6 +36,7 @@ import { editsFromNormalized, exportCardJson, type CardEdits } from '@/lib/card-
 import { applyCharacterPageCardEdits, applyCharacterPageDisplayMeta } from '@/lib/character-page-edit';
 import { setPendingToolFile } from '@/lib/tool-handoff';
 import { cn } from '@/lib/utils';
+import { normalizeStoryTitle } from '@/lib/story-rename';
 import { IMPORT_KINDS, type CharacterImportKind, type CharacterImportResult } from '@/lib/character-import';
 import { importFilesForCharacter } from '@/lib/character-import';
 import { commitCharacterPatch, type CharacterPatch } from '@/lib/character-write';
@@ -477,6 +478,9 @@ const CharacterPage = () => {
                       onExport={(sid) => goWorkspace(sid, 'io')}
                       onDelete={setStoryToDelete}
                       onPatchStory={(sid, patch) => void patchStory(sid, patch)}
+                      onRenameStory={async (sid, title) => {
+                        await patchStory(sid, { title: normalizeStoryTitle(title) });
+                      }}
                     />
                   )}
                 </div>
