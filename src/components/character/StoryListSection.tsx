@@ -14,11 +14,11 @@ import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { cn } from '@/lib/utils';
+import { useToast } from '@/hooks/use-toast';
 import type { ArchiveStory, StoryStatus } from '@/types/archive';
 import { STORY_STATUSES } from '@/lib/archive-db';
 import { formatWordCount } from '@/lib/story-meta';
 import { formatListTime, formatFullTime } from '@/lib/time-display';
-import { normalizeStoryTitle } from '@/lib/story-rename';
 
 interface StoryListSectionProps {
   stories: ArchiveStory[];
@@ -107,15 +107,29 @@ export function StoryListSection({
 }: StoryListSectionProps) {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [draft, setDraft] = useState('');
+  const { toast } = useToast();
   const beginRename = (story: ArchiveStory) => {
     setEditingId(story.id);
     setDraft(story.title);
   };
+  /** 空名/同名按取消处理（对齐资源管理器的行内重命名）；写库失败保留输入框让用户重试。 */
   const commitRename = async (story: ArchiveStory) => {
     if (!onRenameStory) return;
-    const title = normalizeStoryTitle(draft);
-    if (title !== story.title) await onRenameStory(story.id, title);
-    setEditingId(null);
+    const title = draft.trim();
+    if (!title || title === story.title) {
+      setEditingId(null);
+      return;
+    }
+    try {
+      await onRenameStory(story.id, title);
+      setEditingId(null);
+    } catch (e) {
+      toast({
+        title: '重命名失败',
+        description: e instanceof Error ? e.message : '未能写入故事名称',
+        variant: 'destructive',
+      });
+    }
   };
   return (
     <div className="space-y-2">
@@ -142,9 +156,9 @@ export function StoryListSection({
                         value={draft}
                         onChange={(event) => setDraft(event.target.value)}
                         onClick={(event) => event.stopPropagation()}
-                        onBlur={() => { void commitRename(story).catch(() => setEditingId(null)); }}
+                        onBlur={() => { void commitRename(story); }}
                         onKeyDown={(event) => {
-                          if (event.key === 'Enter') { event.preventDefault(); void commitRename(story).catch(() => setEditingId(null)); }
+                          if (event.key === 'Enter') { event.preventDefault(); void commitRename(story); }
                           if (event.key === 'Escape') setEditingId(null);
                         }}
                         className="min-w-0 flex-1 rounded border border-primary/50 bg-background px-1.5 py-0.5 text-sm"

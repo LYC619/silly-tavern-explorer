@@ -492,12 +492,14 @@ const CharacterPage = () => {
                         await patchStory(sid, { title: nextTitle });
                         // 关联记录保留 bookTitle 作为故事被删除后的回退；重命名时同步更新，
                         // 避免从角色页进入总结/故事树仍显示旧标题。
+                        // 只改反范式化的标题，不动 updatedAt——否则改个故事名会让它名下
+                        // 所有总结/故事树都跳到「最近更新」顶部、时间显示成今天。
                         const [summaries, trees] = await Promise.all([getAllSummaries(), getAllStoryTrees()]);
                         await Promise.all([
                           ...summaries.filter((summary) => summary.bookId === sid && summary.bookTitle !== nextTitle)
-                            .map((summary) => saveSummary({ ...summary, bookTitle: nextTitle, updatedAt: Date.now() })),
+                            .map((summary) => saveSummary({ ...summary, bookTitle: nextTitle })),
                           ...trees.filter((tree) => tree.bookId === sid && tree.bookTitle !== nextTitle)
-                            .map((tree) => saveStoryTree({ ...tree, bookTitle: nextTitle, updatedAt: Date.now() })),
+                            .map((tree) => saveStoryTree({ ...tree, bookTitle: nextTitle })),
                         ]);
                       }}
                     />
