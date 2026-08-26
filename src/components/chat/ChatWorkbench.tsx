@@ -19,7 +19,7 @@ import { MessageEditDialog } from '@/components/chat/MessageEditDialog';
 import { RegexSidebar } from '@/components/chat/RegexSidebar';
 import { SettingsPanel } from '@/components/chat/SettingsPanel';
 import { applyRegexRules } from '@/lib/regex-processor';
-import { selectSwipe, syncEditedMessage, isOOCMessage } from '@/lib/chat-edit';
+import { selectSwipe, syncEditedMessage, isOOCMessage, unhideMessage } from '@/lib/chat-edit';
 import type { ChatSession, ExportSettings, ChapterMarker, ChatMessage, RegexRule } from '@/types/chat';
 import { useToast } from '@/hooks/use-toast';
 import { ToastAction } from '@/components/ui/toast';
@@ -220,6 +220,19 @@ export const ChatWorkbench = forwardRef<ChatWorkbenchHandle, ChatWorkbenchProps>
       ),
     });
   };
+
+  const handleUnhideMessage = useCallback((messageId: string, messageIndex: number) => {
+    if (readerMode) return;
+    const current = sessionRef.current.messages[messageIndex];
+    if (!current || current.id !== messageId || !current.hidden || isOOCMessage(current)) return;
+    mutateSession((currentSession) => ({
+      ...currentSession,
+      messages: currentSession.messages.map((message) => (
+        message.id === messageId ? unhideMessage(message) : message
+      )),
+    }));
+    toast({ title: `已取消第 ${messageIndex} 楼隐藏` });
+  }, [mutateSession, readerMode, toast]);
 
   const handleDeleteMessage = () => {
     if (readerMode) return;
@@ -556,6 +569,7 @@ export const ChatWorkbench = forwardRef<ChatWorkbenchHandle, ChatWorkbenchProps>
                     onMessageClick={readerMode ? undefined : handleMessageClick}
                     onEditMessage={readerMode ? undefined : handleEditMessage}
                     onSwipeSelect={readerMode ? undefined : handleSwipeSelect}
+                    onUnhideMessage={readerMode ? undefined : handleUnhideMessage}
                     editMode={readerMode ? false : editMode}
                     fontFamily={settings.fontFamily}
                     previewRule={previewRule}

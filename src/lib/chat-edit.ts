@@ -57,6 +57,16 @@ export function syncEditedMessage(updated: ChatMessage): ChatMessage {
   return { ...updated, rawData: raw };
 }
 
+/** 解除普通隐藏楼；ST 用 is_system 持久化 Hide，因此两处必须同步清除。 */
+export function unhideMessage(message: ChatMessage): ChatMessage {
+  if (!message.hidden) return message;
+  return {
+    ...message,
+    hidden: false,
+    rawData: message.rawData ? { ...message.rawData, is_system: false } : message.rawData,
+  };
+}
+
 /** OOC/注释楼（ST 的 /comment，extra.type='comment'）；与普通隐藏楼分开标注 */
 export function isOOCMessage(msg: ChatMessage): boolean {
   return (msg.rawData?.extra as { type?: unknown } | undefined)?.type === 'comment';

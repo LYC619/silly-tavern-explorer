@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import type { ChatMessage } from '@/types/chat';
-import { swipeCount, currentSwipeId, selectSwipe, syncEditedMessage, isOOCMessage } from '@/lib/chat-edit';
+import { swipeCount, currentSwipeId, selectSwipe, syncEditedMessage, isOOCMessage, unhideMessage } from '@/lib/chat-edit';
 
 const swipeMsg = (): ChatMessage => ({
   id: 'm1',
@@ -82,6 +82,16 @@ describe('syncEditedMessage：编辑保存同步 mes + swipes[swipe_id]', () => 
     const next = syncEditedMessage(msg);
     expect(next.rawData!.mes).toBe('新');
     expect(next.rawData!.swipes).toEqual(['a']);
+  });
+});
+
+describe('unhideMessage：解除普通隐藏楼并同步 ST 原始标记', () => {
+  it('clears hidden and is_system without changing the message body', () => {
+    const msg = { id: 'hidden', role: 'assistant' as const, content: '正文', hidden: true, rawData: { mes: '正文', is_system: true } };
+    const next = unhideMessage(msg);
+    expect(next.hidden).toBe(false);
+    expect(next.rawData?.is_system).toBe(false);
+    expect(next.content).toBe('正文');
   });
 });
 

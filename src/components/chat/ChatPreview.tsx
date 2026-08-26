@@ -53,6 +53,8 @@ interface ChatPreviewProps {
   showOOC?: boolean;
   /** 切换某楼的 swipe 候选（有多候选时显示切换控件；不传则不显示） */
   onSwipeSelect?: (messageId: string, targetId: number) => void;
+  /** 解除普通隐藏楼（OOC/真实系统楼由调用方保护） */
+  onUnhideMessage?: (messageId: string, messageIndex: number) => void;
   /** 楼层跳转时避开滚动容器顶部的 sticky 工具栏。 */
   scrollPaddingStart?: number;
 }
@@ -227,6 +229,7 @@ interface MessageRowProps {
   onEditMessage?: (messageId: string, messageIndex: number) => void;
   /** 切换该楼 swipe 候选（多候选时在楼底显示 ‹ n/m › 控件） */
   onSwipeSelect?: (messageId: string, targetId: number) => void;
+  onUnhideMessage?: (messageId: string, messageIndex: number) => void;
 }
 
 /**
@@ -236,7 +239,7 @@ interface MessageRowProps {
  */
 const MessageRow = memo(function MessageRow({
   message, marker, index, theme, classes, showTimestamp, showAvatar,
-  editMode, previewRule, searchQuery, isActiveMatch, userName, charName, onMessageClick, onEditMessage, onSwipeSelect,
+  editMode, previewRule, searchQuery, isActiveMatch, userName, charName, onMessageClick, onEditMessage, onSwipeSelect, onUnhideMessage,
 }: MessageRowProps) {
   const isUser = message.role === 'user';
   const isNewSpeaker = message.isNewSpeaker;
@@ -275,7 +278,17 @@ const MessageRow = memo(function MessageRow({
           <div className="mb-1.5 inline-flex items-center gap-1 rounded bg-muted/70 px-1.5 py-0.5 text-xs text-muted-foreground">
             {message.ooc
               ? <><MessageSquareDashed className="w-3 h-3" />OOC / 注释</>
-              : <><EyeOff className="w-3 h-3" />ST 中已隐藏</>}
+              : <><EyeOff className="w-3 h-3" />ST 中已隐藏
+                {onUnhideMessage && (
+                  <button
+                    type="button"
+                    className="ml-1 rounded px-1.5 py-0.5 text-[11px] text-primary hover:bg-primary/10"
+                    onClick={(event) => { event.stopPropagation(); onUnhideMessage(message.id, index); }}
+                  >
+                    取消隐藏
+                  </button>
+                )}
+              </>}
           </div>
         )}        {/* 章节标记模式：每条消息左上角常驻楼层号+书签按钮，清晰可点 */}
         {editMode && (
@@ -435,7 +448,7 @@ const MessageRow = memo(function MessageRow({
 });
 
 export const ChatPreview = memo(forwardRef<ChatPreviewHandle, ChatPreviewProps>(
-  ({ session, theme, showTimestamp, showAvatar, fontSize, regexRules, markers = [], onMessageClick, onEditMessage, editMode = false, fontFamily, previewRule = null, onVisibleFloorChange, onFloorMapChange, searchQuery = '', onSearchResult, showHidden = true, showOOC = true, onSwipeSelect, scrollPaddingStart = 0 }, ref) => {
+  ({ session, theme, showTimestamp, showAvatar, fontSize, regexRules, markers = [], onMessageClick, onEditMessage, editMode = false, fontFamily, previewRule = null, onVisibleFloorChange, onFloorMapChange, searchQuery = '', onSearchResult, showHidden = true, showOOC = true, onSwipeSelect, onUnhideMessage, scrollPaddingStart = 0 }, ref) => {
     const markerMap = useMemo(() => {
       const map = new Map<string, ChapterMarker>();
       markers.forEach(m => map.set(m.messageId, m));
@@ -756,6 +769,7 @@ export const ChatPreview = memo(forwardRef<ChatPreviewHandle, ChatPreviewProps>(
                     onMessageClick={onMessageClick}
                     onEditMessage={onEditMessage}
                     onSwipeSelect={onSwipeSelect}
+                    onUnhideMessage={onUnhideMessage}
                   />
                 </div>
               );
