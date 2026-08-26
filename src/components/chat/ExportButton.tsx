@@ -294,7 +294,7 @@ export function ExportButton({ session, settings, markers = [], onSettingsChange
           <DialogTitle className="flex items-center gap-1">
             导出设置
             <HelpCard>
-              JSONL 格式可直接导入回 SillyTavern 继续使用，TXT 适合纯文本阅读，Markdown 带章节标题适合 Obsidian 等笔记软件。导出时可选择清理选项（去除 swipes 可减少 40-50% 体积）、消息范围、是否应用正则清理。
+              JSONL 可导回 SillyTavern 继续使用；TXT 适合纯文本阅读，Markdown 带章节标题适合 Obsidian。这里的 JSONL 是“精简工作副本”，会移除候选回复（swipes），开启插件清理时还会移除部分插件元数据，不等同于完整备份。角色卡、世界书、预设和正则资产不会被此导出修改。
             </HelpCard>
           </DialogTitle>
           <DialogDescription>选择导出范围和清理选项</DialogDescription>
@@ -369,8 +369,8 @@ export function ExportButton({ session, settings, markers = [], onSettingsChange
         {/* Cleanup Options */}
         <div className="flex items-center justify-between rounded-md border border-border p-3">
           <div className="space-y-0.5">
-            <Label className="text-sm">清理插件缓存</Label>
-            <p className="text-xs text-muted-foreground">移除插件运行时数据，减小文件体积</p>
+            <Label className="text-sm">清理插件元数据</Label>
+            <p className="text-xs text-muted-foreground">精简工作副本：移除部分插件运行时数据；不会修改角色卡、世界书、预设或正则资产</p>
           </div>
           <Switch checked={cleanPluginCache} onCheckedChange={setCleanPluginCache} />
         </div>

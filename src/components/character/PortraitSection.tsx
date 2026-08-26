@@ -198,13 +198,6 @@ export function PortraitSection({ character, onPatch, onOpenImport }: PortraitSe
     fileRef.current?.click();
   };
 
-  const openLightbox = async (row: PortraitViewRow, index: number) => {
-    const item = row.items[index];
-    if (!item) return;
-    const url = await loadPortraitImage(item);
-    if (url) setLightbox({ rowId: row.rowId, index, name: item.name, url });
-  };
-
   const moveLightbox = useCallback(async (delta: number) => {
     if (!lightbox) return;
     const row = views?.find((entry) => entry.rowId === lightbox.rowId);

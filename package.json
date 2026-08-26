@@ -20,7 +20,8 @@
     "test:watch": "vitest",
     "tauri": "tauri",
     "tauri:dev": "tauri dev",
-    "tauri:build": "tauri build"
+    "tauri:build": "tauri build",
+    "tauri:build:offline": "tauri build --config src-tauri/tauri.offline.conf.json"
   },
   "dependencies": {
     "@radix-ui/react-alert-dialog": "^1.1.14",
