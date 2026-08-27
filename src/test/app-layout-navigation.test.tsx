@@ -1,6 +1,7 @@
 import { act } from 'react';
+import { useEffect } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
-import { MemoryRouter, Route, Routes, useLocation, useNavigate } from 'react-router-dom';
+import { MemoryRouter, Route, Routes, useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 const collapseSidenav = vi.hoisted(() => vi.fn());
@@ -146,6 +147,47 @@ describe('AppLayout route transitions', () => {
     expect(container.querySelector('[data-testid="home-page"]')).toBeNull();
     expect(container.querySelectorAll('main > div')).toHaveLength(1);
     expect(collapseSidenav).toHaveBeenCalledTimes(1);
+  });
+
+  it('同一路径只换 query 参数时页面不重挂，页面内子视图状态得以保留', async () => {
+    // 0826 反馈 5：入场动画的 key 里带过 location.key/search，编辑区用 ?view= 切子界面
+    // 就会整页重挂——总结页点「查看」闪一下「加载中」又弹回列表就是这么来的。
+    let mounts = 0;
+    function CountingPage() {
+      const [, setSearchParams] = useSearchParams();
+      useEffect(() => { mounts += 1; }, []);
+      return (
+        <AppLayout>
+          <button
+            data-testid="switch-view"
+            type="button"
+            onClick={() => setSearchParams((current) => { current.set('view', 'diary'); return current; }, { replace: true })}
+          >
+            换子视图
+          </button>
+        </AppLayout>
+      );
+    }
+
+    await act(async () => {
+      root.render(
+        <MemoryRouter initialEntries={['/story/st_9?view=volume']} future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
+          <Routes>
+            <Route element={<AppLayout />}>
+              <Route path="/story/:id" element={<CountingPage />} />
+            </Route>
+          </Routes>
+        </MemoryRouter>,
+      );
+    });
+    expect(mounts).toBe(1);
+
+    await act(async () => {
+      container.querySelector<HTMLButtonElement>('[data-testid="switch-view"]')?.click();
+      await new Promise((resolve) => setTimeout(resolve, 250));
+    });
+
+    expect(mounts).toBe(1);
   });
 
   it('附属库在新会话中默认折叠', async () => {

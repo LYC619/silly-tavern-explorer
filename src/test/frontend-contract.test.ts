@@ -317,7 +317,9 @@ describe('阶段 D 外壳与 NSFW 契约', () => {
     expect(layout).toContain('useOutlet()');
     expect(layout).not.toContain('mode="popLayout"');
     expect(layout).not.toContain('mode="wait"');
-    expect(layout).toContain('key={`${location.key}:${location.pathname}${location.search}`}');
+    // key 只按 pathname：query 参数换子视图（编辑区 ?view=）不许重挂整页，
+    // 行为断言见 app-layout-navigation.test.tsx
+    expect(layout).toContain('key={location.pathname}');
     expect(layout).toContain('transition={{ duration: 0.12');
     expect(layout).not.toContain('exit={{ opacity: 0');
     expect(layout).toContain('LayoutContext');

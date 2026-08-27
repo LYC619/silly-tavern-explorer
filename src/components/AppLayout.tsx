@@ -167,6 +167,13 @@ function PersistentAppLayout({ children, titleBarContent, actions, leftActions }
   }, []);
   const layout = useMemo<LayoutContextValue>(() => ({ register, clear }), [clear, register]);
 
+  // 窗口栏（客户端 44px）/ 搜索工具栏（网页版 36px）的高度挂到文档根上。
+  // 抽屉是 portal 到 body 的，拿不到布局里的变量；而窗口栏 z-[60] 压在抽屉之上，
+  // 抽屉不给它让出这段高度，标题就会被挡掉（0826 反馈 4）。
+  useLayoutEffect(() => {
+    document.documentElement.style.setProperty('--app-chrome-h', client ? '2.75rem' : '2.25rem');
+  }, [client]);
+
   useLayoutEffect(() => {
     setRegistration(null);
   }, [location.key]);
@@ -345,8 +352,11 @@ function PersistentAppLayout({ children, titleBarContent, actions, leftActions }
                 <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
               </div>
             }>
+              {/* key 只认 pathname：query 参数是页面内的子视图切换（编辑区 ?view=、库页筛选），
+                  把它或 location.key 写进 key 会让 setSearchParams 整页重挂——总结页点「查看」
+                  闪一下「加载中」又弹回列表、展示页被送回生成工作台都是这么来的（0826 反馈 5）。 */}
               <motion.div
-                key={`${location.key}:${location.pathname}${location.search}`}
+                key={location.pathname}
                 initial={{ opacity: 0, y: 4 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.12, ease: 'easeOut' }}
