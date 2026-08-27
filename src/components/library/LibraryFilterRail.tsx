@@ -5,12 +5,12 @@ import {
   ChevronRight,
   Dices,
   GripVertical,
-  HelpCircle,
   LayoutGrid,
   Sparkles,
   UserRound,
   type LucideIcon,
 } from 'lucide-react';
+import { HelpHint } from '@/components/HelpHint';
 import { cn } from '@/lib/utils';
 import { CATEGORY_HELP, type BuiltinTagCategory, type TagCategory } from '@/lib/tag-taxonomy';
 import type { LibraryFilterSections } from '@/lib/library-tag-preferences';
@@ -162,12 +162,9 @@ export function LibraryFilterRail({
             <Sparkles className="h-3.5 w-3.5 text-[color:var(--brand-hi)]" />
             <span>类型</span>
           </div>
-          <span
-            title="每张卡只归一类；不选任何类型时显示全部角色"
-            className="cursor-help text-[color:var(--sidebar-text-muted)]"
-          >
-            <HelpCircle className="h-3.5 w-3.5" />
-          </span>
+          <HelpHint label="类型说明" className="text-[color:var(--sidebar-text-muted)]">
+            每张卡只归一类；不选任何类型时显示全部角色。
+          </HelpHint>
           <span className="h-px flex-1 bg-[var(--hairline-inner)]" />
         </div>
         <div data-library-type-grid className="grid grid-cols-2 gap-1">
@@ -211,30 +208,31 @@ export function LibraryFilterRail({
               key={section.category}
               className={cn(index > 0 && 'mt-4 border-t border-[color:var(--hairline-inner)] pt-3.5')}
             >
-              <button
-                type="button"
-                className="mb-2 flex w-full items-center gap-1 pl-1 text-left text-xs font-semibold tracking-wide text-[color:var(--sidebar-text)] hover:text-[color:var(--text-primary)]"
-                onClick={() => setCollapsedCategories((current) => {
-                  const next = new Set(current);
-                  if (next.has(section.category)) next.delete(section.category);
-                  else next.add(section.category);
-                  return next;
-                })}
-                aria-label={`${collapsed ? '展开' : '折叠'}标签组 ${section.category}`}
-              >
-                {collapsed ? <ChevronRight className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
-                <span
-                  className="h-1.5 w-1.5 shrink-0 rounded-full"
-                  style={{
-                    background: CATEGORY_DOT[section.category as Exclude<BuiltinTagCategory, '未分类'>]
-                      ?? 'var(--sidebar-text-muted)',
-                  }}
-                />
-                {section.category}
-                <span title={help} className="cursor-help">
-                  <HelpCircle className="h-3 w-3" />
-                </span>
-              </button>
+              {/* 折叠按钮与「?」是同级：提示图标嵌在 button 里时悬浮命中的是外层 button，提示永不出现 */}
+              <div className="mb-2 flex w-full items-center gap-1 pl-1 text-xs font-semibold tracking-wide text-[color:var(--sidebar-text)]">
+                <button
+                  type="button"
+                  className="flex min-w-0 flex-1 items-center gap-1 text-left hover:text-[color:var(--text-primary)]"
+                  onClick={() => setCollapsedCategories((current) => {
+                    const next = new Set(current);
+                    if (next.has(section.category)) next.delete(section.category);
+                    else next.add(section.category);
+                    return next;
+                  })}
+                  aria-label={`${collapsed ? '展开' : '折叠'}标签组 ${section.category}`}
+                >
+                  {collapsed ? <ChevronRight className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
+                  <span
+                    className="h-1.5 w-1.5 shrink-0 rounded-full"
+                    style={{
+                      background: CATEGORY_DOT[section.category as Exclude<BuiltinTagCategory, '未分类'>]
+                        ?? 'var(--sidebar-text-muted)',
+                    }}
+                  />
+                  <span className="truncate">{section.category}</span>
+                </button>
+                <HelpHint label={`标签组 ${section.category} 说明`} className="h-3 w-3">{help}</HelpHint>
+              </div>
               {!collapsed && (
                 section.options.length > 0 ? (
                   <div data-library-tag-grid className={cn('grid gap-1', wide ? 'grid-cols-2' : 'grid-cols-1')}>

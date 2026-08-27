@@ -139,6 +139,33 @@ describe('LibraryFilterRail', () => {
     expect(onTypeChange).toHaveBeenLastCalledWith('all');
   });
 
+  it('「?」说明是可聚焦按钮，且不嵌在其它按钮里', async () => {
+    await renderRail();
+
+    // 曾经的写法是给 <span> 挂原生 title：WebView2 下不可靠，键盘和读屏摸不到；
+    // 嵌在折叠按钮内部时更是永不触发——悬浮命中的是外层 button。
+    const hints = [...document.body.querySelectorAll('[aria-label$="说明"]')];
+    expect(hints.length).toBeGreaterThan(0);
+    for (const hint of hints) {
+      expect(hint.tagName).toBe('BUTTON');
+      expect(hint.closest('button')).toBe(hint);
+      expect(hint.getAttribute('title')).toBeNull();
+    }
+    expect(hints.some((hint) => hint.getAttribute('aria-label') === '类型说明')).toBe(true);
+  });
+
+  it('标签组折叠按钮与说明按钮各自独立可点', async () => {
+    await renderRail();
+
+    const groupHint = [...document.body.querySelectorAll('button[aria-label^="标签组"]')]
+      .find((button) => button.getAttribute('aria-label')?.endsWith('说明'));
+    expect(groupHint).toBeDefined();
+    const collapseToggle = [...document.body.querySelectorAll('button')]
+      .find((button) => button.getAttribute('aria-label')?.startsWith('折叠标签组'));
+    expect(collapseToggle).toBeDefined();
+    expect(collapseToggle?.contains(groupHint as Node)).toBe(false);
+  });
+
   it('标签滚动条默认隐藏，只在滚动期间标记为可见', async () => {
     vi.useFakeTimers();
     await renderRail();

@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { GripVertical, HelpCircle, Plus } from 'lucide-react';
+import { GripVertical, Plus } from 'lucide-react';
+import { HelpHint } from '@/components/HelpHint';
 import {
   Dialog,
   DialogContent,
@@ -447,14 +448,13 @@ export function TagManagerDialog({
                         activeCategory === category ? 'text-brand' : 'text-[color:var(--text-body)]',
                       )}
                     >
-                    <span className="flex min-w-0 items-center gap-1.5">
-                      <span className="truncate" title={category}>{category}</span>
-                      <span title={CATEGORY_HELP[category as keyof typeof CATEGORY_HELP] ?? '自定义标签组'} className="shrink-0 cursor-help">
-                        <HelpCircle className="h-3.5 w-3.5" />
-                      </span>
-                    </span>
-                    <span className="text-xs opacity-65">{count}</span>
+                      <span className="min-w-0 truncate">{category}</span>
+                      <span className="text-xs opacity-65">{count}</span>
                     </button>
+                    {/* 「?」放在选择按钮外面：嵌在 button 里时悬浮命中外层 button，提示永不出现 */}
+                    <HelpHint label={`标签组 ${category} 说明`} side="right" className="mr-2">
+                      {CATEGORY_HELP[category as keyof typeof CATEGORY_HELP] ?? '自定义标签组'}
+                    </HelpHint>
                   </div>
                 );
               })}
