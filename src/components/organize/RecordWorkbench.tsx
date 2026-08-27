@@ -72,6 +72,8 @@ interface RecordWorkbenchProps {
   showEmptyEditor?: boolean;
   /** 上层把 API 状态并入紧凑标题栏时关闭本行。 */
   showApiStatus?: boolean;
+  /** 右栏已存记录列表的刷新序号；变化时重读已有分卷（卷号建议/前情勾选跟着更新）。 */
+  recordsRefreshKey?: number;
 }
 
 export interface RecordWorkbenchHandle {
@@ -94,6 +96,7 @@ export const RecordWorkbench = forwardRef<RecordWorkbenchHandle, RecordWorkbench
     configurationHeader,
     showEmptyEditor = true,
     showApiStatus = true,
+    recordsRefreshKey = 0,
   }, ref) {
     const { toast } = useToast();
 
@@ -136,11 +139,16 @@ export const RecordWorkbench = forwardRef<RecordWorkbenchHandle, RecordWorkbench
 
     const abortRef = useRef<AbortController | null>(null);
     const outputRef = useRef('');
-    const editorRef = useRef<HTMLDivElement | null>(null);
+    const resultRef = useRef<HTMLDivElement | null>(null);
 
-    const scrollEditorIntoView = useCallback(() => {
+    /**
+     * 右栏滚到「生成结果」。右栏顶上还压着已存记录列表/返回条，
+     * 只滚外层容器等于没动——要滚的是结果块本身（0826 反馈 5）。
+     * 双 rAF：等结果块真正渲染出来（生成时它由 streaming 才挂上）再滚。
+     */
+    const scrollResultIntoView = useCallback(() => {
       requestAnimationFrame(() => requestAnimationFrame(() => {
-        editorRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+        resultRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
       }));
     }, []);
 
@@ -173,11 +181,16 @@ export const RecordWorkbench = forwardRef<RecordWorkbenchHandle, RecordWorkbench
       setPriorVolumes(vols);
       setPriorSelectedIds(vols.map((v) => v.id)); // 默认全选（连贯性关键）
     }, [story.id]);
-    useEffect(() => { reloadVolumes(); }, [reloadVolumes]);
+    // recordsRefreshKey：右栏已存列表里增删改条目后，卷号建议和前情勾选跟着重读
+    useEffect(() => { reloadVolumes(); }, [reloadVolumes, recordsRefreshKey]);
 
     const nextVolumeNumber = useMemo(() => inferVolumeNumber(priorVolumes), [priorVolumes]);
     const [volumeOverride, setVolumeOverride] = useState<number | null>(null);
-    const effectiveVolume = volumeOverride ?? (record?.volumeNumber ?? nextVolumeNumber);
+    // 「本次生成的卷号」一律按已有分卷推下一卷（手动录入的卷也在 priorVolumes 里）。
+    // 不再回落到 record.volumeNumber——保存后父组件会把刚存的条目回灌成 record，
+    // 那样左边就永远停在刚录的那一卷（0826 反馈 5）。要重做某一卷走「重新生成」，
+    // 它会显式把 volumeOverride 设成原卷号；改存已有条目用 resultVolume 保号，两条路都不受影响。
+    const effectiveVolume = volumeOverride ?? nextVolumeNumber;
     const suggestedStart = useMemo(
       () => (priorVolumes.length ? Math.max(...priorVolumes.map((v) => v.floorEnd)) + 1 : undefined),
       [priorVolumes]
@@ -276,7 +289,7 @@ export const RecordWorkbench = forwardRef<RecordWorkbenchHandle, RecordWorkbench
       setResultVolume(null);
       setPreview(false);
       setManualDraft(false);
-      scrollEditorIntoView();
+      scrollResultIntoView();
       toast({ title: '已送入结果编辑器', description: '可继续编辑后保存' });
     };
 
@@ -346,7 +359,7 @@ export const RecordWorkbench = forwardRef<RecordWorkbenchHandle, RecordWorkbench
       outputRef.current = '';
       const controller = new AbortController();
       abortRef.current = controller;
-      scrollEditorIntoView();
+      scrollResultIntoView();
 
       try {
         await callOpenAIMessages(config, messages, {
@@ -403,7 +416,7 @@ export const RecordWorkbench = forwardRef<RecordWorkbenchHandle, RecordWorkbench
         setResultVolume(null);
         setPreview(false);
         setManualDraft(true);
-        scrollEditorIntoView();
+        scrollResultIntoView();
       },
       regenerate() {
         const gp = record?.genParams;
@@ -433,7 +446,7 @@ export const RecordWorkbench = forwardRef<RecordWorkbenchHandle, RecordWorkbench
           streaming,
         });
       },
-    }), [record, kind, resultTitle, resultContent, streaming, scrollEditorIntoView, toast]);
+    }), [record, kind, resultTitle, resultContent, streaming, scrollResultIntoView, toast]);
 
     const charName = session.character?.name;
     const branchName = branchId ? story.branches?.find((b) => b.id === branchId)?.name : null;
@@ -560,8 +573,9 @@ export const RecordWorkbench = forwardRef<RecordWorkbenchHandle, RecordWorkbench
           </div>
 
           {/* 右：结果（编辑 / MD 排版预览） */}
-          <div className="min-h-0 min-w-0 space-y-3 overflow-y-auto pr-1 scrollbar-thin" ref={editorRef}>
+          <div className="min-h-0 min-w-0 space-y-3 overflow-y-auto pr-1 scrollbar-thin">
             {sidePanel}
+            <div ref={resultRef} className="space-y-3">
             {!streaming && resultContent && (
               <div className="flex justify-end">
                 <Button variant="outline" size="sm" className="gap-1" onClick={() => setPreview((v) => !v)}>
@@ -597,6 +611,7 @@ export const RecordWorkbench = forwardRef<RecordWorkbenchHandle, RecordWorkbench
                 charName={charName}
               />
             ) : null}
+            </div>
           </div>
         </div>
       </div>

@@ -198,6 +198,7 @@ export function SummaryWorkspace({
             onSaved={handleSaved}
             showEmptyEditor={false}
             showApiStatus={false}
+            recordsRefreshKey={refreshKey}
             sidePanel={
               detailMode ? (
                 <div className="flex shrink-0 items-center justify-between border-b border-[color:var(--border-subtle)] pb-2">
