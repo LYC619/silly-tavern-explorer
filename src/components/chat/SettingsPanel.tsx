@@ -119,6 +119,18 @@ export function SettingsPanel({ settings, onSettingsChange }: SettingsPanelProps
             />
           </div>
 
+          {/* 生成模型 */}
+          <div className="flex items-center justify-between gap-3">
+            <div className="min-w-0">
+              <Label className="text-sm">显示模型</Label>
+              <p className="text-xs text-muted-foreground">在角色名旁标出这一楼是哪个模型生成的（记录里没写就不显示）。</p>
+            </div>
+            <Switch
+              checked={settings.showModel !== false}
+              onCheckedChange={(checked) => updateSetting('showModel', checked)}
+            />
+          </div>
+
           {/* 预览字体 */}
           <div className="space-y-2">
             <Label className="text-sm">预览字体</Label>

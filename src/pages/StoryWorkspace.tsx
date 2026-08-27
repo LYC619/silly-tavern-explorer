@@ -42,7 +42,7 @@ import {
 } from '@/lib/archive-db';
 import { StoryDraftSaver } from '@/lib/story-draft-save';
 import { parseJsonl, parseJson } from '@/lib/adapters/st';
-import { getDefaultExportSettings } from '@/lib/session-storage';
+import { getDefaultExportSettings, normalizeAppearanceSettings } from '@/lib/session-storage';
 import {
   isSummarySurfaceKind,
   parseEditorStoryView,
@@ -308,7 +308,7 @@ const StoryWorkspace = () => {
     );
   }
 
-  const settings = story.settings ?? getDefaultExportSettings();
+  const settings = normalizeAppearanceSettings(story.settings ?? getDefaultExportSettings());
   const backTarget = story.characterId ? `/character/${story.characterId}` : '/chat';
   const backLabel = character?.name ?? (story.characterId ? '角色库' : '聊天处理');
   const organizeView = isOrganizeWorkspaceView(view);

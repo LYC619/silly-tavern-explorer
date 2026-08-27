@@ -202,17 +202,28 @@ export function deleteRegexPreset(id: string): RegexPreset[] {
 }
 
 /**
+ * 补齐后加的外观开关。`showModel` 是 0826 新增的字段，缺它就说明这份设置
+ * 是本次改动之前存下的——那时时间戳默认关，模型行还没开关；一起改成默认开
+ * （0826 反馈 6）。补完之后字段就在了，用户之后关掉也不会被再改回来。
+ */
+export function normalizeAppearanceSettings(settings: ExportSettings): ExportSettings {
+  if (settings.showModel !== undefined) return settings;
+  return { ...settings, showModel: true, showTimestamp: true };
+}
+
+/**
  * 默认导出/外观设置：优先用用户上次保存的全局设置（正则用当前合并规则集），
  * 否则给出厂缺省。聊天处理页与故事工作区（故事还没存 settings 时）共用。
  */
 export function getDefaultExportSettings(): ExportSettings {
   const saved = loadSettings();
   if (saved) {
-    return { ...saved, regexRules: getInitialRegexRules() };
+    return normalizeAppearanceSettings({ ...saved, regexRules: getInitialRegexRules() });
   }
   return {
     theme: 'elegant',
-    showTimestamp: false,
+    showTimestamp: true,
+    showModel: true,
     showAvatar: true,
     paperWidth: 600,
     fontSize: 15,

@@ -88,11 +88,18 @@ export interface ExportSettings {
   theme: ThemeStyle;
   showTimestamp: boolean;
   showAvatar: boolean;
+  /**
+   * 名字行是否显示该楼的生成模型。undefined = 这份设置早于本开关，
+   * normalizeAppearanceSettings 会据此补默认值。
+   */
+  showModel?: boolean;
   paperWidth: number;
   fontSize: number;
   prefixMode: PrefixMode;
   regexRules: RegexRule[];
   cleanPluginCache: boolean;
+  /** JSONL 导出是否只留当前选中的候选回复（丢弃其余 swipes）；默认开 */
+  slimExport?: boolean;
   exportRange: 'all' | 'recent' | 'custom';
   recentCount: number;
   customStart: number;

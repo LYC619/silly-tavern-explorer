@@ -19,7 +19,7 @@ import type { ArchiveStory } from '@/types/archive';
 import {
   getArchiveStory, updateArchiveStory, getBranchLine, updateBranchLine,
 } from '@/lib/archive-db';
-import { getDefaultExportSettings } from '@/lib/session-storage';
+import { getDefaultExportSettings, normalizeAppearanceSettings } from '@/lib/session-storage';
 import { StoryDraftSaver, flushBeforeStoryTransition } from '@/lib/story-draft-save';
 import { useToast } from '@/hooks/use-toast';
 import { LOADING_LABEL } from '@/lib/ui-copy';
@@ -175,7 +175,7 @@ export function InlineStoryReader({ storyId, stories, onSwitchStory, onBack, onO
     );
   }
 
-  const settings = story.settings ?? getDefaultExportSettings();
+  const settings = normalizeAppearanceSettings(story.settings ?? getDefaultExportSettings());
   const currentBranchName = branchId !== null
     ? story.branches?.find((b) => b.id === branchId)?.name
     : null;

@@ -56,6 +56,10 @@ interface ChatPreviewProps {
   onSwipeSelect?: (messageId: string, targetId: number) => void;
   /** 解除普通隐藏楼（OOC/真实系统楼由调用方保护） */
   onUnhideMessage?: (messageId: string, messageIndex: number) => void;
+  /** 把某楼设为隐藏（等价 ST /hide）；与 onUnhideMessage 对称，OOC 楼不给这个入口 */
+  onHideMessage?: (messageId: string, messageIndex: number) => void;
+  /** 是否在名字行显示该楼的生成模型（默认显示） */
+  showModel?: boolean;
   /** 楼层跳转时避开滚动容器顶部的 sticky 工具栏。 */
   scrollPaddingStart?: number;
 }
@@ -231,6 +235,8 @@ interface MessageRowProps {
   /** 切换该楼 swipe 候选（多候选时在楼底显示 ‹ n/m › 控件） */
   onSwipeSelect?: (messageId: string, targetId: number) => void;
   onUnhideMessage?: (messageId: string, messageIndex: number) => void;
+  onHideMessage?: (messageId: string, messageIndex: number) => void;
+  showModel: boolean;
 }
 
 /**
@@ -239,14 +245,14 @@ interface MessageRowProps {
  * 章节标记横幅留在行内（作为该行第一个子元素），高度随行一起被动态测量。
  */
 const MessageRow = memo(function MessageRow({
-  message, marker, index, theme, classes, showTimestamp, showAvatar,
-  editMode, previewRule, searchQuery, isActiveMatch, userName, charName, onMessageClick, onEditMessage, onSwipeSelect, onUnhideMessage,
+  message, marker, index, theme, classes, showTimestamp, showAvatar, showModel,
+  editMode, previewRule, searchQuery, isActiveMatch, userName, charName, onMessageClick, onEditMessage, onSwipeSelect, onUnhideMessage, onHideMessage,
 }: MessageRowProps) {
   const isUser = message.role === 'user';
   const isNewSpeaker = message.isNewSpeaker;
   const hasMarker = !!marker;
   const rawData = message.rawData as STRawMessage | undefined;
-  const model = !isUser ? formatMessageModelLabel(rawData) : undefined;
+  const model = !isUser && showModel ? formatMessageModelLabel(rawData) : undefined;
   const generationHint = rawData?.gen_started || rawData?.gen_finished
     ? `生成：${rawData.gen_started ?? '未记录'} → ${rawData.gen_finished ?? '未记录'}`
     : undefined;
@@ -337,7 +343,24 @@ const MessageRow = memo(function MessageRow({
             右对齐用「全宽覆盖层 + flex justify-end」而非 right 偏移：翻译插件等注入式样式
             即使干掉 right 属性也不会把按钮挤到左侧压住正文。 */}
         {!editMode && onEditMessage && (
-          <div className="pointer-events-none absolute top-1 z-10 flex w-full justify-end pr-1">
+          <div className="pointer-events-none absolute top-1 z-10 flex w-full justify-end gap-1 pr-1">
+            {/* 隐藏入口和隐藏楼上的「取消隐藏」对称：不隐藏的楼在这里能设隐藏（0826 反馈 6）。
+                OOC/注释楼本来就是靠 is_system 存在的，不给这个开关，免得把注释楼改成普通隐藏楼。 */}
+            {onHideMessage && !message.hidden && !message.ooc && (
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <button
+                    type="button"
+                    onClick={(e) => { e.stopPropagation(); onHideMessage(message.id, index); }}
+                    className="tap-target pointer-events-auto flex h-7 w-7 items-center justify-center rounded-md bg-background/70 text-muted-foreground shadow-sm backdrop-blur-sm transition-colors hover:bg-primary/10 hover:text-primary"
+                    aria-label={`隐藏第 ${index} 楼`}
+                  >
+                    <EyeOff className="h-3.5 w-3.5" />
+                  </button>
+                </TooltipTrigger>
+                <TooltipContent side="left">隐藏本楼（导出写回 ST 的 Hide）</TooltipContent>
+              </Tooltip>
+            )}
             <Tooltip>
               <TooltipTrigger asChild>
                 <button
@@ -456,7 +479,7 @@ const MessageRow = memo(function MessageRow({
 });
 
 export const ChatPreview = memo(forwardRef<ChatPreviewHandle, ChatPreviewProps>(
-  ({ session, theme, showTimestamp, showAvatar, fontSize, regexRules, markers = [], onMessageClick, onEditMessage, editMode = false, fontFamily, previewRule = null, onVisibleFloorChange, onFloorMapChange, searchQuery = '', onSearchResult, showHidden = true, showOOC = true, onSwipeSelect, onUnhideMessage, scrollPaddingStart = 0 }, ref) => {
+  ({ session, theme, showTimestamp, showAvatar, fontSize, regexRules, markers = [], onMessageClick, onEditMessage, editMode = false, fontFamily, previewRule = null, onVisibleFloorChange, onFloorMapChange, searchQuery = '', onSearchResult, showHidden = true, showOOC = true, onSwipeSelect, onUnhideMessage, onHideMessage, showModel = true, scrollPaddingStart = 0 }, ref) => {
     const markerMap = useMemo(() => {
       const map = new Map<string, ChapterMarker>();
       markers.forEach(m => map.set(m.messageId, m));
@@ -768,6 +791,7 @@ export const ChatPreview = memo(forwardRef<ChatPreviewHandle, ChatPreviewProps>(
                     classes={classes}
                     showTimestamp={showTimestamp}
                     showAvatar={showAvatar}
+                    showModel={showModel}
                     editMode={editMode}
                     previewRule={previewRule}
                     searchQuery={searchQuery}
@@ -778,6 +802,7 @@ export const ChatPreview = memo(forwardRef<ChatPreviewHandle, ChatPreviewProps>(
                     onEditMessage={onEditMessage}
                     onSwipeSelect={onSwipeSelect}
                     onUnhideMessage={onUnhideMessage}
+                    onHideMessage={onHideMessage}
                   />
                 </div>
               );

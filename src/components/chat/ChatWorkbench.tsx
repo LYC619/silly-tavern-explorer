@@ -19,7 +19,7 @@ import { MessageEditDialog } from '@/components/chat/MessageEditDialog';
 import { RegexSidebar } from '@/components/chat/RegexSidebar';
 import { SettingsPanel } from '@/components/chat/SettingsPanel';
 import { applyRegexRules } from '@/lib/regex-processor';
-import { selectSwipe, syncEditedMessage, isOOCMessage, unhideMessage } from '@/lib/chat-edit';
+import { selectSwipe, syncEditedMessage, isOOCMessage, hideMessage, unhideMessage } from '@/lib/chat-edit';
 import type { ChatSession, ExportSettings, ChapterMarker, ChatMessage, RegexRule } from '@/types/chat';
 import { useToast } from '@/hooks/use-toast';
 import { ToastAction } from '@/components/ui/toast';
@@ -221,18 +221,31 @@ export const ChatWorkbench = forwardRef<ChatWorkbenchHandle, ChatWorkbenchProps>
     });
   };
 
-  const handleUnhideMessage = useCallback((messageId: string, messageIndex: number) => {
+  /**
+   * 设/撤某楼的隐藏（ST 的 Hide，落在 is_system）。两个方向走同一条路，
+   * 免得「取消隐藏」修过一次、「设为隐藏」又漏掉同样的守卫。
+   * OOC/注释楼不从这里改——它有自己的显隐开关。
+   */
+  const setMessageHidden = useCallback((messageId: string, messageIndex: number, hidden: boolean) => {
     if (readerMode) return;
     const current = sessionRef.current.messages[messageIndex];
-    if (!current || current.id !== messageId || !current.hidden || isOOCMessage(current)) return;
+    if (!current || current.id !== messageId || current.hidden === hidden || isOOCMessage(current)) return;
     mutateSession((currentSession) => ({
       ...currentSession,
       messages: currentSession.messages.map((message) => (
-        message.id === messageId ? unhideMessage(message) : message
+        message.id === messageId ? (hidden ? hideMessage(message) : unhideMessage(message)) : message
       )),
     }));
-    toast({ title: `已取消第 ${messageIndex} 楼隐藏` });
+    toast({ title: hidden ? `已隐藏第 ${messageIndex} 楼` : `已取消第 ${messageIndex} 楼隐藏` });
   }, [mutateSession, readerMode, toast]);
+
+  const handleUnhideMessage = useCallback((messageId: string, messageIndex: number) => {
+    setMessageHidden(messageId, messageIndex, false);
+  }, [setMessageHidden]);
+
+  const handleHideMessage = useCallback((messageId: string, messageIndex: number) => {
+    setMessageHidden(messageId, messageIndex, true);
+  }, [setMessageHidden]);
 
   const handleDeleteMessage = () => {
     if (readerMode) return;
@@ -562,6 +575,7 @@ export const ChatWorkbench = forwardRef<ChatWorkbenchHandle, ChatWorkbenchProps>
                     session={session}
                     theme={settings.theme}
                     showTimestamp={settings.showTimestamp}
+                    showModel={settings.showModel !== false}
                     showAvatar={settings.showAvatar}
                     fontSize={settings.fontSize}
                     regexRules={settings.regexRules}
@@ -570,6 +584,7 @@ export const ChatWorkbench = forwardRef<ChatWorkbenchHandle, ChatWorkbenchProps>
                     onEditMessage={readerMode ? undefined : handleEditMessage}
                     onSwipeSelect={readerMode ? undefined : handleSwipeSelect}
                     onUnhideMessage={readerMode ? undefined : handleUnhideMessage}
+                    onHideMessage={readerMode ? undefined : handleHideMessage}
                     editMode={readerMode ? false : editMode}
                     fontFamily={settings.fontFamily}
                     previewRule={previewRule}

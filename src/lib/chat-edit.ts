@@ -67,6 +67,19 @@ export function unhideMessage(message: ChatMessage): ChatMessage {
   };
 }
 
+/**
+ * 把一楼设为隐藏（等价 ST 的 /hide）；与 unhideMessage 对称，同步写 is_system。
+ * OOC/注释楼本来就靠 is_system 存在，不从这里改——它有自己的显隐开关。
+ */
+export function hideMessage(message: ChatMessage): ChatMessage {
+  if (message.hidden || isOOCMessage(message)) return message;
+  return {
+    ...message,
+    hidden: true,
+    rawData: message.rawData ? { ...message.rawData, is_system: true } : { mes: message.content, is_system: true },
+  };
+}
+
 /** OOC/注释楼（ST 的 /comment，extra.type='comment'）；与普通隐藏楼分开标注 */
 export function isOOCMessage(msg: ChatMessage): boolean {
   return (msg.rawData?.extra as { type?: unknown } | undefined)?.type === 'comment';

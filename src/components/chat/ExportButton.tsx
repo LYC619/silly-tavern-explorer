@@ -93,6 +93,7 @@ export function ExportButton({ session, settings, markers = [], onSettingsChange
 
   // Local settings state for dialog
   const [cleanPluginCache, setCleanPluginCache] = useState(settings.cleanPluginCache ?? true);
+  const [slimExport, setSlimExport] = useState(settings.slimExport !== false);
   const [exportRange, setExportRange] = useState<'all' | 'recent' | 'custom'>(settings.exportRange ?? 'all');
   const [recentCount, setRecentCount] = useState(settings.recentCount ?? 100);
   const [customStart, setCustomStart] = useState(settings.customStart ?? 0);
@@ -136,9 +137,11 @@ export function ExportButton({ session, settings, markers = [], onSettingsChange
       const base: STRawMessage = m.rawData
         ? { ...m.rawData, mes: cleanedContent }
         : { mes: cleanedContent };
-      base.swipes = [];
-      base.swipe_id = 0;
-      base.swipe_info = [];
+      if (slimExport) {
+        base.swipes = [];
+        base.swipe_id = 0;
+        base.swipe_info = [];
+      }
       return acc + byteLength(JSON.stringify(base));
     }, 0);
     const estimatedSize = estMetaSize + estMsgSize;
@@ -146,7 +149,7 @@ export function ExportButton({ session, settings, markers = [], onSettingsChange
     const savings = originalSize > 0 ? Math.round((1 - estimatedSize / originalSize) * 100) : 0;
 
     return { totalMessages, selectedCount, userCount, charCount, originalSize, estimatedSize, savings };
-  }, [selectedMessages, session, settings.regexRules, cleanPluginCache]);
+  }, [selectedMessages, session, settings.regexRules, cleanPluginCache, slimExport]);
 
   const getExportMessages = () => selectedMessages;
 
@@ -260,10 +263,19 @@ export function ExportButton({ session, settings, markers = [], onSettingsChange
         // 隐藏楼层 round-trip：按应用内当前 hidden 状态写回 is_system（ST 用它持久化 Hide）
         exportMessage.is_system = message.hidden === true;
 
-        // P0: Clean swipes
-        exportMessage.swipes = [];
-        exportMessage.swipe_id = 0;
-        exportMessage.swipe_info = [];
+        // 精简导出：只留 swipe_id 指向的那条回复，丢掉其余候选（体积大头）。
+        // 关掉则原样带走 swipes，但当前选中那条要同步成正则清理后的正文——
+        // 否则导回 ST 一刷新就被旧 swipe 文本顶回去。
+        if (slimExport) {
+          exportMessage.swipes = [];
+          exportMessage.swipe_id = 0;
+          exportMessage.swipe_info = [];
+        } else if (Array.isArray(exportMessage.swipes)) {
+          const id = typeof exportMessage.swipe_id === 'number' ? exportMessage.swipe_id : 0;
+          const swipes = [...exportMessage.swipes];
+          if (id >= 0 && id < swipes.length) swipes[id] = cleanedContent;
+          exportMessage.swipes = swipes;
+        }
 
         lines.push(JSON.stringify(exportMessage));
       }
@@ -294,7 +306,7 @@ export function ExportButton({ session, settings, markers = [], onSettingsChange
           <DialogTitle className="flex items-center gap-1">
             导出设置
             <HelpCard>
-              JSONL 可导回 SillyTavern 继续使用；TXT 适合纯文本阅读，Markdown 带章节标题适合 Obsidian。这里的 JSONL 是“精简工作副本”，会移除候选回复（swipes），开启插件清理时还会移除部分插件元数据，不等同于完整备份。角色卡、世界书、预设和正则资产不会被此导出修改。
+              JSONL 可导回 SillyTavern 继续使用；TXT 适合纯文本阅读，Markdown 带章节标题适合 Obsidian。JSONL 默认导「精简工作副本」——只留当前选中的回复，可用下面的「精简导出」关掉；开着插件清理时还会移除部分插件元数据。两项都关也不等同于完整备份。角色卡、世界书、预设和正则资产不会被此导出修改。
             </HelpCard>
           </DialogTitle>
           <DialogDescription>选择导出范围和清理选项</DialogDescription>
@@ -367,12 +379,30 @@ export function ExportButton({ session, settings, markers = [], onSettingsChange
         </div>
 
         {/* Cleanup Options */}
-        <div className="flex items-center justify-between rounded-md border border-border p-3">
-          <div className="space-y-0.5">
-            <Label className="text-sm">清理插件元数据</Label>
-            <p className="text-xs text-muted-foreground">精简工作副本：移除部分插件运行时数据；不会修改角色卡、世界书、预设或正则资产</p>
+        <div className="space-y-2">
+          <div className="flex items-center justify-between gap-3 rounded-md border border-border p-3">
+            <div className="space-y-0.5">
+              <div className="flex items-center gap-1">
+                <Label className="text-sm">精简导出</Label>
+                <HelpCard>
+                  <div className="space-y-2">
+                    <p>SillyTavern 的 JSONL 里，每条 AI 回复会把所有候选回复（swipes）一起存着。常重新生成的话，一楼可能压了十几个版本，文件就这么胀起来的。</p>
+                    <p>精简导出只保留 swipe_id 指向的那条，丢掉其余候选。消息本体全部原样保留——发送者、时间戳、模型信息、is_user、metadata 都在；完整对话流、角色定义、世界书绑定、预设、正则也都在。移除的只有没被选中的候选回复，以及（开着「清理插件元数据」时）部分插件写入的临时数据。</p>
+                    <p>导回 SillyTavern 后可以正常接着聊，API 请求内容和精简前一致。唯一的区别是翻不回之前滑掉的备选回复了。</p>
+                  </div>
+                </HelpCard>
+              </div>
+              <p className="text-xs text-muted-foreground">只留当前选中的那条回复，体积通常能砍掉一半；关掉则候选回复原样带走</p>
+            </div>
+            <Switch checked={slimExport} onCheckedChange={setSlimExport} />
           </div>
-          <Switch checked={cleanPluginCache} onCheckedChange={setCleanPluginCache} />
+          <div className="flex items-center justify-between gap-3 rounded-md border border-border p-3">
+            <div className="space-y-0.5">
+              <Label className="text-sm">清理插件元数据</Label>
+              <p className="text-xs text-muted-foreground">移除部分插件运行时数据；不会修改角色卡、世界书、预设或正则资产</p>
+            </div>
+            <Switch checked={cleanPluginCache} onCheckedChange={setCleanPluginCache} />
+          </div>
         </div>
 
         {/* Export Buttons */}
