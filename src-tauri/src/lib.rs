@@ -613,6 +613,18 @@ fn vault_remove_file(
     remove_file_impl(&authorized_rooted_path(&roots, &root, &path)?)
 }
 
+/// 送进系统回收站而不是抹掉。给用户主动删自己文件的场景用（立绘等），
+/// 删错了还能从回收站捞回来；程序自己维护的中间文件仍走 vault_remove_file。
+#[tauri::command]
+fn vault_trash_file(
+    roots: tauri::State<'_, AuthorizedRoots>,
+    root: String,
+    path: String,
+) -> Result<(), String> {
+    let target = authorized_rooted_path(&roots, &root, &path)?;
+    trash::delete(&target).map_err(|e| format!("移入回收站失败 {}: {e}", target.display()))
+}
+
 #[tauri::command]
 fn vault_remove_empty_dir(
     roots: tauri::State<'_, AuthorizedRoots>,
@@ -806,6 +818,7 @@ pub fn run() {
             vault_read_binary,
             vault_write_binary,
             vault_remove_file,
+            vault_trash_file,
             vault_remove_empty_dir,
             vault_rename,
             vault_mkdir,

@@ -336,26 +336,110 @@ export async function renamePortraitItem(
   return { portraitRows: rows };
 }
 
+/**
+ * 删一个立绘文件。用户主动删自己的图 → 优先进系统回收站（客户端有 trashFile），
+ * 捞得回来；网页版/内存实现没有回收站，退回直接删。
+ */
+async function dropPortraitFile(ctx: VaultCtx, path: string): Promise<void> {
+  const fs = ctx.vault.fs;
+  if (fs.trashFile) await fs.trashFile(path);
+  else await fs.removeFile(path);
+}
+
 /** 删除受管立绘条目；当前卡面会被清空，但不会删除角色卡 PNG。 */
 export async function removePortraitItem(c: ArchiveCharacter, itemId: string): Promise<Partial<ArchiveCharacter>> {
+  return removePortraitItems(c, [itemId], true);
+}
+
+/**
+ * 批量删除受管立绘条目（单条删除也走这里，守卫只写一份）。
+ * deleteFiles=false 时只撤记录，图片文件原样留在分行文件夹里（之后按「散图」只读展示）。
+ * 散图没有 itemId，不受这个 API 影响——用户手放的文件永不删改。
+ */
+export async function removePortraitItems(
+  c: ArchiveCharacter,
+  itemIds: string[],
+  deleteFiles: boolean,
+): Promise<Partial<ArchiveCharacter>> {
+  const targets = new Set(itemIds);
+  if (targets.size === 0) return {};
   const rows = (c.portraitRows ?? []).map((row) => ({ ...row, items: [...row.items] }));
-  let removed: PortraitItem | undefined;
+  const ctx = deleteFiles ? await vaultCtx(c.id) : null;
+  let removed = 0;
   for (const row of rows) {
-    const index = row.items.findIndex((item) => item.id === itemId);
-    if (index >= 0) {
-      [removed] = row.items.splice(index, 1);
-      if (removed.fileName) {
-        const ctx = await vaultCtx(c.id);
-        if (ctx) await ctx.vault.fs.removeFile(`${rowDirPath(ctx, row.title)}/${removed.fileName}`);
-      }
-      break;
+    const gone = row.items.filter((item) => targets.has(item.id));
+    if (gone.length === 0) continue;
+    row.items = row.items.filter((item) => !targets.has(item.id));
+    removed += gone.length;
+    if (!ctx) continue;
+    const dir = rowDirPath(ctx, row.title);
+    for (const item of gone) {
+      if (item.fileName) await dropPortraitFile(ctx, `${dir}/${item.fileName}`);
     }
   }
-  if (!removed) throw new Error('立绘不存在');
+  if (removed === 0) throw new Error('立绘不存在');
   const patch: Partial<ArchiveCharacter> = { portraitRows: rows };
-  if (c.portraitCurrentId === itemId) patch.portraitCurrentId = undefined;
+  if (c.portraitCurrentId && targets.has(c.portraitCurrentId)) patch.portraitCurrentId = undefined;
   await writeSnapshot(c.id, rows, patch.portraitCurrentId ?? c.portraitCurrentId);
   return patch;
+}
+
+/**
+ * 删除整个分行：行内受管条目一起走。deleteFiles=true 时图片进回收站，
+ * 之后试着收走空文件夹——里面还有用户手放的散图就保留，一个字节都不动。
+ */
+export async function removePortraitRow(
+  c: ArchiveCharacter,
+  rowId: string,
+  deleteFiles: boolean,
+): Promise<Partial<ArchiveCharacter>> {
+  const row = (c.portraitRows ?? []).find((entry) => entry.id === rowId);
+  if (!row) throw new Error('分行不存在');
+  const patch = row.items.length
+    ? await removePortraitItems(c, row.items.map((item) => item.id), deleteFiles)
+    : {};
+  const rows = (patch.portraitRows ?? c.portraitRows ?? []).filter((entry) => entry.id !== rowId);
+  const ctx = await vaultCtx(c.id);
+  if (ctx && deleteFiles) await ctx.vault.fs.removeEmptyDir(rowDirPath(ctx, row.title)).catch(() => false);
+  const currentId = 'portraitCurrentId' in patch ? patch.portraitCurrentId : c.portraitCurrentId;
+  await writeSnapshot(c.id, rows, currentId);
+  return { ...patch, portraitRows: rows };
+}
+
+/** 批量移动受管条目到另一行；客户端连图片文件一起搬（撞名自动改名）。 */
+export async function movePortraitItems(
+  c: ArchiveCharacter,
+  itemIds: string[],
+  targetRowId: string,
+): Promise<Partial<ArchiveCharacter>> {
+  const targets = new Set(itemIds);
+  if (targets.size === 0) return {};
+  const rows = (c.portraitRows ?? []).map((row) => ({ ...row, items: [...row.items] }));
+  const target = rows.find((row) => row.id === targetRowId);
+  if (!target) throw new Error('目标分行不存在');
+  const ctx = await vaultCtx(c.id);
+  const targetDir = ctx ? rowDirPath(ctx, target.title) : '';
+  const taken = ctx ? new Set((await ctx.vault.fs.list(targetDir)).map((entry) => entry.name)) : new Set<string>();
+  let moved = 0;
+  for (const row of rows) {
+    if (row.id === targetRowId) continue;
+    const going = row.items.filter((item) => targets.has(item.id));
+    if (going.length === 0) continue;
+    row.items = row.items.filter((item) => !targets.has(item.id));
+    for (const item of going) {
+      if (ctx && item.fileName) {
+        const nextName = uniqueFileName(taken, item.fileName);
+        await ctx.vault.fs.rename(`${rowDirPath(ctx, row.title)}/${item.fileName}`, `${targetDir}/${nextName}`);
+        taken.add(nextName);
+        item.fileName = nextName;
+      }
+      target.items.push(item);
+      moved++;
+    }
+  }
+  if (moved === 0) return {};
+  await writeSnapshot(c.id, rows, c.portraitCurrentId);
+  return { portraitRows: rows };
 }
 
 /** 替换受管立绘内容。先写新文件/数据，成功后删除旧文件，避免失败时丢失原图。 */
@@ -455,6 +539,29 @@ function base64ToAb(b64: string): ArrayBuffer {
   return bytes.buffer;
 }
 
+/** 各图片格式的文件头（webp 另需第 8-11 字节是 WEBP，这里只用前缀够区分） */
+const IMAGE_MAGIC: [string, number[]][] = [
+  ['image/png', [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]],
+  ['image/jpeg', [0xff, 0xd8, 0xff]],
+  ['image/gif', [0x47, 0x49, 0x46, 0x38]],
+  ['image/webp', [0x52, 0x49, 0x46, 0x46]],
+];
+
+/**
+ * 按字节认图片格式。文件名和 mime 都不可信——用户把 JPG 改名成 .png 很常见，
+ * 之前直接把这种图当 PNG 送去嵌卡数据，embedCharaInPng 就抛「不是有效的 PNG 文件」
+ * （0826 反馈 3）。只解前 16 字节，不整图解码。
+ */
+export function sniffImageMime(b64: string): string | undefined {
+  let head: string;
+  try {
+    head = atob(b64.slice(0, 24));
+  } catch {
+    return undefined;
+  }
+  return IMAGE_MAGIC.find(([, magic]) => magic.every((byte, i) => head.charCodeAt(i) === byte))?.[0];
+}
+
 /** 非 PNG 图 → PNG base64（canvas 光栅化；透明度保留，动图取首帧） */
 async function rasterToPngBase64(b64: string, mime: string): Promise<string> {
   const img = new Image();
@@ -479,7 +586,9 @@ export async function setPortraitAsCard(c: ArchiveCharacter, item: PortraitViewI
   const ctx = await vaultCtx(c.id);
   const srcB64 = item.dataBase64 ?? (item.fsPath ? await ctx!.vault.fs.readBinary(item.fsPath) : null);
   if (!srcB64) throw new Error('读不到立绘图片数据');
-  const pngB64 = item.mime === 'image/png' ? srcB64 : await rasterToPngBase64(srcB64, item.mime);
+  // 认字节不认扩展名：只有真 PNG 能直接嵌卡数据，其余（含改名成 .png 的 JPG）走 canvas 转 PNG
+  const realMime = sniffImageMime(srcB64);
+  const pngB64 = realMime === 'image/png' ? srcB64 : await rasterToPngBase64(srcB64, realMime ?? item.mime);
   const embedded = embedCharaInPng(base64ToAb(pngB64), c.card);
   const newPng = abToBase64(embedded.buffer as ArrayBuffer);
 

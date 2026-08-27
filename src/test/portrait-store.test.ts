@@ -9,7 +9,8 @@ import {
   archiveOldCard, currentStillInRows, buildPortraitSnapshot,
   promotePortraitItem,
   addPortraitFiles, setPortraitAsCard, createPortraitRow, renamePortraitRow, loadPortraitViews,
-  renamePortraitItem, removePortraitItem, replacePortraitItem,
+  renamePortraitItem, removePortraitItem, removePortraitItems, removePortraitRow,
+  movePortraitItems, replacePortraitItem, sniffImageMime,
   CARD_ROW_TITLE, DEFAULT_ROW_TITLE, STRAY_ROW_ID,
 } from '@/lib/portrait-store';
 import { createMemFs } from '@/lib/vault/fs';
@@ -286,5 +287,72 @@ describe('客户端落盘', () => {
     const archived = patch.portraitRows!.find((r) => r.title === CARD_ROW_TITLE)!.items[0];
     expect(archived.fileName).toMatch(/^原卡面·/);
     expect(fs.dump()[`角色/奏枝/立绘/卡面/${archived.fileName}`]).toBe('<binary>');
+  });
+});
+
+// ---------- 批量管理与格式识别（0826 反馈 3） ----------
+
+describe('批量管理', () => {
+  /** 建两行、第一行两张图的客户端库 */
+  async function setupTwoRows() {
+    const { fs, c } = await setupVault();
+    let cur = { ...c, ...(await createPortraitRow(c, '日常')) } as ArchiveCharacter;
+    cur = { ...cur, ...(await createPortraitRow(cur, '战斗')) } as ArchiveCharacter;
+    const [day, fight] = cur.portraitRows!;
+    const added = await addPortraitFiles(cur, day.id, [pngFile('a.png'), pngFile('b.png')]);
+    cur = { ...cur, ...added.patch } as ArchiveCharacter;
+    return { fs, cur, dayId: day.id, fightId: fight.id };
+  }
+
+  it('批量移动把记录和文件一起搬到目标行', async () => {
+    const { fs, cur, dayId, fightId } = await setupTwoRows();
+    const ids = cur.portraitRows!.find((r) => r.id === dayId)!.items.map((i) => i.id);
+    const patch = await movePortraitItems(cur, ids, fightId);
+    expect(patch.portraitRows!.find((r) => r.id === dayId)!.items).toHaveLength(0);
+    expect(patch.portraitRows!.find((r) => r.id === fightId)!.items).toHaveLength(2);
+    const dump = fs.dump();
+    expect(dump['角色/奏枝/立绘/战斗/a.png']).toBe('<binary>');
+    expect(dump['角色/奏枝/立绘/日常/a.png']).toBeUndefined();
+  });
+
+  it('批量删除可选择保留磁盘文件；保留下来的按散图回到视图', async () => {
+    const { fs, cur, dayId } = await setupTwoRows();
+    const ids = cur.portraitRows!.find((r) => r.id === dayId)!.items.map((i) => i.id);
+    const patch = await removePortraitItems(cur, ids, false);
+    expect(patch.portraitRows!.find((r) => r.id === dayId)!.items).toHaveLength(0);
+    expect(fs.dump()['角色/奏枝/立绘/日常/a.png']).toBe('<binary>');
+    const views = await loadPortraitViews({ ...cur, ...patch } as ArchiveCharacter);
+    expect(views.find((v) => v.rowId === dayId)!.items.map((i) => i.source)).toEqual(['stray', 'stray']);
+  });
+
+  it('删除整行连图片一起删时清空文件夹，并撤掉当前卡面指向', async () => {
+    const { fs, cur, dayId } = await setupTwoRows();
+    const current = cur.portraitRows!.find((r) => r.id === dayId)!.items[0];
+    const withCurrent = { ...cur, portraitCurrentId: current.id } as ArchiveCharacter;
+    const patch = await removePortraitRow(withCurrent, dayId, true);
+    expect(patch.portraitRows!.some((r) => r.id === dayId)).toBe(false);
+    expect(patch.portraitCurrentId).toBeUndefined();
+    const dump = fs.dump();
+    expect(dump['角色/奏枝/立绘/日常/a.png']).toBeUndefined();
+    expect(dump['角色/奏枝/立绘/日常/b.png']).toBeUndefined();
+  });
+
+  it('图片格式认字节不认扩展名：JPG 改名成 .png 时 mime 会说谎，签名不会', async () => {
+    const { c } = await setupVault();
+    // JPEG 文件头 + 随便一点内容，扩展名/mime 都谎称是 PNG。
+    // setPortraitAsCard 据此走 canvas 转 PNG（jsdom 没有 canvas，这里只验判定本身）。
+    const jpegB64 = btoa(String.fromCharCode(0xff, 0xd8, 0xff, 0xe0, 0, 16, 74, 70, 73, 70, 0));
+    expect(sniffImageMime(jpegB64)).toBe('image/jpeg');
+    expect(sniffImageMime(minimalPngBase64())).toBe('image/png');
+    const p1 = await createPortraitRow(c, '日常');
+    const cur = { ...c, ...p1 } as ArchiveCharacter;
+    const rowId = cur.portraitRows![0].id;
+    // 直接把假 PNG 落进行文件夹，走散图路径读出来（mime 由扩展名推成 image/png）
+    const { getActiveVault } = await import('@/lib/vault/active');
+    await getActiveVault()!.fs.writeBinary('角色/奏枝/立绘/日常/fake.png', jpegB64);
+    const views = await loadPortraitViews(cur);
+    const target = views.find((v) => v.rowId === rowId)!.items[0];
+    expect(target.mime).toBe('image/png'); // 扩展名骗过了 mime
+    expect(sniffImageMime(jpegB64)).not.toBe(target.mime); // 字节说了实话
   });
 });

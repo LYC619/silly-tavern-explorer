@@ -31,6 +31,11 @@ export interface VaultFs {
   writeBinary(path: string, base64: string): Promise<void>;
   /** 只删单个文件；文件不存在时抛错 */
   removeFile(path: string): Promise<void>;
+  /**
+   * 送进系统回收站（删错了能捞回来）。只有客户端实现；网页版/内存实现没有这个能力，
+   * 调用方拿不到就退回 removeFile。用户主动删自己的文件（立绘等）走这条。
+   */
+  trashFile?(path: string): Promise<void>;
   /** 只删空目录；非空返回 false 并保留（用户自己放的文件永不删） */
   removeEmptyDir(path: string): Promise<boolean>;
   /** 目标已存在时拒绝（不覆盖） */

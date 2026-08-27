@@ -49,6 +49,7 @@ export function createTauriFs(root: string): VaultFs {
     readBinary: (path) => invoke('vault_read_binary', args(path)),
     writeBinary: (path, base64) => invoke('vault_write_binary', { ...args(path), base64 }),
     removeFile: (path) => invoke('vault_remove_file', args(path)),
+    trashFile: (path) => invoke('vault_trash_file', args(path)),
     removeEmptyDir: (path) => invoke('vault_remove_empty_dir', args(path)),
     rename: (from, to) => invoke('vault_rename', { root, from: safeRelativePath(from), to: safeRelativePath(to) }),
     mkdir: (path) => invoke('vault_mkdir', args(path)),
