@@ -4,6 +4,7 @@ import { createVault } from './vault-backend';
 import { setActiveVault } from './active';
 import {
   activateVaultProfile,
+  removeVaultProfile,
   upsertVaultProfile,
   type VaultProfile,
 } from './vault-registry';
@@ -83,4 +84,19 @@ export async function chooseVaultForNextBoot(): Promise<VaultProfile | null> {
     { persistAuthorization: true },
   );
   return path ? registerVaultForNextBoot(path) : null;
+}
+
+/**
+ * 从注册表里移除一条库记录（对齐 Obsidian「从仓库列表中移除」）：
+ * 只忘掉这个路径，磁盘上的库文件夹一个字节都不动。
+ * 当前正在用的库不能移除——应用整个跑在它上面，先切到别的库再来。
+ */
+export async function unregisterVault(id: string): Promise<VaultProfile> {
+  if (!isTauri()) throw new Error('网页版没有本机库列表');
+  const current = await loadVaultRegistry();
+  const profile = current.vaults.find((item) => item.id === id);
+  if (!profile) throw new Error('该库已不在列表中，刷新设置页即可');
+  if (current.activeId === id) throw new Error('这是当前正在使用的库，先切换到别的库再移除');
+  await persistVaultRegistry(removeVaultProfile(current, id));
+  return profile;
 }

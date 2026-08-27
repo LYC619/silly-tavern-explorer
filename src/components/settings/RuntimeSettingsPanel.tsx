@@ -1,7 +1,17 @@
 import { useCallback, useEffect, useState } from 'react';
-import { Check, Eye, FolderOpen, FolderSearch, KeyRound, Loader2, RefreshCw, Tags } from 'lucide-react';
+import { Check, Eye, FolderOpen, FolderSearch, KeyRound, Loader2, RefreshCw, Tags, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import { useToast } from '@/hooks/use-toast';
 import {
   getHideUnusedLibraryTags,
@@ -20,9 +30,13 @@ import {
 import { scanSTUserDir, type STScanResult } from '@/lib/vault/st-import';
 import { STAIConfigDialog } from '@/components/tools/STAIConfigDialog';
 import { STImportCard } from '@/components/tools/STImportCard';
-import { chooseVaultForNextBoot, selectRegisteredVaultForNextBoot } from '@/lib/vault/vault-registry-runtime';
+import {
+  chooseVaultForNextBoot,
+  selectRegisteredVaultForNextBoot,
+  unregisterVault,
+} from '@/lib/vault/vault-registry-runtime';
 import { loadVaultRegistry } from '@/lib/vault/vault-registry-store';
-import type { VaultRegistry } from '@/lib/vault/vault-registry';
+import type { VaultProfile, VaultRegistry } from '@/lib/vault/vault-registry';
 
 interface STCounts {
   characters: number;
@@ -109,6 +123,7 @@ export function DirectorySettingsPanel() {
   const [stCounts, setStCounts] = useState<STCounts | null>(null);
   const [busy, setBusy] = useState<'st' | 'vault' | null>(null);
   const [stConfigOpen, setStConfigOpen] = useState(false);
+  const [pendingRemoval, setPendingRemoval] = useState<VaultProfile | null>(null);
 
   const refreshPaths = useCallback(async () => {
     if (!client) return;
@@ -199,6 +214,24 @@ export function DirectorySettingsPanel() {
     }
   };
 
+  const handleRemoveRegisteredVault = async (profile: VaultProfile) => {
+    setBusy('vault');
+    try {
+      await unregisterVault(profile.id);
+      setVaultRegistry(await loadVaultRegistry().catch(() => null));
+      toast({ title: `已从列表移除「${profile.name}」`, description: '磁盘上的库文件夹保持原样，重新「更换库目录」选回来即可。' });
+    } catch (error) {
+      toast({
+        title: '移除失败',
+        description: error instanceof Error ? error.message : '无法移除该库',
+        variant: 'destructive',
+      });
+    } finally {
+      setPendingRemoval(null);
+      setBusy(null);
+    }
+  };
+
   return (
     <div className="space-y-4">
       <section className="rounded-md border border-border p-4 space-y-3">
@@ -208,7 +241,9 @@ export function DirectorySettingsPanel() {
             <div className="min-w-0">
               <h3 className="text-sm font-semibold">SillyTavern 目录</h3>
               <p className="text-xs text-muted-foreground mt-1">
-                {stRoot ? '已接入，可直接重新扫描并选择最新内容。' : '尚未接入 SillyTavern 目录。'}
+                {stRoot
+                  ? '已接入，可直接重新扫描并选择最新内容。'
+                  : '尚未接入 SillyTavern 目录；只有云端导出的 zip 也能直接导入。'}
               </p>
             </div>
           </div>
@@ -221,7 +256,7 @@ export function DirectorySettingsPanel() {
           </p>
         )}
         <div className="flex flex-wrap gap-2">
-          {client && stRoot && (
+          {client && (
             <STImportCard variant="compact" root={stRoot} onChanged={() => void refreshPaths()} />
           )}
           <Button variant="outline" size="sm" onClick={handleChangeStRoot} disabled={!client || busy !== null}>
@@ -264,26 +299,61 @@ export function DirectorySettingsPanel() {
             <RefreshCw className="w-4 h-4 mt-0.5 text-primary shrink-0" />
             <div className="min-w-0">
               <h3 className="text-sm font-semibold">已注册的库</h3>
-              <p className="text-xs text-muted-foreground mt-1">演示库和私人库各自独立；切换后会重新载入页面，避免旧库缓存混入。</p>
+              <p className="text-xs text-muted-foreground mt-1">演示库和私人库各自独立；切换后会重新载入页面，避免旧库缓存混入。移除只是不再记住这个路径，磁盘上的文件夹不动。</p>
             </div>
           </div>
           <div className="space-y-1.5">
-            {vaultRegistry.vaults.map((profile) => (
-              <button
-                type="button"
-                key={profile.id}
-                disabled={profile.id === vaultRegistry.activeId || busy !== null}
-                onClick={() => void handleActivateRegisteredVault(profile.id)}
-                className="flex w-full items-center gap-2 rounded-md border border-border px-2.5 py-2 text-left text-xs transition-colors hover:bg-accent disabled:cursor-default disabled:opacity-70"
-              >
-                <span className={profile.id === vaultRegistry.activeId ? 'h-2 w-2 rounded-full bg-primary' : 'h-2 w-2 rounded-full bg-muted-foreground/30'} />
-                <span className="min-w-0 flex-1 truncate font-medium" title={profile.name}>{profile.name}</span>
-                <span className="max-w-[16rem] truncate text-[11px] text-muted-foreground" title={profile.path}>{profile.path}</span>
-              </button>
-            ))}
+            {vaultRegistry.vaults.map((profile) => {
+              const active = profile.id === vaultRegistry.activeId;
+              return (
+                <div key={profile.id} className="flex items-center gap-1 rounded-md border border-border pr-1">
+                  <button
+                    type="button"
+                    disabled={active || busy !== null}
+                    onClick={() => void handleActivateRegisteredVault(profile.id)}
+                    className="flex min-w-0 flex-1 items-center gap-2 px-2.5 py-2 text-left text-xs transition-colors hover:bg-accent disabled:cursor-default disabled:opacity-70"
+                  >
+                    <span className={active ? 'h-2 w-2 rounded-full bg-primary' : 'h-2 w-2 rounded-full bg-muted-foreground/30'} />
+                    <span className="min-w-0 flex-1 truncate font-medium" title={profile.name}>{profile.name}</span>
+                    <span className="max-w-[16rem] truncate text-[11px] text-muted-foreground" title={profile.path}>{profile.path}</span>
+                  </button>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="shrink-0 text-muted-foreground hover:text-destructive"
+                    disabled={active || busy !== null}
+                    title={active ? '当前正在使用的库不能移除，先切换到别的库' : '从列表移除（不删除磁盘文件）'}
+                    aria-label={`从列表移除 ${profile.name}`}
+                    onClick={() => setPendingRemoval(profile)}
+                  >
+                    <Trash2 className="h-3.5 w-3.5" />
+                  </Button>
+                </div>
+              );
+            })}
           </div>
         </section>
       )}
+
+      <AlertDialog open={pendingRemoval !== null} onOpenChange={(open) => { if (!open) setPendingRemoval(null); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>从列表移除「{pendingRemoval?.name}」？</AlertDialogTitle>
+            <AlertDialogDescription>
+              只是不再记住这个路径，{pendingRemoval?.path} 里的角色、故事和资产一个都不删。
+              以后用「更换库目录」选回同一个文件夹即可重新加进列表。
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>取消</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => { if (pendingRemoval) void handleRemoveRegisteredVault(pendingRemoval); }}
+            >
+              移除
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       {client && <STAIConfigDialog open={stConfigOpen} onOpenChange={setStConfigOpen} />}
     </div>
