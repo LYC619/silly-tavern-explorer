@@ -4,12 +4,16 @@ use std::fs::{self, File, OpenOptions};
 use std::io::{self, Read, Seek, Write};
 use std::path::{Component, Path, PathBuf};
 use std::time::{SystemTime, UNIX_EPOCH};
-use tauri_plugin_dialog::DialogExt;
 use zip::ZipArchive;
 
-const MAX_FILES: usize = 20_000;
-const MAX_ENTRY_BYTES: u64 = 128 * 1024 * 1024;
-const MAX_TOTAL_BYTES: u64 = 512 * 1024 * 1024;
+const MAX_FILES: usize = 200_000;
+const MAX_ENTRY_BYTES: u64 = 2 * 1024 * 1024 * 1024;
+const MAX_TOTAL_BYTES: u64 = 8 * 1024 * 1024 * 1024;
+/// 绝对上限放宽后，真正拦 zip bomb 的是膨胀率：解压总量 / 压缩总量。
+/// 纯文本 JSONL 压缩到 20 倍左右很常见，200 倍留足余量；炸弹动辄上万倍。
+const MAX_EXPANSION_RATIO: u64 = 200;
+/// 小包不看膨胀率——几 KB 的包比出上千倍也炸不了盘。
+const EXPANSION_RATIO_FLOOR: u64 = 64 * 1024 * 1024;
 const MAX_DEPTH: usize = 32;
 const MAX_PATH_BYTES: usize = 512;
 const TEMP_PREFIX: &str = "ste-st-import-";
@@ -87,6 +91,7 @@ fn copy_entry<R: Read>(mut input: R, destination: &Path) -> Result<(), String> {
 
 fn validate_archive<R: Read + Seek>(archive: &mut ZipArchive<R>) -> Result<(), String> {
     let mut total = 0u64;
+    let mut packed = 0u64;
     let mut supported = false;
     for index in 0..archive.len() {
         if index >= MAX_FILES {
@@ -109,14 +114,21 @@ fn validate_archive<R: Read + Seek>(archive: &mut ZipArchive<R>) -> Result<(), S
             total = total
                 .checked_add(file.size())
                 .ok_or_else(|| "压缩包解压大小溢出".to_string())?;
+            packed = packed.saturating_add(file.compressed_size());
             if total > MAX_TOTAL_BYTES {
                 return Err(format!(
-                    "压缩包解压总大小超过上限 {} MiB",
-                    MAX_TOTAL_BYTES / 1024 / 1024
+                    "压缩包解压总大小超过上限 {} GiB",
+                    MAX_TOTAL_BYTES / 1024 / 1024 / 1024
                 ));
             }
             supported |= is_supported_path(&path);
         }
+    }
+    if total > EXPANSION_RATIO_FLOOR && total / packed.max(1) > MAX_EXPANSION_RATIO {
+        return Err(format!(
+            "压缩包解压后膨胀 {} 倍，超过 {MAX_EXPANSION_RATIO} 倍上限，已按可疑压缩炸弹拒绝",
+            total / packed.max(1)
+        ));
     }
     if !supported {
         return Err(
@@ -149,9 +161,7 @@ pub fn prepare_st_backup_import(
     app: tauri::AppHandle,
     roots: tauri::State<'_, AuthorizedRoots>,
 ) -> Result<Option<PreparedSTBackup>, String> {
-    let Some(selected) = app
-        .dialog()
-        .file()
+    let Some(selected) = crate::dialog_for(&app)
         .set_title("选择 SillyTavern 导出包")
         .add_filter("SillyTavern ZIP", &["zip"])
         .blocking_pick_file()
@@ -260,5 +270,14 @@ mod tests {
             ("settings.json", b"{\"extensions\":{\"regex\":[]}}"),
         ]);
         assert!(validate_archive(&mut archive).is_ok());
+    }
+
+    #[test]
+    fn rejects_high_expansion_ratio_above_floor() {
+        // 全零负载压缩比上万倍：绝对上限放宽后就靠这条拦住压缩炸弹
+        let zeros = vec![0u8; (EXPANSION_RATIO_FLOOR + 1024 * 1024) as usize];
+        let mut bomb = zip_with(&[("chats/A/main.jsonl", zeros.as_slice())]);
+        let error = validate_archive(&mut bomb).expect_err("高膨胀率必须被拒绝");
+        assert!(error.contains("压缩炸弹"), "unexpected error: {error}");
     }
 }

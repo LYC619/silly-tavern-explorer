@@ -696,11 +696,21 @@ fn read_picked_file_impl(path: &Path, max_bytes: u64) -> Result<PickedChatFile, 
     })
 }
 
+/// 给系统文件对话框挂上主窗口做属主：对话框随主窗口模态、定位跟着主窗口走，
+/// 不再作为孤立顶层窗口弹在屏幕上（0826 反馈 2）。
+/// 注意：对话框的**尺寸**由 Windows 自己按 ComDlg32 的历史记录还原，
+/// 应用侧无法指定，这里只能保证属主关系正确。
+fn dialog_for(app: &tauri::AppHandle) -> tauri_plugin_dialog::FileDialogBuilder<tauri::Wry> {
+    let builder = app.dialog().file();
+    match app.get_webview_window("main") {
+        Some(window) => builder.set_parent(&window),
+        None => builder,
+    }
+}
+
 #[tauri::command]
 fn pick_chat_file(app: tauri::AppHandle) -> Result<Option<PickedChatFile>, String> {
-    let Some(selected) = app
-        .dialog()
-        .file()
+    let Some(selected) = dialog_for(&app)
         .set_title("选择聊天或角色卡文件")
         .add_filter("聊天与角色卡", &["jsonl", "json", "txt", "png"])
         .blocking_pick_file()
@@ -730,7 +740,7 @@ async fn vault_pick_authorized_directory(
     title: String,
     persistent: bool,
 ) -> Result<Option<String>, String> {
-    let Some(selected) = app.dialog().file().set_title(title).blocking_pick_folder() else {
+    let Some(selected) = dialog_for(&app).set_title(title).blocking_pick_folder() else {
         return Ok(None);
     };
     let selected = selected

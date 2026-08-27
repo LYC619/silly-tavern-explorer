@@ -204,10 +204,19 @@ export function STImportCard({ onChanged, variant = 'full', root }: STImportCard
           </Button>
         </Card>
       ) : (
-        <Button variant="outline" size="sm" onClick={handlePick} disabled={scanning}>
-          {scanning ? <Loader2 className="mr-1 h-4 w-4 animate-spin" /> : <FolderSearch className="mr-1 h-4 w-4" />}
-          {root ? '重新扫描并选择' : '重新扫描 ST'}
-        </Button>
+        <>
+          {root && (
+            <Button variant="outline" size="sm" onClick={handlePick} disabled={scanning}>
+              {scanning ? <Loader2 className="mr-1 h-4 w-4 animate-spin" /> : <FolderSearch className="mr-1 h-4 w-4" />}
+              重新扫描并选择
+            </Button>
+          )}
+          {/* 云端/别机导出的 zip 不需要先接目录，设置页也要给这个入口（0826 反馈 1） */}
+          <Button variant="outline" size="sm" onClick={handlePickBackup} disabled={scanning}>
+            {scanning ? <Loader2 className="mr-1 h-4 w-4 animate-spin" /> : <ArchiveRestore className="mr-1 h-4 w-4" />}
+            从 SillyTavern 备份导入
+          </Button>
+        </>
       )}
 
       {state && (
