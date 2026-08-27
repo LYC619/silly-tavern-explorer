@@ -181,6 +181,8 @@ export function useApiProfiles() {
   return {
     // 列表 / 活跃
     profiles, activeId, savedActive,
+    // 切换共享/本库作用域后由 ApiScopeToggle 调用：localStorage 已被换成另一套配置
+    reload,
     // 表单字段
     name, setName, apiKey, setApiKey, apiUrl, setApiUrl, model, setModel, modelList,
     dirty, setDirty,

@@ -1,7 +1,11 @@
 import type { SummarySurfaceKind } from '@/types/summary';
+import { scopedGet, scopedRemove, scopedSet } from '@/lib/vault/vault-scope';
 
 export const EDITOR_STORY_CHANGE_EVENT = 'ste-editor-story-change';
 
+// 这两个键按库隔离（scopedKey）：存的是库内故事 id。
+// 跨库共享时换到 B 库会拿着 A 库的 id 去找故事，指向的东西根本不存在——
+// 这不是偏好串味，是直接的正确性问题。
 const STORAGE_KEY = 'ste-current-editor-story-id';
 const SUMMARY_KIND_STORAGE_KEY = 'ste-editor-summary-kind-history';
 
@@ -26,21 +30,14 @@ function normalizeStoryId(value: string | null | undefined): string | null {
 
 /** 当前编辑故事是跨页面的轻量 UI 状态，不参与归档数据写入。 */
 export function getEditorStoryId(): string | null {
-  try {
-    return normalizeStoryId(localStorage.getItem(STORAGE_KEY));
-  } catch {
-    return null;
-  }
+  return normalizeStoryId(scopedGet(STORAGE_KEY));
 }
 
 export function setEditorStoryId(value: string | null): void {
   const id = normalizeStoryId(value);
-  try {
-    if (id) localStorage.setItem(STORAGE_KEY, id);
-    else localStorage.removeItem(STORAGE_KEY);
-  } catch {
-    // 同窗口事件仍需派发，让内存中的导航保持同步。
-  }
+  // scoped* 自带 try/catch：存不下时同窗口事件仍需派发，让内存中的导航保持同步。
+  if (id) scopedSet(STORAGE_KEY, id);
+  else scopedRemove(STORAGE_KEY);
   if (typeof window !== 'undefined') {
     window.dispatchEvent(new CustomEvent(EDITOR_STORY_CHANGE_EVENT, { detail: { storyId: id } }));
   }
@@ -53,7 +50,7 @@ interface SummaryKindMemory {
 
 function readSummaryKindHistory(): SummaryKindMemory[] {
   try {
-    const parsed = JSON.parse(localStorage.getItem(SUMMARY_KIND_STORAGE_KEY) ?? '[]') as unknown;
+    const parsed = JSON.parse(scopedGet(SUMMARY_KIND_STORAGE_KEY) ?? '[]') as unknown;
     if (!Array.isArray(parsed)) return [];
     return parsed.filter((item): item is SummaryKindMemory => {
       if (!item || typeof item !== 'object') return false;
@@ -74,12 +71,9 @@ export function getEditorSummaryKind(storyId: string): SummarySurfaceKind | null
 export function setEditorSummaryKind(storyId: string, kind: SummarySurfaceKind): void {
   const id = normalizeStoryId(storyId);
   if (!id || !isSummarySurfaceKind(kind)) return;
-  try {
-    const history = readSummaryKindHistory().filter((entry) => entry.storyId !== id);
-    localStorage.setItem(SUMMARY_KIND_STORAGE_KEY, JSON.stringify([{ storyId: id, kind }, ...history].slice(0, 50)));
-  } catch {
-    // URL remains authoritative when storage is unavailable.
-  }
+  // 存不下时 URL 仍是权威来源（scopedSet 内部已吞掉异常）。
+  const history = readSummaryKindHistory().filter((entry) => entry.storyId !== id);
+  scopedSet(SUMMARY_KIND_STORAGE_KEY, JSON.stringify([{ storyId: id, kind }, ...history].slice(0, 50)));
 }
 
 export function buildEditorStoryPath(storyId: string, view: EditorStoryView): string {

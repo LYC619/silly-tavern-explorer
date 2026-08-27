@@ -409,9 +409,10 @@ export function AboutSettingsPanel() {
   const { toast } = useToast();
 
   const handleResetOnboarding = () => {
+    // resetAllTours 已按库清理，并顺带清掉升级前遗留的无后缀键。
+    // 原先这里还删了 'st-explorer-onboarding-dismissed'，那个键全仓无人读写，是死键。
     resetAllTours();
-    localStorage.removeItem('st-explorer-onboarding-dismissed');
-    toast({ title: '已重置', description: '下次访问各页面时将重新显示引导' });
+    toast({ title: '已重置', description: '下次访问各页面时将重新显示引导（仅当前库）' });
   };
 
   return (

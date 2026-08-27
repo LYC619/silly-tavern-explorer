@@ -2,6 +2,8 @@ import { createTauriFs, isTauri, pickDirectory, setVaultRoot } from './tauri-fs'
 import type { VaultStat } from './fs';
 import { createVault } from './vault-backend';
 import { setActiveVault } from './active';
+import { hydrateApiProfilesFromSystem } from './sensitive-config';
+import { setCurrentVaultId } from './vault-scope';
 import {
   activateVaultProfile,
   removeVaultProfile,
@@ -41,6 +43,10 @@ export async function registerAndActivateVault(path: string, name?: string): Pro
   await setVaultRoot(upserted.profile.path);
   await persistVaultRegistry(registry);
   setActiveVault(createVault(createTauriFs(upserted.profile.path)));
+  // 这条路径不重载页面（引导页选完库直接放行），所以要自己接上按库作用域：
+  // 先认库，再按本库的作用域恢复 API 配置。
+  setCurrentVaultId(upserted.profile.id);
+  await hydrateApiProfilesFromSystem();
   emitChanged(upserted.profile);
   return upserted.profile;
 }

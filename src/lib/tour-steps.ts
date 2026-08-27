@@ -1,4 +1,5 @@
 import type { TourStep } from '@/components/GuidedTour';
+import { scopedGet, scopedRemove, scopedSet } from '@/lib/vault/vault-scope';
 
 export const HOME_TOUR_STEPS: TourStep[] = [
   {
@@ -103,21 +104,28 @@ export const PRESET_TOUR_STEPS: TourStep[] = [
 // TOUR_MODULES 保留旧 key 便于 resetAllTours 清理历史 localStorage。
 
 // Storage keys
+// 引导状态按库隔离（scopedKey）：新建一个库就该重新走一遍新手引导，
+// 否则「从零开始」这条路径在同一台机器上根本测不出来。
 const PREFIX = 'onboarding-';
 export const TOUR_MODULES = ['home', 'bookshelf', 'summary', 'story-tree', 'worldbook', 'aitools', 'cardviewer', 'preset'] as const;
 export type TourModule = typeof TOUR_MODULES[number];
 
 export function isTourCompleted(module: TourModule): boolean {
-  return localStorage.getItem(`${PREFIX}${module}-completed`) === '1';
+  return scopedGet(`${PREFIX}${module}-completed`) === '1';
 }
 
 export function setTourCompleted(module: TourModule): void {
-  localStorage.setItem(`${PREFIX}${module}-completed`, '1');
+  scopedSet(`${PREFIX}${module}-completed`, '1');
 }
 
 export function resetAllTours(): void {
   TOUR_MODULES.forEach(m => {
-    localStorage.removeItem(`${PREFIX}${m}-completed`);
-    localStorage.removeItem(`${PREFIX}${m}-step`);
+    scopedRemove(`${PREFIX}${m}-completed`);
+    scopedRemove(`${PREFIX}${m}-step`);
+    // 顺手清掉升级前遗留的无后缀键，避免设置页「重新体验引导」看起来没生效。
+    try {
+      localStorage.removeItem(`${PREFIX}${m}-completed`);
+      localStorage.removeItem(`${PREFIX}${m}-step`);
+    } catch { /* 隐私模式下没有可清的东西 */ }
   });
 }

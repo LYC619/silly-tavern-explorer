@@ -8,6 +8,7 @@ const bootMocks = vi.hoisted(() => ({
   isTauri: vi.fn(() => true),
   loadVaultRegistry: vi.fn(),
   setActiveVault: vi.fn(),
+  setCurrentVaultId: vi.fn(),
   stat: vi.fn(),
 }));
 
@@ -21,6 +22,7 @@ vi.mock('@/lib/vault/tauri-fs', () => ({
 vi.mock('@/lib/vault/sensitive-config', () => ({
   hydrateApiProfilesFromSystem: bootMocks.hydrateApiProfilesFromSystem,
 }));
+vi.mock('@/lib/vault/vault-scope', () => ({ setCurrentVaultId: bootMocks.setCurrentVaultId }));
 vi.mock('@/lib/vault/vault-registry-runtime', () => ({
   chooseAndActivateVault: vi.fn(),
   loadVaultRegistry: bootMocks.loadVaultRegistry,
@@ -65,7 +67,6 @@ describe('文件库启动校验', () => {
 
     await expect(bootVault()).resolves.toBe('unset');
 
-    expect(bootMocks.loadVaultRegistry).not.toHaveBeenCalled();
     expect(bootMocks.setActiveVault).not.toHaveBeenCalled();
   });
 
@@ -76,7 +77,29 @@ describe('文件库启动校验', () => {
 
     await expect(bootVault()).resolves.toBe('repair');
 
-    expect(bootMocks.loadVaultRegistry).not.toHaveBeenCalled();
     expect(bootMocks.setActiveVault).not.toHaveBeenCalled();
+  });
+});
+
+describe('按库作用域的启动接线', () => {
+  it('先认库再恢复敏感配置：hydrate 要能读到「本库单独配置」', async () => {
+    bootMocks.stat.mockResolvedValue({ exists: true, isDir: true });
+    const order: string[] = [];
+    bootMocks.setCurrentVaultId.mockImplementation(() => { order.push('scope'); });
+    bootMocks.hydrateApiProfilesFromSystem.mockImplementation(async () => { order.push('hydrate'); });
+
+    await expect(bootVault()).resolves.toBe('ready');
+
+    expect(bootMocks.setCurrentVaultId).toHaveBeenCalledWith(profile.id);
+    // 反过来的话 hydrate 拿不到库 id，只能读共享槽，「本库单独配置」永远不生效。
+    expect(order).toEqual(['scope', 'hydrate']);
+  });
+
+  it('没有已激活的库时把作用域清空，不让偏好落到上一个库的键上', async () => {
+    bootMocks.loadVaultRegistry.mockResolvedValue({ version: 1, activeId: null, vaults: [] });
+
+    await expect(bootVault()).resolves.toBe('unset');
+
+    expect(bootMocks.setCurrentVaultId).toHaveBeenCalledWith(null);
   });
 });

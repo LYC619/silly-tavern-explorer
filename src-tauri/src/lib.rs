@@ -302,12 +302,14 @@ fn config_get_impl(config_dir: &Path, key: &str) -> Result<Option<serde_json::Va
 /// 所以能任意写 config.json 就等于能写 `vaultRoot: "C:\\"`，重启后拿到持久全盘读写。
 /// 目前 webview 里没有已知注入点（全仓无 dangerouslySetInnerHTML），这条是备而不用。
 /// 新增配置项时要同步加到这里，否则写入会在客户端上直接失败。
-const CONFIG_WRITABLE_KEYS: [&str; 5] = [
-    "stRoot",           // ST 根目录
-    "vaultRoot",        // 当前库根目录
-    "vaultRegistry",    // 多库注册表
-    "apiProfiles",      // API 提供商配置（镜像自 localStorage）
-    "apiActiveProfile", // 当前启用的配置档 id
+const CONFIG_WRITABLE_KEYS: [&str; 7] = [
+    "stRoot",             // ST 根目录
+    "vaultRoot",          // 当前库根目录
+    "vaultRegistry",      // 多库注册表
+    "apiProfiles",        // API 提供商配置（镜像自 localStorage）：共享槽
+    "apiActiveProfile",   // 当前启用的配置档 id：共享槽
+    "apiProfilesByVault", // 按库独立的 API 配置槽 { 库id: { profiles, active } }
+    "apiScopeByVault",    // 每个库用共享还是独立配置 { 库id: "shared" | "vault" }
 ];
 
 fn config_set_impl(config_dir: &Path, key: &str, value: serde_json::Value) -> Result<(), String> {
@@ -1044,13 +1046,17 @@ mod tests {
     #[test]
     fn config_set_accepts_exactly_the_keys_the_frontend_writes() {
         let root = temp_root("cfg-allowlist");
-        // 这五个键在前端各有唯一写入点；少一个就是某个功能在客户端上静默失效
+        // 这几个键在前端各有唯一写入点；少一个就是某个功能在客户端上静默失效。
+        // 故意重复列一遍而不是遍历 CONFIG_WRITABLE_KEYS：遍历常量只能证明它自己一致，
+        // 这里要钉的是「前端真的会写这些」——加了新键就必须回来同步这份清单。
         for key in [
             "stRoot",
             "vaultRoot",
             "vaultRegistry",
             "apiProfiles",
             "apiActiveProfile",
+            "apiProfilesByVault",
+            "apiScopeByVault",
         ] {
             config_set_impl(&root, key, serde_json::json!("v"))
                 .unwrap_or_else(|e| panic!("{key} 应当可写: {e}"));
@@ -1058,7 +1064,13 @@ mod tests {
                 config_get_impl(&root, key).unwrap(),
                 Some(serde_json::json!("v"))
             );
+            assert!(
+                CONFIG_WRITABLE_KEYS.contains(&key),
+                "{key} 不在白名单里，上面那句本该失败"
+            );
         }
+        // 「恰好」是双向的：白名单里也不该有前端根本不写、白放开的键。
+        assert_eq!(CONFIG_WRITABLE_KEYS.len(), 7, "白名单增删后请同步上面的清单");
         let _ = fs::remove_dir_all(&root);
     }
 

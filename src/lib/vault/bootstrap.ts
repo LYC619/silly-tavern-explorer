@@ -8,6 +8,7 @@ import { setActiveVault } from './active';
 import { createVault } from './vault-backend';
 import { createTauriFs, isInvalidAppConfigError, isTauri } from './tauri-fs';
 import { hydrateApiProfilesFromSystem } from './sensitive-config';
+import { setCurrentVaultId } from './vault-scope';
 import {
   chooseAndActivateVault,
   loadVaultRegistry,
@@ -19,11 +20,14 @@ export type VaultBootState = 'web' | 'ready' | 'unset' | 'repair';
 export async function bootVault(): Promise<VaultBootState> {
   if (!isTauri()) return 'web';
   try {
-    // API Key 等敏感配置先从系统配置目录恢复到 localStorage（7.6），再放行页面；
-    // 恢复失败也回到可重试的选库引导，避免门卫卡在 booting。
-    await hydrateApiProfilesFromSystem();
+    // 顺序有意义：先定当前库，再恢复敏感配置。
+    // 「本库单独配置」要按库 id 取槽，作用域也是按库存的——hydrate 必须已经知道是哪个库。
     const registry = await loadVaultRegistry();
     const active = registry.activeId ? registry.vaults.find((item) => item.id === registry.activeId) : undefined;
+    setCurrentVaultId(active?.id ?? null);
+    // API Key 等敏感配置从系统配置目录恢复到 localStorage（7.6），再放行页面；
+    // 恢复失败也回到可重试的选库引导，避免门卫卡在 booting。
+    await hydrateApiProfilesFromSystem();
     if (!active) return 'unset';
     const fs = createTauriFs(active.path);
     // canonicalize(root) 在这里提前验证库目录仍存在且确实是目录；

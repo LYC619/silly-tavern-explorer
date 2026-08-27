@@ -10,6 +10,7 @@ import {
 } from '@/components/ui/alert-dialog';
 import { DEFAULT_API_URL } from './api-profiles';
 import { useApiProfiles } from './useApiProfiles';
+import { ApiScopeToggle } from './ApiScopeToggle';
 import { ProfileToolbar } from './ProfileToolbar';
 import { ModelNameInput } from './ModelNameInput';
 
@@ -20,7 +21,7 @@ export function APIConfigCard() {
   const {
     profiles, activeId, savedActive,
     name, setName, apiKey, setApiKey, apiUrl, setApiUrl, model, setModel, modelList,
-    dirty, setDirty, fetchingModels, testing, testResult,
+    dirty, setDirty, fetchingModels, testing, testResult, reload,
     handleSwitch, handleAdd, handleDuplicate, handleDelete,
     handleSave, handleFetchModels, handleTest,
   } = useApiProfiles();
@@ -40,6 +41,8 @@ export function APIConfigCard() {
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
+        <ApiScopeToggle onChanged={reload} />
+
         <ProfileToolbar
           profiles={profiles}
           activeId={activeId}
