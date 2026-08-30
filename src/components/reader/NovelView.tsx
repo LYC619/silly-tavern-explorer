@@ -10,7 +10,7 @@
 import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import {
   X, Settings, List, Sparkles, Loader2, Square, EyeOff, Eye, Feather, BookOpenCheck,
-  ChevronLeft, ChevronRight, Bookmark, BookmarkCheck, Trash2,
+  ChevronLeft, ChevronRight, Bookmark, BookmarkCheck, Trash2, ArrowLeft,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -34,10 +34,13 @@ import { callOpenAIMessages } from '@/components/ai-tools/useOpenAI';
 import {
   buildNovelDocument, buildChapterSuggestMessages, parseChapterSuggestions,
   buildNovelBookmarks, findNovelPageIndex, paginateNovelDocument,
-  normalizeNovelSpreadStart, novelPageCapacity,
+  normalizeNovelSpreadStart, clampNovelPageIndex, novelPageCapacity,
   DEFAULT_NOVEL_OPTIONS,
   type UserFloorMode, type NovelChapter, type NovelPage, type ChapterSuggestion, type NovelBookmark,
 } from '@/lib/novel-view';
+import { useViewport } from '@/hooks/use-viewport';
+import { useImmersiveLock } from '@/lib/immersive-mode';
+import { MobileReaderSettings, ReaderZoneHint, type ReadingMode } from './MobileReaderSettings';
 import { buildSummaryMessages } from '@/lib/summary-engine';
 import { listTemplatesForKind, type AnySummaryTemplate } from '@/lib/summary-templates';
 import { saveSummary, pruneAutoSavedSummaries, getAllSummaries, deleteSummary } from '@/lib/summary-db';
@@ -47,6 +50,10 @@ import type { ArchiveStory } from '@/types/archive';
 
 const OPTS_STORAGE_KEY = 'novel-view-options';
 const PROGRESS_STORAGE_KEY = 'novel-view-progress';
+/** 分区操作提示只在首次进入时出现，看过就记住 */
+const ZONE_HINT_STORAGE_KEY = 'novel-view-zone-hint-seen';
+/** 工具栏出现后多久自动收起（jm-mobile 阅读器同款手感） */
+const TOOLBAR_AUTO_HIDE_MS = 3000;
 
 interface NovelViewProps {
   session: ChatSession;
@@ -75,14 +82,22 @@ interface StoredOptions {
   showHidden: boolean;
   sceneGapMinutes: number;
   fontSize: number;
+  /** 移动端阅读方式；桌面端不读这个字段，始终是双页翻页 */
+  readingMode: ReadingMode;
 }
+
+const STORED_DEFAULTS: StoredOptions = {
+  ...DEFAULT_NOVEL_OPTIONS,
+  fontSize: 18,
+  readingMode: 'scroll',
+};
 
 function loadStoredOptions(): StoredOptions {
   try {
     const raw = localStorage.getItem(OPTS_STORAGE_KEY);
-    if (raw) return { ...DEFAULT_NOVEL_OPTIONS, fontSize: 18, ...JSON.parse(raw) };
+    if (raw) return { ...STORED_DEFAULTS, ...JSON.parse(raw) };
   } catch { /* ignore */ }
-  return { ...DEFAULT_NOVEL_OPTIONS, fontSize: 18 };
+  return STORED_DEFAULTS;
 }
 
 const NovelView = ({
@@ -101,20 +116,72 @@ const NovelView = ({
   embedded = false,
 }: NovelViewProps) => {
   const { toast } = useToast();
+  const { isMobile } = useViewport();
   const [stored] = useState(loadStoredOptions);
   const [userMode, setUserMode] = useState<UserFloorMode>(stored.userMode);
   const [showHidden, setShowHidden] = useState(stored.showHidden);
   const [sceneGap, setSceneGap] = useState(stored.sceneGapMinutes);
   const [fontSize, setFontSize] = useState(stored.fontSize);
+  const [readingMode, setReadingMode] = useState<ReadingMode>(stored.readingMode);
   const [currentPage, setCurrentPage] = useState(0);
   const currentPageRef = useRef(0);
   const touchStartX = useRef<number | null>(null);
 
+  /**
+   * 手机上一屏就是一页：不沿用双页的偶数对齐，否则「下一页」一次跳两页，
+   * 中间那页永远读不到。桌面端 step 恒为 2，翻页行为与适配前一致。
+   */
+  const step = isMobile ? 1 : 2;
+  const normalizePage = isMobile ? clampNovelPageIndex : normalizeNovelSpreadStart;
+  /** 滚动阅读只在手机上给；桌面的实体书跨页排版本身就是这个视图的卖点 */
+  const scrolling = isMobile && readingMode === 'scroll';
+
   useEffect(() => {
     try {
-      localStorage.setItem(OPTS_STORAGE_KEY, JSON.stringify({ userMode, showHidden, sceneGapMinutes: sceneGap, fontSize }));
+      localStorage.setItem(OPTS_STORAGE_KEY, JSON.stringify({
+        userMode, showHidden, sceneGapMinutes: sceneGap, fontSize, readingMode,
+      }));
     } catch { /* ignore */ }
-  }, [userMode, showHidden, sceneGap, fontSize]);
+  }, [userMode, showHidden, sceneGap, fontSize, readingMode]);
+
+  // ---- 沉浸工具栏（仅移动端；桌面端顶栏底栏常驻，不读 chromeVisible）----
+  /** 进来先给一眼工具栏（里面有返回键），3 秒后自己收走 */
+  const [chromeVisible, setChromeVisible] = useState(true);
+  const [settingsOpen, setSettingsOpen] = useState(false);
+  const [zoneHintOpen, setZoneHintOpen] = useState(false);
+  const hideTimerRef = useRef<number | null>(null);
+
+  // 全屏阅读时让外壳收掉窗口栏和底部标签栏；嵌入模式不算沉浸。
+  useImmersiveLock(isMobile && !embedded);
+
+  const clearHideTimer = useCallback(() => {
+    if (hideTimerRef.current !== null) {
+      window.clearTimeout(hideTimerRef.current);
+      hideTimerRef.current = null;
+    }
+  }, []);
+
+  // 工具栏出现 3 秒后自己收起；设置弹层或首次提示挡在上面时暂停计时，关掉再续。
+  useEffect(() => {
+    if (!isMobile || !chromeVisible || settingsOpen || zoneHintOpen) {
+      clearHideTimer();
+      return;
+    }
+    hideTimerRef.current = window.setTimeout(() => setChromeVisible(false), TOOLBAR_AUTO_HIDE_MS);
+    return clearHideTimer;
+  }, [isMobile, chromeVisible, settingsOpen, zoneHintOpen, clearHideTimer]);
+
+  useEffect(() => {
+    if (!isMobile) return;
+    try {
+      if (!localStorage.getItem(ZONE_HINT_STORAGE_KEY)) setZoneHintOpen(true);
+    } catch { /* ignore */ }
+  }, [isMobile]);
+
+  const dismissZoneHint = useCallback(() => {
+    setZoneHintOpen(false);
+    try { localStorage.setItem(ZONE_HINT_STORAGE_KEY, '1'); } catch { /* ignore */ }
+  }, []);
 
   const chapters = useMemo(
     () => buildNovelDocument(session.messages, markers, { userMode, showHidden, sceneGapMinutes: sceneGap, regexRules }),
@@ -162,13 +229,13 @@ const NovelView = ({
   }, [progressKey]);
 
   useEffect(() => {
-    const next = normalizeNovelSpreadStart(
+    const next = normalizePage(
       findNovelPageIndex(pages, initialFloor ?? readStoredFloor()),
       pages.length,
     );
     currentPageRef.current = next;
     setCurrentPage(next);
-  }, [initialFloor, pages, readStoredFloor]);
+  }, [initialFloor, normalizePage, pages, readStoredFloor]);
 
   const saveProgress = useCallback((floor: number) => {
     if (!progressKey || onFloorChange) return;
@@ -181,17 +248,26 @@ const NovelView = ({
 
   const goToPage = useCallback((pageIndex: number) => {
     if (pages.length === 0) return;
-    const next = normalizeNovelSpreadStart(pageIndex, pages.length);
+    const next = normalizePage(pageIndex, pages.length);
     currentPageRef.current = next;
     setCurrentPage(next);
     const floor = pages[next].startFloor;
     onFloorChange?.(floor);
     saveProgress(floor);
-  }, [onFloorChange, pages, saveProgress]);
+  }, [normalizePage, onFloorChange, pages, saveProgress]);
+
+  /**
+   * 翻页动作（点分区、滑动、方向键）；进度条拖动不走这里——
+   * 那是在工具栏上操作，顺手把工具栏收掉等于把手指底下的控件抽走。
+   */
+  const turnPage = useCallback((pageIndex: number) => {
+    goToPage(pageIndex);
+    if (isMobile) setChromeVisible(false);
+  }, [goToPage, isMobile]);
 
   const current = pages[currentPage];
-  const facing = pages[currentPage + 1];
-  const lastSpreadStart = normalizeNovelSpreadStart(pages.length - 1, pages.length);
+  const facing = isMobile ? undefined : pages[currentPage + 1];
+  const lastSpreadStart = normalizePage(pages.length - 1, pages.length);
   const polishTarget = current ? chapters[current.chapterIndex] : undefined;
   const novelBookmarks = useMemo<NovelBookmark[]>(
     () => buildNovelBookmarks(session.messages, favorites, pages),
@@ -389,39 +465,147 @@ const NovelView = ({
         onClose();
       } else if (e.key === 'ArrowLeft' || e.key === 'ArrowUp' || e.key === 'PageUp') {
         e.preventDefault();
-        goToPage(currentPageRef.current - 2);
+        turnPage(currentPageRef.current - step);
       } else if (e.key === 'ArrowRight' || e.key === 'ArrowDown' || e.key === 'PageDown' || e.key === ' ') {
         e.preventDefault();
-        goToPage(currentPageRef.current + 2);
+        turnPage(currentPageRef.current + step);
       }
     };
     window.addEventListener('keydown', handler);
     return () => window.removeEventListener('keydown', handler);
-  }, [chapterDialogOpen, polishChapter, onClose, goToPage]);
+  }, [chapterDialogOpen, polishChapter, onClose, goToPage, turnPage, step]);
 
   const chapterNav = chapters.map((c, i) => ({
     title: c.title ?? '（开篇）',
     index: pages.findIndex((page) => page.chapterIndex === i),
   })).filter((item) => item.index >= 0);
 
+  // ---- 滚动模式的进度 ⇄ 滚动位置同步 ----
+  const scrollRef = useRef<HTMLDivElement | null>(null);
+  /** 程序化滚动期间忽略 scroll 事件，否则「跳过去」会被自己的回读打回来 */
+  const scrollSyncRef = useRef(false);
+  const scrollFrameRef = useRef<number | null>(null);
+
+  const scrollToPage = useCallback((pageIndex: number) => {
+    const host = scrollRef.current;
+    const target = host?.querySelector<HTMLElement>(`[data-novel-scroll-page="${pageIndex}"]`);
+    if (!host || !target) return;
+    scrollSyncRef.current = true;
+    host.scrollTo({ top: target.offsetTop });
+    window.requestAnimationFrame(() => { scrollSyncRef.current = false; });
+  }, []);
+
+  // 目录/书签/进度条改页码后把正文滚过去；切进滚动模式、重排版（改字号）时也要重新对位。
+  useEffect(() => {
+    if (!scrolling) return;
+    scrollToPage(currentPageRef.current);
+  }, [scrolling, pages, scrollToPage]);
+
+  useEffect(() => () => {
+    if (scrollFrameRef.current !== null) window.cancelAnimationFrame(scrollFrameRef.current);
+  }, []);
+
+  /** 滚动读到哪算哪：只更新进度，不反过来触发滚动 */
+  const syncScrollProgress = useCallback((pageIndex: number) => {
+    if (pages.length === 0) return;
+    const next = clampNovelPageIndex(pageIndex, pages.length);
+    if (next === currentPageRef.current) return;
+    currentPageRef.current = next;
+    setCurrentPage(next);
+    const floor = pages[next].startFloor;
+    onFloorChange?.(floor);
+    saveProgress(floor);
+  }, [onFloorChange, pages, saveProgress]);
+
+  const handleBodyScroll = useCallback(() => {
+    if (scrollSyncRef.current) return;
+    setChromeVisible(false);
+    if (scrollFrameRef.current !== null) return;
+    scrollFrameRef.current = window.requestAnimationFrame(() => {
+      scrollFrameRef.current = null;
+      const host = scrollRef.current;
+      if (!host) return;
+      // 顶边往下 8px 处落在哪一页就算读到哪一页
+      const probe = host.scrollTop + 8;
+      let index = 0;
+      host.querySelectorAll<HTMLElement>('[data-novel-scroll-page]').forEach((section) => {
+        if (section.offsetTop <= probe) index = Number(section.dataset.novelScrollPage ?? 0);
+      });
+      syncScrollProgress(index);
+    });
+  }, [syncScrollProgress]);
+
   const handleSurfaceClick = (event: React.MouseEvent<HTMLDivElement>) => {
     if ((event.target as HTMLElement).closest('button, input, [role="slider"], [role="dialog"]')) return;
     const bounds = event.currentTarget.getBoundingClientRect();
+    if (isMobile) {
+      // 三分区：左 1/3 上一页、中 1/3 开关工具栏、右 1/3 下一页。
+      // 滚动模式下左右两块也只管工具栏——滚动时点着翻页会把人读到的位置弄丢。
+      const zone = (event.clientX - bounds.left) / Math.max(1, bounds.width);
+      if (scrolling || (zone >= 1 / 3 && zone < 2 / 3)) {
+        setChromeVisible((visible) => !visible);
+        return;
+      }
+      turnPage(currentPage + (zone < 1 / 3 ? -step : step));
+      return;
+    }
     goToPage(event.clientX < bounds.left + bounds.width / 2 ? currentPage - 2 : currentPage + 2);
   };
 
-  const renderNovelPage = (page: NovelPage | undefined, pageIndex: number, side: 'left' | 'right') => (
+  /**
+   * 正文块。返回数组而不是包一层容器：<p> 必须是 <article> 的直接子元素，
+   * 排版契约（首行缩进、段间不留 margin）就靠这个结构。
+   */
+  const renderBlocks = (blocks: NovelPage['blocks']) => blocks.map((block, blockIndex) => {
+    if (block.type === 'scene-break') {
+      return <div key={blockIndex} className="my-5 text-center text-xs tracking-[0.45em] text-muted-foreground/70">✦ ✦ ✦</div>;
+    }
+    return (
+      <p
+        key={blockIndex}
+        className={cn(
+          'mb-0 whitespace-pre-wrap',
+          block.type !== 'user' && !block.continuedFromPrevious && 'indent-[2em]',
+          block.type === 'user' && 'border-l-2 border-border pl-3 text-[0.9em] text-muted-foreground/75 indent-0',
+          block.hidden && 'border-l-2 border-dashed border-primary/40 pl-3',
+        )}
+      >
+        {block.text}
+      </p>
+    );
+  });
+
+  const polishButton = !readOnly && polish && polishTarget ? (
+    <Button
+      variant="ghost"
+      size="sm"
+      className="gap-1 px-2 text-[11px] text-muted-foreground hover:text-primary"
+      onClick={() => {
+        setPolishChapter(polishTarget);
+        setPolishResult('');
+        setPolishSavedId(null);
+        setPolishPermanent(false);
+      }}
+      title="用自定义记录的「小说化」模板重写本章（调用 AI，需要 API 配置）"
+    >
+      <Feather className="h-3 w-3" />AI 润色本章
+    </Button>
+  ) : null;
+
+  const renderNovelPage = (page: NovelPage | undefined, pageIndex: number, side: 'left' | 'right' | 'single') => (
     <section
       data-novel-page={side}
       className={cn(
-        'relative min-w-0 overflow-hidden bg-card px-7 pb-10 pt-7 text-card-foreground sm:px-10',
-        side === 'left' ? 'rounded-l-md border-r border-border/70' : 'rounded-r-md',
+        'relative min-w-0 overflow-hidden bg-card text-card-foreground',
+        side === 'single' ? 'h-full px-5 pb-9 pt-5' : 'px-7 pb-10 pt-7 sm:px-10',
+        side === 'left' && 'rounded-l-md border-r border-border/70',
+        side === 'right' && 'rounded-r-md',
       )}
     >
       {page ? (
         <article
           // 左页量尺寸（两页等宽，右页在末尾可能是空的）；h-full 让它正好等于书页内容区
-          ref={side === 'left' ? pageBoxRef : undefined}
+          ref={side === 'right' ? undefined : pageBoxRef}
           className="h-full font-serif text-foreground/90"
           style={{ fontSize: `${fontSize}px`, lineHeight: 1.75 }}
         >
@@ -433,41 +617,9 @@ const NovelView = ({
           )}
           <div className="mb-3 flex items-center justify-center gap-2 text-[11px] text-muted-foreground">
             <span>#{page.startFloor}–{page.endFloor} 楼</span>
-            {side === 'left' && !readOnly && polish && polishTarget && (
-              <Button
-                variant="ghost"
-                size="sm"
-                className="gap-1 px-2 text-[11px] text-muted-foreground hover:text-primary"
-                onClick={() => {
-                  setPolishChapter(polishTarget);
-                  setPolishResult('');
-                  setPolishSavedId(null);
-                  setPolishPermanent(false);
-                }}
-                title="用自定义记录的「小说化」模板重写本章（调用 AI，需要 API 配置）"
-              >
-                <Feather className="h-3 w-3" />AI 润色本章
-              </Button>
-            )}
+            {side !== 'right' && polishButton}
           </div>
-          {page.blocks.map((block, blockIndex) => {
-            if (block.type === 'scene-break') {
-              return <div key={blockIndex} className="my-5 text-center text-xs tracking-[0.45em] text-muted-foreground/70">✦ ✦ ✦</div>;
-            }
-            return (
-              <p
-                key={blockIndex}
-                className={cn(
-                  'mb-0 whitespace-pre-wrap',
-                  block.type !== 'user' && !block.continuedFromPrevious && 'indent-[2em]',
-                  block.type === 'user' && 'border-l-2 border-border pl-3 text-[0.9em] text-muted-foreground/75 indent-0',
-                  block.hidden && 'border-l-2 border-dashed border-primary/40 pl-3',
-                )}
-              >
-                {block.text}
-              </p>
-            );
-          })}
+          {renderBlocks(page.blocks)}
           {pageIndex === pages.length - 1 && (
             <p className="pt-3 text-center text-xs text-muted-foreground/60">—— 完 ——</p>
           )}
@@ -486,45 +638,72 @@ const NovelView = ({
 
   return (
     <div
-      className={embedded
-        ? 'relative z-0 flex h-[min(78vh,900px)] min-h-[560px] flex-col overflow-hidden rounded-lg border border-border bg-canvas text-[color:var(--text-body)] shadow-sm'
-        // 从窗口栏下方开始：外壳 chrome 是 z-[60]，盖住它就等于盖掉退出按钮
-        // （0830 反馈 9：小说视图没有返回键），而把覆盖层提到 60 以上又会挡住
-        // 客户端的窗口控制按钮和拖拽区。--app-chrome-h 由 AppLayout 写到 :root。
-        : 'fixed inset-x-0 bottom-0 top-[var(--app-chrome-h,0px)] z-50 flex flex-col bg-canvas text-[color:var(--text-body)]'}
+      className={cn(
+        embedded
+          ? 'relative z-0 flex h-[min(78vh,900px)] min-h-[560px] flex-col overflow-hidden rounded-lg border border-border bg-canvas text-[color:var(--text-body)] shadow-sm'
+          : isMobile
+            // 手机上真沉浸：外壳的窗口栏和底部标签栏由 useImmersiveLock 收掉，
+            // 这里可以铺满整屏，返回键在自己的顶栏上。
+            ? 'fixed inset-0 z-50 flex flex-col bg-canvas text-[color:var(--text-body)]'
+            // 从窗口栏下方开始：外壳 chrome 是 z-[60]，盖住它就等于盖掉退出按钮
+            // （0830 反馈 9：小说视图没有返回键），而把覆盖层提到 60 以上又会挡住
+            // 客户端的窗口控制按钮和拖拽区。--app-chrome-h 由 AppLayout 写到 :root。
+            : 'fixed inset-x-0 bottom-0 top-[var(--app-chrome-h,0px)] z-50 flex flex-col bg-canvas text-[color:var(--text-body)]',
+      )}
       onTouchStart={(event) => { touchStartX.current = event.changedTouches[0]?.clientX ?? null; }}
       onTouchEnd={(event) => {
         const start = touchStartX.current;
         const end = event.changedTouches[0]?.clientX;
         touchStartX.current = null;
         if (start === null || end === undefined || Math.abs(end - start) < 48) return;
-        goToPage(end < start ? currentPage + 2 : currentPage - 2);
+        // 滚动模式不接横滑：上下读的时候手指斜着划一下就跳页太容易误触
+        if (scrolling) return;
+        turnPage(end < start ? currentPage + step : currentPage - step);
       }}
     >
-      {/* ===== 顶栏 ===== */}
-      <div className="shrink-0 border-b border-border/60 bg-card/70 backdrop-blur-sm">
-        <div className="flex items-center gap-2 px-4 py-2 flex-wrap">
+      {/* ===== 顶栏（移动端沉浸时整条滑走）===== */}
+      <div
+        data-reader-top-bar
+        className={cn(
+          'shrink-0 border-b border-border/60 bg-card/70 backdrop-blur-sm',
+          isMobile && 'absolute inset-x-0 top-0 z-20 transition-transform duration-200',
+          isMobile && !chromeVisible && '-translate-y-full',
+        )}
+      >
+        <div className={cn('flex items-center gap-2 flex-wrap', isMobile ? 'gap-1 px-1.5 py-1' : 'px-4 py-2')}>
           <Button variant="ghost" size="icon" onClick={() => { goToPage(currentPage); onClose(); }} aria-label="退出小说视图">
-            <X className="w-4 h-4" />
+            {isMobile ? <ArrowLeft className="w-4 h-4" /> : <X className="w-4 h-4" />}
           </Button>
-          <span className="font-display font-semibold text-sm truncate max-w-[16rem]" title={session.title || '未命名作品'}>{session.title || '未命名作品'}</span>
+          <span
+            className={cn(
+              'font-display font-semibold text-sm truncate',
+              isMobile ? 'min-w-0 flex-1' : 'max-w-[16rem]',
+            )}
+            title={session.title || '未命名作品'}
+          >
+            {session.title || '未命名作品'}
+          </span>
+          {/* 徽标在手机上一律不给：一行放不下，信息在阅读设置里都能查到 */}
+          {!isMobile && (
           <Badge variant="outline" className="h-5 px-1.5 text-[11px] text-muted-foreground font-normal gap-1">
             <BookOpenCheck className="w-3 h-3" />小说视图
           </Badge>
-          {userMode === 'hide' && hiddenUserFloors > 0 && (
+          )}
+          {!isMobile && userMode === 'hide' && hiddenUserFloors > 0 && (
             <Badge variant="outline" className="h-5 px-1.5 text-[11px] text-muted-foreground font-normal gap-1">
               <EyeOff className="w-3 h-3" />已隐藏 {hiddenUserFloors} 个用户楼层
             </Badge>
           )}
-          {hiddenFloors > 0 && (
+          {!isMobile && hiddenFloors > 0 && (
             <Badge variant="outline" className="h-5 px-1.5 text-[11px] text-muted-foreground font-normal gap-1">
               {showHidden ? <Eye className="w-3 h-3" /> : <EyeOff className="w-3 h-3" />}
               {showHidden ? `含 ${hiddenFloors} 个隐藏楼层` : `已隐藏 ${hiddenFloors} 个隐藏楼层`}
             </Badge>
           )}
 
-          <div className="ml-auto flex items-center gap-1.5 flex-wrap">
-            {/* 用户楼层档位 */}
+          <div className={cn('flex items-center flex-wrap', isMobile ? 'gap-0.5' : 'ml-auto gap-1.5')}>
+            {/* 用户楼层档位（手机上在阅读设置弹层里） */}
+            {!isMobile && (
             <Select value={userMode} onValueChange={(v) => setUserMode(v as UserFloorMode)}>
               <SelectTrigger className="h-8 w-32 text-xs" title="用户楼层处理：AI 楼通常会复述你的动作，隐藏几乎不丢信息">
                 <SelectValue />
@@ -535,14 +714,21 @@ const NovelView = ({
                 <SelectItem value="keep">用户楼：保留</SelectItem>
               </SelectContent>
             </Select>
+            )}
 
             {/* 章节目录 */}
             {chapterNav.length > 1 && (
               <Popover>
                 <PopoverTrigger asChild>
-                  <Button variant="outline" size="sm" className="gap-1">
-                    <List className="w-3.5 h-3.5" />目录
-                  </Button>
+                  {isMobile ? (
+                    <Button variant="ghost" size="icon" aria-label="章节目录" title="章节目录">
+                      <List className="w-4 h-4" />
+                    </Button>
+                  ) : (
+                    <Button variant="outline" size="sm" className="gap-1">
+                      <List className="w-3.5 h-3.5" />目录
+                    </Button>
+                  )}
                 </PopoverTrigger>
                 <PopoverContent className="w-64 p-0" align="end">
                   <div className="p-3 border-b font-medium text-sm">章节目录</div>
@@ -565,8 +751,8 @@ const NovelView = ({
 
             <Popover>
               <PopoverTrigger asChild>
-                <Button variant="outline" size="icon" aria-label="书签列表" title="书签列表">
-                  <Bookmark className="w-3.5 h-3.5" />
+                <Button variant={isMobile ? 'ghost' : 'outline'} size="icon" aria-label="书签列表" title="书签列表">
+                  <Bookmark className={isMobile ? 'w-4 h-4' : 'w-3.5 h-3.5'} />
                 </Button>
               </PopoverTrigger>
               <PopoverContent className="w-72 p-0" align="end">
@@ -593,14 +779,26 @@ const NovelView = ({
               </PopoverContent>
             </Popover>
 
-            {/* AI 章节建议 */}
-            {onMarkersChange && !readOnly && (
+            {/* AI 章节建议。手机上不给入口：顶栏一行放不下，而且它是写入动作，
+                在手机上顺手点开一个付费 AI 操作不是好设计（AI 功能页本轮不适配）。 */}
+            {onMarkersChange && !readOnly && !isMobile && (
               <Button variant="outline" size="sm" className="gap-1" onClick={() => setChapterDialogOpen(true)}>
                 <Sparkles className="w-3.5 h-3.5" />AI 章节
               </Button>
             )}
 
-            {/* 外观 */}
+            {/* 外观：手机上是底部弹层（拇指够得着），桌面保持顶栏 Popover */}
+            {isMobile ? (
+              <Button
+                variant="ghost"
+                size="icon"
+                aria-label="阅读设置"
+                title="阅读设置"
+                onClick={() => setSettingsOpen(true)}
+              >
+                <Settings className="w-4 h-4" />
+              </Button>
+            ) : (
             <Popover>
               <PopoverTrigger asChild>
                 <Button variant="outline" size="sm" aria-label="外观设置">
@@ -633,16 +831,66 @@ const NovelView = ({
                 </div>
               </PopoverContent>
             </Popover>
+            )}
           </div>
         </div>
       </div>
 
-      {/* ===== 分页正文 ===== */}
-      <div data-novel-surface className="relative flex-1 min-h-0 overflow-hidden" onClick={handleSurfaceClick}>
+      {/* ===== 正文 ===== */}
+      <div
+        data-novel-surface
+        className="relative flex-1 min-h-0 overflow-hidden"
+        onClick={handleSurfaceClick}
+      >
         {pages.length === 0 ? (
           <p className="flex h-full items-center justify-center text-center text-muted-foreground text-sm">
             没有可显示的内容（可能全部楼层被隐藏或清洗）。
           </p>
+        ) : scrolling ? (
+          /* 滚动模式：一路往下读，章节之间插分隔。
+             ponytail: 没做虚拟滚动——分页已经把正文切成 ~400 字的段，几百楼的故事
+             也就是上千个 <p>，手机能扛；真上到几千楼再说，虚拟化要自己写一套
+             （不加依赖）且会和「滚动位置 ⇄ 楼层进度」互相拉扯。 */
+          <div
+            ref={scrollRef}
+            data-novel-scroll
+            onScroll={handleBodyScroll}
+            className="relative h-full overflow-y-auto overscroll-y-contain scrollbar-thin"
+          >
+            <div className="mx-auto max-w-2xl px-5 pb-24 pt-[calc(env(safe-area-inset-top)+2.75rem)]">
+              {pages.map((page, pageIndex) => (
+                <section key={pageIndex} data-novel-scroll-page={pageIndex}>
+                  {page.title && (
+                    <div className={cn('text-center', pageIndex === 0 ? 'mb-4' : 'mb-4 mt-8 border-t border-border pt-8')}>
+                      <h2 className="font-display text-lg font-semibold text-primary/90">{page.title}</h2>
+                      <div className="mx-auto mt-2 h-px w-14 bg-primary/30" />
+                    </div>
+                  )}
+                  <article
+                    ref={pageIndex === 0 ? pageBoxRef : undefined}
+                    className="font-serif text-foreground/90"
+                    style={{ fontSize: `${fontSize}px`, lineHeight: 1.75 }}
+                  >
+                    {renderBlocks(page.blocks)}
+                    {pageIndex === pages.length - 1 && (
+                      <p className="pt-3 text-center text-xs text-muted-foreground/60">—— 完 ——</p>
+                    )}
+                  </article>
+                </section>
+              ))}
+            </div>
+          </div>
+        ) : isMobile ? (
+          /* 翻页模式：手机一屏一页，不做跨页 */
+          <div className="h-full px-2 pb-2 pt-[calc(env(safe-area-inset-top)+2.5rem)]">
+            <div
+              data-novel-spread="single"
+              key={`${currentPage}:${current?.startFloor}`}
+              className="h-full overflow-hidden rounded-md border border-border bg-card shadow-lg"
+            >
+              {renderNovelPage(current, currentPage, 'single')}
+            </div>
+          </div>
         ) : (
           <div className="flex h-full items-center justify-center px-12 py-5 sm:px-16 sm:py-7">
             <div
@@ -657,31 +905,47 @@ const NovelView = ({
           </div>
         )}
 
-        <Button
-          variant="ghost"
-          size="icon"
-          className="absolute left-2 top-1/2 -translate-y-1/2"
-          onClick={(event) => { event.stopPropagation(); goToPage(currentPage - 2); }}
-          disabled={currentPage <= 0 || pages.length === 0}
-          aria-label="上一页"
-          title="上一页"
-        >
-          <ChevronLeft className="h-5 w-5" />
-        </Button>
-        <Button
-          variant="ghost"
-          size="icon"
-          className="absolute right-2 top-1/2 -translate-y-1/2"
-          onClick={(event) => { event.stopPropagation(); goToPage(currentPage + 2); }}
-          disabled={currentPage >= lastSpreadStart || pages.length === 0}
-          aria-label="下一页"
-          title="下一页"
-        >
-          <ChevronRight className="h-5 w-5" />
-        </Button>
+        {/* 翻页箭头：手机上让位给三分区点击，不占正文宽度 */}
+        {!isMobile && (
+          <>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="absolute left-2 top-1/2 -translate-y-1/2"
+              onClick={(event) => { event.stopPropagation(); goToPage(currentPage - 2); }}
+              disabled={currentPage <= 0 || pages.length === 0}
+              aria-label="上一页"
+              title="上一页"
+            >
+              <ChevronLeft className="h-5 w-5" />
+            </Button>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="absolute right-2 top-1/2 -translate-y-1/2"
+              onClick={(event) => { event.stopPropagation(); goToPage(currentPage + 2); }}
+              disabled={currentPage >= lastSpreadStart || pages.length === 0}
+              aria-label="下一页"
+              title="下一页"
+            >
+              <ChevronRight className="h-5 w-5" />
+            </Button>
+          </>
+        )}
+
+        {isMobile && zoneHintOpen && pages.length > 0 && (
+          <ReaderZoneHint mode={readingMode} onDismiss={dismissZoneHint} />
+        )}
       </div>
 
-      <div className="shrink-0 border-t border-border/60 bg-card/70 px-4 py-2">
+      <div
+        data-reader-bottom-bar
+        className={cn(
+          'shrink-0 border-t border-border/60 bg-card/70 px-4 py-2',
+          isMobile && 'absolute inset-x-0 bottom-0 z-20 pb-[calc(0.5rem+env(safe-area-inset-bottom))] backdrop-blur-sm transition-transform duration-200',
+          isMobile && !chromeVisible && 'translate-y-full',
+        )}
+      >
         <div className="mx-auto flex max-w-3xl items-center gap-3">
           <Button
             variant="ghost"
@@ -698,18 +962,35 @@ const NovelView = ({
             onValueChange={([value]) => goToPage(value)}
             min={0}
             max={lastSpreadStart}
-            step={2}
-            disabled={pages.length <= 2}
+            step={step}
+            disabled={pages.length <= step}
             aria-label="小说阅读进度"
             className="flex-1"
           />
-          <span data-novel-progress className="min-w-20 text-right text-xs text-muted-foreground">
+          <span data-novel-progress className={cn('text-right text-xs text-muted-foreground', isMobile ? 'min-w-14' : 'min-w-20')}>
             {pages.length
               ? `${currentPage + 1}${facing ? `–${currentPage + 2}` : ''} / ${pages.length}`
               : '0 / 0'}
           </span>
         </div>
       </div>
+
+      {isMobile && (
+        <MobileReaderSettings
+          open={settingsOpen}
+          onOpenChange={setSettingsOpen}
+          readingMode={readingMode}
+          onReadingModeChange={setReadingMode}
+          fontSize={fontSize}
+          onFontSizeChange={setFontSize}
+          userMode={userMode}
+          onUserModeChange={setUserMode}
+          sceneGap={sceneGap}
+          onSceneGapChange={setSceneGap}
+          showHidden={showHidden}
+          onShowHiddenChange={setShowHidden}
+        />
+      )}
 
       {/* ===== AI 章节建议对话框 ===== */}
       <Dialog open={!readOnly && chapterDialogOpen} onOpenChange={(v) => { if (!suggesting) { setChapterDialogOpen(v); if (!v) setSuggestions(null); } }}>

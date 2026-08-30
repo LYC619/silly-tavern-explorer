@@ -414,6 +414,15 @@ export function normalizeNovelSpreadStart(pageIndex: number, pageCount: number):
   return clamped - (clamped % 2);
 }
 
+/**
+ * 单页阅读（移动端）只夹范围，不对齐偶数：手机上一屏就是一页，
+ * 沿用跨页对齐会让「下一页」一次跳两页，中间那页永远读不到。
+ */
+export function clampNovelPageIndex(pageIndex: number, pageCount: number): number {
+  if (pageCount <= 0) return 0;
+  return Math.min(Math.max(Math.floor(pageIndex), 0), pageCount - 1);
+}
+
 /** 根据持久化的真实楼层把阅读位置夹到可见页范围。 */
 export function findNovelPageIndex(pages: NovelPage[], floor?: number): number {
   if (pages.length === 0 || floor === undefined || !Number.isFinite(floor)) return 0;
