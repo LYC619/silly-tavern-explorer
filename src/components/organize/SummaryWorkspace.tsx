@@ -79,6 +79,14 @@ export function SummaryWorkspace({
     setRefreshKey((value) => value + 1);
   }, []);
 
+  // 丢弃后回到已生成列表：记录没了，详情态留在原地只会显示一个空编辑器
+  const handleDiscarded = useCallback(() => {
+    setSelectedRecord(null);
+    setDetailMode(false);
+    setDraftNonce((value) => value + 1);
+    setRefreshKey((value) => value + 1);
+  }, []);
+
   const openRecord = useCallback((item: SummaryItem) => {
     setView('workshop');
     onKindChange(item.kind);
@@ -196,6 +204,7 @@ export function SummaryWorkspace({
             record={selectedRecord?.kind === kind ? selectedRecord : null}
             defaultBranchId={currentBranchId}
             onSaved={handleSaved}
+            onDiscarded={handleDiscarded}
             showEmptyEditor={false}
             showApiStatus={false}
             recordsRefreshKey={refreshKey}

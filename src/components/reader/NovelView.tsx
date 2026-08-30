@@ -10,7 +10,7 @@
 import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import {
   X, Settings, List, Sparkles, Loader2, Square, EyeOff, Eye, Feather, BookOpenCheck,
-  ChevronLeft, ChevronRight, Bookmark, BookmarkCheck,
+  ChevronLeft, ChevronRight, Bookmark, BookmarkCheck, Trash2,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -27,6 +27,7 @@ import {
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
 import { shouldIgnoreGlobalShortcut } from '@/lib/keyboard-shortcuts';
+import { DeleteConfirmDialog } from '@/components/DeleteConfirmDialog';
 import { MarkdownLite } from '@/components/MarkdownLite';
 import { loadAPIConfig } from '@/components/ai-tools';
 import { callOpenAIMessages } from '@/components/ai-tools/useOpenAI';
@@ -39,7 +40,7 @@ import {
 } from '@/lib/novel-view';
 import { buildSummaryMessages } from '@/lib/summary-engine';
 import { listTemplatesForKind, type AnySummaryTemplate } from '@/lib/summary-templates';
-import { saveSummary, pruneAutoSavedSummaries, getAllSummaries } from '@/lib/summary-db';
+import { saveSummary, pruneAutoSavedSummaries, getAllSummaries, deleteSummary } from '@/lib/summary-db';
 import { generateSummaryId, type SummaryItem } from '@/types/summary';
 import type { ChatSession, ChapterMarker, RegexRule } from '@/types/chat';
 import type { ArchiveStory } from '@/types/archive';
@@ -281,6 +282,9 @@ const NovelView = ({
   const [polishStreaming, setPolishStreaming] = useState(false);
   const [polishResult, setPolishResult] = useState('');
   const [polishSavedId, setPolishSavedId] = useState<string | null>(null);
+  /** 结果已转永久保存（按钮转态；丢弃弹窗文案更重） */
+  const [polishPermanent, setPolishPermanent] = useState(false);
+  const [polishDiscardAsk, setPolishDiscardAsk] = useState(false);
   const polishOutputRef = useRef('');
   const polishAbortRef = useRef<AbortController | null>(null);
 
@@ -329,6 +333,7 @@ const NovelView = ({
     setPolishStreaming(true);
     setPolishResult('');
     setPolishSavedId(null);
+    setPolishPermanent(false);
     polishOutputRef.current = '';
     const controller = new AbortController();
     polishAbortRef.current = controller;
@@ -360,7 +365,19 @@ const NovelView = ({
     const id = polishSavedId ?? generateSummaryId();
     await saveSummary(buildPolishItem(polishResult, false, id));
     setPolishSavedId(id);
+    setPolishPermanent(true);
     toast({ title: '已永久保存为自定义记录' });
+  };
+
+  // 「不要了」：结果一生成就自动暂存了，只清屏那条记录还在库里，得连库里一起删
+  const handlePolishDiscard = async () => {
+    setPolishDiscardAsk(false);
+    if (polishSavedId) await deleteSummary(polishSavedId);
+    setPolishResult('');
+    setPolishSavedId(null);
+    setPolishPermanent(false);
+    polishOutputRef.current = '';
+    toast({ title: '已丢弃', description: '这条润色记录已从库里删除' });
   };
 
   // Esc 关闭（无弹窗时）；不接管交互控件与上层弹窗的按键（弹窗 Esc 只关弹窗、滑块方向键自步进、按钮空格应触发点击）
@@ -421,7 +438,12 @@ const NovelView = ({
                 variant="ghost"
                 size="sm"
                 className="gap-1 px-2 text-[11px] text-muted-foreground hover:text-primary"
-                onClick={() => { setPolishChapter(polishTarget); setPolishResult(''); setPolishSavedId(null); }}
+                onClick={() => {
+                  setPolishChapter(polishTarget);
+                  setPolishResult('');
+                  setPolishSavedId(null);
+                  setPolishPermanent(false);
+                }}
                 title="用自定义记录的「小说化」模板重写本章（调用 AI，需要 API 配置）"
               >
                 <Feather className="h-3 w-3" />AI 润色本章
@@ -784,12 +806,31 @@ const NovelView = ({
 
           <DialogFooter>
             <Button variant="outline" disabled={polishStreaming} onClick={() => setPolishChapter(null)}>关闭</Button>
-            <Button disabled={polishStreaming || !polishResult} onClick={handlePolishPermanent}>
-              永久保存为自定义记录
+            <Button
+              variant="ghost"
+              className="gap-1 text-muted-foreground hover:text-destructive"
+              disabled={polishStreaming || !polishResult}
+              onClick={() => setPolishDiscardAsk(true)}
+            >
+              <Trash2 className="w-3.5 h-3.5" />不要了
+            </Button>
+            <Button disabled={polishStreaming || !polishResult || polishPermanent} onClick={handlePolishPermanent}>
+              {polishPermanent ? '已永久保存' : '永久保存为自定义记录'}
             </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <DeleteConfirmDialog
+        open={polishDiscardAsk}
+        onOpenChange={setPolishDiscardAsk}
+        title="丢弃这份润色结果？"
+        description={polishPermanent
+          ? '这份已永久保存，丢弃会把它从库里删掉，不可撤销。'
+          : '结果已自动暂存，丢弃会把它从库里删掉，不可撤销。'}
+        onConfirm={() => void handlePolishDiscard()}
+        confirmLabel="丢弃"
+      />
     </div>
   );
 };

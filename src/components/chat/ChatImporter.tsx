@@ -3,6 +3,7 @@ import { Download, FileText, AlertCircle } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
+import { Checkbox } from '@/components/ui/checkbox';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
@@ -16,7 +17,7 @@ import {
 } from '@/components/ui/dialog';
 import type { ChatMessage, ChatSession, CharacterInfo, STMetadata } from '@/types/chat';
 import { extractCharacterFromPng, getCharacterName, getFirstMessage } from '@/lib/png-parser';
-import { scanTxtSpeakers, parseTxtDialogue } from '@/lib/txt-import';
+import { scanTxtSpeakerStats, parseTxtDialogue, type TxtSpeakerStat } from '@/lib/txt-import';
 import { parseJsonl, parseJson, parseSTDate, isTrueSystemMessage } from '@/lib/adapters/st/chat-jsonl';
 import { isTauri, pickChatFile } from '@/lib/vault/tauri-fs';
 
@@ -37,6 +38,14 @@ interface ChatImporterProps {
 
 type TxtFormat = 'dialogue' | 'novel';
 
+/** 确认弹窗显式传给解析的对话参数——不读 state，闭包里的 state 是打开弹窗前的旧值 */
+interface TxtDialogueOptions {
+  userName: string;
+  charName: string;
+  /** 用户勾选的说话人；只有这些名字才开新楼 */
+  speakers: string[];
+}
+
 export function ChatImporter({ onImport, initialFile }: ChatImporterProps) {
   const { toast } = useToast();
   const [isDragging, setIsDragging] = useState(false);
@@ -47,6 +56,15 @@ export function ChatImporter({ onImport, initialFile }: ChatImporterProps) {
   const [dialogueUserName, setDialogueUserName] = useState('User');
   /** TXT 对话导入的角色名（Assistant）。与用户名一样从文件开头预扫描自动填入，最终以输入框里的值为准 */
   const [dialogueCharName, setDialogueCharName] = useState('AI');
+  /** 文件里所有「像说话人」的行首名字及出现次数，按次数从多到少排 */
+  const [speakerStats, setSpeakerStats] = useState<TxtSpeakerStat[]>([]);
+  const [pickedSpeakers, setPickedSpeakers] = useState<ReadonlySet<string>>(new Set());
+  const allSpeakersPicked = speakerStats.length > 0 && pickedSpeakers.size === speakerStats.length;
+  const toggleSpeaker = (name: string) => setPickedSpeakers((prev) => {
+    const next = new Set(prev);
+    if (!next.delete(name)) next.add(name);
+    return next;
+  });
 
   const parseTxtNovel = (content: string): ChatMessage[] => {
     // Split by blank lines (double newline)
@@ -59,8 +77,7 @@ export function ChatImporter({ onImport, initialFile }: ChatImporterProps) {
     }));
   };
 
-  // txtUserName/txtCharName 由确认弹窗显式传入，不读 state——useCallback 闭包里的 state 是打开弹窗前的旧值
-  const processFile = useCallback(async (file: File, forceTxtFormat?: TxtFormat, txtUserName?: string, txtCharName?: string) => {
+  const processFile = useCallback(async (file: File, forceTxtFormat?: TxtFormat, dialogueOpts?: TxtDialogueOptions) => {
     setError(null);
     try {
       // Handle PNG character cards
@@ -117,17 +134,22 @@ export function ChatImporter({ onImport, initialFile }: ChatImporterProps) {
           setPendingTxtFile(file);
           // ponytail: 预扫描只取前两位说话人做默认值——ST 导出首楼通常是角色开场白，
           // 故第 1 位预填角色、第 2 位预填用户；猜反了用户在输入框里对调即可，最终以输入框为准。
-          const speakers = scanTxtSpeakers(content);
-          setDialogueCharName(speakers[0] ?? 'AI');
-          setDialogueUserName(speakers[1] ?? 'User');
+          const stats = scanTxtSpeakerStats(content);
+          setDialogueCharName(stats[0]?.name ?? 'AI');
+          setDialogueUserName(stats[1]?.name ?? 'User');
+          setSpeakerStats([...stats].sort((a, b) => b.count - a.count));
+          // 默认只勾预填的这两位：噪音前缀通常只出现几次，一股勾上就又是满屏假角色
+          setPickedSpeakers(new Set(stats.slice(0, 2).map(s => s.name)));
           setTxtFormatDialog(true);
           return;
         }
       } else if (isTxt && forceTxtFormat) {
         if (forceTxtFormat === 'dialogue') {
-          txtUser = txtUserName?.trim() || 'User';
-          messages = parseTxtDialogue(content, txtUser);
-          txtChar = txtCharName?.trim() || scanTxtSpeakers(content).find(n => n !== txtUser);
+          txtUser = dialogueOpts?.userName.trim() || 'User';
+          messages = parseTxtDialogue(content, txtUser, dialogueOpts?.speakers);
+          txtChar = dialogueOpts?.charName.trim()
+            || dialogueOpts?.speakers.find(n => n !== txtUser)
+            || scanTxtSpeakerStats(content).find(s => s.name !== txtUser)?.name;
         } else {
           messages = parseTxtNovel(content);
         }
@@ -220,8 +242,18 @@ export function ChatImporter({ onImport, initialFile }: ChatImporterProps) {
   const handleTxtFormatConfirm = () => {
     setTxtFormatDialog(false);
     if (pendingTxtFile) {
-      // 把两个输入框的值显式传给解析，避免 useCallback 闭包用到旧值
-      processFile(pendingTxtFile, txtFormat, dialogueUserName, dialogueCharName);
+      // 把弹窗里的选择显式传给解析，避免 useCallback 闭包用到旧值
+      processFile(pendingTxtFile, txtFormat, {
+        userName: dialogueUserName,
+        charName: dialogueCharName,
+        // 输入框里手改的名字可能不在扫描结果里（比如写成 ST 里的 persona 名），补进名单；
+        // 但扫到过的名字一律听勾选——否则取消勾选预填的那位不起作用。
+        speakers: [...new Set([
+          ...pickedSpeakers,
+          ...[dialogueUserName.trim(), dialogueCharName.trim()]
+            .filter(n => n && !speakerStats.some(s => s.name === n)),
+        ])],
+      });
       setPendingTxtFile(null);
     }
   };
@@ -342,6 +374,41 @@ export function ChatImporter({ onImport, initialFile }: ChatImporterProps) {
                 <p className="text-xs text-muted-foreground">
                   已从文件开头自动识别，认反了可直接改。姓名与 User 一致的行归为用户消息，其余楼层保留原始姓名并归为角色。
                 </p>
+                {speakerStats.length > 0 && (
+                  <div className="space-y-1.5 pt-1">
+                    <div className="flex items-center justify-between">
+                      <Label className="text-xs">哪些名字是说话人（共 {speakerStats.length} 个）</Label>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        className="px-2 text-xs"
+                        onClick={() => setPickedSpeakers(
+                          allSpeakersPicked ? new Set() : new Set(speakerStats.map(s => s.name)),
+                        )}
+                      >{allSpeakersPicked ? '全不选' : '全选'}</Button>
+                    </div>
+                    <div className="max-h-40 overflow-y-auto rounded-md border border-border divide-y divide-border/60">
+                      {speakerStats.map((stat) => (
+                        <label
+                          key={stat.name}
+                          className="flex items-center gap-2 px-2.5 py-1.5 text-xs cursor-pointer hover:bg-accent/50"
+                        >
+                          <Checkbox
+                            checked={pickedSpeakers.has(stat.name)}
+                            onCheckedChange={() => toggleSpeaker(stat.name)}
+                          />
+                          <span className="flex-1 truncate">{stat.name}</span>
+                          <span className="shrink-0 text-muted-foreground">{stat.count} 行</span>
+                        </label>
+                      ))}
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                      没勾的名字不会单独成楼，那些行会并入上一条消息。像「注:」「时间:」这种只出现几次的前缀，
+                      不勾就不会变成一个没说过话的角色。
+                    </p>
+                  </div>
+                )}
               </div>
             )}
             <div className="flex items-start gap-3 p-3 rounded-lg border border-border hover:bg-accent/50 cursor-pointer" onClick={() => setTxtFormat('novel')}>
@@ -359,7 +426,7 @@ export function ChatImporter({ onImport, initialFile }: ChatImporterProps) {
             <Button variant="outline" onClick={() => { setTxtFormatDialog(false); setPendingTxtFile(null); }}>取消</Button>
             <Button
               onClick={handleTxtFormatConfirm}
-              disabled={txtFormat === 'dialogue' && !dialogueUserName.trim()}
+              disabled={txtFormat === 'dialogue' && (!dialogueUserName.trim() || !dialogueCharName.trim())}
             >确认导入</Button>
           </DialogFooter>
         </DialogContent>

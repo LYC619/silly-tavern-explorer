@@ -17,6 +17,7 @@ import {
 } from 'react';
 import { Sparkles, Square, Loader2, BookOpen, Pencil } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { DeleteConfirmDialog } from '@/components/DeleteConfirmDialog';
 import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -39,7 +40,7 @@ import {
   getBuiltinTemplate,
   type AnySummaryTemplate,
 } from '@/lib/summary-templates';
-import { getSummaryTemplate, saveSummary, pruneAutoSavedSummaries, getAllSummaries } from '@/lib/summary-db';
+import { getSummaryTemplate, saveSummary, pruneAutoSavedSummaries, getAllSummaries, deleteSummary } from '@/lib/summary-db';
 import { getAllPresets } from '@/lib/preset-db';
 import { getAllWorldBooks } from '@/lib/worldbook-db';
 import { buildSummaryMessages, extractTitle, inferVolumeNumber } from '@/lib/summary-engine';
@@ -64,6 +65,8 @@ interface RecordWorkbenchProps {
   defaultBranchId: string | null;
   /** 保存/自动暂存落库后通知（父组件刷新索引并选中该条） */
   onSaved: (item: SummaryItem) => void;
+  /** 「不要了」删掉记录后通知（父组件刷新索引并取消选中）。不传则不显示该按钮。 */
+  onDiscarded?: (id: string | null) => void;
   /** 旧版总结页右栏顶部的已存记录列表。 */
   sidePanel?: ReactNode;
   /** 旧版总结页左栏顶部的类型切换。 */
@@ -92,6 +95,7 @@ export const RecordWorkbench = forwardRef<RecordWorkbenchHandle, RecordWorkbench
     record,
     defaultBranchId,
     onSaved,
+    onDiscarded,
     sidePanel,
     configurationHeader,
     showEmptyEditor = true,
@@ -406,6 +410,26 @@ export const RecordWorkbench = forwardRef<RecordWorkbenchHandle, RecordWorkbench
       if (savedPermanent) setSavedPermanent(false);
     };
 
+    // 「不要了」：生成结果一落地就自动暂存了，光清空结果区那条记录还在库里躺着占位，
+    // 得连库里一起删。已永久保存的也走这条路（弹窗文案更重一些）。
+    const [discardAsk, setDiscardAsk] = useState(false);
+    const handleDiscard = async () => {
+      setDiscardAsk(false);
+      const id = currentSummaryId;
+      if (id) await deleteSummary(id);
+      setResultTitle('');
+      setResultContent('');
+      setCurrentSummaryId(null);
+      setSavedPermanent(false);
+      setResultVolume(null);
+      setVolumeOverride(null);
+      setPreview(false);
+      setManualDraft(false);
+      await reloadVolumes(); // 删掉的可能是某一卷，卷号建议要跟着退回去
+      onDiscarded?.(id);
+      toast({ title: '已丢弃', description: '这条记录已从库里删除' });
+    };
+
     // 右栏「重新生成」：按记录 genParams 回填挂载，转为生成新条目
     useImperativeHandle(ref, () => ({
       startManual() {
@@ -608,12 +632,24 @@ export const RecordWorkbench = forwardRef<RecordWorkbenchHandle, RecordWorkbench
                 streaming={streaming}
                 onSave={handleSave}
                 savedPermanent={savedPermanent}
+                onDiscard={onDiscarded ? () => setDiscardAsk(true) : undefined}
                 charName={charName}
               />
             ) : null}
             </div>
           </div>
         </div>
+
+        <DeleteConfirmDialog
+          open={discardAsk}
+          onOpenChange={setDiscardAsk}
+          title={`丢弃这条${SUMMARY_KIND_LABELS[kind]}？`}
+          description={savedPermanent
+            ? '这条已永久保存，丢弃会把它从库里删掉，不可撤销。'
+            : '生成结果已自动暂存，丢弃会把它从库里删掉，不可撤销。'}
+          onConfirm={() => void handleDiscard()}
+          confirmLabel="丢弃"
+        />
       </div>
     );
   }

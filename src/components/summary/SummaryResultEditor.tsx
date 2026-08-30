@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Copy, Check, Save, Bookmark, Pencil, BookOpen, Upload } from 'lucide-react';
+import { Copy, Check, Save, Bookmark, Pencil, BookOpen, Upload, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -24,6 +24,8 @@ interface SummaryResultEditorProps {
   saving?: boolean;
   /** 是否已永久保存（控制按钮态） */
   savedPermanent?: boolean;
+  /** 「不要了」= 删掉已自动暂存的记录并清空结果区。不传则不显示该按钮。 */
+  onDiscard?: () => void;
   /** 角色名（日记本署名兜底） */
   charName?: string;
 }
@@ -33,7 +35,7 @@ const REWRITE_PRESETS = ['润色措辞', '精简篇幅', '扩写细节', '调整
 /** 总结结果编辑器：标题 + 正文编辑 + AI 微调 + 保存/复制/导出 .md；日记支持日记本预览 */
 export function SummaryResultEditor({
   kind, title, onTitleChange, content, onContentChange,
-  streaming, onSave, saving, savedPermanent, charName,
+  streaming, onSave, saving, savedPermanent, onDiscard, charName,
 }: SummaryResultEditorProps) {
   const { toast } = useToast();
   const [diaryView, setDiaryView] = useState(false);
@@ -83,6 +85,17 @@ export function SummaryResultEditor({
             <Button variant="ghost" size="sm" className="gap-1" onClick={handleDownload} disabled={!content}>
               <Upload className="w-3.5 h-3.5" />导出 .md
             </Button>
+            {onDiscard && (
+              <Button
+                variant="ghost"
+                size="sm"
+                className="gap-1 text-muted-foreground hover:text-destructive"
+                onClick={onDiscard}
+                disabled={!content || streaming || saving}
+              >
+                <Trash2 className="w-3.5 h-3.5" />不要了
+              </Button>
+            )}
             <Button size="sm" className="gap-1" onClick={onSave} disabled={!content || saving}>
               {savedPermanent ? <Bookmark className="w-3.5 h-3.5" /> : <Save className="w-3.5 h-3.5" />}
               {savedPermanent ? '已保存' : '保存'}
@@ -131,7 +144,8 @@ export function SummaryResultEditor({
           />
         )}
         <p className="text-xs text-muted-foreground">
-          生成后已自动暂存，「保存」将其转为永久保留（不受自动清理影响）。
+          生成后已自动暂存，「保存」将其转为永久保留（不受自动清理影响）
+          {onDiscard ? '；不满意点「不要了」直接删掉，不用等自动清理。' : '。'}
         </p>
       </CardContent>
     </Card>

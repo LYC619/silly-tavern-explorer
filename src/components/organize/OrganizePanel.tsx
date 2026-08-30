@@ -246,6 +246,12 @@ export function OrganizePanel({ story, characterName, coverDataUrl, currentBranc
     setSel((cur) => (cur?.type === 'record' && cur.id === item.id ? cur : { type: 'record', id: item.id }));
   }, [refresh]);
 
+  // 记录被丢弃后：清空选中触发重新定位（和删除走同一套），再刷新索引
+  const handleRecordDiscarded = useCallback(async () => {
+    setSel(null);
+    await refresh();
+  }, [refresh]);
+
   const branchNameOf = (id?: string) => (id ? story.branches?.find((b) => b.id === id)?.name : undefined);
 
   const renderEntry = (e: OrganizeEntry) => {
@@ -394,6 +400,7 @@ export function OrganizePanel({ story, characterName, coverDataUrl, currentBranc
             record={null}
             defaultBranchId={currentBranchId}
             onSaved={handleRecordSaved}
+            onDiscarded={handleRecordDiscarded}
           />
         )}
         {selectedRecord && (
@@ -405,6 +412,7 @@ export function OrganizePanel({ story, characterName, coverDataUrl, currentBranc
             record={selectedRecord}
             defaultBranchId={currentBranchId}
             onSaved={handleRecordSaved}
+            onDiscarded={handleRecordDiscarded}
           />
         )}
         {selectedTree && (
