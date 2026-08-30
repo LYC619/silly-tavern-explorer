@@ -131,8 +131,6 @@ ST-Explore （拾忆）定位为 SillyTavern 用户的**离线归档与二次编
 | 外观 | 可调节卡片大小和字体大小，可切换列表视图 |
 | 批量管理 | 支持批量加标签、删除、导出，Shift 范围选择 |
 
-![批量管理工具条](docs/readme/readme-47.png)
-
 ![列表视图](docs/readme/readme-34.png)
 
 ---
