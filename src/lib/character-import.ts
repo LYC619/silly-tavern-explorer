@@ -1,8 +1,8 @@
 /**
  * 角色页统一导入（10.3c，反馈 2.4：导入弹窗六类）。
  * 每类复用既有解析器入库：故事→archiveStories；世界书/预设/正则→资产库+挂引用；
- * 引用→quotes 字段；立绘→portrait-store。
- * 返回逐文件计数 + 待写回角色档案的 patch（assets/quotes/portraitRows），页面统一 patchCharacter。
+ * 引用→quotes 字段；立绘→portrait-store；关联文件→attachment-store（0830 条目 6，客户端专有）。
+ * 返回逐文件计数 + 待写回角色档案的 patch（assets/quotes/portraitRows/attachments），页面统一 patchCharacter。
  */
 import type { ArchiveCharacter, QuoteAsset } from '@/types/archive';
 import type { ChatSession } from '@/types/chat';
@@ -17,10 +17,11 @@ import { parseSTRegexImport } from '@/lib/st-regex-interop';
 import { buildRegexCollection, saveRegexCollection } from '@/lib/regex-db';
 import { addAssetRef } from '@/lib/asset-cow';
 import { addPortraitFiles } from '@/lib/portrait-store';
+import { addAttachmentFiles, attachmentsSupported } from '@/lib/attachment-store';
 
-export type CharacterImportKind = 'story' | 'worldbook' | 'preset' | 'regex' | 'quote' | 'portrait';
+export type CharacterImportKind = 'story' | 'worldbook' | 'preset' | 'regex' | 'quote' | 'portrait' | 'attachment';
 
-/** 六类导入（顺序即弹窗显示顺序，对照设计稿 IMPORT_KINDS） */
+/** 七类导入（顺序即弹窗显示顺序；前六类对照设计稿 IMPORT_KINDS，附件是 0830 条目 6 加的） */
 export const IMPORT_KINDS: { kind: CharacterImportKind; label: string; desc: string; accept: string }[] = [
   { kind: 'story', label: '故事记录', desc: 'SillyTavern 的 .jsonl 聊天记录', accept: '.jsonl,.json' },
   { kind: 'worldbook', label: '世界书', desc: 'lorebook / world info 的 .json', accept: '.json' },
@@ -28,6 +29,8 @@ export const IMPORT_KINDS: { kind: CharacterImportKind; label: string; desc: str
   { kind: 'regex', label: '正则', desc: '显示层的替换规则', accept: '.json' },
   { kind: 'quote', label: '引用', desc: '摘录、语料片段（.txt / .md，或直接粘贴）', accept: '.txt,.md' },
   { kind: 'portrait', label: '立绘 / 卡面', desc: 'png / jpg / webp，可设为当前卡面', accept: 'image/png,image/jpeg,image/webp,image/gif' },
+  // accept 不限类型：这一栏收的就是「其他六类装不下的东西」（客户端专有）
+  { kind: 'attachment', label: '关联文件', desc: '发布页存的 html、同人视频等任意文件（仅客户端）', accept: '' },
 ];
 
 export interface CharacterImportResult {
@@ -72,6 +75,12 @@ export async function importFilesForCharacter(
 ): Promise<CharacterImportResult> {
   if (kind === 'portrait') {
     const { patch, ok, fail } = await addPortraitFiles(c, null, files);
+    return { ok, fail, patch: ok > 0 ? patch : undefined };
+  }
+
+  if (kind === 'attachment') {
+    if (!attachmentsSupported()) throw new Error('关联文件需要客户端文件库；网页版无法存放任意文件');
+    const { patch, ok, fail } = await addAttachmentFiles(c, files);
     return { ok, fail, patch: ok > 0 ? patch : undefined };
   }
 

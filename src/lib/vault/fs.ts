@@ -36,6 +36,11 @@ export interface VaultFs {
    * 调用方拿不到就退回 removeFile。用户主动删自己的文件（立绘等）走这条。
    */
   trashFile?(path: string): Promise<void>;
+  /**
+   * 交给系统默认程序打开（reveal=true 则在文件管理器里定位到它）。
+   * 同样只有客户端实现——网页版没有外部程序可调；调用方拿不到就隐藏入口。
+   */
+  openPath?(path: string, reveal?: boolean): Promise<void>;
   /** 只删空目录；非空返回 false 并保留（用户自己放的文件永不删） */
   removeEmptyDir(path: string): Promise<boolean>;
   /** 目标已存在时拒绝（不覆盖） */

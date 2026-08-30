@@ -375,8 +375,10 @@ const CharacterPage = () => {
     );
   }
 
-  // tab 计数（10.3c）：资产含引用摘录；立绘=各行图片合计
-  const assetCount = (character.assets?.length ?? 0) + (character.quotes?.length ?? 0);
+  // tab 计数（10.3c）：资产含引用摘录与关联文件；立绘=各行图片合计
+  const assetCount = (character.assets?.length ?? 0)
+    + (character.quotes?.length ?? 0)
+    + (character.attachments?.length ?? 0);
   const portraitCount = (character.portraitRows ?? []).reduce((n, r) => n + r.items.length, 0);
 
   return (
@@ -518,6 +520,9 @@ const CharacterPage = () => {
                 }}
                 onQuotesChange={async (quotes) => {
                   await patchCharacter({ quotes });
+                }}
+                onPatch={async (patch) => {
+                  await patchCharacter(patch);
                 }}
                 onReadEmbedded={handleReadEmbedded}
                 onOpenImport={() => setImportOpen(true)}

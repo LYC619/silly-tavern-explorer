@@ -72,6 +72,22 @@ export interface QuoteAsset {
   addedAt: number;
 }
 
+/**
+ * 关联文件（0830 反馈条目 6）：挂在角色卡下的任意类型文件，
+ * 发布页存的 html、同人视频这类东西。只记库内相对路径，字节在库文件夹里。
+ * 与 quotes 一样是角色档案自有数据，不进资产库、没有写时复制。
+ */
+export interface AttachedFile {
+  id: string;
+  /** 显示名（默认取文件名） */
+  title: string;
+  /** 相对库根的路径，如 '角色/赫敏/附件/攻略.html' */
+  path: string;
+  /** 入库时的体积（展示用；文件被用户换过就以磁盘为准） */
+  size: number;
+  addedAt: number;
+}
+
 /** AI/手动简介的一个历史版本 */
 export interface IntroVersion {
   content: string;
@@ -109,6 +125,8 @@ export interface ArchiveCharacter {
   portraitCurrentId?: string;
   /** 引用摘录（10.3c 最小实现）：与 assets 引用一起列在关联资产 tab */
   quotes?: QuoteAsset[];
+  /** 关联文件（0830 条目 6）：客户端专有，文件在 `<角色文件夹>/附件/` 下 */
+  attachments?: AttachedFile[];
   /** 10 分制总分（0.5 步进由 UI 约束）；未评分为 undefined */
   rating?: number;
   /** 评分摘要（一句话，详细分项在 ratingDetail 里） */

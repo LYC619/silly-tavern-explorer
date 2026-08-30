@@ -630,6 +630,36 @@ fn vault_trash_file(
     trash::delete(&target).map_err(|e| format!("移入回收站失败 {}: {e}", target.display()))
 }
 
+/// 把库内文件交给系统默认程序（reveal=true 则在文件管理器里定位）。
+/// 0830 反馈条目 6：关联文件里的 html、视频这些，客户端内预览不了就得能外部打开。
+///
+/// 授权走 authorized_rooted_path，和读写删同一条闸——插件的静态 scope 在这里没用，
+/// 库根是用户运行时选的，写不进 capabilities 白名单。
+#[tauri::command]
+fn vault_open_path(
+    app: tauri::AppHandle,
+    roots: tauri::State<'_, AuthorizedRoots>,
+    root: String,
+    path: String,
+    reveal: bool,
+) -> Result<(), String> {
+    use tauri_plugin_opener::OpenerExt;
+    let target = authorized_rooted_path(&roots, &root, &path)?;
+    if !target.is_file() {
+        return Err(format!("文件不存在: {}", target.display()));
+    }
+    if reveal {
+        app.opener()
+            .reveal_item_in_dir(&target)
+            .map_err(|e| format!("在文件管理器中显示失败 {}: {e}", target.display()))
+    } else {
+        // with 传 None = 系统默认关联程序；不指定程序名，免得替用户挑
+        app.opener()
+            .open_path(target.to_string_lossy(), None::<&str>)
+            .map_err(|e| format!("调用外部程序失败 {}: {e}", target.display()))
+    }
+}
+
 #[tauri::command]
 fn vault_remove_empty_dir(
     roots: tauri::State<'_, AuthorizedRoots>,
@@ -815,6 +845,7 @@ fn config_repair(app: tauri::AppHandle) -> Result<Option<String>, String> {
 pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_dialog::init())
+        .plugin(tauri_plugin_opener::init())
         .setup(|app| {
             let roots = AuthorizedRoots::default();
             if let Ok(config_dir) = app.path().app_config_dir() {
@@ -840,6 +871,7 @@ pub fn run() {
             vault_write_binary,
             vault_remove_file,
             vault_trash_file,
+            vault_open_path,
             vault_remove_empty_dir,
             vault_rename,
             vault_mkdir,

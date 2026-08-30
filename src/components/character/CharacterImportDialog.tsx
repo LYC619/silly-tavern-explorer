@@ -1,9 +1,12 @@
 /**
  * 角色页 · 统一导入弹窗（10.3c，对照设计稿：先选类型，再选择/拖入文件）。
- * 六类见 lib/character-import IMPORT_KINDS；引用类额外支持直接粘贴文本。
+ * 类型见 lib/character-import IMPORT_KINDS；引用类额外支持直接粘贴文本。
  * 即选即导（逐文件容错），结果通过 onDone 交给页面落库+刷新。
+ *
+ * 「关联文件」只在客户端出现（0830 条目 6）：它要往库文件夹里写任意文件，
+ * 网页版没有文件库，摆出来只会点了报错。
  */
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Download } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -15,6 +18,7 @@ import { cn } from '@/lib/utils';
 import {
   IMPORT_KINDS, type CharacterImportKind,
 } from '@/lib/character-import';
+import { attachmentsSupported } from '@/lib/attachment-store';
 
 interface CharacterImportDialogProps {
   open: boolean;
@@ -40,13 +44,20 @@ export function CharacterImportDialog({
     if (open) setKind(initialKind);
   }, [open, initialKind]);
 
-  const meta = IMPORT_KINDS.find((k) => k.kind === kind)!;
+  // 环境能力，一次会话不会变；网页版直接把「关联文件」那一格摘掉
+  const kinds = useMemo(
+    () => IMPORT_KINDS.filter((k) => k.kind !== 'attachment' || attachmentsSupported()),
+    [],
+  );
+  // 选中项落在被摘掉的类型上时退回第一类，免得按钮显示一类、实际导另一类
+  const meta = kinds.find((k) => k.kind === kind) ?? kinds[0];
+  const effectiveKind = meta.kind;
 
   const runImport = async (files: File[]) => {
     if (files.length === 0 || busy) return;
     setBusy(true);
     try {
-      await onImport(kind, files);
+      await onImport(effectiveKind, files);
       if (fileRef.current) fileRef.current.value = '';
     } catch {
       // 父层已提示失败；保留所选内容供重试。
@@ -78,14 +89,14 @@ export function CharacterImportDialog({
           <DialogDescription>先选类型，再选择文件；导入的内容会归到这张角色卡下。</DialogDescription>
         </DialogHeader>
 
-        {/* 六类选择 */}
+        {/* 类型选择（网页版少「关联文件」一格） */}
         <div className="grid grid-cols-2 gap-1.5">
-          {IMPORT_KINDS.map((k) => (
+          {kinds.map((k) => (
             <button
               key={k.kind}
               className={cn(
                 'rounded-lg border px-3 py-2 text-left transition-colors',
-                k.kind === kind
+                k.kind === effectiveKind
                   ? 'border-primary/60 bg-primary/10'
                   : 'border-border hover:bg-accent/40',
               )}
@@ -127,7 +138,7 @@ export function CharacterImportDialog({
         />
 
         {/* 引用：直接粘贴 */}
-        {kind === 'quote' && (
+        {effectiveKind === 'quote' && (
           <div className="space-y-2 border-t border-border pt-3">
             <p className="text-xs text-muted-foreground">或直接粘贴文本：</p>
             <Input
