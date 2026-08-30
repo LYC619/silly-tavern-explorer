@@ -36,7 +36,7 @@ import { GlobalSearch } from '@/components/GlobalSearch';
 import { ClientTitleBar } from '@/components/ClientTitleBar';
 import { VaultSwitcher } from '@/components/vault/VaultSwitcher';
 import { EditorRail } from '@/components/EditorRail';
-import { MobileTabBar } from '@/components/mobile/MobileTabBar';
+import { MobileTabBar, MOBILE_TAB_BAR_HEIGHT } from '@/components/mobile/MobileTabBar';
 import { MobileDrawer } from '@/components/mobile/MobileDrawer';
 import { shouldAutoCollapse, useSidenavState } from '@/hooks/use-sidenav-state';
 import { useViewport } from '@/hooks/use-viewport';
@@ -197,6 +197,14 @@ function PersistentAppLayout({ children, titleBarContent, actions, leftActions, 
   useLayoutEffect(() => {
     document.documentElement.style.setProperty('--app-chrome-h', client ? '2.75rem' : '2.25rem');
   }, [client]);
+
+  // 底部标签栏高度同理挂到根上：批量栏、ST 更新提示这类 fixed 浮层
+  // 原本贴着视口底边，标签栏一出现就压在它上面。浮层按这个变量抬高，
+  // 桌面档变量是 0px，位置和以前一字不差。标签栏自己的高度也读它，两处不会走偏。
+  useLayoutEffect(() => {
+    const visible = isMobile && !immersive;
+    document.documentElement.style.setProperty('--mobile-tab-bar-h', visible ? MOBILE_TAB_BAR_HEIGHT : '0px');
+  }, [isMobile, immersive]);
 
   useLayoutEffect(() => {
     setRegistration(null);

@@ -66,7 +66,8 @@ export function STUpdateHint({ story, onStoryUpdate }: Props) {
   };
 
   return (
-    <Card className="fixed bottom-6 right-6 z-50 flex items-center gap-3 border-primary/40 p-3 shadow-lg">
+    // 同批量栏：桌面档 var 为 0px，等于原来的 bottom-6
+    <Card className="fixed bottom-[calc(1.5rem+var(--mobile-tab-bar-h,0px)+env(safe-area-inset-bottom))] right-6 z-50 flex items-center gap-3 border-primary/40 p-3 shadow-lg">
       <DownloadCloud className="h-4 w-4 shrink-0 text-primary" />
       <span className="text-sm">
         ST 端有更新：多 {status.extraFloors} 楼（{status.steFloors} → {status.stFloors}）

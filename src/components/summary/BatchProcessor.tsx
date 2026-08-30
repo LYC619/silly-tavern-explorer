@@ -1,3 +1,11 @@
+/**
+ * TODO(移动端适配)：AI 批量处理暂未做窄屏适配（<1024px）。
+ * 这里是「一屏同时看提示词、进度、每段结果」的三处并置，
+ * 手机上要么分步（配置→跑→看结果），要么把结果收进底部抽屉；
+ * 另外长任务在手机上会被系统挂后台，得先想清楚中断恢复怎么办，
+ * 不是布局问题。同批 AI 面板：worldbook/AIUpdateDialog、story-tree/AIFillDialog。
+ * 见 docs/mobile-adaptation.md「没做的部分」。
+ */
 import { useState, useRef } from 'react';
 import { Layers, Play, Loader2, Merge, ChevronDown, Copy, Check, Square, FileInput } from 'lucide-react';
 import { Button } from '@/components/ui/button';

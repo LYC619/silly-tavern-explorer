@@ -37,6 +37,14 @@ import { readWorldBookUpload } from '@/lib/worldbook-file-import';
 
 const undoAction = (undo: () => void) => <ToastAction altText="撤销" onClick={undo}>撤销</ToastAction>;
 
+/**
+ * TODO(移动端适配)：世界书编辑器暂未做窄屏适配（<1024px）。
+ * 这一页本来就用 useIsMobile 做过一点分支，但它只是 768px 单点判断，
+ * 跟本轮新增的 useViewport 三档并存（合并方案见 docs/mobile-adaptation.md）。
+ * 条目编辑是「长列表 + 每条一堆插入策略字段」的双栏结构，
+ * 手机上要拆成列表页 + 条目详情页两级，字段还得分组折叠——
+ * 属于重排信息层级，不是调 className，本轮不动。
+ */
 export default function WorldBookPage() {
   const isMobile = useIsMobile();
   const { toast } = useToast();

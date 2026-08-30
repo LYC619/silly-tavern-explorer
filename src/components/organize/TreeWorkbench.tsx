@@ -3,6 +3,12 @@
  * 只管一棵树的编辑：树/导图/卡片/时间轴视图、节点编辑、拖拽移动、撤销/重做、AI 生成。
  * 树列表的新建/删除/导入/导出在整理与记录的左栏与右栏（OrganizePanel/ContextRail）。
  * 父组件用 key={tree.id} 重挂来切树；保存防抖 600ms + 卸载兜底。
+ *
+ * TODO(移动端适配)：本工作台暂未做窄屏适配（<1024px）。
+ * 四种视图里导图和时间轴是二维画布，横向空间是它们的语义本身，
+ * 不是「换成单列」能解决的——手机上大概要改成「先选节点再看详情」的两级结构，
+ * 拖拽移动也得换成长按+移动到目标的两步操作。这是重新设计交互，不是调布局，
+ * 所以本轮先放着。做法见 docs/mobile-adaptation.md「没做的部分」。
  */
 import { useState, useEffect, useMemo, useCallback, useRef, type ReactNode } from 'react';
 import {

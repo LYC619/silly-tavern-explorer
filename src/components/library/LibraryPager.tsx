@@ -84,7 +84,9 @@ export function LibraryBatchBar({
 }: LibraryBatchBarProps) {
   const allSelected = selectedCount === filteredCount && filteredCount > 0;
   return (
-    <div className="fixed bottom-10 left-1/2 -translate-x-1/2 z-40 flex items-center gap-2 rounded-full border border-border bg-card px-4 py-2 shadow-lg flex-wrap">
+    // 底边距 = 原来的 2.5rem + 底部标签栏高度 + 安全区。
+    // 桌面档两个后项都是 0，等于原来的 bottom-10；手机上抬到标签栏之上，否则整条被压住。
+    <div className="fixed bottom-[calc(2.5rem+var(--mobile-tab-bar-h,0px)+env(safe-area-inset-bottom))] left-1/2 -translate-x-1/2 z-40 flex max-w-[calc(100vw-1.5rem)] items-center justify-center gap-2 rounded-full border border-border bg-card px-4 py-2 shadow-lg flex-wrap">
       <span className="text-sm">已选 {selectedCount} 个</span>
       <Button variant="ghost" size="sm" className="px-2 text-xs" onClick={onSelectAllToggle}>
         {allSelected ? '清空' : '全选筛选结果'}

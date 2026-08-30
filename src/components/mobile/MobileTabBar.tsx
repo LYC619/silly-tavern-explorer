@@ -8,6 +8,12 @@ import { cn } from '@/lib/utils';
 import { NAV_AREAS, type NavAreaKey } from '@/lib/navigation-model';
 import { activeAreaIndex } from '@/lib/mobile-nav';
 
+/**
+ * 标签栏高度。AppLayout 把它写进 `--mobile-tab-bar-h`，
+ * 供 fixed 浮层（角色库批量栏等）抬高自己，免得被这条压住。
+ */
+export const MOBILE_TAB_BAR_HEIGHT = '3.25rem';
+
 interface MobileTabBarProps {
   /** 与桌面侧栏共用：点 tab 时顺带展开该区域的子导航开关 */
   onActivateArea: (key: NavAreaKey, path: string) => void;
@@ -25,7 +31,8 @@ export function MobileTabBar({ onActivateArea }: MobileTabBarProps) {
       aria-label="主导航"
       className="shrink-0 border-t border-[color:var(--border-subtle)] bg-chrome pb-[env(safe-area-inset-bottom)]"
     >
-      <div className="flex items-stretch">
+      {/* 高度读同一个变量：浮层抬多少和这条实际多高不会各说各话 */}
+      <div className="flex h-[var(--mobile-tab-bar-h,3.25rem)] items-stretch">
         {NAV_AREAS.map((area, index) => {
           const Icon = area.icon;
           const active = !outsideAreas && index === activeIndex;
