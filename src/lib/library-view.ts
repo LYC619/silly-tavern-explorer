@@ -20,6 +20,8 @@ export const SORT_LABELS: Record<LibrarySortKey, string> = {
 export const CARD_W_MIN = 150;
 export const CARD_W_MAX = 300;
 export const CARD_W_DEFAULT = 200;
+/** 窄于此宽度时卡面角标进紧凑档：评分+时间与故事数横向放不下（0830 反馈 1） */
+export const CARD_W_COMPACT = 190;
 
 /** 卡面字体缩放（外观钮）：作用于名称/简介 */
 export const FONT_MIN = 0.85;

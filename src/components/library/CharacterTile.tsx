@@ -8,14 +8,28 @@ import { formatFullTime, formatListTime } from '@/lib/time-display';
 import { cn } from '@/lib/utils';
 import type { ArchiveCharacter } from '@/types/archive';
 
-/** 卡面上方左侧的「评分 + 时间」胶囊；首页与角色库共用同一形态 */
-function RatingTimeBadge({ rating, timestamp }: { rating?: number; timestamp: number }) {
+/**
+ * 卡面上方左侧的「评分 + 时间」胶囊；首页与角色库共用同一形态。
+ *
+ * compact：卡片调到最小时评分和时间横向放不下，会和右上角的故事数角标挤成一团
+ * （0830 反馈 1）。这时只留评分，时间退到 hover 的 title 里。
+ */
+function RatingTimeBadge({ rating, timestamp, compact = false }: {
+  rating?: number;
+  timestamp: number;
+  compact?: boolean;
+}) {
   return (
-    <span className="flex items-center gap-1.5 px-2 py-[3px] rounded-full text-[11px] bg-[rgba(0,0,0,0.65)] backdrop-blur-sm border border-[rgba(255,255,255,0.12)] min-w-0">
+    <span
+      className="flex items-center gap-1.5 px-2 py-[3px] rounded-full text-[11px] bg-[rgba(0,0,0,0.65)] backdrop-blur-sm border border-[rgba(255,255,255,0.12)] min-w-0"
+      title={compact ? formatFullTime(timestamp) : undefined}
+    >
       <b className="font-semibold text-[color:var(--brand-hi)]">{rating !== undefined ? rating : '未评分'}</b>
-      <span className="text-white/70 truncate" title={formatFullTime(timestamp)}>
-        {formatListTime(timestamp)}
-      </span>
+      {!compact && (
+        <span className="text-white/70 truncate" title={formatFullTime(timestamp)}>
+          {formatListTime(timestamp)}
+        </span>
+      )}
     </span>
   );
 }
@@ -44,6 +58,8 @@ interface CharacterTileProps {
   introSize: number;
   /** 无立绘时首字水印的字号；不传用 CSS 默认值 */
   markFontSize?: number | 'default';
+  /** 卡片很窄：角标只留评分，时间退到 hover */
+  compact?: boolean;
   /** 外层尺寸/定位类名，由使用场景决定（网格由 grid 撑开，横滑列自带宽度） */
   className?: string;
   onActivate: (shiftKey: boolean) => void;
@@ -63,7 +79,7 @@ interface CharacterTileProps {
  */
 export function CharacterTile({
   character: c, storyCount, timestamp, nameSize, introSize, markFontSize = 'default', className,
-  onActivate, batchMode = false, selected = false, actions, dataAttrs,
+  compact = false, onActivate, batchMode = false, selected = false, actions, dataAttrs,
 }: CharacterTileProps) {
   const displayName = displayCharacterName(c);
   const intro = introOf(c);
@@ -103,7 +119,7 @@ export function CharacterTile({
             <Checkbox checked={selected} onCheckedChange={() => onActivate(false)} />
           </span>
         ) : (
-          <RatingTimeBadge rating={c.rating} timestamp={timestamp} />
+          <RatingTimeBadge rating={c.rating} timestamp={timestamp} compact={compact} />
         )}
         <span className="flex items-center gap-1.5 shrink-0">
           <StoryCountBadge count={storyCount} />

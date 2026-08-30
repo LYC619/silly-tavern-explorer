@@ -17,6 +17,40 @@ export interface LibraryCharacterGroup {
   items: ArchiveCharacter[];
 }
 
+/** 分组视图每组默认露出的行数；后面的分组要能快点滚到，所以先只给两行。 */
+export const LIBRARY_GROUP_PEEK_ROWS = 2;
+
+export interface CollapsedLibraryGroup extends LibraryCharacterGroup {
+  /** 当前该渲染的卡；已展开或本来就装得下时等于 items */
+  visible: ArchiveCharacter[];
+  /** 折叠掉的张数，0 表示没折叠（不出展开按钮） */
+  hiddenCount: number;
+}
+
+/**
+ * 把分组折叠到「每组 rows 行」，行尾多出来的记成 hiddenCount 交给展开按钮。
+ *
+ * cols 由调用方实测容器宽度得出（auto-fill 的列数 CSS 里算不出来）。
+ * cols <= 0 表示还没量到（首帧、jsdom），此时不折叠——宁可多渲染一帧，
+ * 也不要先只画两行再弹开。
+ */
+export function collapseLibraryGroups(
+  groups: readonly LibraryCharacterGroup[],
+  cols: number,
+  expandedKeys: ReadonlySet<string>,
+  rows: number = LIBRARY_GROUP_PEEK_ROWS,
+): CollapsedLibraryGroup[] {
+  const limit = cols > 0 ? cols * rows : 0;
+  return groups.map((group) => {
+    const collapsed = limit > 0 && !expandedKeys.has(group.key) && group.items.length > limit;
+    return {
+      ...group,
+      visible: collapsed ? group.items.slice(0, limit) : group.items,
+      hiddenCount: collapsed ? group.items.length - limit : 0,
+    };
+  });
+}
+
 const TYPE_ORDER: readonly (CharacterType | '未分类')[] = ['人物', '剧情', '玩法', '综合', '同人', '未分类'];
 const RATING_ORDER = ['神作', '精品', '及格', '低创', '未评分'] as const;
 

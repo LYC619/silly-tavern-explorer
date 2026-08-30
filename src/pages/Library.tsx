@@ -24,7 +24,7 @@ import {
 } from '@/components/library/LibraryImportDialog';
 import { LibraryListHeader } from '@/components/library/LibraryListHeader';
 import { LibraryToolbar } from '@/components/library/LibraryToolbar';
-import { cardFontSizes, type ActiveFilterChip } from '@/lib/library-view';
+import { CARD_W_COMPACT, cardFontSizes, type ActiveFilterChip } from '@/lib/library-view';
 import { LibraryPager, LibraryBatchBar } from '@/components/library/LibraryPager';
 import { CharacterTile } from '@/components/library/CharacterTile';
 import { CharacterListRow } from '@/components/library/CharacterListRow';
@@ -85,7 +85,8 @@ import {
   toggleTagFilter as toggleLibraryTagFilter,
   type LibrarySortKey,
 } from '@/lib/library-query';
-import { buildLibraryGroups } from '@/lib/library-grouping';
+import { buildLibraryGroups, collapseLibraryGroups } from '@/lib/library-grouping';
+import { useGridColumns } from '@/hooks/use-grid-columns';
 
 /** 类型筛选：all=不筛；none=未分类（type 为空） */
 type TypeFilter = 'all' | CharacterType | 'none';
@@ -441,10 +442,27 @@ const Library = () => {
     const n = Number(pageSize);
     return filtered.slice((page - 1) * n, page * n);
   }, [filtered, page, pageSize]);
-  const groupedPageItems = useMemo(
-    () => buildLibraryGroups(pageItems, prefs.groupBy, { tagCategory: prefs.groupTagCategory }),
-    [pageItems, prefs.groupBy, prefs.groupTagCategory],
-  );
+  /**
+   * 分组视图不参与全局分页：先分页再分组会把每个分组按当前页的余量切断
+   * （每页 24 张 → 一组只剩 6 张，其余甩到第二页，0830 反馈 3）。
+   * 分组时改成对全部筛选结果分组，每组先露两行，行尾给展开按钮。
+   */
+  const grouping = prefs.viewMode === 'grid' && prefs.groupBy !== 'none';
+  const { ref: gridRef, cols } = useGridColumns(prefs.cardWidth);
+  const [expandedGroups, setExpandedGroups] = useState<ReadonlySet<string>>(new Set());
+  // 换筛选/换分组维度后旧的展开状态没有意义
+  useEffect(() => {
+    setExpandedGroups(new Set());
+  }, [searchQuery, tagFilters, typeFilter, prefs.groupBy, prefs.groupTagCategory]);
+
+  const displayGroups = useMemo(() => {
+    const groups = buildLibraryGroups(grouping ? filtered : pageItems, prefs.groupBy, {
+      tagCategory: prefs.groupTagCategory,
+    });
+    return grouping
+      ? collapseLibraryGroups(groups, cols, expandedGroups)
+      : groups.map((group) => ({ ...group, visible: group.items, hiddenCount: 0 }));
+  }, [grouping, filtered, pageItems, prefs.groupBy, prefs.groupTagCategory, cols, expandedGroups]);
 
   const toggleTagFilter = (cat: TagCategory, raw: string) => {
     setTagFilters((f) => toggleLibraryTagFilter(f, cat, raw) as Partial<Record<TagCategory, string[]>>);
@@ -555,8 +573,8 @@ const Library = () => {
                 )}
                 {prefs.viewMode === 'grid' ? (
                   /* 卡墙：auto-fill 按卡宽自动分列；卡图 2:3（红线：比例不可改、不加编号） */
-                  <div className="space-y-7">
-                    {groupedPageItems.map((group) => (
+                  <div className="space-y-7" ref={gridRef}>
+                    {displayGroups.map((group) => (
                       <section key={group.key} aria-label={`${group.label}分组`}>
                         {prefs.groupBy !== 'none' && (
                           <div className="mb-3 flex items-center gap-2.5">
@@ -574,7 +592,7 @@ const Library = () => {
                           className="grid gap-3.5 content-start"
                           style={{ gridTemplateColumns: `repeat(auto-fill, minmax(${prefs.cardWidth}px, 1fr))` }}
                         >
-                          {group.items.map((c) => (
+                          {group.visible.map((c) => (
                             <CharacterTile
                               key={c.id}
                               character={c}
@@ -582,6 +600,7 @@ const Library = () => {
                               timestamp={lastPlayed[c.id] ?? c.updatedAt}
                               nameSize={nameSize}
                               introSize={introSize}
+                              compact={prefs.cardWidth < CARD_W_COMPACT}
                               batchMode={selection.batchMode}
                               selected={selection.selected.has(c.id)}
                               onActivate={activate(c)}
@@ -592,6 +611,15 @@ const Library = () => {
                             />
                           ))}
                         </div>
+                        {group.hiddenCount > 0 && (
+                          <button
+                            type="button"
+                            onClick={() => setExpandedGroups((prev) => new Set(prev).add(group.key))}
+                            className="mt-2.5 w-full rounded-lg border border-dashed border-[color:var(--border-subtle)] py-2 text-xs text-muted-foreground transition-colors hover:border-brand hover:text-brand"
+                          >
+                            展开「{group.label}」剩余 {group.hiddenCount} 张
+                          </button>
+                        )}
                       </section>
                     ))}
                   </div>
@@ -622,7 +650,8 @@ const Library = () => {
                   </div>
                 )}
 
-                {filtered.length > 0 && (
+                {/* 分组视图用「每组两行 + 展开」替代了分页，分页条在那儿没有意义 */}
+                {filtered.length > 0 && !grouping && (
                   <LibraryPager
                     total={filtered.length}
                     page={page}

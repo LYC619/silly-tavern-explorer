@@ -1,6 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import type { ArchiveCharacter } from '@/types/archive';
-import { buildLibraryGroups, LIBRARY_GROUP_BY_OPTIONS } from '@/lib/library-grouping';
+import {
+  buildLibraryGroups,
+  collapseLibraryGroups,
+  LIBRARY_GROUP_BY_OPTIONS,
+} from '@/lib/library-grouping';
 
 function character(id: string, extra: Partial<ArchiveCharacter> = {}): ArchiveCharacter {
   return {
@@ -82,5 +86,48 @@ describe('library grouped card wall', () => {
     expect(groups[0].items.map((card) => card.id)).toEqual(['first', 'multiple']);
     expect(groups[1].items.map((card) => card.id)).toEqual(['second', 'multiple']);
     expect(groups[2].items.map((card) => card.id)).toEqual(['unknown']);
+  });
+});
+
+describe('collapseLibraryGroups', () => {
+  const cards = (n: number) => Array.from({ length: n }, (_, i) => character(`c${i}`));
+
+  it('每组只留两行，多出来的记进 hiddenCount', () => {
+    const [group] = collapseLibraryGroups([{ key: 'g', label: '甲', items: cards(20) }], 4, new Set());
+
+    expect(group.visible).toHaveLength(8); // 4 列 × 2 行
+    expect(group.hiddenCount).toBe(12);
+  });
+
+  it('装得下就不折叠，也不出展开按钮', () => {
+    const [group] = collapseLibraryGroups([{ key: 'g', label: '甲', items: cards(6) }], 4, new Set());
+
+    expect(group.visible).toHaveLength(6);
+    expect(group.hiddenCount).toBe(0);
+  });
+
+  it('展开过的分组整组渲染', () => {
+    const [group] = collapseLibraryGroups(
+      [{ key: 'g', label: '甲', items: cards(20) }],
+      4,
+      new Set(['g']),
+    );
+
+    expect(group.visible).toHaveLength(20);
+    expect(group.hiddenCount).toBe(0);
+  });
+
+  it('列数还没量到时不折叠（首帧、jsdom）', () => {
+    const [group] = collapseLibraryGroups([{ key: 'g', label: '甲', items: cards(20) }], 0, new Set());
+
+    expect(group.visible).toHaveLength(20);
+    expect(group.hiddenCount).toBe(0);
+  });
+
+  it('列数变多时同一组露出更多卡', () => {
+    const groups = [{ key: 'g', label: '甲', items: cards(20) }];
+
+    expect(collapseLibraryGroups(groups, 2, new Set())[0].visible).toHaveLength(4);
+    expect(collapseLibraryGroups(groups, 6, new Set())[0].visible).toHaveLength(12);
   });
 });
