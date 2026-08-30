@@ -70,7 +70,14 @@ const SOURCE_LABELS: Record<Exclude<SourceFilter, 'all'>, string> = {
   autoSaved: '自动保留',
 };
 
-/** 左侧栏条目：类别（indent=false）和其他资产的子分类（indent=true）共用一套外观 */
+/**
+ * 左侧栏条目：类别（indent=false）和其他资产的子分类（indent=true）共用一套外观。
+ *
+ * 字号跟设置页的分区导航对齐（text-sm + 16px 图标），不是筛选 chip 那一档。这条侧栏
+ * 在阶段 F 之前是筛选栏（FilterItem），改成类别导航时把筛选的小字号一起带过来了，
+ * 于是同样是「页面级竖导航」，这里比设置页小一档。顺带 py-1.5 + text-sm 刚好 32px，
+ * 满足热区下限；text-xs 那会儿只有 28px。
+ */
 function RailItem({
   label, icon: Icon, count, active, indent, title, onClick,
 }: {
@@ -89,17 +96,17 @@ function RailItem({
       aria-current={active ? 'page' : undefined}
       title={title ?? label}
       className={cn(
-        'w-full flex items-center gap-2 px-2.5 py-1.5 rounded-md text-xs mb-px text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand',
+        'w-full flex items-center gap-2 px-2.5 py-1.5 rounded-md text-sm mb-px text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand',
         indent && 'pl-7',
         active
           ? 'bg-[var(--brand-active-bg)] font-medium text-brand'
           : 'text-[color:var(--sidebar-text-muted)] hover:bg-[var(--hover-overlay)] hover:text-[color:var(--sidebar-text)]',
       )}
     >
-      <Icon className="w-3.5 h-3.5 shrink-0" />
+      <Icon className="w-4 h-4 shrink-0" />
       <span className="flex-1 truncate">{label}</span>
       {count !== undefined && (
-        <span className={cn('text-[11px] shrink-0', active ? 'opacity-90' : 'opacity-50')}>{count}</span>
+        <span className={cn('text-xs shrink-0', active ? 'opacity-90' : 'opacity-50')}>{count}</span>
       )}
     </button>
   );
