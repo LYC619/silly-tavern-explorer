@@ -36,6 +36,7 @@ import { editsFromNormalized, exportCardJson, type CardEdits } from '@/lib/card-
 import { applyCharacterPageCardEdits, applyCharacterPageDisplayMeta } from '@/lib/character-page-edit';
 import { setPendingToolFile } from '@/lib/tool-handoff';
 import { cn } from '@/lib/utils';
+import { useViewport } from '@/hooks/use-viewport';
 import { renameArchiveStory } from '@/lib/story-rename';
 import { IMPORT_KINDS, type CharacterImportKind, type CharacterImportResult } from '@/lib/character-import';
 import { importFilesForCharacter } from '@/lib/character-import';
@@ -80,6 +81,7 @@ const CharacterPage = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { toast } = useToast();
+  const { isMobile } = useViewport();
   const [searchParams, setSearchParams] = useSearchParams();
   const [character, setCharacter] = useState<ArchiveCharacter | null>(null);
   const [stories, setStories] = useState<ArchiveStory[]>([]);
@@ -315,6 +317,8 @@ const CharacterPage = () => {
   };
 
   const sortedStories = useMemo(() => sortStoriesForDisplay(stories), [stories]);
+  /** 底部「开始阅读」的目标：排序后的第一条（sortStoriesForDisplay 已按最近在前） */
+  const latestStory = sortedStories[0];
 
   // ===== 就地阅读与故事子视图（10.3b） =====
 
@@ -390,21 +394,38 @@ const CharacterPage = () => {
         </Button>
       }
     >
-       <div className="character-page h-full flex overflow-hidden">
-        {/* ===== 左信息栏 272px ===== */}
-        <CharacterInfoRail
-          character={character}
-          norm={norm}
-          stories={sortedStories}
-          onPatch={patchCharacter}
-          onEditCard={handleEditCard}
-          onReadEmbedded={handleReadEmbedded}
-          onExport={() => downloadCharacterFile(character)}
-          onDelete={() => setCharDeleteOpen(true)}
-        />
+       <div className={cn('character-page h-full overflow-hidden', isMobile ? 'flex flex-col' : 'flex')}>
+        {/* ===== 左信息栏 272px（窄屏堆到顶部，跟着主列一起滚） ===== */}
+        {!isMobile && (
+          <CharacterInfoRail
+            character={character}
+            norm={norm}
+            stories={sortedStories}
+            onPatch={patchCharacter}
+            onEditCard={handleEditCard}
+            onReadEmbedded={handleReadEmbedded}
+            onExport={() => downloadCharacterFile(character)}
+            onDelete={() => setCharDeleteOpen(true)}
+          />
+        )}
 
         {/* ===== 主列：头部 + tabs（就地阅读时头部收起，返回列表自动展开） ===== */}
-        <div ref={contentColumnRef} className="flex-1 min-w-0 flex flex-col overflow-y-auto scrollbar-thin">
+        <div ref={contentColumnRef} className="flex-1 min-w-0 min-h-0 flex flex-col overflow-y-auto scrollbar-thin">
+          {/* 就地阅读时把封面信息块一起收掉：手机屏幕上它会把正文挤到折叠线以下 */}
+          {isMobile && !readingStoryId && (
+            <CharacterInfoRail
+              stacked
+              character={character}
+              norm={norm}
+              stories={sortedStories}
+              onPatch={patchCharacter}
+              onEditCard={handleEditCard}
+              onReadEmbedded={handleReadEmbedded}
+              onExport={() => downloadCharacterFile(character)}
+              onDelete={() => setCharDeleteOpen(true)}
+            />
+          )}
+
           <CharacterHeader
             character={character}
             norm={norm}
@@ -412,7 +433,11 @@ const CharacterPage = () => {
             collapsed={readingStoryId ? true : undefined}
           />
 
-          <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1 flex flex-col px-6 pt-3 pb-6">
+          <Tabs
+            value={activeTab}
+            onValueChange={setActiveTab}
+            className={cn('flex-1 flex flex-col pt-3', isMobile ? 'px-3 pb-4' : 'px-6 pb-6')}
+          >
             {/* TabsList 用 flex（布局铁律：防插件包裹破坏 grid）；行右侧=统一导入钮（10.3c） */}
             <div className="flex items-center gap-2">
                <TabsList className="flex w-fit flex-wrap gap-1">
@@ -571,6 +596,25 @@ const CharacterPage = () => {
              </TabsContent>
           </Tabs>
         </div>
+
+        {/*
+          底部固定「开始阅读」：手机上拇指够得着的位置只有这一条。
+          它是主列的兄弟节点而不是 fixed 定位——外壳底下还有一条标签栏，
+          fixed 就得跟着它的高度算偏移，flex 里 shrink-0 自然叠在它上面。
+          就地阅读时收起（阅读器自带返回和进度条）。
+        */}
+        {isMobile && !readingStoryId && latestStory && (
+          <div className="shrink-0 border-t border-[color:var(--border-subtle)] bg-chrome px-3 py-2">
+            <Button
+              className="w-full"
+              onClick={() => { setActiveTab('stories'); openReader(latestStory.id); }}
+            >
+              <BookOpen className="mr-1.5 h-4 w-4" />
+              开始阅读
+              <span className="ml-1.5 min-w-0 truncate text-xs opacity-75">{latestStory.title}</span>
+            </Button>
+          </div>
+        )}
       </div>
 
       <CharacterImportDialog

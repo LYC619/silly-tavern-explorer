@@ -19,6 +19,7 @@ import type { NormalizedCharacterCard } from '@/lib/png-parser';
 import { CHARACTER_TYPES } from '@/lib/archive-db';
 import { formatPlayTime, formatWordCount } from '@/lib/story-meta';
 import { formatListTime, formatFullTime } from '@/lib/time-display';
+import { cn } from '@/lib/utils';
 import { RatingPanel } from '@/components/character/RatingPanel';
 import { NsfwImage } from '@/components/NsfwImage';
 import { getNsfwBlur } from '@/lib/local-settings';
@@ -33,6 +34,12 @@ interface CharacterInfoRailProps {
   onReadEmbedded: () => void;
   onExport: () => void;
   onDelete: () => void;
+  /**
+   * 窄屏堆叠：不再是左侧 304px 独立滚动栏，而是页面顶部的一块
+   * ——立绘缩到左边约四成宽，信息行放右边。整屏 3:4 的立绘在手机上
+   * 一屏只剩封面，得往下滑两下才看得到信息。
+   */
+  stacked?: boolean;
 }
 
 function InfoRow({ label, value, title }: { label: string; value: React.ReactNode; title?: string }) {
@@ -47,7 +54,7 @@ function InfoRow({ label, value, title }: { label: string; value: React.ReactNod
 }
 
 export function CharacterInfoRail({
-  character, norm, stories, onPatch, onEditCard, onReadEmbedded, onExport, onDelete,
+  character, norm, stories, onPatch, onEditCard, onReadEmbedded, onExport, onDelete, stacked = false,
 }: CharacterInfoRailProps) {
   const [lightbox, setLightbox] = useState(false);
   const [drawerOpen, setDrawerOpen] = useState(false);
@@ -77,10 +84,21 @@ export function CharacterInfoRail({
   }, [stories]);
 
   return (
-    <aside className="w-[304px] shrink-0 border-r border-[color:var(--hairline-inner)] px-6 py-6 overflow-y-auto scrollbar-thin">
+    <aside
+      data-character-info-rail={stacked ? 'stacked' : 'rail'}
+      className={cn(
+        stacked
+          ? 'border-b border-[color:var(--hairline-inner)] px-4 py-4'
+          : 'w-[304px] shrink-0 border-r border-[color:var(--hairline-inner)] px-6 py-6 overflow-y-auto scrollbar-thin',
+      )}
+    >
+      <div className={cn(stacked && 'flex items-start gap-4')}>
       {/* 立绘 3:4（设计稿），点击放大 */}
       <button
-        className="block w-full aspect-[3/4] rounded-xl overflow-hidden bg-elevated border border-[color:var(--border-subtle)]"
+        className={cn(
+          'block aspect-[3/4] rounded-xl overflow-hidden bg-elevated border border-[color:var(--border-subtle)]',
+          stacked ? 'w-[38%] max-w-[148px] shrink-0' : 'w-full',
+        )}
         onClick={() => {
           if (!character.pngBase64) return;
           if (shouldBlurNsfw(character.nsfw, getNsfwBlur(), nsfwRevealed)) {
@@ -107,7 +125,7 @@ export function CharacterInfoRail({
       </button>
 
       {/* 信息行 */}
-      <div className="mt-4">
+      <div className={cn(stacked ? 'min-w-0 flex-1' : 'mt-4')}>
         <InfoRow label="名称" value={character.name} title={character.name} />
         <div className="flex items-center justify-between gap-3 py-2.5 border-b border-[color:var(--hairline-inner)]">
           <span className="text-sm text-[color:var(--character-label)] shrink-0">类型</span>
@@ -141,6 +159,7 @@ export function CharacterInfoRail({
           value={agg.hasPlay ? formatPlayTime({ totalMs: agg.playMs, sessionCount: 0, sampledMessages: 0 }) : '未统计'}
           title="按消息时间戳估算：间隔超过 15 分钟视为离开，不计入时长"
         />
+      </div>
       </div>
 
       {/* 操作抽屉 */}

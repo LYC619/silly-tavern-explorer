@@ -17,7 +17,11 @@ import { getAllRegexCollections } from '@/lib/regex-db';
 import { cn } from '@/lib/utils';
 import { LOADING_LABEL } from '@/lib/ui-copy';
 
-export function GlobalSearch() {
+/**
+ * compact：窄屏用法。默认那套 `hidden md:block w-72` 是给窗口栏的，
+ * 在手机上等于整个应用没有搜索入口；窄屏时它挂在抽屉入口那一条里占满宽度。
+ */
+export function GlobalSearch({ compact = false }: { compact?: boolean } = {}) {
   const navigate = useNavigate();
   const inputRef = useRef<HTMLInputElement>(null);
   const [query, setQuery] = useState('');
@@ -99,7 +103,10 @@ export function GlobalSearch() {
   const showDrop = open && query.trim().length > 0;
 
   return (
-    <div className="relative hidden md:block w-72 lg:w-96" data-tour="global-search">
+    <div
+      className={compact ? 'relative min-w-0 flex-1' : 'relative hidden md:block w-72 lg:w-96'}
+      data-tour="global-search"
+    >
       <div className="flex items-center gap-2 px-3.5 py-[5px] rounded-md text-xs bg-[var(--input-bg)] focus-within:ring-1 focus-within:ring-[color:var(--brand-hairline)]">
         <Search className="w-3.5 h-3.5 shrink-0 text-[color:var(--text-faint)]" />
         <input
@@ -109,11 +116,18 @@ export function GlobalSearch() {
           onFocus={() => { setOpen(true); void loadEntries(); }}
           onBlur={() => setOpen(false)}
           onKeyDown={onKeyDown}
-          placeholder="搜索角色、故事、世界书、预设、正则…"
-          className="flex-1 min-w-0 bg-transparent outline-none text-[color:var(--text-body)] placeholder:text-[color:var(--text-faint)]"
+          placeholder={compact ? '搜索角色、故事、资产…' : '搜索角色、故事、世界书、预设、正则…'}
+          // iOS 16px 以下会自动放大页面，窄屏输入框按约定给 text-base
+          className={cn(
+            'flex-1 min-w-0 bg-transparent outline-none text-[color:var(--text-body)] placeholder:text-[color:var(--text-faint)]',
+            compact && 'text-base',
+          )}
           aria-label="全局搜索"
         />
-        <span className="text-[11px] px-1.5 py-px rounded bg-[var(--hover-overlay-strong)] text-[color:var(--text-faint)] shrink-0">Ctrl+F</span>
+        {/* 手机没有 Ctrl 键 */}
+        {!compact && (
+          <span className="text-[11px] px-1.5 py-px rounded bg-[var(--hover-overlay-strong)] text-[color:var(--text-faint)] shrink-0">Ctrl+F</span>
+        )}
       </div>
 
       {showDrop && (

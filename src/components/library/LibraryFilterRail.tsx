@@ -31,6 +31,11 @@ interface LibraryFilterRailProps {
   onTypeChange: (value: string) => void;
   onTagToggle: (category: TagCategory, raw: string) => void;
   onUncategorizedExpandedChange: (expanded: boolean) => void;
+  /**
+   * 装在窄屏左抽屉里：宽度由抽屉给，去掉右边框和拖宽手柄
+   * （抽屉本身可以左滑关闭，再放一个横向拖拽的热区只会互相抢手势）。
+   */
+  embedded?: boolean;
 }
 
 const CATEGORY_DOT: Record<Exclude<BuiltinTagCategory, '未分类'>, string> = {
@@ -96,6 +101,7 @@ export function LibraryFilterRail({
   onTypeChange,
   onTagToggle,
   onUncategorizedExpandedChange,
+  embedded = false,
 }: LibraryFilterRailProps) {
   const railRef = useRef<HTMLElement>(null);
   const draggingRef = useRef(false);
@@ -136,7 +142,8 @@ export function LibraryFilterRail({
     try { localStorage.setItem('ste-library-filter-width', String(railWidth)); } catch { /* ignore */ }
   }, [railWidth]);
 
-  const wide = railWidth >= 240;
+  // 抽屉里固定走双列：宽度大约 300px，单列标签会拉成一条条长条，翻起来更累。
+  const wide = embedded || railWidth >= 240;
   const showUncategorized = unclassifiedCount > 0 || sections.uncategorized.total > 0;
 
   const handleScroll = () => {
@@ -149,8 +156,14 @@ export function LibraryFilterRail({
     <aside
       ref={railRef}
       data-library-filter-rail
-      className="relative flex shrink-0 flex-col overflow-hidden border-r border-[color:var(--hairline-inner)] py-3 pl-4 pr-3"
-      style={{ width: railWidth }}
+      data-embedded={embedded || undefined}
+      className={cn(
+        'relative flex shrink-0 flex-col overflow-hidden',
+        embedded
+          ? 'h-full w-full py-1'
+          : 'border-r border-[color:var(--hairline-inner)] py-3 pl-4 pr-3',
+      )}
+      style={embedded ? undefined : { width: railWidth }}
     >
       <section
         data-library-type-panel
@@ -304,22 +317,24 @@ export function LibraryFilterRail({
         </div>
       )}
 
-      <div
-        role="separator"
-        aria-label="调整标签栏宽度"
-        aria-orientation="vertical"
-        aria-valuemin={200}
-        aria-valuemax={420}
-        aria-valuenow={railWidth}
-        title="拖动调整标签栏宽度；窄栏为单列，常规宽度为双列"
-        className="absolute inset-y-0 right-0 z-10 flex w-1 cursor-col-resize items-center justify-center hover:bg-[var(--brand)]/30"
-        onMouseDown={(event) => {
-          event.preventDefault();
-          draggingRef.current = true;
-        }}
-      >
-        <GripVertical className="pointer-events-none h-4 w-4 text-[color:var(--sidebar-text-faint)] opacity-0 transition-opacity hover:opacity-100" />
-      </div>
+      {!embedded && (
+        <div
+          role="separator"
+          aria-label="调整标签栏宽度"
+          aria-orientation="vertical"
+          aria-valuemin={200}
+          aria-valuemax={420}
+          aria-valuenow={railWidth}
+          title="拖动调整标签栏宽度；窄栏为单列，常规宽度为双列"
+          className="absolute inset-y-0 right-0 z-10 flex w-1 cursor-col-resize items-center justify-center hover:bg-[var(--brand)]/30"
+          onMouseDown={(event) => {
+            event.preventDefault();
+            draggingRef.current = true;
+          }}
+        >
+          <GripVertical className="pointer-events-none h-4 w-4 text-[color:var(--sidebar-text-faint)] opacity-0 transition-opacity hover:opacity-100" />
+        </div>
+      )}
     </aside>
   );
 }

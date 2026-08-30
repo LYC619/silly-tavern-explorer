@@ -286,12 +286,14 @@ function PersistentAppLayout({ children, titleBarContent, actions, leftActions, 
             aria-label="打开二级导航"
             aria-expanded={drawerOpen}
             onClick={() => setDrawerOpen(true)}
-            className="tap-target flex items-center gap-1.5 rounded-md px-2 py-1.5 text-sm text-[color:var(--sidebar-text)] transition-colors active:bg-[var(--hover-overlay)]"
+            className="tap-target flex shrink-0 items-center gap-1.5 rounded-md px-2 py-1.5 text-sm text-[color:var(--sidebar-text)] transition-colors active:bg-[var(--hover-overlay)]"
           >
             <Menu className="h-[18px] w-[18px]" />
-            <span className="max-w-[9rem] truncate">{drawerArea?.label ?? '导航'}</span>
+            {/* 窄到手机宽度时只留图标，把这一条的空间让给搜索框 */}
+            <span className="hidden max-w-[9rem] truncate sm:inline">{drawerArea?.label ?? '导航'}</span>
           </button>
-          <div className="min-w-0 flex-1" />
+          {/* 窗口栏里的全局搜索是 hidden md:block，手机上等于没有搜索入口，挪到这条来 */}
+          <GlobalSearch compact />
         </div>
       )}
 

@@ -13,6 +13,8 @@ import {
   MessagesSquare, BookOpen, IdCard, SlidersHorizontal, MessageSquare,
 } from 'lucide-react';
 import { isTauri, getAppConfig } from '@/lib/vault/tauri-fs';
+import { cn } from '@/lib/utils';
+import { useViewport } from '@/hooks/use-viewport';
 import { STAIConfigDialog } from '@/components/tools/STAIConfigDialog';
 import { STImportCard } from '@/components/tools/STImportCard';
 import { isEmptyVault } from '@/lib/vault/empty-vault';
@@ -88,6 +90,7 @@ const EDIT_TOOLS = [
 
 const Home = () => {
   const navigate = useNavigate();
+  const { isMobile } = useViewport();
   const [characters, setCharacters] = useState(() => homeSnapshot.characters);
   const [stories, setStories] = useState(() => homeSnapshot.stories);
   const [recentStories, setRecentStories] = useState(() => homeSnapshot.recentStories);
@@ -228,7 +231,15 @@ const Home = () => {
         </div>
       )}
     >
-      <div className="h-full min-h-0 overflow-hidden flex flex-col px-6 py-4 gap-3.5" data-home-resource-cache={Object.keys(resourceSnapshot).length}>
+      {/* 首页桌面档是「一屏放下不滚动」的仪表盘（固定行比例 + 区块内滚动）。
+          手机上一屏放不下任何东西，改成整页竖着滚、各区块按内容自然高度。 */}
+      <div
+        className={cn(
+          'h-full flex flex-col',
+          isMobile ? 'overflow-y-auto px-3 py-3 gap-3' : 'min-h-0 overflow-hidden px-6 py-4 gap-3.5',
+        )}
+        data-home-resource-cache={Object.keys(resourceSnapshot).length}
+      >
         {loadFailed && (
           <div
             data-home-load-error
@@ -255,15 +266,26 @@ const Home = () => {
         )}
 
         <div
-          className="flex-1 min-h-0 grid gap-4 grid-cols-[minmax(0,1fr)_clamp(320px,24vw,400px)]"
+          className={cn(
+            'grid',
+            isMobile
+              ? 'grid-cols-1 gap-3'
+              : 'flex-1 min-h-0 gap-4 grid-cols-[minmax(0,1fr)_clamp(320px,24vw,400px)]',
+          )}
           data-home-columns
         >
           {/* ===== 左主列：角色 + 故事 ===== */}
-          <div className="min-w-0 min-h-0 grid grid-rows-[minmax(0,3fr)_minmax(0,2fr)] gap-3.5" data-home-primary-column>
+          <div
+            className={cn(
+              'min-w-0 grid gap-3.5',
+              isMobile ? 'grid-cols-1 gap-3' : 'min-h-0 grid-rows-[minmax(0,3fr)_minmax(0,2fr)]',
+            )}
+            data-home-primary-column
+          >
             {/* ① 最近查看的角色：常规宽度完整显示 4 张，宽屏完整显示 5 张。 */}
             <section
               ref={characterWheelSurfaceRef}
-              className="min-h-0 flex flex-col rounded-xl bg-[var(--bg-elevated)] p-4"
+              className={cn('flex flex-col rounded-xl bg-[var(--bg-elevated)]', isMobile ? 'p-3' : 'min-h-0 p-4')}
               data-tour="home-library"
               data-home-character-wheel-surface
             >
@@ -285,7 +307,11 @@ const Home = () => {
               ) : (
                 <div
                   ref={characterRailRef}
-                  className="flex-1 min-h-0 flex items-center gap-3.5 overflow-x-auto overflow-y-hidden overscroll-x-contain pb-1.5 scrollbar-thin"
+                  className={cn(
+                    'flex items-center gap-3.5 overflow-x-auto overflow-y-hidden overscroll-x-contain pb-1.5 scrollbar-thin',
+                    // 手机上高度由卡片自己撑（外层不再是定高栅格），横滑一排卡的形态本身很合手机
+                    !isMobile && 'flex-1 min-h-0',
+                  )}
                   data-home-character-rail
                 >
                   {recentCharacters.map((c) => (
@@ -297,7 +323,12 @@ const Home = () => {
                       nameSize={14}
                       introSize={11}
                       markFontSize={24}
-                      className="w-[calc((100%-2.625rem)/4)] 2xl:w-[calc((100%-3.5rem)/5)] shrink-0 self-center"
+                      className={cn(
+                        'shrink-0 self-center',
+                        isMobile
+                          ? 'w-[42%] max-w-[168px]'
+                          : 'w-[calc((100%-2.625rem)/4)] 2xl:w-[calc((100%-3.5rem)/5)]',
+                      )}
                       dataAttrs={{ 'data-home-character-card': '' }}
                       onActivate={() => navigate(`/character/${c.id}`)}
                     />
@@ -307,7 +338,10 @@ const Home = () => {
             </section>
 
             {/* ② 最近在看的故事：占左列两份高度，始终展示三行，更多内容内部滚动。 */}
-            <section className="min-h-0 flex flex-col rounded-xl bg-elevated p-4" data-tour="home-recent">
+            <section
+              className={cn('flex flex-col rounded-xl bg-elevated', isMobile ? 'p-3' : 'min-h-0 p-4')}
+              data-tour="home-recent"
+            >
               <div className="shrink-0 mb-2.5 flex items-end justify-between gap-3" data-home-story-heading>
                 <h2 className="font-serif text-base font-semibold text-[color:var(--text-primary)]">最近在看的故事</h2>
                 <span className="pb-0.5 text-xs text-[color:var(--text-muted)]">滚动查看更多故事。</span>
@@ -319,7 +353,13 @@ const Home = () => {
                 </div>
               ) : (
                 <div
-                  className="flex-1 min-h-0 grid grid-cols-2 auto-rows-[calc((100%-1rem)/3)] gap-2 overflow-y-auto pr-1 scrollbar-thin"
+                  className={cn(
+                    'grid gap-2',
+                    isMobile
+                      // 单列 + 定高行：行高给死了，卡里的 h-full 缩略图才有参照
+                      ? 'grid-cols-1 auto-rows-[4rem]'
+                      : 'flex-1 min-h-0 grid-cols-2 auto-rows-[calc((100%-1rem)/3)] overflow-y-auto pr-1 scrollbar-thin',
+                  )}
                   data-home-story-scroll
                 >
                   {recentStories.map((s) => {
@@ -346,9 +386,15 @@ const Home = () => {
           </div>
 
           {/* ===== 右次列：编辑 + 其他 ===== */}
-          <div className="min-w-0 min-h-0 flex flex-col gap-3.5" data-home-secondary-column>
+          <div
+            className={cn('min-w-0 flex flex-col', isMobile ? 'gap-3' : 'min-h-0 gap-3.5')}
+            data-home-secondary-column
+          >
             {/* ③ 编辑处理区：二号位，使用窄栏单列工具入口。 */}
-            <section className="flex-[3] min-h-0 flex flex-col rounded-xl bg-elevated p-4" data-tour="home-tools">
+            <section
+              className={cn('flex flex-col rounded-xl bg-elevated', isMobile ? 'p-3' : 'flex-[3] min-h-0 p-4')}
+              data-tour="home-tools"
+            >
               <div className="shrink-0 flex items-start justify-between mb-3 gap-3">
                 <div className="min-w-0">
                   <h2 className="font-serif text-[17px] font-semibold text-[color:var(--text-primary)]">编辑处理区</h2>
@@ -358,7 +404,10 @@ const Home = () => {
                 </div>
                 <PillLink label="进入编辑区" onClick={() => navigate('/chat')} />
               </div>
-              <div className="flex-1 min-h-0 grid grid-cols-1 grid-rows-5 gap-2">
+              <div
+                className={cn('grid grid-cols-1 gap-2', isMobile ? 'auto-rows-auto' : 'flex-1 min-h-0 grid-rows-5')}
+                data-home-edit-tools
+              >
                 {EDIT_TOOLS.map((tool) => {
                   const Icon = tool.icon;
                   return (
@@ -386,7 +435,10 @@ const Home = () => {
             </section>
 
             {/* ④ 共享资产：保留明确的右列份额，不被编辑入口挤到角落。 */}
-            <section className="flex-[2] min-h-0 flex flex-col rounded-xl bg-elevated p-4" data-tour="home-assets">
+            <section
+              className={cn('flex flex-col rounded-xl bg-elevated', isMobile ? 'p-3' : 'flex-[2] min-h-0 p-4')}
+              data-tour="home-assets"
+            >
               <div className="shrink-0 mb-3 flex items-start justify-between gap-3">
                 <div className="min-w-0">
                   <h2 className="font-serif text-[17px] font-semibold text-[color:var(--text-primary)]">共享资产</h2>
@@ -394,7 +446,7 @@ const Home = () => {
                 </div>
                 <PillLink label="打开附属库" onClick={() => navigate('/assets')} />
               </div>
-              <div className="flex-1 min-h-0 grid grid-cols-2 auto-rows-fr gap-2">
+              <div className={cn('grid grid-cols-2 gap-2', isMobile ? 'auto-rows-auto' : 'flex-1 min-h-0 auto-rows-fr')}>
                 {ASSET_CELLS.map((cell) => (
                   <button
                     key={cell.label}

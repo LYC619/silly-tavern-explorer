@@ -14,6 +14,7 @@
 import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Plus, BookOpen } from 'lucide-react';
+import { cn } from '@/lib/utils';
 import { AppLayout } from '@/components/AppLayout';
 import { TagManagerDialog } from '@/components/library/TagManagerDialog';
 import { BatchTagDialog } from '@/components/library/BatchTagDialog';
@@ -87,6 +88,7 @@ import {
 } from '@/lib/library-query';
 import { buildLibraryGroups, collapseLibraryGroups } from '@/lib/library-grouping';
 import { useGridColumns } from '@/hooks/use-grid-columns';
+import { useViewport } from '@/hooks/use-viewport';
 
 /** 类型筛选：all=不筛；none=未分类（type 为空） */
 type TypeFilter = 'all' | CharacterType | 'none';
@@ -94,6 +96,8 @@ type TypeFilter = 'all' | CharacterType | 'none';
 const Library = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
+  /** 窄屏（<1024px）把筛选栏搬进左抽屉；桌面档保持原来的可拖宽侧栏 */
+  const { isMobile, isCompact } = useViewport();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [characters, setCharacters] = useState<ArchiveCharacter[]>([]);
   const [storyCounts, setStoryCounts] = useState<Record<string, number>>({});
@@ -448,7 +452,15 @@ const Library = () => {
    * 分组时改成对全部筛选结果分组，每组先露两行，行尾给展开按钮。
    */
   const grouping = prefs.viewMode === 'grid' && prefs.groupBy !== 'none';
-  const { ref: gridRef, cols } = useGridColumns(prefs.cardWidth);
+  const { ref: gridRef, cols: measuredCols } = useGridColumns(prefs.cardWidth);
+  /**
+   * 手机上固定两列：卡宽偏好是给鼠标调的，390px 屏上按 240px 卡宽算只排得下一列，
+   * 一屏看一张卡等于把库页变成一条队列。分组折叠的「每组两行」也按这个列数算。
+   */
+  const cols = isMobile ? 2 : measuredCols;
+  const gridTemplateColumns = isMobile
+    ? 'repeat(2, minmax(0, 1fr))'
+    : `repeat(auto-fill, minmax(${prefs.cardWidth}px, 1fr))`;
   const [expandedGroups, setExpandedGroups] = useState<ReadonlySet<string>>(new Set());
   // 换筛选/换分组维度后旧的展开状态没有意义
   useEffect(() => {
@@ -496,8 +508,28 @@ const Library = () => {
     />
   );
 
+  /** 筛选栏本体：窄屏塞进左抽屉，桌面留在页面左侧；两处只会同时存在一个 */
+  const filterRail = (embedded: boolean) => (
+    <LibraryFilterRail
+      embedded={embedded}
+      typeOptions={CHARACTER_TYPES.map((type) => ({
+        value: type,
+        label: type,
+        count: typeCounts[type] ?? 0,
+      }))}
+      unclassifiedCount={typeCounts.none ?? 0}
+      activeType={typeFilter}
+      sections={filterSections}
+      activeTags={tagFilters}
+      uncategorizedExpanded={uncategorizedExpanded}
+      onTypeChange={(value) => setTypeFilter(value as TypeFilter)}
+      onTagToggle={toggleTagFilter}
+      onUncategorizedExpandedChange={setUncategorizedExpanded}
+    />
+  );
+
   return (
-    <AppLayout>
+    <AppLayout mobileDrawer={isCompact ? filterRail(true) : undefined}>
       <div className="h-full flex flex-col overflow-hidden">
         <LibraryToolbar
           characterCount={characters.length}
@@ -530,28 +562,14 @@ const Library = () => {
 
         {/* ===== 内容区：标签筛选栏 + 卡墙 ===== */}
         <div className="flex-1 min-h-0 flex">
-          <LibraryFilterRail
-            typeOptions={CHARACTER_TYPES.map((type) => ({
-              value: type,
-              label: type,
-              count: typeCounts[type] ?? 0,
-            }))}
-            unclassifiedCount={typeCounts.none ?? 0}
-            activeType={typeFilter}
-            sections={filterSections}
-            activeTags={tagFilters}
-            uncategorizedExpanded={uncategorizedExpanded}
-            onTypeChange={(value) => setTypeFilter(value as TypeFilter)}
-            onTagToggle={toggleTagFilter}
-            onUncategorizedExpandedChange={setUncategorizedExpanded}
-          />
+          {!isCompact && filterRail(false)}
 
-          <div className="flex-1 min-w-0 overflow-y-auto scrollbar-thin px-6 py-3">
+          <div className={cn(
+            'flex-1 min-w-0 overflow-y-auto scrollbar-thin py-3',
+            isMobile ? 'px-3' : 'px-6',
+          )}>
             {loading ? (
-              <div
-                className="grid gap-3.5"
-                style={{ gridTemplateColumns: `repeat(auto-fill, minmax(${prefs.cardWidth}px, 1fr))` }}
-              >
+              <div className="grid gap-3.5" style={{ gridTemplateColumns }}>
                 {Array.from({ length: 4 }).map((_, i) => (
                   <div key={i} className="aspect-[2/3] rounded-xl bg-muted animate-pulse" />
                 ))}
@@ -588,10 +606,7 @@ const Library = () => {
                             <span className="h-px flex-1 bg-[color:var(--hairline-inner)]" aria-hidden="true" />
                           </div>
                         )}
-                        <div
-                          className="grid gap-3.5 content-start"
-                          style={{ gridTemplateColumns: `repeat(auto-fill, minmax(${prefs.cardWidth}px, 1fr))` }}
-                        >
+                        <div className="grid gap-3.5 content-start" style={{ gridTemplateColumns }}>
                           {group.visible.map((c) => (
                             <CharacterTile
                               key={c.id}

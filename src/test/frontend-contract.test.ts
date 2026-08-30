@@ -4,6 +4,33 @@ import { resolve } from 'node:path';
 
 const read = (path: string) => readFileSync(resolve(process.cwd(), path), 'utf8');
 
+/**
+ * 取带某个 data-* 标记的元素在桌面档下的类名集合。
+ *
+ * 移动端适配之后，这些元素的 className 从字面量变成了 `cn('共用', isMobile ? '手机' : '桌面')`，
+ * 直接 grep `className="..."` 会全部落空。这些断言钉的是「桌面档长这样」，
+ * 所以按结构取出共用段 + 桌面分支，手机分支丢掉——桌面契约照旧成立，
+ * 又不至于反过来禁止文件里出现移动端分支。
+ */
+function desktopClasses(source: string, marker: string): string[] {
+  const markerAt = source.indexOf(marker);
+  if (markerAt < 0) return [];
+  const tagAt = source.lastIndexOf('<', markerAt);
+  const tag = source.slice(tagAt, markerAt);
+
+  const literal = tag.match(/className="([^"]*)"/)?.[1];
+  if (literal !== undefined) return literal.split(/\s+/).filter(Boolean);
+
+  const expression = tag.match(/className=\{([\s\S]*)\}/)?.[1] ?? '';
+  const classes: string[] = [];
+  for (const piece of expression.matchAll(/'([^']*)'/g)) {
+    // 紧跟在 `? ` 后面的那一段是手机分支（中间可能夹注释，\s 已覆盖换行）
+    if (/\?\s*(\/\/[^\n]*\n\s*)*$/.test(expression.slice(0, piece.index))) continue;
+    classes.push(...piece[1].split(/\s+/).filter(Boolean));
+  }
+  return classes;
+}
+
 describe('前端状态刷新契约', () => {
 
 
@@ -346,9 +373,9 @@ describe('阶段 D 外壳与 NSFW 契约', () => {
 
   it('首页占满视口并保持左右双列，只有故事列表内部滚动', () => {
     const home = read('src/pages/Home.tsx');
-    const rootClass = home.match(/<div className="([^"]+)" data-home-resource-cache/)?.[1] ?? '';
-    const primaryColumnClass = home.match(/className="([^"]+)" data-home-primary-column/)?.[1] ?? '';
-    expect(rootClass.split(/\s+/)).toEqual(expect.arrayContaining([
+    const rootClass = desktopClasses(home, 'data-home-resource-cache');
+    const primaryColumnClass = desktopClasses(home, 'data-home-primary-column');
+    expect(rootClass).toEqual(expect.arrayContaining([
       'h-full',
       'min-h-0',
       'overflow-hidden',
@@ -360,7 +387,7 @@ describe('阶段 D 外壳与 NSFW 契约', () => {
     expect(home).toContain('data-home-character-card');
     expect(home).toContain('data-home-story-scroll');
     expect(home).not.toContain('HOME_RECENT_CHARACTER_CARD_WIDTH');
-    expect(primaryColumnClass.split(/\s+/)).toEqual(expect.arrayContaining([
+    expect(primaryColumnClass).toEqual(expect.arrayContaining([
       'grid',
       'grid-rows-[minmax(0,3fr)_minmax(0,2fr)]',
     ]));
@@ -396,10 +423,20 @@ describe('阶段 D 外壳与 NSFW 契约', () => {
     expect(editTools).toContain("label: '总结'");
     expect(editTools).toContain('EDITOR_TOOL_COPY.summaryAndTree');
     expect(editTools).not.toContain("label: '故事树'");
-    expect(home).toContain('grid-cols-1 grid-rows-5');
-    expect(home).toContain('section className="flex-[3]');
-    expect(home).toContain('section className="flex-[2]');
-    expect(home).toContain('grid grid-cols-2 auto-rows-[calc((100%-1rem)/3)] gap-2 overflow-y-auto');
+    // 右次列桌面档仍是 3:2 两段，编辑入口单列五行、故事列表双列三行内部滚动。
+    expect(desktopClasses(home, 'data-home-edit-tools')).toEqual(expect.arrayContaining([
+      'grid-cols-1',
+      'grid-rows-5',
+    ]));
+    expect(desktopClasses(home, 'data-tour="home-tools"')).toContain('flex-[3]');
+    expect(desktopClasses(home, 'data-tour="home-assets"')).toContain('flex-[2]');
+    expect(desktopClasses(home, 'data-home-story-scroll')).toEqual(expect.arrayContaining([
+      'grid',
+      'grid-cols-2',
+      'auto-rows-[calc((100%-1rem)/3)]',
+      'gap-2',
+      'overflow-y-auto',
+    ]));
     expect(home).toContain('pickRecentlyViewedStories(allStories, 12)');
 
     expect(home).toContain('font-serif text-xl font-semibold');
