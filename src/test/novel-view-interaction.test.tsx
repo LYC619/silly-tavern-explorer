@@ -161,16 +161,18 @@ describe('小说视图嵌入模式', () => {
 
   const surface = () => container.querySelector<HTMLElement>('[data-novel-surface]')!;
 
-  it('嵌入时留在文档流里，全屏时才铺满视口', async () => {
+  it('嵌入时留在文档流里，全屏时铺满视口但给外壳窗口栏让位', async () => {
     await renderNovel(true);
     const embeddedRoot = container.firstElementChild as HTMLElement;
     expect(embeddedRoot.className).not.toContain('fixed');
-    expect(embeddedRoot.className).not.toContain('inset-0');
 
     await renderNovel(false);
     const fullscreenRoot = container.firstElementChild as HTMLElement;
     expect(fullscreenRoot.className).toContain('fixed');
-    expect(fullscreenRoot.className).toContain('inset-0');
+    // 顶部必须让出 --app-chrome-h：外壳窗口栏是 z-[60]，铺到 top:0 就会盖掉退出按钮
+    // （0830 反馈 9「小说视图没有返回键」）。
+    expect(fullscreenRoot.className).toContain('top-[var(--app-chrome-h,0px)]');
+    expect(fullscreenRoot.className).not.toContain('top-0');
   });
 
   it('按自己面板的中线判翻页方向，不看窗口中线', async () => {

@@ -218,13 +218,16 @@ fn remove_file_impl(path: &Path) -> Result<(), String> {
 }
 
 /// 只删空目录；非空时静默保留（返回 false）——里面可能有用户自己放的文件。
+/// 目录本来就不存在同样返回 false：删除要幂等，否则调用方「顺手清理可能存在的子目录」
+/// 会在子目录从未创建时炸掉整个删除流程（明明文件已经删干净了却报失败）。
 fn remove_empty_dir_impl(path: &Path) -> Result<bool, String> {
     match fs::remove_dir(path) {
         Ok(()) => Ok(true),
         Err(e) => {
-            let not_empty = e.raw_os_error() == Some(145) // Windows: ERROR_DIR_NOT_EMPTY
+            let already_done = e.kind() == std::io::ErrorKind::NotFound
+                || e.raw_os_error() == Some(145) // Windows: ERROR_DIR_NOT_EMPTY
                 || e.kind() == std::io::ErrorKind::DirectoryNotEmpty;
-            if not_empty {
+            if already_done {
                 Ok(false)
             } else {
                 Err(format!("删除目录失败 {}: {e}", path.display()))
@@ -714,6 +717,22 @@ fn read_picked_file_impl(path: &Path, max_bytes: u64) -> Result<PickedChatFile, 
 /// 不再作为孤立顶层窗口弹在屏幕上（0826 反馈 2）。
 /// 注意：对话框的**尺寸**由 Windows 自己按 ComDlg32 的历史记录还原，
 /// 应用侧无法指定，这里只能保证属主关系正确。
+///
+/// 调用方必须是 `async fn` command：同步 command 跑在主线程，而 `blocking_pick_*`
+/// 要靠事件循环转起来才能等到对话框关闭，在主线程上调用会直接互锁成"未响应"。
+/// 交给前端的路径去掉 `\\?\` verbatim 前缀。`fs::canonicalize` 一定带这个前缀，
+/// 原样传出去前端会显示成 `//?/D:/...`，还会让同一文件夹算出两个库 id。
+/// 授权集合内部仍存 canonical 形式，回传的路径进来时会重新 canonicalize，能对上。
+///
+/// 只处理盘符形式；`\\?\UNC\server\share` 剥掉前缀就不合法了，保持原样。
+pub fn simplified_for_frontend(path: &Path) -> String {
+    let text = path.to_string_lossy();
+    match text.strip_prefix(r"\\?\") {
+        Some(rest) if rest.as_bytes().get(1) == Some(&b':') => rest.to_string(),
+        _ => text.into_owned(),
+    }
+}
+
 fn dialog_for(app: &tauri::AppHandle) -> tauri_plugin_dialog::FileDialogBuilder<tauri::Wry> {
     let builder = app.dialog().file();
     match app.get_webview_window("main") {
@@ -723,7 +742,7 @@ fn dialog_for(app: &tauri::AppHandle) -> tauri_plugin_dialog::FileDialogBuilder<
 }
 
 #[tauri::command]
-fn pick_chat_file(app: tauri::AppHandle) -> Result<Option<PickedChatFile>, String> {
+async fn pick_chat_file(app: tauri::AppHandle) -> Result<Option<PickedChatFile>, String> {
     let Some(selected) = dialog_for(&app)
         .set_title("选择聊天或角色卡文件")
         .add_filter("聊天与角色卡", &["jsonl", "json", "txt", "png"])
@@ -767,7 +786,7 @@ async fn vault_pick_authorized_directory(
     } else {
         roots.authorize(&selected)?
     };
-    Ok(Some(canonical.to_string_lossy().into_owned()))
+    Ok(Some(simplified_for_frontend(&canonical)))
 }
 
 fn app_config_dir(app: &tauri::AppHandle) -> Result<PathBuf, String> {
@@ -1012,6 +1031,9 @@ mod tests {
         remove_file_impl(&dir.join("用户自己放的.txt")).unwrap();
         assert_eq!(remove_empty_dir_impl(&dir).unwrap(), true);
         assert!(!dir.exists());
+        // 不存在的目录：幂等，不报错（删角色卡时「故事」子目录可能从未创建过）
+        assert_eq!(remove_empty_dir_impl(&dir).unwrap(), false);
+        assert_eq!(remove_empty_dir_impl(&root.join("从未存在")).unwrap(), false);
         let _ = fs::remove_dir_all(&root);
     }
 

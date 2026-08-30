@@ -444,7 +444,10 @@ const NovelView = ({
     <div
       className={embedded
         ? 'relative z-0 flex h-[min(78vh,900px)] min-h-[560px] flex-col overflow-hidden rounded-lg border border-border bg-canvas text-[color:var(--text-body)] shadow-sm'
-        : 'fixed inset-0 z-50 flex flex-col bg-canvas text-[color:var(--text-body)]'}
+        // 从窗口栏下方开始：外壳 chrome 是 z-[60]，盖住它就等于盖掉退出按钮
+        // （0830 反馈 9：小说视图没有返回键），而把覆盖层提到 60 以上又会挡住
+        // 客户端的窗口控制按钮和拖拽区。--app-chrome-h 由 AppLayout 写到 :root。
+        : 'fixed inset-x-0 bottom-0 top-[var(--app-chrome-h,0px)] z-50 flex flex-col bg-canvas text-[color:var(--text-body)]'}
       onTouchStart={(event) => { touchStartX.current = event.changedTouches[0]?.clientX ?? null; }}
       onTouchEnd={(event) => {
         const start = touchStartX.current;

@@ -235,7 +235,7 @@ const ReaderView = ({
 
   if (pages.length === 0) {
     return (
-      <div className="fixed inset-0 z-50 bg-canvas flex items-center justify-center">
+      <div className="fixed inset-x-0 bottom-0 top-[var(--app-chrome-h,0px)] z-50 bg-canvas flex items-center justify-center">
         <div className="text-center">
           <BookOpen className="w-16 h-16 text-muted-foreground mx-auto mb-4" />
           <p className="text-muted-foreground">没有可阅读的内容</p>
@@ -248,7 +248,8 @@ const ReaderView = ({
   return (
     <div 
       ref={containerRef}
-      className="fixed inset-0 z-50 bg-canvas text-[color:var(--text-body)] select-none overflow-hidden"
+      // 同 NovelView：让出外壳 chrome（z-[60]）那一条，否则顶栏的返回按钮被盖住
+      className="fixed inset-x-0 bottom-0 top-[var(--app-chrome-h,0px)] z-50 bg-canvas text-[color:var(--text-body)] select-none overflow-hidden"
       onTouchStart={handleTouchStart}
       onTouchMove={handleTouchMove}
       onTouchEnd={handleTouchEnd}

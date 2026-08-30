@@ -265,8 +265,12 @@ const Library = () => {
       await load();
       selection.setSelected(new Set());
       toast({ title: `已删除 ${pendingDelete.length} 个角色（名下故事已转为未绑定，未被删除）` });
-    } catch {
-      toast({ title: '删除失败', variant: 'destructive' });
+    } catch (e) {
+      toast({
+        title: '删除失败',
+        description: e instanceof Error ? e.message : String(e),
+        variant: 'destructive',
+      });
     } finally {
       setPendingDelete(null);
     }
