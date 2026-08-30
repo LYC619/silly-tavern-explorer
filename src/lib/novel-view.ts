@@ -231,6 +231,36 @@ export function buildNovelDocument(
 const DEFAULT_PAGE_WEIGHT = 220;
 const BLOCK_SPACING_WEIGHT = 2;
 
+/** 正文行高倍数，与 NovelView 里 <article> 的 lineHeight 保持一致 */
+const NOVEL_LINE_HEIGHT = 1.75;
+/** 每页顶部「#12–15 楼」那一条占掉的行数 */
+const PAGE_HEADER_LINES = 2;
+/**
+ * 每行末尾一般填不满（段落最后一行、标点比 1em 窄、user 楼层缩进）。
+ * 页面是 overflow-hidden，宁可留白也不能溢出裁字，所以按 0.85 折。
+ */
+const PAGE_FILL_RATIO = 0.85;
+
+/**
+ * 按书页实际尺寸算一页能放多少字。
+ *
+ * 原来这里是个常数（18px 时 140 字），而一页实测能放 400 字上下，于是每页只填了
+ * 三分之一、剩下大片空白，翻页密度是应有的三倍——用户报的「小说视图拆得特别碎」
+ * 就是这个（0830 反馈 9）。
+ *
+ * 量不到尺寸（首帧、jsdom）时传 0，回退到原来的常数档。
+ * ponytail: CJK 按 1em/字近似，纯英文正文会偏保守（一行能放的字母更多）。
+ * 要更准就得拿 canvas measureText 按实际字体算，先不上。
+ */
+export function novelPageCapacity(box: { width: number; height: number }, fontSize: number): number {
+  if (!(box.width > 0) || !(box.height > 0) || !(fontSize > 0)) {
+    return Math.max(90, Math.round(140 * (18 / fontSize || 1)));
+  }
+  const charsPerLine = Math.floor(box.width / fontSize);
+  const lines = Math.floor(box.height / (fontSize * NOVEL_LINE_HEIGHT)) - PAGE_HEADER_LINES;
+  return Math.max(90, Math.round(charsPerLine * Math.max(1, lines) * PAGE_FILL_RATIO));
+}
+
 function blockWeight(block: NovelBlock): number {
   return block.type === 'scene-break'
     ? 18

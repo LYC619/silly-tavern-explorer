@@ -11,6 +11,7 @@ import {
   buildChapterSuggestMessages,
   findNovelPageIndex,
   normalizeNovelSpreadStart,
+  novelPageCapacity,
   paginateNovelDocument,
   parseChapterSuggestions,
   type NovelViewOptions,
@@ -256,6 +257,41 @@ describe('小说翻页与书签联动', () => {
       expect.objectContaining({ messageId: 'm2', floor: 2 }),
       expect.objectContaining({ messageId: 'm3', floor: 3 }),
     ]);
+  });
+});
+
+describe('novelPageCapacity', () => {
+  // 实机一页约 432×650（1024px 跨页减内外边距，两栏）
+  const realPage = { width: 432, height: 650 };
+
+  it('按实测尺寸算出的容量远大于原来的常数档', () => {
+    // 原来 18px 固定 140 字，只填了三分之一页（0830 反馈 9：拆得特别碎）
+    expect(novelPageCapacity(realPage, 18)).toBeGreaterThan(300);
+  });
+
+  it('页面越高容量越大，页数随之减少', () => {
+    const short = novelPageCapacity({ width: 432, height: 320 }, 18);
+    const tall = novelPageCapacity({ width: 432, height: 900 }, 18);
+    expect(tall).toBeGreaterThan(short);
+
+    const chapters = buildNovelDocument(
+      Array.from({ length: 12 }, (_, i) => msg(i, { content: '这是一段足够长的正文。'.repeat(12) })),
+      [],
+      opts(),
+    );
+    expect(paginateNovelDocument(chapters, tall).length)
+      .toBeLessThan(paginateNovelDocument(chapters, short).length);
+  });
+
+  it('字号越大容量越小', () => {
+    expect(novelPageCapacity(realPage, 24)).toBeLessThan(novelPageCapacity(realPage, 16));
+  });
+
+  it('量不到尺寸时回退到常数档，不会算出 0 字一页', () => {
+    expect(novelPageCapacity({ width: 0, height: 0 }, 18)).toBe(140);
+    expect(novelPageCapacity({ width: 432, height: 650 }, 0)).toBeGreaterThanOrEqual(90);
+    // 极窄极矮也至少保底 90 字，否则会切出无数张空页
+    expect(novelPageCapacity({ width: 20, height: 20 }, 18)).toBeGreaterThanOrEqual(90);
   });
 });
 

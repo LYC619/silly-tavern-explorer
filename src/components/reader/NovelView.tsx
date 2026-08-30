@@ -33,7 +33,7 @@ import { callOpenAIMessages } from '@/components/ai-tools/useOpenAI';
 import {
   buildNovelDocument, buildChapterSuggestMessages, parseChapterSuggestions,
   buildNovelBookmarks, findNovelPageIndex, paginateNovelDocument,
-  normalizeNovelSpreadStart,
+  normalizeNovelSpreadStart, novelPageCapacity,
   DEFAULT_NOVEL_OPTIONS,
   type UserFloorMode, type NovelChapter, type NovelPage, type ChapterSuggestion, type NovelBookmark,
 } from '@/lib/novel-view';
@@ -119,7 +119,11 @@ const NovelView = ({
     () => buildNovelDocument(session.messages, markers, { userMode, showHidden, sceneGapMinutes: sceneGap, regexRules }),
     [session.messages, markers, userMode, showHidden, sceneGap, regexRules],
   );
-  const pageWeight = useMemo(() => Math.max(90, Math.round(140 * (18 / fontSize))), [fontSize]);
+  // 一页能放多少字按书页实测尺寸算，不用常数（0830 反馈 9：拆得特别碎）。
+  // 书页是定高的（h-full + max-h-[720px]），量到的尺寸不随内容变，不会和分页互相拉扯。
+  const [pageBox, setPageBox] = useState({ width: 0, height: 0 });
+  const pageBoxRef = useRef<HTMLElement | null>(null);
+  const pageWeight = useMemo(() => novelPageCapacity(pageBox, fontSize), [pageBox, fontSize]);
   const pages = useMemo(() => paginateNovelDocument(chapters, pageWeight), [chapters, pageWeight]);
   const hiddenUserFloors = useMemo(
     () => session.messages.filter((m) => m.role === 'user').length,
@@ -129,6 +133,22 @@ const NovelView = ({
     () => session.messages.filter((m) => m.hidden).length,
     [session.messages],
   );
+
+  // 书页尺寸：首帧用常数档排一次版把书页画出来，量到真实尺寸后重排一次即收敛。
+  // 窗口缩放、字号档位、嵌入/全屏切换都会改尺寸，所以挂 ResizeObserver。
+  useEffect(() => {
+    const el = pageBoxRef.current;
+    if (!el) return;
+    const measure = () => {
+      const { clientWidth: width, clientHeight: height } = el;
+      setPageBox((prev) => (prev.width === width && prev.height === height ? prev : { width, height }));
+    };
+    measure();
+    if (typeof ResizeObserver === 'undefined') return;
+    const observer = new ResizeObserver(measure);
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [pages.length, embedded]);
 
   const readStoredFloor = useCallback((): number | undefined => {
     if (!progressKey) return undefined;
@@ -383,6 +403,8 @@ const NovelView = ({
     >
       {page ? (
         <article
+          // 左页量尺寸（两页等宽，右页在末尾可能是空的）；h-full 让它正好等于书页内容区
+          ref={side === 'left' ? pageBoxRef : undefined}
           className="h-full font-serif text-foreground/90"
           style={{ fontSize: `${fontSize}px`, lineHeight: 1.75 }}
         >
