@@ -9,6 +9,13 @@ const Tooltip = TooltipPrimitive.Root;
 
 const TooltipTrigger = TooltipPrimitive.Trigger;
 
+/**
+ * 内容默认渲染在触发器旁边（不传送）。触发器在表格里时必须套这个：
+ * `<tr>` 只允许 `<td>/<th>` 子节点，浏览器会把插进去的 div 提到表格外面，
+ * tooltip 就飘到别处去了。
+ */
+const TooltipPortal = TooltipPrimitive.Portal;
+
 const TooltipContent = React.forwardRef<
   React.ElementRef<typeof TooltipPrimitive.Content>,
   React.ComponentPropsWithoutRef<typeof TooltipPrimitive.Content>
@@ -25,4 +32,4 @@ const TooltipContent = React.forwardRef<
 ));
 TooltipContent.displayName = TooltipPrimitive.Content.displayName;
 
-export { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider };
+export { Tooltip, TooltipTrigger, TooltipContent, TooltipPortal, TooltipProvider };

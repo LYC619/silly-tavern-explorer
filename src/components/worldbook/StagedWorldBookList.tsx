@@ -3,7 +3,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import type { WorldBookItem } from '@/types/worldbook';
 
-/** 暂存记录的时间：有源文件修改时间就显示源文件的，否则回退到 STE 更新时间 */
+/** 列表上的时间：有源文件修改时间就显示源文件的，否则回退到 STE 更新时间 */
 function stagedTime(item: WorldBookItem): string {
   return new Date(item.sourceModifiedAt ?? item.updatedAt).toLocaleString();
 }
@@ -12,12 +12,12 @@ interface StagedWorldBookListProps {
   items: WorldBookItem[];
   onSelect: (item: WorldBookItem) => void;
   onDelete: (item: WorldBookItem) => void;
-  /** 'dialog' 用于「已暂存」弹窗，'card' 用于空态里的「从本地恢复」 */
+  /** 'dialog' 用于「最近打开」弹窗，'card' 用于空态里的资产库列表 */
   variant: 'dialog' | 'card';
 }
 
 /**
- * 暂存世界书列表。「已暂存」弹窗和空态的「从本地恢复」是同一份数据的两种外观，
+ * 资产库里的世界书列表。「最近打开」弹窗和空态列表是同一份数据的两种外观，
  * 标题 / 条目数 / 时间 / 删除四处逻辑共用，避免改一处漏另一处。
  */
 export function StagedWorldBookList({ items, onSelect, onDelete, variant }: StagedWorldBookListProps) {
@@ -39,7 +39,7 @@ export function StagedWorldBookList({ items, onSelect, onDelete, variant }: Stag
               size="icon"
               className="text-muted-foreground hover:text-destructive"
               onClick={(e) => { e.stopPropagation(); onDelete(item); }}
-              aria-label="删除暂存"
+              aria-label="从资产库删除"
             >
               <Trash2 className="w-3.5 h-3.5" />
             </Button>

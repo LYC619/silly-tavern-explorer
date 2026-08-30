@@ -217,7 +217,7 @@ describe('世界书保存落库', () => {
   });
 });
 
-describe('暂存列表的时间显示', () => {
+describe('「最近打开」列表的时间显示', () => {
   it('有源文件修改时间时显示源文件时间，没有才回退到 STE 更新时间', async () => {
     const sourceModifiedAt = Date.UTC(2024, 0, 2, 3, 4, 5);
     const updatedAt = Date.UTC(2025, 5, 6, 7, 8, 9);
@@ -227,7 +227,7 @@ describe('暂存列表的时间显示', () => {
     ]);
     await renderPage({ worldbook: mkBook(), filename: '测试', currentItemId: null });
 
-    await click(Array.from(document.querySelectorAll('button')).find((b) => b.textContent?.includes('已暂存')));
+    await click(Array.from(document.querySelectorAll('button')).find((b) => b.textContent?.includes('最近打开')));
 
     const rowText = (title: string) => Array.from(document.querySelectorAll('button'))
       .find((b) => b.textContent?.includes(title))?.textContent ?? '';

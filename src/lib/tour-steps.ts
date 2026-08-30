@@ -39,7 +39,7 @@ export const WORLDBOOK_TOUR_STEPS: TourStep[] = [
   },
   {
     targetSelector: '[data-tour="wb-staged"]',
-    content: '之前编辑过的世界书会暂存在浏览器中，随时可以恢复。',
+    content: '导入过的世界书都收在资产库里，从这里可以换一本继续编辑。',
     action: 'next',
   },
   {

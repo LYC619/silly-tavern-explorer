@@ -1,7 +1,7 @@
-import { Archive, Globe, Save, Sparkles } from 'lucide-react';
+import { Clock, Globe, Save, Sparkles } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { WorldBookImporter } from '@/components/worldbook/WorldBookImporter';
 import { WorldBookExporter } from '@/components/worldbook/WorldBookExporter';
@@ -41,7 +41,7 @@ const TabSwitcher = ({ value, onChange, mobile }: { value: WorldBookTab; onChang
   </Tabs>
 );
 
-/** 世界书页内工具栏：标题 + 计数 + 模式切换 + 导入/AI/暂存/保存/导出 */
+/** 世界书页内工具栏：标题 + 计数 + 模式切换 + 导入/AI/最近打开/保存/导出 */
 export function WorldBookHeader({
   worldbook, filename, cowCharacterName, summary,
   activeTab, onTabChange,
@@ -81,18 +81,21 @@ export function WorldBookHeader({
           </Button>
         )}
 
+        {/* 这里列的就是资产库里的世界书（按 updatedAt 倒序），不是另一套「暂存区」。
+            叫「已暂存」会让人以为存在别处、还得再存一次才算数（0830 反馈条目 11）。 */}
         <Dialog open={stagedDialogOpen} onOpenChange={onStagedDialogOpenChange}>
           <DialogTrigger asChild>
-            <Button variant="outline" size="sm" data-tour="wb-staged" onClick={onRefreshStaged}>
-              <Archive className="w-4 h-4 mr-1" /> <span className="hidden sm:inline">已暂存</span>
+            <Button variant="outline" size="sm" data-tour="wb-staged" onClick={onRefreshStaged} title="从资产库里换一本世界书来编辑">
+              <Clock className="w-4 h-4 mr-1" /> <span className="hidden sm:inline">最近打开</span>
             </Button>
           </DialogTrigger>
           <DialogContent className="max-w-lg max-h-[70vh] overflow-y-auto">
             <DialogHeader>
-              <DialogTitle>已暂存的世界书</DialogTitle>
+              <DialogTitle>最近打开的世界书</DialogTitle>
+              <DialogDescription>都存在资产库里，按最近编辑排序。点一本切过去编辑。</DialogDescription>
             </DialogHeader>
             {savedItems.length === 0 ? (
-              <p className="text-sm text-muted-foreground py-4 text-center">暂无暂存记录</p>
+              <p className="text-sm text-muted-foreground py-4 text-center">资产库里还没有世界书</p>
             ) : (
               <StagedWorldBookList items={savedItems} variant="dialog" onSelect={onLoadStaged} onDelete={onDeleteStaged} />
             )}

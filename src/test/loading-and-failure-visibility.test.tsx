@@ -4,7 +4,7 @@
  * 三处「看起来一样但含义完全不同」的界面：
  * - 首页整页读失败以前静默显示空态，用户会以为归档没了
  * - 工具页读完之前就断言「还没有可以处理的故事」
- * - 世界书空态在读完之前就断言用户没有可恢复的暂存
+ * - 世界书空态在资产库读完之前就断言用户没有可恢复的世界书
  *
  * 空态是一句结论，读完之前不能下这个结论。
  */
@@ -169,7 +169,7 @@ describe('工具页：读完之前不说「还没有可以处理的故事」', (
 
 describe('世界书空态：读完之前不下结论', () => {
 
-  it('暂存列表还没读完时显示加载态，不显示「从本地恢复」', async () => {
+  it('资产库还没读完时显示加载态，不显示世界书列表', async () => {
     const noop = () => {};
     await act(async () => {
       root.render(
@@ -178,10 +178,10 @@ describe('世界书空态：读完之前不下结论', () => {
     });
 
     expect(container.querySelector('[data-staged-loading]')?.textContent).toBe(LOADING_LABEL);
-    expect(container.textContent).not.toContain('从本地恢复');
+    expect(container.textContent).not.toContain('资产库里的世界书');
   });
 
-  it('读完且确实没有暂存时，加载态收起、也不假装有可恢复的内容', async () => {
+  it('读完且资产库确实是空的，加载态收起、也不假装有可恢复的内容', async () => {
     const noop = () => {};
     await act(async () => {
       root.render(
@@ -190,10 +190,10 @@ describe('世界书空态：读完之前不下结论', () => {
     });
 
     expect(container.querySelector('[data-staged-loading]')).toBeNull();
-    expect(container.textContent).not.toContain('从本地恢复');
+    expect(container.textContent).not.toContain('资产库里的世界书');
   });
 
-  it('读完且有暂存时列出来', async () => {
+  it('读完且资产库里有世界书时列出来', async () => {
     const noop = () => {};
     const item = {
       id: 'wb1', title: '魔法世界', createdAt: 1, updatedAt: 2,
@@ -207,11 +207,11 @@ describe('世界书空态：读完之前不下结论', () => {
     });
 
     expect(container.querySelector('[data-staged-loading]')).toBeNull();
-    expect(container.textContent).toContain('从本地恢复');
+    expect(container.textContent).toContain('资产库里的世界书');
     expect(container.textContent).toContain('魔法世界');
   });
 
-  it('暂存读取失败时显示错误和重试入口', async () => {
+  it('资产库读取失败时显示错误和重试入口', async () => {
     const noop = () => {};
     await act(async () => {
       root.render(

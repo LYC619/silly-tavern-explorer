@@ -6,7 +6,7 @@ import { LOADING_LABEL } from '@/lib/ui-copy';
 
 interface WorldBookEmptyStateProps {
   savedItems: WorldBookItem[];
-  /** 「已暂存」列表读完了没有；false 时不能断言用户没有可恢复的世界书 */
+  /** 资产库列表读完了没有；false 时不能断言用户没有可恢复的世界书 */
   savedLoaded?: boolean;
   loadError?: string | null;
   onRetry?: () => void;
@@ -15,7 +15,7 @@ interface WorldBookEmptyStateProps {
   onDelete: (item: WorldBookItem) => void;
 }
 
-/** 尚未载入世界书时的引导页：导入入口 + 从本地恢复 */
+/** 尚未载入世界书时的引导页：导入入口 + 资产库里已有的世界书 */
 export function WorldBookEmptyState({ savedItems, savedLoaded = true, loadError, onRetry, onImport, onRestore, onDelete }: WorldBookEmptyStateProps) {
   return (
     <div className="flex-1 flex items-center justify-center">
@@ -36,9 +36,10 @@ export function WorldBookEmptyState({ savedItems, savedLoaded = true, loadError,
           <p className="mt-8 text-sm text-muted-foreground" data-staged-loading>{LOADING_LABEL}</p>
         ) : savedItems.length > 0 && (
           <div className="mt-8 text-left space-y-3">
+            {/* 「从本地恢复」听着像出了事在找回；这些就是资产库里已有的世界书，直接打开就行 */}
             <div className="flex items-center gap-2 text-sm font-medium text-foreground">
               <FolderOpen className="w-4 h-4" />
-              从本地恢复
+              资产库里的世界书
             </div>
             <StagedWorldBookList items={savedItems} variant="card" onSelect={onRestore} onDelete={onDelete} />
           </div>

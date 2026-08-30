@@ -60,7 +60,7 @@ export default function WorldBookPage() {
   const [confirmLoadItem, setConfirmLoadItem] = useState<WorldBookItem | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<WorldBookItem | null>(null);
   const [savedItems, setSavedItems] = useState<WorldBookItem[]>([]);
-  /** 「已暂存」读完之前，空态不能断言「你没有可恢复的世界书」 */
+  /** 资产库读完之前，空态不能断言「你没有可恢复的世界书」 */
   const [savedLoaded, setSavedLoaded] = useState(false);
   const [savedLoadError, setSavedLoadError] = useState<string | null>(null);
   const [selectedUid, setSelectedUid] = useState<string | null>(null);
@@ -406,7 +406,7 @@ export default function WorldBookPage() {
               <AlertDialogHeader>
                 <AlertDialogTitle>确认切换</AlertDialogTitle>
                 <AlertDialogDescription>
-                  当前编辑中的世界书将被替换为「{confirmLoadItem?.title}」，未暂存的修改将丢失。是否继续？
+                  当前编辑中的世界书将被替换为「{confirmLoadItem?.title}」，还没保存的修改将丢失。是否继续？
                 </AlertDialogDescription>
               </AlertDialogHeader>
               <AlertDialogFooter>

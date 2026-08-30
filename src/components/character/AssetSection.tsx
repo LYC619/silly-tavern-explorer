@@ -3,7 +3,7 @@
  * 列表：三类资产（世界书/预设/正则，引用制）+ 引用摘录（quotes，角色档案自有数据）；
  * 点条目开右侧宽抽屉逐条预览，明确点「在编辑器中打开」才进工具区（带角色上下文 → 写时复制）。
  */
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Globe,
@@ -15,9 +15,11 @@ import {
   Wrench,
   PackageOpen,
   Download,
+  Search,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { Input } from '@/components/ui/input';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import {
   Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle,
@@ -97,6 +99,7 @@ export function AssetSection({ character, onAssetsChange, onQuotesChange, onRead
   const { toast } = useToast();
   const [library, setLibrary] = useState<AssetView[]>([]);
   const [addOpen, setAddOpen] = useState(false);
+  const [addQuery, setAddQuery] = useState('');
   const [preview, setPreview] = useState<AssetView | null>(null);
   const [quoteToDelete, setQuoteToDelete] = useState<QuoteAsset | null>(null);
 
@@ -164,6 +167,17 @@ export function AssetSection({ character, onAssetsChange, onQuotesChange, onRead
   const unresolved = character.unresolvedAssets ?? [];
   const linkable = library.filter((a) => !refs.some((r) => r.kind === a.kind && r.assetId === a.id));
 
+  // 添加引用面板：按名字搜 + 按类分组。资产库一多，一条 flat 列表根本找不到东西。
+  const addGroups = useMemo(() => {
+    const q = addQuery.trim().toLowerCase();
+    const hit = q ? linkable.filter((a) => a.title.toLowerCase().includes(q)) : linkable;
+    return (['worldbook', 'preset', 'regex'] as const)
+      .map((kind) => ({ kind, assets: hit.filter((a) => a.kind === kind) }))
+      .filter((g) => g.assets.length > 0);
+    // linkable 每次渲染都是新数组，用它当依赖等于不记忆；库和引用变了才要重算
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [addQuery, library, refs]);
+
   const handleAdd = async (a: AssetView) => {
     try {
       await onAssetsChange(addAssetRef(refs, a.kind as AssetKind, a.id));
@@ -208,39 +222,67 @@ export function AssetSection({ character, onAssetsChange, onQuotesChange, onRead
           <Download className="w-3.5 h-3.5 mr-1" />
           导入资产
         </Button>
-        <Popover open={addOpen} onOpenChange={setAddOpen}>
+        <Popover open={addOpen} onOpenChange={(v) => { setAddOpen(v); if (v) setAddQuery(''); }}>
           <PopoverTrigger asChild>
             <Button variant="outline" size="sm">
               <Plus className="w-3.5 h-3.5 mr-1" />
               添加引用
             </Button>
           </PopoverTrigger>
-          <PopoverContent className="w-80" align="end">
+          <PopoverContent className="w-[26rem] p-3" align="end">
             <p className="text-sm font-medium mb-2">从资产库选择</p>
             {linkable.length === 0 ? (
               <p className="text-xs text-muted-foreground">
                 资产库里没有可关联的条目。先在处理区的世界书/预设/正则工具里保存资产。
               </p>
             ) : (
-              <ScrollArea className="max-h-64">
-                <div className="space-y-1">
-                  {linkable.map((a) => {
-                    const Icon = KIND_META[a.kind].icon;
-                    return (
-                      <button
-                        key={`${a.kind}-${a.id}`}
-                        className="w-full flex items-center gap-2 p-2 rounded-md hover:bg-accent/40 text-sm text-left"
-                        onClick={() => void handleAdd(a)}
-                      >
-                        <Icon className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
-                        <span className="flex-1 min-w-0 truncate" title={a.title}>{a.title}</span>
-                        {a.derived && <Badge variant="outline" className="h-4 px-1 text-[11px] shrink-0">派生</Badge>}
-                        <span className="text-[11px] text-muted-foreground shrink-0">{KIND_META[a.kind].label}</span>
-                      </button>
-                    );
-                  })}
+              <div className="space-y-2">
+                <div className="relative">
+                  <Search className="absolute left-2 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground pointer-events-none" />
+                  <Input
+                    size="sm"
+                    value={addQuery}
+                    onChange={(e) => setAddQuery(e.target.value)}
+                    placeholder={`搜索 ${linkable.length} 个可关联资产`}
+                    className="pl-7"
+                    autoFocus
+                  />
                 </div>
-              </ScrollArea>
+                {/* ScrollArea 的 viewport 是 h-full，只给 max-h 等于没给高度：内容超了直接被裁掉，
+                    滚不动（0830 反馈条目 5）。定高才有可滚的视口。 */}
+                <ScrollArea className="h-72 -mx-1 px-1">
+                  {addGroups.length === 0 ? (
+                    <p className="py-6 text-center text-xs text-muted-foreground">没有匹配「{addQuery}」的资产</p>
+                  ) : (
+                    <div className="space-y-2">
+                      {addGroups.map(({ kind, assets }) => (
+                        <div key={kind} className="space-y-0.5">
+                          <p className="px-1 pt-1 text-[11px] font-medium text-muted-foreground">
+                            {KIND_META[kind].label} · {assets.length}
+                          </p>
+                          {assets.map((a) => {
+                            const Icon = KIND_META[a.kind].icon;
+                            return (
+                              <button
+                                key={`${a.kind}-${a.id}`}
+                                className="w-full flex items-center gap-2 px-2 py-1.5 rounded-md hover:bg-accent/40 text-sm text-left"
+                                onClick={() => void handleAdd(a)}
+                              >
+                                <Icon className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
+                                <span className="flex-1 min-w-0 truncate" title={a.title}>{a.title}</span>
+                                {a.derived && <Badge variant="outline" className="h-4 px-1 text-[11px] shrink-0">派生</Badge>}
+                                <span className="text-[11px] text-muted-foreground shrink-0">
+                                  {a.count} {KIND_META[a.kind].unit}
+                                </span>
+                              </button>
+                            );
+                          })}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </ScrollArea>
+              </div>
             )}
           </PopoverContent>
         </Popover>

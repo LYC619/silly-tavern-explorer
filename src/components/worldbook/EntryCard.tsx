@@ -2,6 +2,7 @@ import { Switch } from '@/components/ui/switch';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Badge } from '@/components/ui/badge';
 import { Trash2 } from 'lucide-react';
+import { HoverPreview } from '@/components/HoverPreview';
 import type { WorldBookEntry } from '@/types/worldbook';
 import { POSITION_LABELS } from '@/types/worldbook';
 import { estimateTokens } from '@/lib/preset-parser';
@@ -72,9 +73,11 @@ export function EntryCard({ entry, entryKey, selected, onClick, onToggleEnabled,
               </span>
             )}
             <span className={cn('w-2.5 h-2.5 rounded-full shrink-0', strategy.dot)} />
-            <span className="font-semibold text-sm truncate text-foreground" title={entry.comment || '未命名条目'}>
-              {entry.comment || '(无标题)'}
-            </span>
+            <HoverPreview text={entry.comment}>
+              <span className="font-semibold text-sm truncate text-foreground">
+                {entry.comment || '(无标题)'}
+              </span>
+            </HoverPreview>
             <span className="text-xs text-muted-foreground shrink-0">{strategy.label}</span>
           </div>
           <Switch
@@ -117,9 +120,11 @@ export function EntryCard({ entry, entryKey, selected, onClick, onToggleEnabled,
 
         {/* Content preview */}
         {entry.content && (
-          <p className="text-xs text-muted-foreground line-clamp-3 whitespace-pre-wrap" title={entry.content}>
-            {contentPreview}
-          </p>
+          <HoverPreview text={entry.content}>
+            <p className="text-xs text-muted-foreground line-clamp-3 whitespace-pre-wrap">
+              {contentPreview}
+            </p>
+          </HoverPreview>
         )}
 
         {/* Footer info */}
@@ -136,7 +141,10 @@ export function EntryCard({ entry, entryKey, selected, onClick, onToggleEnabled,
           {entry.content && (
             <>
               <span>·</span>
-              <span title="粗略估算，仅供预算参考">≈{estimateTokens(entry.content)} tok</span>
+              {/* 短说明也一起换掉：同一张卡上两种提示（原生的小、Radix 的正常大）看着更怪 */}
+              <HoverPreview text="粗略估算，仅供预算参考">
+                <span>≈{estimateTokens(entry.content)} tok</span>
+              </HoverPreview>
             </>
           )}
         </div>
