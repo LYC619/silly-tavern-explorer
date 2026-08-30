@@ -31,6 +31,7 @@ import { CharacterTile } from '@/components/library/CharacterTile';
 import { CharacterListRow } from '@/components/library/CharacterListRow';
 import { CharacterActionsMenu } from '@/components/library/CharacterActionsMenu';
 import { Button } from '@/components/ui/button';
+import { CharacterGridSkeleton, RefreshIndicator } from '@/components/ui/skeleton';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -103,7 +104,12 @@ const Library = () => {
   const [storyCounts, setStoryCounts] = useState<Record<string, number>>({});
   /** 每角色最后游玩时间 = 名下故事 lastMessageAt 最大值（10.0 物化） */
   const [lastPlayed, setLastPlayed] = useState<Record<string, number>>({});
+  /** 首屏：还没读到任何数据，给骨架 */
   const [loading, setLoading] = useState(true);
+  /** 刷新：已经有数据，只在顶部给细指示条，别把读到的内容换回骨架 */
+  const [refreshing, setRefreshing] = useState(false);
+  /** 读档失败：要跟「库是空的」区分开，空库是正常状态，失败得能重试 */
+  const [loadFailed, setLoadFailed] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   /** 分级标签筛选：类型单选，其余类别组内多选 OR，类别间取交集 */
   const [tagFilters, setTagFilters] = useState<Partial<Record<TagCategory, string[]>>>({});
@@ -137,12 +143,14 @@ const Library = () => {
   }, []);
 
   const load = useCallback(async () => {
+    setRefreshing(true);
     try {
       const [chars, stories, preferences] = await Promise.all([
         getAllCharacters(),
         listStoryIndex(),
         getLibraryTagPreferences(),
       ]);
+      setLoadFailed(false);
       setCharacters(chars);
       setTagPreferences(preferences);
       const counts: Record<string, number> = {};
@@ -157,9 +165,11 @@ const Library = () => {
       setStoryCounts(counts);
       setLastPlayed(played);
     } catch {
+      setLoadFailed(true);
       toast({ title: '加载失败', description: '无法读取角色库数据', variant: 'destructive' });
     } finally {
       setLoading(false);
+      setRefreshing(false);
     }
   }, [toast]);
 
@@ -568,11 +578,19 @@ const Library = () => {
             'flex-1 min-w-0 overflow-y-auto scrollbar-thin py-3',
             isMobile ? 'px-3' : 'px-6',
           )}>
+            <RefreshIndicator active={refreshing && !loading} className="-mt-3 mb-3" />
             {loading ? (
-              <div className="grid gap-3.5" style={{ gridTemplateColumns }}>
-                {Array.from({ length: 4 }).map((_, i) => (
-                  <div key={i} className="aspect-[2/3] rounded-xl bg-muted animate-pulse" />
-                ))}
+              <CharacterGridSkeleton count={isMobile ? 4 : 8} gridTemplateColumns={gridTemplateColumns} />
+            ) : loadFailed && characters.length === 0 ? (
+              /* 读档失败跟空库是两件事：空库该引导导入，失败该给重试 */
+              <div className="flex h-64 flex-col items-center justify-center gap-3 text-center" data-library-load-error>
+                <p className="text-sm text-[color:var(--text-body)]">读取角色库失败</p>
+                <p className="text-xs text-[color:var(--text-muted)]">
+                  这不是空档案，是这次没读出来。数据仍在库里。
+                </p>
+                <Button variant="outline" size="sm" onClick={() => void load()}>
+                  重试
+                </Button>
               </div>
             ) : characters.length === 0 ? (
               <div className="flex flex-col items-center justify-center h-64 text-center">

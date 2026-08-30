@@ -10,6 +10,7 @@ import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { ArrowLeft, ChevronRight, BookOpen, Download } from 'lucide-react';
 import { AppLayout } from '@/components/AppLayout';
 import { Button } from '@/components/ui/button';
+import { Skeleton, StoryListSkeleton } from '@/components/ui/skeleton';
 import { Card, CardContent } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
@@ -360,9 +361,40 @@ const CharacterPage = () => {
   }, [navigate]);
 
   if (loading) {
+    // 骨架照着真实版面摆：窄屏是封面+信息横排在顶部，桌面是左信息栏 272px + 右内容列。
+    // 原来是一行居中的「加载中…」，数据到位那一瞬整页版面会跳一下。
     return (
       <AppLayout>
-        <div className="flex min-h-[50vh] items-center justify-center text-muted-foreground">{LOADING_LABEL}</div>
+        <div
+          className={cn('character-page h-full overflow-hidden', isMobile ? 'flex flex-col' : 'flex')}
+          aria-busy="true"
+          aria-label={LOADING_LABEL}
+          data-character-skeleton
+        >
+          {isMobile ? (
+            <div className="flex shrink-0 items-start gap-4 border-b border-[color:var(--border-subtle)] px-4 py-4">
+              <Skeleton className="aspect-[2/3] w-[38%] max-w-[148px] shrink-0 rounded-xl" />
+              <div className="min-w-0 flex-1 flex flex-col gap-2">
+                <Skeleton className="h-5 w-2/3" />
+                <Skeleton className="h-3 w-1/3" />
+                <Skeleton className="h-3 w-1/2" />
+              </div>
+            </div>
+          ) : (
+            <div className="w-[304px] shrink-0 border-r border-[color:var(--hairline-inner)] px-4 py-4">
+              <Skeleton className="aspect-[2/3] w-full rounded-xl" />
+              <div className="mt-4 flex flex-col gap-2">
+                <Skeleton className="h-5 w-2/3" />
+                <Skeleton className="h-3 w-1/3" />
+                <Skeleton className="h-3 w-1/2" />
+              </div>
+            </div>
+          )}
+          <div className={cn('min-w-0 flex-1 flex flex-col pt-3', isMobile ? 'px-3 pb-4' : 'px-6 pb-6')}>
+            <Skeleton className="h-8 w-64 shrink-0" />
+            <StoryListSkeleton className="mt-3" count={isMobile ? 4 : 6} />
+          </div>
+        </div>
       </AppLayout>
     );
   }

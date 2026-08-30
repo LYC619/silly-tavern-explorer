@@ -19,6 +19,7 @@ import { STAIConfigDialog } from '@/components/tools/STAIConfigDialog';
 import { STImportCard } from '@/components/tools/STImportCard';
 import { isEmptyVault } from '@/lib/vault/empty-vault';
 import { AppLayout } from '@/components/AppLayout';
+import { Skeleton, StoryListSkeleton } from '@/components/ui/skeleton';
 import { NsfwImage } from '@/components/NsfwImage';
 import { CharacterTile } from '@/components/library/CharacterTile';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
@@ -45,6 +46,11 @@ interface HomeSnapshot {
   /** 预留给故事资源徽标，快照结构保持与既有缓存兼容。 */
   readonly resources: Record<string, unknown>;
   readonly assetCounts: { worldbooks: number; presets: number; regexes: number };
+  /**
+   * 本次会话读过一次没有。空库的 stories.length 永远是 0，
+   * 不靠这个标记区分，空库每次进首页都会闪一遍骨架。
+   */
+  readonly loaded: boolean;
 }
 
 let homeSnapshot: HomeSnapshot = {
@@ -53,6 +59,7 @@ let homeSnapshot: HomeSnapshot = {
   recentStories: [],
   resources: {},
   assetCounts: { worldbooks: 0, presets: 0, regexes: 0 },
+  loaded: false,
 };
 
 function greeting(): string {
@@ -99,6 +106,12 @@ const Home = () => {
   const [stConfigOpen, setStConfigOpen] = useState(false);
   /** 整页读失败：必须说出来，否则空态和「数据没了」长得一模一样 */
   const [loadFailed, setLoadFailed] = useState(false);
+  /**
+   * 首屏骨架只在本次会话第一次进首页时出现。
+   * 模块快照已经有数据时（从别的页回来）直接显示旧数据后台刷新，
+   * 那种情况给骨架反而是退步。
+   */
+  const [loading, setLoading] = useState(() => !homeSnapshot.loaded);
   const characterWheelSurfaceRef = useRef<HTMLElement>(null);
   const characterRailRef = useRef<HTMLDivElement>(null);
   /** A6：已接入（stRoot 已配置）则不再显示接入卡；null = 还没查完，先不显示防闪烁 */
@@ -128,6 +141,7 @@ const Home = () => {
         recentStories: viewed,
         resources: {},
         assetCounts: { worldbooks: wbs.length, presets: presets.length, regexes: regexes.length },
+        loaded: true,
       };
       homeSnapshot = nextSnapshot;
       setCharacters(nextSnapshot.characters);
@@ -138,6 +152,8 @@ const Home = () => {
     } catch {
       // 整页读失败以前静默显示空态，用户会以为数据丢了（对照 Library 是有明确报错的）
       setLoadFailed(true);
+    } finally {
+      setLoading(false);
     }
   }, []);
 
@@ -298,7 +314,21 @@ const Home = () => {
                 </h2>
                 <PillLink label="进入角色库" onClick={() => navigate('/library')} />
               </div>
-              {recentCharacters.length === 0 ? (
+              {loading ? (
+                /* 首屏骨架照着横滑卡排摆：不能直接落到「还没有角色卡」，
+                   读档还没回来就说库是空的等于报错报反了 */
+                <div className={cn('flex items-center gap-3.5 overflow-hidden pb-1.5', !isMobile && 'flex-1 min-h-0')}>
+                  {Array.from({ length: isMobile ? 2 : 4 }).map((_, i) => (
+                    <Skeleton
+                      key={i}
+                      className={cn(
+                        'aspect-[2/3] shrink-0 self-center rounded-xl',
+                        isMobile ? 'w-[42%] max-w-[168px]' : 'w-[calc((100%-2.625rem)/4)]',
+                      )}
+                    />
+                  ))}
+                </div>
+              ) : recentCharacters.length === 0 ? (
                 <div className="flex-1 min-h-0 rounded-xl bg-chrome p-6 flex flex-col items-center justify-center gap-1.5 text-center">
                   <Users className="w-8 h-8 text-muted-foreground/40" />
                   <p className="text-sm text-muted-foreground">还没有角色卡</p>
@@ -346,7 +376,9 @@ const Home = () => {
                 <h2 className="font-serif text-base font-semibold text-[color:var(--text-primary)]">最近在看的故事</h2>
                 <span className="pb-0.5 text-xs text-[color:var(--text-muted)]">滚动查看更多故事。</span>
               </div>
-              {recentStories.length === 0 ? (
+              {loading ? (
+                <StoryListSkeleton className={cn(!isMobile && 'flex-1 min-h-0')} count={isMobile ? 3 : 4} />
+              ) : recentStories.length === 0 ? (
                 <div className="flex-1 min-h-0 rounded-xl bg-elevated-strong p-5 text-center flex flex-col items-center justify-center">
                   <BookOpenText className="mx-auto mb-2 h-7 w-7 text-muted-foreground/40" />
                   <p className="text-sm text-muted-foreground">还没有看过的故事</p>
