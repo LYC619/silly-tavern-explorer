@@ -442,7 +442,7 @@ export function AboutSettingsPanel() {
           <p className="font-medium">ST Explorer</p>
           <p className="text-muted-foreground text-xs">{APP_VERSION}</p>
           <a
-            href="https://github.com/LYC619/silly-tavern-explorer"
+            href="https://github.com/LYC619/st-explore"
             target="_blank"
             rel="noopener noreferrer"
             className="inline-flex items-center gap-1 text-xs text-primary hover:underline"
