@@ -223,7 +223,10 @@ describe('阶段 D 外壳与 NSFW 契约', () => {
     const layout = read('src/components/AppLayout.tsx');
     expect(layout).toContain('getEditorOpen()');
     expect(layout).toContain('setEditorOpenState');
-    expect(layout).not.toContain('useState(false)');
+    // 钉的是这两条展开态的初值来源，不是「文件里不准出现 useState(false)」——
+    // 移动端抽屉这类一次性 UI 状态用字面量初值是对的，不该被这条连坐。
+    expect(layout).toMatch(/const \[editorOpen, setEditorOpen\] = useState\(\(\) => getEditorOpen\(\)\)/);
+    expect(layout).toMatch(/const \[assetsOpen, setAssetsOpen\] = useState\(\(\) => getAssetsOpen\(\)\)/);
   });
 
   it('编辑区侧栏只保留正式子界面，不把最近记录混入导航', () => {
