@@ -19,7 +19,7 @@ import { ThemeSwitcher } from '@/components/ThemeSwitcher';
 import { VaultSwitcher } from '@/components/vault/VaultSwitcher';
 import { cn } from '@/lib/utils';
 import { isDrawerCloseSwipe } from '@/lib/mobile-nav';
-import { NAV_AREAS, matchesNavDestination, type NavArea, type NavDestination } from '@/lib/navigation-model';
+import { matchesNavDestination, type NavArea, type NavDestination } from '@/lib/navigation-model';
 import {
   editorDestinationPath,
   getEditorStoryId,
@@ -164,10 +164,3 @@ export function MobileDrawer({ open, onOpenChange, area, children }: MobileDrawe
   );
 }
 
-/** 当前路由所属的一级区域（含子项判定）；供 AppLayout 决定抽屉标题与子导航。 */
-export function currentNavArea(pathname: string, search: string): NavArea | undefined {
-  return NAV_AREAS.find((area) => (
-    matchesNavDestination(area, pathname, search)
-    || area.children.some((child) => matchesNavDestination(child, pathname, search))
-  ));
-}

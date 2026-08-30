@@ -37,7 +37,7 @@ import { ClientTitleBar } from '@/components/ClientTitleBar';
 import { VaultSwitcher } from '@/components/vault/VaultSwitcher';
 import { EditorRail } from '@/components/EditorRail';
 import { MobileTabBar } from '@/components/mobile/MobileTabBar';
-import { MobileDrawer, currentNavArea } from '@/components/mobile/MobileDrawer';
+import { MobileDrawer } from '@/components/mobile/MobileDrawer';
 import { shouldAutoCollapse, useSidenavState } from '@/hooks/use-sidenav-state';
 import { useViewport } from '@/hooks/use-viewport';
 import { useImmersive } from '@/lib/immersive-mode';
@@ -47,7 +47,7 @@ import { isTauri } from '@/lib/vault/tauri-fs';
 import { cn } from '@/lib/utils';
 import { getEditorOpen, setEditorOpenState } from '@/lib/editor-open-state';
 import { getAssetsOpen, setAssetsOpenState } from '@/lib/assets-open-state';
-import { NAV_AREAS, matchesNavDestination, type NavAreaKey, type NavDestination } from '@/lib/navigation-model';
+import { NAV_AREAS, findNavArea, matchesNavDestination, type NavAreaKey, type NavDestination } from '@/lib/navigation-model';
 import {
   editorDestinationPath,
   getEditorStoryId,
@@ -223,7 +223,7 @@ function PersistentAppLayout({ children, titleBarContent, actions, leftActions, 
   useEffect(() => {
     previousAreaIndexRef.current = areaIndex;
   }, [areaIndex]);
-  const drawerArea = currentNavArea(location.pathname, location.search);
+  const drawerArea = findNavArea(location.pathname, location.search);
   /** 抽屉里有东西可放才给入口：设置页在窄屏已有横向分区条，空抽屉只是噪音 */
   const drawerUsable = isCompact
     && (isMobile || Boolean(activeChrome.mobileDrawer) || (drawerArea?.children.length ?? 0) > 0);

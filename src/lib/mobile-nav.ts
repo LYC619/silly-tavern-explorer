@@ -3,17 +3,16 @@
  * 信息架构仍以 navigation-model 的 NAV_AREAS 为唯一来源，这里只做「当前在第几个」
  * 和「往哪个方向滑」两件事，便于单测。
  */
-import { NAV_AREAS, matchesNavDestination } from '@/lib/navigation-model';
+import { NAV_AREAS, findNavArea } from '@/lib/navigation-model';
 
 /**
  * 当前路由落在第几个一级区域；不属于任何区域（如 /settings）返回 -1。
- * 判定含子项：编辑区的 /worldbook、附属库的 ?tab=preset 都要点亮各自的父 tab。
+ * 判定复用 findNavArea，所以含子项：编辑区的 /worldbook、附属库的 ?tab=preset
+ * 都会点亮各自的父 tab，也不会和侧栏的高亮判据分叉。
  */
 export function activeAreaIndex(pathname: string, search: string): number {
-  return NAV_AREAS.findIndex((area) => (
-    matchesNavDestination(area, pathname, search)
-    || area.children.some((child) => matchesNavDestination(child, pathname, search))
-  ));
+  const area = findNavArea(pathname, search);
+  return area ? NAV_AREAS.indexOf(area) : -1;
 }
 
 /**
