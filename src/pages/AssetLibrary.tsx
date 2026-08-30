@@ -1,8 +1,14 @@
 /**
  * 附属库：世界书 / 预设 / 正则结构化资产，以及 SillyTavern 其他资产的只读归档浏览器。
- * - 左侧 176px 筛选栏：引用状态 / 来源（按库里真实字段：来自ST/工具入库/派生副本/自动保留）
- * - 主区分类 tabs + 三列 .asset-card：图标+标题+徽标 / 摘要 / 统计行 / 绑定关系 / 页脚操作
- * `?tab=` 深链保留；点卡 → 对应工具页 `?assetId=` 打开编辑。删除有确认。
+ * - 左侧栏 = 资产类别：世界书 / 预设 / 正则 / 其他资产（其他资产选中时在下面挂它的归档子分类）
+ * - 内容区首行 = 筛选 chip：状态（已被引用/未被引用）+ 来源（来自ST/工具入库/派生副本/自动保留）
+ * - 卡片区三列 .asset-card：图标+标题+徽标 / 统计行 / 绑定关系
+ *
+ * 一个页面只有一套竖导航（0830 反馈条目 12）。之前是「顶部 tabs 选类别 + 左栏筛选」，
+ * 而其他资产那一支又自带第二条左栏，同一个页面出现两条竖导航、位置还不一样。
+ *
+ * `?tab=` 深链保留（无 tab = 其他资产，`?section=` 定位到具体归档分类）；
+ * 点卡 → 对应工具页 `?assetId=` 打开编辑。删除有确认。
  * 不设"快照"类别（2026-07-29 拍板：设计稿误解，待对接 ST 用户目录后再扩类别）。
  */
 import { useState, useEffect, useMemo, useCallback, useRef, type ChangeEvent } from 'react';
@@ -17,9 +23,15 @@ import {
   Plus,
   Link2,
   Download,
+  Layers,
 } from 'lucide-react';
 import { AppLayout } from '@/components/AppLayout';
-import { OtherAssetsBrowser } from '@/components/assets/OtherAssetsBrowser';
+import { OtherAssetsBrowser, ReadOnlyBadge } from '@/components/assets/OtherAssetsBrowser';
+import {
+  OTHER_ASSET_SECTIONS,
+  SECTION_ICONS,
+  readBrowserSection,
+} from '@/lib/other-asset-sections';
 import { HelpCard } from '@/components/HelpCard';
 import { Button } from '@/components/ui/button';
 import {
@@ -58,8 +70,43 @@ const SOURCE_LABELS: Record<Exclude<SourceFilter, 'all'>, string> = {
   autoSaved: '自动保留',
 };
 
-/** 二级筛选栏条目（demo .f-item） */
-function FilterItem({
+/** 左侧栏条目：类别（indent=false）和其他资产的子分类（indent=true）共用一套外观 */
+function RailItem({
+  label, icon: Icon, count, active, indent, title, onClick,
+}: {
+  label: string;
+  icon: typeof Globe;
+  count?: number;
+  active?: boolean;
+  indent?: boolean;
+  title?: string;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-current={active ? 'page' : undefined}
+      title={title ?? label}
+      className={cn(
+        'w-full flex items-center gap-2 px-2.5 py-1.5 rounded-md text-xs mb-px text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand',
+        indent && 'pl-7',
+        active
+          ? 'bg-[var(--brand-active-bg)] font-medium text-brand'
+          : 'text-[color:var(--sidebar-text-muted)] hover:bg-[var(--hover-overlay)] hover:text-[color:var(--sidebar-text)]',
+      )}
+    >
+      <Icon className="w-3.5 h-3.5 shrink-0" />
+      <span className="flex-1 truncate">{label}</span>
+      {count !== undefined && (
+        <span className={cn('text-[11px] shrink-0', active ? 'opacity-90' : 'opacity-50')}>{count}</span>
+      )}
+    </button>
+  );
+}
+
+/** 内容区首行的筛选 chip。原来这些在左栏，和类别导航挤在一根竖条上分不清主次。 */
+function FilterChip({
   label, count, active, onClick,
 }: {
   label: string;
@@ -69,17 +116,19 @@ function FilterItem({
 }) {
   return (
     <button
+      type="button"
       onClick={onClick}
+      aria-pressed={active}
       className={cn(
-        'w-full flex items-center justify-between gap-1.5 px-2.5 py-1.5 rounded-md text-xs mb-px text-left',
+        'flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand',
         active
-          ? 'bg-[var(--brand-active-bg)] text-brand'
-          : 'text-[color:var(--sidebar-text-muted)] hover:bg-[var(--hover-overlay)] hover:text-[color:var(--sidebar-text)]',
+          ? 'border-transparent bg-[var(--brand-active-bg)] font-medium text-brand'
+          : 'border-[color:var(--border-subtle)] text-[color:var(--text-muted)] hover:bg-[var(--hover-overlay)] hover:text-[color:var(--text-body)]',
       )}
     >
       <span className="truncate" title={label}>{label}</span>
       {count !== undefined && (
-        <span className={cn('text-[11px] shrink-0', active ? 'opacity-90' : 'opacity-50')}>{count}</span>
+        <span className={cn('text-[11px]', active ? 'opacity-90' : 'opacity-50')}>{count}</span>
       )}
     </button>
   );
@@ -92,6 +141,8 @@ const AssetLibrary = () => {
   const tab = (['worldbook', 'preset', 'regex'].includes(searchParams.get('tab') ?? '')
     ? searchParams.get('tab')
     : null) as AssetTab | null;
+  /** 无 tab 时页面停在其他资产；`?section=` 决定看哪一类归档 */
+  const section = readBrowserSection(searchParams.get('section'));
 
   const [worldbooks, setWorldbooks] = useState<WorldBookItem[]>([]);
   const [presets, setPresets] = useState<PresetItem[]>([]);
@@ -135,13 +186,9 @@ const AssetLibrary = () => {
     }
   }, []);
 
-  useEffect(() => {
-    if (tab !== null) void load();
-    else {
-      setLoadError(null);
-      setLoading(false);
-    }
-  }, [load, tab]);
+  // 无条件读取：侧栏三类的数量常驻显示，停在其他资产时也得是真数，
+  // 不然一进页面看到「世界书 0」会以为库空了。
+  useEffect(() => { void load(); }, [load]);
 
   const rows: Record<AssetTab, AssetLibraryRow[]> = useMemo(
     () => buildAssetLibraryRows({ worldbooks, presets, regexes }),
@@ -189,8 +236,20 @@ const AssetLibrary = () => {
 
   const meta = TAB_META[tab ?? 'worldbook'];
   const openAsset = (id: string) => navigate(`${meta.toolPath}?assetId=${encodeURIComponent(id)}`);
+  /** 换类别：整份替换 query，把上一类别留下的 `?section=` 一起清掉 */
+  const selectTab = (next: AssetTab) => setSearchParams({ tab: next }, { replace: true });
+  /** 进其他资产：同理清掉 `?tab=`；概览是默认态，不往 URL 里写 */
+  const selectSection = (next: typeof section) => setSearchParams(
+    next === 'overview' ? {} : { section: next },
+    { replace: true },
+  );
   const tabList = useMemo(() => (tab ? rows[tab] : []), [rows, tab]);
   const counts = { worldbook: worldbooks.length, preset: presets.length, regex: regexes.length };
+  /**
+   * 读失败/还在读时不显示数量：这时 counts 全是 0，摆出来就是在说「库里没有」。
+   * 侧栏没有报错位置，但点进任一类别就会看到完整报错和重试。
+   */
+  const showCounts = !loading && !loadError;
 
   const matchSource = useCallback((asset: AssetLibraryRow, filter: SourceFilter) => (
     filter === 'all' || classifyAssetSource(asset) === filter
@@ -213,61 +272,110 @@ const AssetLibrary = () => {
 
   return (
     <AppLayout>
-      {tab === null ? (
-        <OtherAssetsBrowser />
-      ) : (
       <div className="h-full flex flex-col overflow-hidden">
-        {/* ===== 页头（demo .main-header）===== */}
+        {/* ===== 页头（demo .main-header）：两种视图共用一个 ===== */}
         <div className="shrink-0 flex items-baseline gap-3.5 px-6 pt-4 pb-1 flex-wrap">
           <h1 className="font-serif text-[22px] font-semibold tracking-wide text-[color:var(--text-primary)]">附属库</h1>
-          <span className="text-[11px] text-[color:var(--text-muted)]">
-            世界书 {counts.worldbook} · 预设 {counts.preset} · 正则 {counts.regex}
-          </span>
+          {showCounts && (
+            <span className="text-[11px] text-[color:var(--text-muted)]">
+              世界书 {counts.worldbook} · 预设 {counts.preset} · 正则 {counts.regex}
+            </span>
+          )}
           <HelpCard>
-            世界书、预设、正则规则集的收藏馆。这里入库的资产可以在角色页「关联资产」里被引用；对共享资产的修改会生成派生副本，不影响别的角色。点卡片进入对应工具编辑。
+            世界书、预设、正则规则集的收藏馆。这里入库的资产可以在角色页「关联资产」里被引用；对共享资产的修改会生成派生副本，不影响别的角色。点卡片进入对应工具编辑。「其他资产」是从 SillyTavern 归档过来的扩展、快速回复、人设和媒体，只读。
           </HelpCard>
           <span className="flex-1" />
-          {tab === 'worldbook' && (
+          {tab === null ? (
+            <ReadOnlyBadge />
+          ) : (
             <>
-              <input
-                ref={worldBookInputRef}
-                id="asset-library-worldbook-import"
-                type="file"
-                accept=".json,application/json"
-                className="sr-only"
-                onChange={handleWorldBookImport}
-              />
-              <Button
-                variant="outline"
-                size="sm"
-                className="self-center"
-                aria-label="导入世界书"
-                onClick={() => worldBookInputRef.current?.click()}
-              >
-                <Download className="w-4 h-4 mr-1.5" />
-                导入世界书
+              {tab === 'worldbook' && (
+                <>
+                  <input
+                    ref={worldBookInputRef}
+                    id="asset-library-worldbook-import"
+                    type="file"
+                    accept=".json,application/json"
+                    className="sr-only"
+                    onChange={handleWorldBookImport}
+                  />
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="self-center"
+                    aria-label="导入世界书"
+                    onClick={() => worldBookInputRef.current?.click()}
+                  >
+                    <Download className="w-4 h-4 mr-1.5" />
+                    导入世界书
+                  </Button>
+                </>
+              )}
+              <Button size="sm" className="self-center" onClick={() => navigate(meta.toolPath)}>
+                <Plus className="w-4 h-4 mr-1.5" />
+                打开{meta.toolLabel}
               </Button>
             </>
           )}
-          <Button size="sm" className="self-center" onClick={() => navigate(meta.toolPath)}>
-            <Plus className="w-4 h-4 mr-1.5" />
-            打开{meta.toolLabel}
-          </Button>
         </div>
 
-        {/* ===== 内容区：176px 筛选栏 + tabs + 卡片 ===== */}
+        {/* ===== 内容区：类别侧栏 + 正文 ===== */}
         <div className="flex-1 min-h-0 flex">
-          <aside className="w-[var(--filter-side-width)] shrink-0 overflow-y-auto scrollbar-thin py-3 pl-6 pr-2.5 border-r border-[color:var(--hairline-inner)]">
-            <div>
-              <div className="text-[11px] tracking-[1.5px] text-[color:var(--text-muted)] mb-2 pl-1.5">状态</div>
-              <FilterItem label="全部" count={tabList.length} active={refFilter === 'all'} onClick={() => setRefFilter('all')} />
-              <FilterItem label="已被引用" count={refCounts.referenced} active={refFilter === 'referenced'} onClick={() => setRefFilter(refFilter === 'referenced' ? 'all' : 'referenced')} />
-              <FilterItem label="未被引用" count={refCounts.unreferenced} active={refFilter === 'unreferenced'} onClick={() => setRefFilter(refFilter === 'unreferenced' ? 'all' : 'unreferenced')} />
+          <aside
+            className="w-[var(--filter-side-width)] shrink-0 overflow-y-auto scrollbar-thin py-3 pl-6 pr-2.5 border-r border-[color:var(--hairline-inner)]"
+            aria-label="资产类别"
+          >
+            {(Object.keys(TAB_META) as AssetTab[]).map((t) => (
+              <RailItem
+                key={t}
+                label={TAB_META[t].label}
+                icon={TAB_META[t].icon}
+                count={showCounts ? counts[t] : undefined}
+                active={t === tab}
+                onClick={() => selectTab(t)}
+              />
+            ))}
+            <RailItem
+              label="其他资产"
+              icon={Layers}
+              active={tab === null}
+              title="从 SillyTavern 归档过来的扩展、快速回复、人设和媒体（只读）"
+              onClick={() => selectSection('overview')}
+            />
+            {/* 子分类只在选中「其他资产」时展开：另外两种类别下面挂七条无关项只是噪音 */}
+            {tab === null && (
+              <div className="mt-px mb-1.5">
+                {OTHER_ASSET_SECTIONS.map((item) => (
+                  <RailItem
+                    key={item.id}
+                    label={item.label}
+                    icon={SECTION_ICONS[item.id]}
+                    indent
+                    active={section === item.id}
+                    title={item.description}
+                    onClick={() => selectSection(item.id)}
+                  />
+                ))}
+              </div>
+            )}
+          </aside>
+
+          {tab === null ? (
+            <div className="flex-1 min-w-0 min-h-0 flex flex-col overflow-y-auto scrollbar-thin px-6 py-3">
+              <OtherAssetsBrowser />
             </div>
-            <div className="mt-4 pt-3.5 border-t border-[color:var(--hairline-inner)]">
-              <div className="text-[11px] tracking-[1.5px] text-[color:var(--text-muted)] mb-2 pl-1.5">来源</div>
+          ) : (
+          <div className="flex-1 min-w-0 overflow-y-auto scrollbar-thin px-6 py-3">
+            {/* 筛选首行：状态 + 来源。原来在左栏，现在和类别导航分开。 */}
+            <div className="flex flex-wrap items-center gap-x-1.5 gap-y-2 mb-3.5 pb-3 border-b border-[color:var(--border-normal)]">
+              <span className="text-[11px] tracking-[1.5px] text-[color:var(--text-muted)] mr-0.5">状态</span>
+              <FilterChip label="全部" count={tabList.length} active={refFilter === 'all'} onClick={() => setRefFilter('all')} />
+              <FilterChip label="已被引用" count={refCounts.referenced} active={refFilter === 'referenced'} onClick={() => setRefFilter(refFilter === 'referenced' ? 'all' : 'referenced')} />
+              <FilterChip label="未被引用" count={refCounts.unreferenced} active={refFilter === 'unreferenced'} onClick={() => setRefFilter(refFilter === 'unreferenced' ? 'all' : 'unreferenced')} />
+              <span className="mx-1.5 h-4 w-px bg-[var(--hairline-inner)]" />
+              <span className="text-[11px] tracking-[1.5px] text-[color:var(--text-muted)] mr-0.5">来源</span>
               {(Object.keys(SOURCE_LABELS) as Exclude<SourceFilter, 'all'>[]).map((f) => (
-                <FilterItem
+                <FilterChip
                   key={f}
                   label={SOURCE_LABELS[f]}
                   count={sourceCounts[f]}
@@ -275,39 +383,6 @@ const AssetLibrary = () => {
                   onClick={() => setSourceFilter(sourceFilter === f ? 'all' : f)}
                 />
               ))}
-            </div>
-          </aside>
-
-          <div className="flex-1 min-w-0 overflow-y-auto scrollbar-thin px-6 py-3">
-            {/* 分类 tabs（demo .assets-tabs：下划线式） */}
-            <div className="flex gap-1 mb-3.5 border-b border-[color:var(--border-normal)]">
-              {(Object.keys(TAB_META) as AssetTab[]).map((t) => {
-                const TIcon = TAB_META[t].icon;
-                const active = t === tab;
-                return (
-                  <button
-                    key={t}
-                    onClick={() => setSearchParams({ tab: t }, { replace: true })}
-                    className={cn(
-                      'flex items-center gap-1.5 px-4 py-2 text-xs -mb-px border-b-2 transition-colors',
-                      active
-                        ? 'text-brand border-brand'
-                        : 'text-[color:var(--text-muted)] border-transparent hover:text-[color:var(--text-body)]',
-                    )}
-                  >
-                    <TIcon className="w-3.5 h-3.5" />
-                    {TAB_META[t].label}
-                    <span
-                      className={cn(
-                        'text-[11px] px-1.5 py-px rounded-full',
-                        active ? 'bg-[var(--brand-active-bg-strong)] text-brand' : 'bg-[var(--hover-overlay-strong)] opacity-60',
-                      )}
-                    >
-                      {counts[t]}
-                    </span>
-                  </button>
-                );
-              })}
             </div>
 
             {loading ? (
@@ -441,9 +516,9 @@ const AssetLibrary = () => {
               </div>
             )}
           </div>
+          )}
         </div>
       </div>
-      )}
 
       <DeleteConfirmDialog
         open={!!toDelete}

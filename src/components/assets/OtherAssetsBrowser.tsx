@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import {
   AlertTriangle,
@@ -11,15 +11,14 @@ import {
   FileText,
   Folder,
   Image as ImageIcon,
-  LayoutGrid,
   Loader2,
   MessageSquareReply,
-  Palette,
   ShieldCheck,
   UserRound,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
+import { SECTION_ICONS, readBrowserSection, type BrowserSection } from '@/lib/other-asset-sections';
 import { getActiveVault } from '@/lib/vault/active';
 import type { VaultFs } from '@/lib/vault/fs';
 import {
@@ -41,23 +40,6 @@ import {
 import { OtherAssetPreview } from './OtherAssetPreview';
 import { LOADING_LABEL } from '@/lib/ui-copy';
 
-type BrowserSection = 'overview' | OtherAssetCategoryId;
-
-const SECTION_ICONS: Record<BrowserSection, typeof Archive> = {
-  overview: LayoutGrid,
-  extensions: Code2,
-  assets: Folder,
-  'quick-replies': MessageSquareReply,
-  personas: UserRound,
-  backgrounds: ImageIcon,
-  appearance: Palette,
-  'user-media': Archive,
-};
-
-function isBrowserSection(value: string | null): value is BrowserSection {
-  return value === 'overview' || OTHER_ASSET_CATEGORIES.some((category) => category.id === value);
-}
-
 function LoadState({ label = LOADING_LABEL }: { label?: string }) {
   return (
     <div className="flex h-full min-h-56 items-center justify-center gap-2 text-sm text-[color:var(--text-muted)]">
@@ -75,7 +57,7 @@ function ErrorState({ message }: { message: string }) {
   );
 }
 
-function EmptyState({ children }: { children: React.ReactNode }) {
+export function EmptyState({ children }: { children: React.ReactNode }) {
   return (
     <div className="flex h-full min-h-56 flex-col items-center justify-center gap-3 text-center text-[color:var(--text-muted)]">
       <Archive className="h-10 w-10 opacity-40" />
@@ -357,7 +339,7 @@ function ArchiveDirectoryView({ fs, root, title }: { fs: VaultFs; root: string; 
   );
 }
 
-function SectionContent({ fs, section }: { fs: VaultFs; section: BrowserSection }) {
+export function SectionContent({ fs, section }: { fs: VaultFs; section: BrowserSection }) {
   const [overview, setOverview] = useState<OtherAssetCategorySummary[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [, setSearchParams] = useSearchParams();
@@ -384,63 +366,34 @@ function SectionContent({ fs, section }: { fs: VaultFs; section: BrowserSection 
   return <ArchiveDirectoryView fs={fs} root={category.relativePath} title={category.label} />;
 }
 
-export function OtherAssetsBrowser() {
-  const [searchParams, setSearchParams] = useSearchParams();
-  const rawSection = searchParams.get('section');
-  const section: BrowserSection = isBrowserSection(rawSection) ? rawSection : 'overview';
-  const vault = getActiveVault();
-  const navItems = useMemo(() => [
-    { id: 'overview' as const, label: '概览', description: '查看全部归档分类' },
-    ...OTHER_ASSET_CATEGORIES,
-  ], []);
-
+/** 「安全只读」徽标：页头用，提醒扩展代码不会被执行 */
+export function ReadOnlyBadge() {
   return (
-    <div className="flex h-full min-h-0 flex-col overflow-hidden">
-      <header className="shrink-0 border-b border-[color:var(--hairline-inner)] px-6 py-4">
-        <div className="flex flex-wrap items-start gap-x-4 gap-y-2">
-          <div className="min-w-0 flex-1">
-            <h1 className="font-serif text-[22px] font-semibold tracking-wide text-[color:var(--text-primary)]">已归档的 SillyTavern 其他资产</h1>
-            <p className="mt-1 text-xs leading-relaxed text-[color:var(--text-muted)]">查看扩展、快速回复、用户人设和媒体归档；所有内容只读，扩展代码不会执行。</p>
-          </div>
-          <span className="flex items-center gap-1.5 rounded-full bg-[var(--status-ok-bg)] px-3 py-1.5 text-[11px] text-[color:var(--status-ok)]"><ShieldCheck className="h-3.5 w-3.5" />安全只读</span>
-        </div>
-      </header>
+    <span className="flex items-center gap-1.5 self-center rounded-full bg-[var(--status-ok-bg)] px-3 py-1.5 text-[11px] text-[color:var(--status-ok)]">
+      <ShieldCheck className="h-3.5 w-3.5" />安全只读
+    </span>
+  );
+}
 
-      {!vault ? (
-        <EmptyState>其他资产只在客户端文件库中显示。请先选择或创建一个 STE 文件库。</EmptyState>
-      ) : (
-        <div className="flex min-h-0 flex-1">
-          <aside className="w-44 shrink-0 overflow-y-auto border-r border-[color:var(--hairline-inner)] px-3 py-4 scrollbar-thin" aria-label="其他资产分类">
-            <nav className="space-y-1">
-              {navItems.map((item) => {
-                const Icon = SECTION_ICONS[item.id];
-                const active = section === item.id;
-                return (
-                  <button
-                    key={item.id}
-                    type="button"
-                    onClick={() => setSearchParams(item.id === 'overview' ? {} : { section: item.id })}
-                    aria-current={active ? 'page' : undefined}
-                    className={cn(
-                      'flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-left text-xs transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand',
-                      active
-                        ? 'bg-[var(--brand-active-bg)] font-medium text-brand'
-                        : 'text-[color:var(--sidebar-text-muted)] hover:bg-[var(--hover-overlay)] hover:text-[color:var(--sidebar-text)]',
-                    )}
-                    title={item.description}
-                  >
-                    <Icon className="h-4 w-4 shrink-0" />
-                    <span className="truncate" title={item.label}>{item.label}</span>
-                  </button>
-                );
-              })}
-            </nav>
-          </aside>
-          <main className="min-w-0 flex-1 overflow-auto px-6 py-4 scrollbar-thin">
-            <SectionContent fs={vault.fs} section={section} />
-          </main>
-        </div>
-      )}
+/**
+ * 其他资产的正文区（不含页头与分类侧栏）。
+ *
+ * 侧栏提到 AssetLibrary 那一套里去了（0830 反馈条目 12）：一个页面两条竖导航，
+ * 用户要先弄明白「这两栏什么关系」才能开始找东西。这里只负责内容。
+ */
+export function OtherAssetsBrowser() {
+  const [searchParams] = useSearchParams();
+  const section = readBrowserSection(searchParams.get('section'));
+  const vault = getActiveVault();
+
+  if (!vault) {
+    return <EmptyState>其他资产只在客户端文件库中显示。请先选择或创建一个 STE 文件库。</EmptyState>;
+  }
+  // flex-1 而不是 h-full：外层有内边距，height:100% 会超出去，目录视图那种自带内滚的
+  // 分类就会一直挂一条多余滚动条。
+  return (
+    <div className="flex min-h-0 flex-1 flex-col">
+      <SectionContent fs={vault.fs} section={section} />
     </div>
   );
 }

@@ -203,11 +203,15 @@ describe('阶段 D 外壳与 NSFW 契约', () => {
 
   it('无 tab 的其他资产入口显示真实归档浏览器，不再重复三类既有资产', () => {
     const assets = read('src/pages/AssetLibrary.tsx');
-    expect(assets).toContain("import { OtherAssetsBrowser } from '@/components/assets/OtherAssetsBrowser'");
+    expect(assets).toContain("from '@/components/assets/OtherAssetsBrowser'");
     expect(assets).toContain('<OtherAssetsBrowser />');
     expect(assets).not.toContain('OtherAssetsEmptyState');
     expect(assets).not.toContain('选择一个资产库开始处理');
     expect(assets).toContain('tab === null');
+    // 类别侧栏由页面统一出，浏览器不再自带第二条（0830 反馈条目 12）。
+    // 单侧栏、URL 互斥、页头归属这些行为在 asset-library-rail.test.tsx 和
+    // other-assets-browser.test.tsx 里驱动真实 DOM 验证，这里只钉住不再有第二条侧栏。
+    expect(read('src/components/assets/OtherAssetsBrowser.tsx')).not.toContain('<aside');
   });
 
   it('资产库持续显示从 ST 恢复的全局世界书标记', () => {
