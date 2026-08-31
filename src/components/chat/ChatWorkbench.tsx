@@ -20,6 +20,8 @@ import { RegexSidebar } from '@/components/chat/RegexSidebar';
 import { SettingsPanel } from '@/components/chat/SettingsPanel';
 import { applyRegexRules } from '@/lib/regex-processor';
 import { selectSwipe, syncEditedMessage, isOOCMessage, hideMessage, unhideMessage } from '@/lib/chat-edit';
+import { useViewport } from '@/hooks/use-viewport';
+import { cn } from '@/lib/utils';
 import type { ChatSession, ExportSettings, ChapterMarker, ChatMessage, RegexRule } from '@/types/chat';
 import { useToast } from '@/hooks/use-toast';
 import { ToastAction } from '@/components/ui/toast';
@@ -66,6 +68,7 @@ export const ChatWorkbench = forwardRef<ChatWorkbenchHandle, ChatWorkbenchProps>
   ref,
 ) {
   const { toast } = useToast();
+  const { isCompact } = useViewport();
   // 撤销闭包/连续操作要读「最新」数据，props 在闭包里会过期，走 ref 中转
   const sessionRef = useRef(session);
   const markersRef = useRef(markers);
@@ -150,13 +153,15 @@ export const ChatWorkbench = forwardRef<ChatWorkbenchHandle, ChatWorkbenchProps>
 
   // 载入记录后自动展开正则框一次，让用户第一时间看到清理工具；之后可自由关闭
   // （就地阅读模式不自动弹：阅读场景以正文为主）
+  // 窄屏也不自动弹：手机上一进来就被一屏正则规则挡住正文，而它是调试用的低频工具，
+  // 要用的人会自己从「更多」里开。
   const regexAutoOpenedRef = useRef(false);
   useEffect(() => {
     if (!regexAutoOpenedRef.current) {
       regexAutoOpenedRef.current = true;
-      if (!readerMode) setRegexSidebarOpen(true);
+      if (!readerMode && !isCompact) setRegexSidebarOpen(true);
     }
-  }, [readerMode]);
+  }, [readerMode, isCompact]);
 
   // 恢复滚动位置：楼层映射首次就绪（虚拟列表已挂载）后跳一次，
   // 稍作延迟等首帧布局/scrollMargin 测量稳定，否则 scrollToIndex 会落点偏移。
@@ -447,9 +452,18 @@ export const ChatWorkbench = forwardRef<ChatWorkbenchHandle, ChatWorkbenchProps>
         className={`sticky z-40 border-b border-border bg-card/60 backdrop-blur-sm ${readerMode ? '' : 'top-0'}`}
         style={readerMode ? { top: readerStickyTop } : undefined}
       >
-        <div className="px-4 py-2.5 flex items-center justify-between gap-2 flex-wrap">
+        {/* 窄屏：整条工具栏单行横向滚动，不换行。换行的代价是把正文往下推出屏幕，
+            而这些控件里手机上真正常用的只有前两三个。EditorToolbar 自己会把
+            低频项收进「更多」菜单；toolbarExtras 是父页传进来的任意节点，
+            这里拆不开它，所以外层用滚动兜住。 */}
+        <div className={cn(
+          'px-4 py-2.5 flex items-center gap-2',
+          isCompact
+            ? 'flex-nowrap overflow-x-auto scrollbar-thin [scrollbar-width:none] [&::-webkit-scrollbar]:hidden'
+            : 'justify-between flex-wrap',
+        )}>
           {/* 左侧常驻：外观 + 搜索（popover 从左展开不遮正文） */}
-          <div className="flex items-center gap-2 flex-wrap min-w-0">
+          <div className={cn('flex items-center gap-2 min-w-0', isCompact ? 'flex-nowrap' : 'flex-wrap')}>
             <SettingsPanel settings={settings} onSettingsChange={onSettingsChange} />
             {!editMode && (
               <MessageSearchBar
@@ -463,7 +477,10 @@ export const ChatWorkbench = forwardRef<ChatWorkbenchHandle, ChatWorkbenchProps>
             )}
           </div>
           {/* 右侧操作：处理 + 输入输出 + 父页追加 */}
-          <div className="flex items-center gap-2 flex-wrap justify-end">
+          <div className={cn(
+            'flex items-center gap-2',
+            isCompact ? 'flex-nowrap' : 'flex-wrap justify-end',
+          )}>
             <EditorToolbar
               session={session}
               settings={settings}
@@ -480,9 +497,11 @@ export const ChatWorkbench = forwardRef<ChatWorkbenchHandle, ChatWorkbenchProps>
         </div>
       </div>
 
-      <div className="px-4 py-6">
+      <div className={cn('py-6', isCompact ? 'px-3' : 'px-4')}>
         {/* Preview + Sidebars Row */}
-        <div className="flex gap-4 items-start">
+        {/* 窄屏改成上下叠：正则侧栏是固定 320px，390px 视口里横着放会把正文挤成一条。
+            它在手机上本来也是低频（调试用），叠到正文下面即可。 */}
+        <div className={cn('flex gap-4 items-start', isCompact && 'flex-col')}>
           {/* Preview Area */}
           <div className="flex-1 min-w-0">
             {!readerMode && <div className="mb-3 flex items-center justify-between gap-3">

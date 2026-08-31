@@ -35,6 +35,8 @@ import {
 import { applyRegexRules } from '@/lib/regex-processor';
 import { parseSTRegexImport, exportSTRegex } from '@/lib/st-regex-interop';
 import { useToast } from '@/hooks/use-toast';
+import { useViewport } from '@/hooks/use-viewport';
+import { cn } from '@/lib/utils';
 
 interface RegexSidebarProps {
   rules: RegexRule[];
@@ -55,6 +57,7 @@ interface RegexSidebarProps {
 
 export function RegexSidebar({ rules, onRulesChange, isOpen, onClose, sampleMessages = [], onPreviewChange, previewId = null, onApplyToOriginal, readOnly = false }: RegexSidebarProps) {
   const { toast } = useToast();
+  const { isCompact } = useViewport();
   const [editingId, setEditingId] = useState<string | null>(null);
   const [dragIndex, setDragIndex] = useState<number | null>(null);
   const [dragOverIndex, setDragOverIndex] = useState<number | null>(null);
@@ -268,11 +271,18 @@ export function RegexSidebar({ rules, onRulesChange, isOpen, onClose, sampleMess
   };
 
   if (!isOpen) return null;
+  // 窄屏：宽度让给父容器（那边已改成上下叠），高度也不再按 100vh 算——
+  // 叠在正文下面时 sticky 没有意义，撑到视口高只会留一大片空白。
 
   const enabledCount = rules.filter(r => !r.disabled).length;
 
   return (
-    <aside className="w-80 flex-shrink-0 border border-border rounded-lg bg-card flex flex-col h-[calc(100vh-200px)] sticky top-24 animate-fade-in overflow-hidden">
+    <aside className={cn(
+      'border border-border rounded-lg bg-card flex flex-col animate-fade-in overflow-hidden',
+      isCompact
+        ? 'w-full max-h-[70vh]'
+        : 'w-80 flex-shrink-0 h-[calc(100vh-200px)] sticky top-24',
+    )}>
       {/* Header */}
       <div className="p-4 border-b border-border flex items-center justify-between">
         <div className="flex items-center gap-2">
