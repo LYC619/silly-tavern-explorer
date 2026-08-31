@@ -53,3 +53,14 @@ export function isDrawerCloseSwipe(sample: SwipeSample): boolean {
   const dy = Math.abs(sample.endY - sample.startY);
   return dx >= SWIPE_OPEN_THRESHOLD && dx >= dy * SWIPE_AXIS_MARGIN;
 }
+
+/**
+ * 在右侧抽屉上右滑 = 关抽屉。方向与 isDrawerCloseSwipe 相反：
+ * 关一个抽屉的手势应该是「把它推回它来的那一边」，左抽屉往左推、右抽屉往右推。
+ * 阈值和轴向判定共用同一组常量，两侧手感一致。
+ */
+export function isRightDrawerCloseSwipe(sample: SwipeSample): boolean {
+  const dx = sample.endX - sample.startX;
+  const dy = Math.abs(sample.endY - sample.startY);
+  return dx >= SWIPE_OPEN_THRESHOLD && dx >= dy * SWIPE_AXIS_MARGIN;
+}

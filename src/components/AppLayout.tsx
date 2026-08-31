@@ -28,7 +28,7 @@ import {
 } from 'react';
 import { useNavigate, useLocation, useOutlet } from 'react-router-dom';
 import {
-  Palette, Wrench, PanelLeftClose, PanelLeftOpen, ChevronDown, Loader2, Menu,
+  Palette, Wrench, PanelLeftClose, PanelLeftOpen, PanelRight, ChevronDown, Loader2, Menu,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ThemeSwitcher } from '@/components/ThemeSwitcher';
@@ -38,6 +38,7 @@ import { VaultSwitcher } from '@/components/vault/VaultSwitcher';
 import { EditorRail } from '@/components/EditorRail';
 import { MobileTabBar, MOBILE_TAB_BAR_HEIGHT } from '@/components/mobile/MobileTabBar';
 import { MobileDrawer } from '@/components/mobile/MobileDrawer';
+import { MobileContextDrawer } from '@/components/mobile/MobileContextDrawer';
 import { shouldAutoCollapse, useSidenavState } from '@/hooks/use-sidenav-state';
 import { useViewport } from '@/hooks/use-viewport';
 import { useImmersive } from '@/lib/immersive-mode';
@@ -67,6 +68,21 @@ interface AppLayoutProps {
    * 附属库归档分类等。桌面档完全不读这个插槽，页面照旧渲染自己的竖栏。
    */
   mobileDrawer?: React.ReactNode;
+  /**
+   * 窄屏右侧抽屉：当前打开的这份内容自己的上下文（故事的分支/章节/书签/大纲）。
+   * 与 mobileDrawer 的区别是「这一份内容」而不是「去哪一页」，所以分在两边——
+   * 见 MobileContextDrawer 的文件注释。桌面档同样不读。
+   */
+  mobileContextDrawer?: MobileContextDrawerSlot;
+}
+
+/** 右抽屉插槽：内容之外还要带标题，否则抽屉标题只能写死成「上下文」这类类别词 */
+export interface MobileContextDrawerSlot {
+  title: string;
+  description?: string;
+  /** 触发按钮的无障碍名，默认「打开故事上下文」 */
+  triggerLabel?: string;
+  content: React.ReactNode;
 }
 
 interface LayoutChrome {
@@ -74,6 +90,7 @@ interface LayoutChrome {
   actions?: React.ReactNode;
   leftActions?: React.ReactNode;
   mobileDrawer?: React.ReactNode;
+  mobileContextDrawer?: MobileContextDrawerSlot;
 }
 
 interface LayoutRegistration extends LayoutChrome {
@@ -155,16 +172,16 @@ function SideSubItem({
   );
 }
 
-function PageChromeBridge({ children, titleBarContent, actions, leftActions, mobileDrawer, layout }: AppLayoutProps & { layout: LayoutContextValue }) {
+function PageChromeBridge({ children, titleBarContent, actions, leftActions, mobileDrawer, mobileContextDrawer, layout }: AppLayoutProps & { layout: LayoutContextValue }) {
   const location = useLocation();
   useLayoutEffect(() => {
-    layout.register(location.key, { titleBarContent, actions, leftActions, mobileDrawer });
+    layout.register(location.key, { titleBarContent, actions, leftActions, mobileDrawer, mobileContextDrawer });
     return () => layout.clear(location.key);
-  }, [actions, leftActions, layout, location.key, mobileDrawer, titleBarContent]);
+  }, [actions, leftActions, layout, location.key, mobileContextDrawer, mobileDrawer, titleBarContent]);
   return <>{children}</>;
 }
 
-function PersistentAppLayout({ children, titleBarContent, actions, leftActions, mobileDrawer }: AppLayoutProps) {
+function PersistentAppLayout({ children, titleBarContent, actions, leftActions, mobileContextDrawer, mobileDrawer }: AppLayoutProps) {
   const navigate = useNavigate();
   const location = useLocation();
   const outlet = useOutlet();
@@ -173,6 +190,7 @@ function PersistentAppLayout({ children, titleBarContent, actions, leftActions, 
   const { isMobile, isCompact, isDesktop } = useViewport();
   const immersive = useImmersive();
   const [drawerOpen, setDrawerOpen] = useState(false);
+  const [contextDrawerOpen, setContextDrawerOpen] = useState(false);
   // 平板档强制折叠：64px 窄栏在这个宽度还够用，展开态会把主区挤到不能用。
   const expanded = isDesktop ? sidenav.expanded : false;
   const { toggle, collapse } = sidenav;
@@ -216,13 +234,15 @@ function PersistentAppLayout({ children, titleBarContent, actions, leftActions, 
   }, [collapse, expanded, location.pathname]);
 
   // 换路由就关抽屉：抽屉里的导航项自己也会关，但深链跳转（卡片、面包屑）不经过它们。
+  // 右抽屉一并关——它装的是上一份内容的分支和章节，换页之后那些条目已经不成立了。
   useEffect(() => {
     setDrawerOpen(false);
+    setContextDrawerOpen(false);
   }, [location.key]);
 
   const activeChrome = registration?.routeKey === location.key
     ? registration
-    : { titleBarContent, actions, leftActions, mobileDrawer };
+    : { titleBarContent, actions, leftActions, mobileDrawer, mobileContextDrawer };
   const content = children ?? outlet;
 
   // 入场动画方向：移动端按 tab 索引差左右滑入，桌面/平板保持原来的上浮淡入。
@@ -235,6 +255,8 @@ function PersistentAppLayout({ children, titleBarContent, actions, leftActions, 
   /** 抽屉里有东西可放才给入口：设置页在窄屏已有横向分区条，空抽屉只是噪音 */
   const drawerUsable = isCompact
     && (isMobile || Boolean(activeChrome.mobileDrawer) || (drawerArea?.children.length ?? 0) > 0);
+  /** 右抽屉只在页面真的塞了上下文时才有入口，没有就不占位（同左抽屉的判据） */
+  const contextSlot = isCompact ? activeChrome.mobileContextDrawer : undefined;
 
   const isActive = useCallback((item: NavDestination) => (
     matchesNavDestination(item, location.pathname, location.search)
@@ -286,22 +308,37 @@ function PersistentAppLayout({ children, titleBarContent, actions, leftActions, 
 
       {/* 窄屏抽屉入口：单独一条，不挤进窗口栏——客户端窗口栏左侧是拖拽区和品牌，
           网页版正中是全局搜索，两边都没有能放按钮又不打乱布局的位置。 */}
-      {drawerUsable && !(isMobile && immersive) && (
+      {(drawerUsable || contextSlot) && !(isMobile && immersive) && (
         <div className="relative z-[55] flex shrink-0 items-center gap-2 border-b border-[color:var(--border-subtle)] bg-chrome px-2 py-1.5">
-          <button
-            type="button"
-            data-mobile-drawer-trigger
-            aria-label="打开二级导航"
-            aria-expanded={drawerOpen}
-            onClick={() => setDrawerOpen(true)}
-            className="tap-target flex shrink-0 items-center gap-1.5 rounded-md px-2 py-1.5 text-sm text-[color:var(--sidebar-text)] transition-colors active:bg-[var(--hover-overlay)]"
-          >
-            <Menu className="h-[18px] w-[18px]" />
-            {/* 窄到手机宽度时只留图标，把这一条的空间让给搜索框 */}
-            <span className="hidden max-w-[9rem] truncate sm:inline">{drawerArea?.label ?? '导航'}</span>
-          </button>
+          {drawerUsable && (
+            <button
+              type="button"
+              data-mobile-drawer-trigger
+              aria-label="打开二级导航"
+              aria-expanded={drawerOpen}
+              onClick={() => setDrawerOpen(true)}
+              className="tap-target flex shrink-0 items-center gap-1.5 rounded-md px-2 py-1.5 text-sm text-[color:var(--sidebar-text)] transition-colors active:bg-[var(--hover-overlay)]"
+            >
+              <Menu className="h-[18px] w-[18px]" />
+              {/* 窄到手机宽度时只留图标，把这一条的空间让给搜索框 */}
+              <span className="hidden max-w-[9rem] truncate sm:inline">{drawerArea?.label ?? '导航'}</span>
+            </button>
+          )}
           {/* 窗口栏里的全局搜索是 hidden md:block，手机上等于没有搜索入口，挪到这条来 */}
           <GlobalSearch compact />
+          {/* 右抽屉入口贴右端：手势是从右缘往左拉，按钮就该在同一侧 */}
+          {contextSlot && (
+            <button
+              type="button"
+              data-mobile-context-drawer-trigger
+              aria-label={contextSlot.triggerLabel ?? '打开故事上下文'}
+              aria-expanded={contextDrawerOpen}
+              onClick={() => setContextDrawerOpen(true)}
+              className="tap-target ml-auto flex shrink-0 items-center gap-1.5 rounded-md px-2 py-1.5 text-sm text-[color:var(--sidebar-text)] transition-colors active:bg-[var(--hover-overlay)]"
+            >
+              <PanelRight className="h-[18px] w-[18px]" />
+            </button>
+          )}
         </div>
       )}
 
@@ -486,6 +523,18 @@ function PersistentAppLayout({ children, titleBarContent, actions, leftActions, 
         <MobileDrawer open={drawerOpen} onOpenChange={setDrawerOpen} area={drawerArea}>
           {activeChrome.mobileDrawer}
         </MobileDrawer>
+      )}
+
+      {/* 右侧抽屉：当前内容自己的上下文（故事的分支/章节/书签） */}
+      {contextSlot && (
+        <MobileContextDrawer
+          open={contextDrawerOpen}
+          onOpenChange={setContextDrawerOpen}
+          title={contextSlot.title}
+          description={contextSlot.description}
+        >
+          {contextSlot.content}
+        </MobileContextDrawer>
       )}
     </LayoutContext.Provider>
   );

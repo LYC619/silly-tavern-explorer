@@ -9,6 +9,7 @@ import {
   activeAreaIndex,
   isDrawerCloseSwipe,
   isDrawerOpenSwipe,
+  isRightDrawerCloseSwipe,
   slideDirection,
 } from '@/lib/mobile-nav';
 import { MOBILE_MAX_WIDTH, DESKTOP_MIN_WIDTH, viewportTier } from '@/hooks/use-viewport';
@@ -93,5 +94,17 @@ describe('抽屉手势', () => {
     expect(isDrawerCloseSwipe({ startX: 300, startY: 200, endX: 300 - SWIPE_OPEN_THRESHOLD, endY: 205 })).toBe(true);
     expect(isDrawerCloseSwipe({ startX: 300, startY: 200, endX: 300 + SWIPE_OPEN_THRESHOLD, endY: 205 })).toBe(false);
     expect(isDrawerCloseSwipe({ startX: 300, startY: 500, endX: 300 - SWIPE_OPEN_THRESHOLD, endY: 100 })).toBe(false);
+  });
+
+  /** 右抽屉往右推回去才是关，方向与左抽屉相反——两边共用阈值，手感一致 */
+  it('在右抽屉上右滑 = 关抽屉，方向与左抽屉互为镜像', () => {
+    const start = { startX: 300, startY: 200 };
+    expect(isRightDrawerCloseSwipe({ ...start, endX: 300 + SWIPE_OPEN_THRESHOLD, endY: 205 })).toBe(true);
+    expect(isRightDrawerCloseSwipe({ ...start, endX: 300 - SWIPE_OPEN_THRESHOLD, endY: 205 })).toBe(false);
+    // 竖向为主：在抽屉里滚长列表不该把它关掉
+    expect(isRightDrawerCloseSwipe({ startX: 300, startY: 500, endX: 300 + SWIPE_OPEN_THRESHOLD, endY: 100 })).toBe(false);
+    // 同一个手势不可能同时满足两侧
+    const rightward = { ...start, endX: 300 + SWIPE_OPEN_THRESHOLD, endY: 205 };
+    expect(isDrawerCloseSwipe(rightward)).toBe(false);
   });
 });

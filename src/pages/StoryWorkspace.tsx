@@ -52,6 +52,7 @@ import {
 } from '@/lib/editor-story-context';
 import { isOrganizeWorkspaceView } from '@/lib/story-workspace-layout';
 import { LOADING_LABEL } from '@/lib/ui-copy';
+import { useViewport } from '@/hooks/use-viewport';
 
 /** 阶段9.6：整理与记录拆成四个子页面（参照 2.0 前 /summary /story-tree 独立页的架构） */
 type WorkspaceView = EditorStoryView;
@@ -77,6 +78,10 @@ const StoryWorkspace = () => {
   const location = useLocation();
   const [searchParams, setSearchParams] = useSearchParams();
   const { toast } = useToast();
+  // 窄屏：宽二级栏放不进 375px（224 + 主区 384 下限，flex-wrap 也只是换行后照旧溢出）。
+  // 拆成两处——六个视图进左抽屉的页面插槽（同角色库筛选栏的位置），
+  // 分支/章节/书签进右抽屉（当前这篇故事自己的上下文）。
+  const { isCompact } = useViewport();
   const [story, setStory] = useState<ArchiveStory | null>(null);
   const [character, setCharacter] = useState<ArchiveCharacter | null>(null);
   const [loading, setLoading] = useState(true);
@@ -312,14 +317,98 @@ const StoryWorkspace = () => {
   const backTarget = story.characterId ? `/character/${story.characterId}` : '/chat';
   const backLabel = character?.name ?? (story.characterId ? '角色库' : '聊天处理');
   const organizeView = isOrganizeWorkspaceView(view);
+  /** 窄屏不渲染宽二级栏，它的两部分内容分别进左右抽屉 */
+  const showWideRail = !organizeView && !isCompact;
+
+  /** 六个视图的切换列表。桌面在二级栏里，窄屏在左抽屉的页面插槽里，同一份 JSX。 */
+  const viewNav = (
+    <nav className="space-y-0.5">
+      {VIEW_ITEMS.map((item, i) => {
+        const Icon = item.icon;
+        const active = view === item.key;
+        const groupStart = item.group && VIEW_ITEMS[i - 1]?.group !== item.group;
+        const groupEnd = !item.group && VIEW_ITEMS[i - 1]?.group;
+        return (
+          <div key={item.key}>
+            {groupStart && (
+              <p className="px-2 pt-2 pb-0.5 text-[11px] text-muted-foreground/80">{item.group}</p>
+            )}
+            {groupEnd && <div className="pt-1" />}
+            <button
+              onClick={() => changeView(item.key)}
+              className={cn(
+                'w-full flex items-center gap-2 rounded-md text-sm transition-colors',
+                // 抽屉里按触控热区放大，桌面二级栏保持原来的紧凑行高
+                isCompact ? 'px-2.5 py-2.5' : 'px-2 py-1.5',
+                item.group && (isCompact ? 'pl-4' : 'pl-3'),
+                active
+                  ? 'bg-primary/10 text-primary font-medium'
+                  : 'text-muted-foreground hover:bg-accent/60 hover:text-foreground',
+              )}
+              aria-current={active ? 'page' : undefined}
+            >
+              <Icon className="w-4 h-4" />
+              <span className="flex-1 text-left">{item.label}</span>
+            </button>
+          </div>
+        );
+      })}
+    </nav>
+  );
+
+  /** 分支 + 章节书签：这篇故事自己的上下文，只在阅读视图有意义 */
+  const storyContext = view === 'read' ? (
+    <>
+      <BranchPanel
+        story={story}
+        activeBranchId={branchId}
+        onSwitch={handleSwitchBranch}
+        onImportBranch={handleImportBranch}
+        onRenameBranch={handleRenameBranch}
+        onDeleteBranch={handleDeleteBranch}
+      />
+      <Separator />
+      <OutlinePanel
+        session={line.session}
+        markers={line.markers}
+        favorites={line.favorites}
+        onJump={(mid) => workbenchRef.current?.scrollToMessageId(mid)}
+      />
+    </>
+  ) : null;
 
   return (
-    <AppLayout>
+    <AppLayout
+      /* 窄屏：六个视图进左抽屉的页面插槽，分支/章节/书签进右抽屉。
+         桌面档两个插槽都不传，二级栏照旧在页面里。 */
+      mobileDrawer={isCompact ? (
+        <div>
+          <p className="px-2 pb-1 text-[11px] text-[color:var(--text-muted)]">当前故事</p>
+          {viewNav}
+          {/* 绑定入口原本挂在宽二级栏里，窄屏那条栏不渲染，得在这儿补一个，
+              否则未绑定故事在手机上永远绑不了 */}
+          {!story.characterId && (
+            <div className="mt-2 border-t border-[color:var(--border-subtle)] px-2 pt-2.5">
+              <Badge variant="outline" className="h-5 text-[11px] text-muted-foreground">未绑定</Badge>
+              <Button variant="outline" size="sm" className="mt-1.5 w-full text-xs" onClick={() => setBindOpen(true)}>
+                <Link2 className="w-3.5 h-3.5 mr-1" />
+                绑定到角色
+              </Button>
+            </div>
+          )}
+        </div>
+      ) : undefined}
+      mobileContextDrawer={isCompact && storyContext ? {
+        title: story.title,
+        description: `${line.session.messages.length} 楼 · 分支、章节与书签`,
+        content: <div className="space-y-4">{storyContext}</div>,
+      } : undefined}
+    >
       <div className={organizeView ? 'flex h-full min-h-0 flex-col overflow-hidden' : 'flex items-start flex-wrap'}>
         {/* ===== 左侧二级栏：故事上下文 + 三组导航 + 分支/章节/书签 ===== */}
         {/* 新外壳（2.1-P1）主区内滚动：sticky 仍生效，高度上限改为主区可视高（标题栏36+状态栏26=62px） */}
         {/* 整理视图（0816）：不再渲染宽二级栏，编辑区切换交给 AppLayout 的全局窄工具栏 */}
-        {!organizeView && <aside className="w-56 basis-56 shrink-0 grow-0 border-r border-border bg-card/40 sticky top-0 max-h-[calc(100vh-62px)] overflow-y-auto p-3 space-y-4">
+        {showWideRail && <aside className="w-56 basis-56 shrink-0 grow-0 border-r border-border bg-card/40 sticky top-0 max-h-[calc(100vh-62px)] overflow-y-auto p-3 space-y-4">
           <div>
             <Button variant="ghost" size="sm" className="px-1.5 -ml-1 text-muted-foreground" onClick={() => navigate(backTarget)}>
               <ArrowLeft className="w-4 h-4 mr-1" />
@@ -349,73 +438,40 @@ const StoryWorkspace = () => {
             )}
           </div>
 
-          <nav className="space-y-0.5">
-            {VIEW_ITEMS.map((item, i) => {
-              const Icon = item.icon;
-              const active = view === item.key;
-              const groupStart = item.group && VIEW_ITEMS[i - 1]?.group !== item.group;
-              const groupEnd = !item.group && VIEW_ITEMS[i - 1]?.group;
-              return (
-                <div key={item.key}>
-                  {groupStart && (
-                    <p className="px-2 pt-2 pb-0.5 text-[11px] text-muted-foreground/80">{item.group}</p>
-                  )}
-                  {groupEnd && <div className="pt-1" />}
-                  <button
-                    onClick={() => changeView(item.key)}
-                    className={cn(
-                      'w-full flex items-center gap-2 rounded-md px-2 py-1.5 text-sm transition-colors',
-                      item.group && 'pl-3',
-                      active
-                        ? 'bg-primary/10 text-primary font-medium'
-                        : 'text-muted-foreground hover:bg-accent/60 hover:text-foreground',
-                    )}
-                    aria-current={active ? 'page' : undefined}
-                  >
-                    <Icon className="w-4 h-4" />
-                    <span className="flex-1 text-left">{item.label}</span>
-                  </button>
-                </div>
-              );
-            })}
-          </nav>
+          {viewNav}
 
-          {view === 'read' && (
+          {storyContext && (
             <>
               <Separator />
-              <BranchPanel
-                story={story}
-                activeBranchId={branchId}
-                onSwitch={handleSwitchBranch}
-                onImportBranch={handleImportBranch}
-                onRenameBranch={handleRenameBranch}
-                onDeleteBranch={handleDeleteBranch}
-              />
-              <Separator />
-              <OutlinePanel
-                session={line.session}
-                markers={line.markers}
-                favorites={line.favorites}
-                onJump={(mid) => workbenchRef.current?.scrollToMessageId(mid)}
-              />
+              {storyContext}
             </>
           )}
         </aside>}
 
-        {organizeView && (
+        {/* 整理视图（桌面）与全部窄屏视图都靠这条留住「返回 + 故事名」两个出口。
+            窄屏在阅读视图也需要它：二级栏已经收进抽屉，不给这条的话页面上
+            连当前是哪篇故事都看不到，返回只能靠系统手势。 */}
+        {(organizeView || isCompact) && (
           <OrganizeContextBar
             storyTitle={story.title}
             backLabel={backLabel}
             onBack={() => navigate(backTarget)}
             onRead={() => changeView('read')}
+            /* 已经在阅读视图时不给「阅读与编辑」——按了没有任何变化 */
+            hideReadAction={view === 'read'}
           />
         )}
 
         {/* ===== 主区 ===== */}
-        <div className={organizeView ? 'min-h-0 min-w-0 flex-1' : 'flex-1 min-w-[24rem]'}>
+        {/* 窄屏去掉两处 min-w：24rem/20rem 在 375px 视口下本身就比视口宽，
+            flex-wrap 换行之后照旧横向溢出。桌面档保留原值不动。 */}
+        <div className={cn(
+          organizeView ? 'min-h-0 min-w-0 flex-1' : 'flex-1',
+          !organizeView && (isCompact ? 'min-w-0' : 'min-w-[24rem]'),
+        )}>
           {view === 'read' && (
             <div className="flex items-start flex-wrap">
-              <div className="flex-1 min-w-[20rem]">
+              <div className={cn('flex-1', isCompact ? 'min-w-0' : 'min-w-[20rem]')}>
                 {/* key 按脉络切：换分支重挂工作台，UI 态（搜索/编辑模式/滚动）随之复位 */}
                 <ChatWorkbench
                   key={branchId ?? 'trunk'}
