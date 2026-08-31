@@ -1,5 +1,4 @@
 import { Badge } from '@/components/ui/badge';
-import type { PromptBlock } from '@/types/preset';
 import { PROMPT_ROLE_LABELS } from '@/types/preset';
 
 /** 角色色条：system/user/assistant 用不同语义色，marker/未引用/空条目用专门样式 */
@@ -49,17 +48,4 @@ export function InjectionBadge({ depth }: { depth?: number }) {
       注入{depth !== undefined ? ` @${depth}` : ''}
     </Badge>
   );
-}
-
-/** 是否为 ST 绝对注入块（injection_position === 1） */
-export function isInjectionBlock(block?: PromptBlock): boolean {
-  return !!block && !block.marker && block.injection_position === 1;
-}
-
-/** 块左边框色（用于预览/列表项左侧色条） */
-export function roleBorderClass(block: PromptBlock): string {
-  if (block.marker) return 'border-l-muted-foreground/40';
-  if (block.role === 'user') return 'border-l-blue-500/60';
-  if (block.role === 'assistant') return 'border-l-emerald-500/60';
-  return 'border-l-primary/60';
 }

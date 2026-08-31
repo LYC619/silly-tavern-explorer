@@ -18,7 +18,8 @@ import NovelView from '@/components/reader/NovelView';
 import { BindStoryDialog } from '@/components/chat/BindStoryDialog';
 import { GuidedTour } from '@/components/GuidedTour';
 import { HOME_TOUR_STEPS, isTourCompleted, setTourCompleted } from '@/lib/tour-steps';
-import { demoSession, DemoData } from '@/components/DemoData';
+import { DemoData } from '@/components/DemoData';
+import { demoSession } from '@/lib/demo-session';
 import type { ChatSession, ExportSettings, ChapterMarker } from '@/types/chat';
 import type { ArchiveCharacter, ArchiveStory } from '@/types/archive';
 import {

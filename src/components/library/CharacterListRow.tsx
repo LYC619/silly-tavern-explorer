@@ -1,7 +1,7 @@
 import type { ReactNode } from 'react';
 import { Checkbox } from '@/components/ui/checkbox';
 import { CharacterPortrait } from '@/components/library/CharacterPortrait';
-import { libraryListColumns } from '@/components/library/LibraryListHeader';
+import { libraryListColumns } from '@/components/library/library-list-columns';
 import { displayCharacterName } from '@/lib/library-query';
 import { introOf } from '@/lib/character-intro';
 import { formatFullTime, formatListTime } from '@/lib/time-display';

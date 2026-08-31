@@ -110,6 +110,7 @@ describe('前端机械修复契约', () => {
     '/src/components/worldbook/EntryCard.tsx': '世界书三种激活策略（常驻/向量/关键词）的分类色点',
     '/src/components/worldbook/EntryFilterBar.tsx': '同上，筛选条上的对应色',
     '/src/components/preset/PresetRoleBadge.tsx': '预设块的 role 分类（user/assistant/system）',
+    '/src/components/preset/prompt-block-style.ts': '同上，块左边框的对应色（从 PresetRoleBadge 拆出）',
     '/src/components/reader/ReaderView.tsx': '发言人两侧配色（用户/角色），由 reader-view-theme 测试钉住',
     '/src/components/story-tree/StoryTimeline.tsx': '时间轴的装饰性主色',
     '/src/components/character/StoryListSection.tsx': '评分星标的琥珀色（状态 chip 已走 token）',

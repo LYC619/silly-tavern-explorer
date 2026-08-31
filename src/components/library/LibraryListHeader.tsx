@@ -1,7 +1,4 @@
-export function libraryListColumns(batchMode: boolean): string {
-  const content = '42px minmax(0, 1fr) 64px 64px 80px 40px';
-  return batchMode ? `20px ${content}` : content;
-}
+import { libraryListColumns } from './library-list-columns';
 
 export function LibraryListHeader({ batchMode }: { batchMode: boolean }) {
   return (

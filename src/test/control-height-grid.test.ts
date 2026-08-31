@@ -123,7 +123,8 @@ describe('控件高度栅格', () => {
     expect(input).toMatch(/lg:\s*"h-9\b/);
     expect(input).toMatch(/defaultVariants:\s*\{\s*size:\s*"md"/);
 
-    const button = read('src/components/ui/button.tsx');
+    // 配方在 button-variants.ts（组件与非组件分家，见那个文件的注释）
+    const button = read('src/components/ui/button-variants.ts');
     expect(button, '带文字按钮 32px').toMatch(/default:\s*"h-8\b/);
     expect(button, '紧凑的带文字按钮也是 32px').toMatch(/sm:\s*"h-8\b/);
     expect(button, '表单主体区域 36px').toMatch(/lg:\s*"h-9\b/);

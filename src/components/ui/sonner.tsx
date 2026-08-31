@@ -1,5 +1,5 @@
 import { useTheme } from "next-themes";
-import { Toaster as Sonner, toast } from "sonner";
+import { Toaster as Sonner } from "sonner";
 import { isDarkTheme } from "@/lib/theme";
 
 type ToasterProps = React.ComponentProps<typeof Sonner>;
@@ -25,4 +25,6 @@ const Toaster = ({ ...props }: ToasterProps) => {
   );
 };
 
-export { Toaster, toast };
+// toast 不从这里转发：唯一调用方 lib/register-sw.ts 直接 import from 'sonner'
+// （两个 Toaster 并存的原因见 docs/ui-conventions.md 第五节）
+export { Toaster };

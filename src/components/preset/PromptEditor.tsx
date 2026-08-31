@@ -20,7 +20,8 @@ import {
   collectReferencedIds, isUnreferenced, isEmptyDisabled,
   substituteVars, estimateTokens, getActiveOrder,
 } from '@/lib/preset-parser';
-import { RoleBadge, MarkerBadge, UnreferencedBadge, EmptyBadge, InjectionBadge, isInjectionBlock, roleBorderClass } from './PresetRoleBadge';
+import { RoleBadge, MarkerBadge, UnreferencedBadge, EmptyBadge, InjectionBadge } from './PresetRoleBadge';
+import { isInjectionBlock, roleBorderClass } from './prompt-block-style';
 import { AIRewriteContent } from '@/components/worldbook/AIRewriteContent';
 
 /** 预设提示词块的 AI 改写语境 */

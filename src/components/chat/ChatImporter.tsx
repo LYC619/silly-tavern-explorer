@@ -18,11 +18,12 @@ import {
 import type { ChatMessage, ChatSession, CharacterInfo, STMetadata } from '@/types/chat';
 import { extractCharacterFromPng, getCharacterName, getFirstMessage } from '@/lib/png-parser';
 import { scanTxtSpeakerStats, parseTxtDialogue, type TxtSpeakerStat } from '@/lib/txt-import';
-import { parseJsonl, parseJson, parseSTDate, isTrueSystemMessage } from '@/lib/adapters/st/chat-jsonl';
+import { parseJsonl, parseJson } from '@/lib/adapters/st/chat-jsonl';
 import { isTauri, pickChatFile } from '@/lib/vault/tauri-fs';
 
-// 解析逻辑已抽至 @/lib/adapters/st/chat-jsonl（2.0 阶段0）；这里转发保持旧导入路径兼容
-export { parseSTDate, isTrueSystemMessage };
+// 解析逻辑在 @/lib/adapters/st/chat-jsonl（2.0 阶段0）。
+// 此前这里转发过 parseSTDate / isTrueSystemMessage 保持旧导入路径兼容，
+// 但已无人从本文件导入它们，转发一并去掉——要用直接从 adapters 那边拿。
 
 export interface ImportStats {
   totalMessages: number;
