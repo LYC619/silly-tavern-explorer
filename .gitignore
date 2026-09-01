@@ -28,6 +28,13 @@ task_plan.md
 findings.md
 progress.md
 
+# 例外：移动端客户端设计是要入库的产出，不是临时工作记忆。
+# 上面三条按文件名匹配，会连带把 .planning/xxx/progress.md 一起吞掉——于是同一个
+# 设计文件夹里 architecture/priorities 进了仓库、progress 悄悄没进（本轮踩过）。
+# 只给这一个目录开口子：写成 .planning/**/ 会把另外十来份从没入库的规划文件
+# 一起翻出来，那批是有意不进仓库的。
+!.planning/mobile-client-design/progress.md
+
 # 参考资料：samples/ 与 st-source/（二进制/大文件/源码）不纳入仓库，
 # 但 st-docs/ 下的文字文档与顶层 *.md 要经 git 同步（含 Lovable 产出）。
 # git 无法在被忽略的目录内反选，故这里只忽略具体子内容、不忽略 _reference 目录本身。
