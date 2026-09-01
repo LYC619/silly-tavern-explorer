@@ -54,6 +54,7 @@
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "diff": "^9.0.0",
+    "fflate": "0.8.2",
     "framer-motion": "^12.43.0",
     "lucide-react": "^0.462.0",
     "next-themes": "^0.3.0",
