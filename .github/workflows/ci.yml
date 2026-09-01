@@ -1,7 +1,13 @@
 name: CI
 
-# 前端 Web 应用的持续集成：装依赖 → lint → 真类型检查 → 单测 → 构建。
-# 不含 Tauri/Rust 客户端构建（重、需 WebView2/rustc，桌面产物在本地/发布流程出）。
+# 前端 Web 应用的持续集成：装依赖 → lint → 真类型检查 → 单测 → 构建 → 移动端同步自检。
+#
+# 不含两个原生壳的构建：
+# - Tauri/Rust 桌面端（重、需 WebView2/rustc，桌面产物在本地/发布流程出）
+# - Android APK（需 Android SDK + JDK，同理）
+# CI 只保证「前端这一份产物对两个壳都是可用的输入」：android 那步只跑 cap sync，
+# 它做的是把 dist 拷进原生工程并登记插件，不碰 Gradle，几秒钟的事。
+# eslint 侧 android/ 已在 eslint.config.js 的 ignores 里（flat config 不读 .gitignore）。
 
 on:
   push:
@@ -40,3 +46,9 @@ jobs:
 
       - name: Build
         run: npm run build
+
+      # 必须在 Build 之后：webDir 指向 dist，dist 不存在 sync 会直接失败。
+      # 这一步拦的是「改了 capacitor.config.ts 或动了平台目录之后 sync 就断」，
+      # 不产出 APK。
+      - name: Capacitor sync (android)
+        run: npx cap sync android

@@ -18,6 +18,16 @@ export type VaultBootState = 'web' | 'ready' | 'unset' | 'repair';
 
 /** 启动时调用一次：返回 'web'(非客户端) / 'ready'(库已激活) / 'unset'(需要引导选库) */
 export async function bootVault(): Promise<VaultBootState> {
+  // Android 客户端目前也走这条：回到 IndexedDB，跟网页版一样。
+  //
+  // TODO(capacitor): 移动端不能照抄桌面端的「让用户选一个目录当库」。Android 从 11 起
+  // 拿不到任意路径的读写权，SAF 授的是按 URI 的权限、且重启后要靠持久化 URI 续期，
+  // 「库根 = 一个字符串路径」这个前提在那边不成立。三条候选路线（哪条先做见
+  // .planning/mobile-client-design/architecture.md 的数据层一节）：
+  //   1. Syncthing 同步一份到应用私有目录，移动端只读那份
+  //   2. 桌面端导出「阅读包」，移动端导入（单文件，最省事）
+  //   3. 局域网直读桌面端起的服务
+  // 在那之前 IndexedDB 是对的：能读、能存进度和评分，不假装有文件库。
   if (!isTauri()) return 'web';
   try {
     // 顺序有意义：先定当前库，再恢复敏感配置。

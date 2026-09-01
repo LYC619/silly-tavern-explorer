@@ -1,5 +1,5 @@
 import { toast } from 'sonner';
-import { isTauri } from '@/lib/vault/tauri-fs';
+import { hasNativeFs } from '@/lib/runtime';
 
 /**
  * 注册 Service Worker，并在检测到新版本时弹「新版本可用」提示——不自动刷新，
@@ -11,13 +11,14 @@ import { isTauri } from '@/lib/vault/tauri-fs';
 export function registerServiceWorker(): void {
   if (!('serviceWorker' in navigator)) return;
 
-  // 客户端（Tauri）不注册 SW：前端资产内嵌在 exe 里本就离线可用，SW 缓存反而可能
-  // 让旧版资产盖住新 exe（sw.js 字节不变时浏览器永不触发更新）。同时注销历史注册
-  // 并清空 CacheStorage，解救此前版本已在 WebView 里装过 SW 的安装；清理成功后
-  // 重载一次脱离旧 controller（此后 getRegistrations 为空，不会再次重载）。
+  // 客户端不注册 SW：前端资产随包发出去本就离线可用，SW 缓存反而可能让旧版资产
+  // 盖住新包（sw.js 字节不变时浏览器永不触发更新）。同时注销历史注册并清空
+  // CacheStorage，解救此前版本已在 WebView 里装过 SW 的安装；清理成功后重载一次
+  // 脱离旧 controller（此后 getRegistrations 为空，不会再次重载）。
+  // Android 客户端（Capacitor）同理：资产在 APK 里，更新靠装新包，SW 只会添乱。
   // dev 同理不注册并清理：历史 SW 曾把无 hash 的 /src/index.css 等 dev 资源 cache-first
   // 钉死，造成"新 JS + 旧 CSS"的半新半旧页面（2.1-P4 实测踩坑）。
-  if (isTauri() || import.meta.env.DEV) {
+  if (hasNativeFs() || import.meta.env.DEV) {
     void (async () => {
       try {
         const regs = await navigator.serviceWorker.getRegistrations();

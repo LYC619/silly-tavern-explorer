@@ -44,7 +44,7 @@ import { useViewport } from '@/hooks/use-viewport';
 import { useImmersive } from '@/lib/immersive-mode';
 import { activeAreaIndex, isDrawerOpenSwipe, slideDirection } from '@/lib/mobile-nav';
 import { APP_VERSION } from '@/components/GlobalSettings';
-import { isTauri } from '@/lib/vault/tauri-fs';
+import { detectRuntime, isTauri, RUNTIME_LABEL } from '@/lib/runtime';
 import { cn } from '@/lib/utils';
 import { getEditorOpen, setEditorOpenState } from '@/lib/editor-open-state';
 import { getAssetsOpen, setAssetsOpenState } from '@/lib/assets-open-state';
@@ -186,6 +186,11 @@ function PersistentAppLayout({ children, titleBarContent, actions, leftActions, 
   const location = useLocation();
   const outlet = useOutlet();
   const client = isTauri();
+  // 状态栏那一行：只有桌面端有本机文件库，另外两档都落在浏览器本地存储上
+  const runtime = detectRuntime();
+  const runtimeNote = runtime === 'tauri'
+    ? '客户端'
+    : `${RUNTIME_LABEL[runtime]} · 数据保存在浏览器本地`;
   const sidenav = useSidenavState();
   const { isMobile, isCompact, isDesktop } = useViewport();
   const immersive = useImmersive();
@@ -508,7 +513,8 @@ function PersistentAppLayout({ children, titleBarContent, actions, leftActions, 
           移动端让位给底部标签栏：26px 的环境+版本没有一条导航值钱，同样的信息在设置页里有。 */}
       {!isMobile && (
       <footer className="h-[26px] shrink-0 bg-chrome border-t border-[color:var(--border-subtle)] flex items-center justify-between px-3.5 text-[11px] text-[color:var(--text-muted)]">
-        <span className="truncate" title={client ? '客户端' : '网页版 · 数据保存在浏览器本地'}>{client ? '客户端' : '网页版 · 数据保存在浏览器本地'}</span>
+        {/* 三档环境各说各的：Android 客户端也没有本机库，但它不是「网页版」 */}
+        <span className="truncate" title={runtimeNote}>{runtimeNote}</span>
         <span className="shrink-0">STE {APP_VERSION}</span>
       </footer>
       )}

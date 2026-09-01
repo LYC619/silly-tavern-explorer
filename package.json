@@ -21,9 +21,14 @@
     "tauri": "tauri",
     "tauri:dev": "tauri dev",
     "tauri:build": "tauri build",
-    "tauri:build:offline": "tauri build --config src-tauri/tauri.offline.conf.json"
+    "tauri:build:offline": "tauri build --config src-tauri/tauri.offline.conf.json",
+    "//android": "webDir 是 dist，所以顺序永远是先 build 再 sync；sync 只做拷贝+插件登记",
+    "android:sync": "npm run build && cap sync android",
+    "android:open": "cap open android"
   },
   "dependencies": {
+    "@capacitor/android": "7.4.3",
+    "@capacitor/core": "7.4.3",
     "@radix-ui/react-alert-dialog": "^1.1.14",
     "@radix-ui/react-checkbox": "^1.3.2",
     "@radix-ui/react-collapsible": "^1.1.11",
@@ -60,6 +65,7 @@
     "tailwindcss-animate": "^1.0.7"
   },
   "devDependencies": {
+    "@capacitor/cli": "7.4.3",
     "@eslint/js": "^9.32.0",
     "@tauri-apps/cli": "^2.11.4",
     "@testing-library/jest-dom": "^6.6.0",

@@ -5,10 +5,14 @@
 import { invoke } from '@tauri-apps/api/core';
 import type { VaultEntry, VaultFs, VaultStat } from './fs';
 
-/** 是否运行在 Tauri 客户端里（网页版为 false） */
-export function isTauri(): boolean {
-  return typeof window !== 'undefined' && '__TAURI_INTERNALS__' in window;
-}
+/**
+ * 是否运行在 Tauri 客户端里（网页版、Android 客户端均为 false）。
+ *
+ * 实现搬到了 @/lib/runtime（那里还有 isCapacitor / detectRuntime）。这里保留转发：
+ * 二十多个文件从本模块导入它，为了换个导入路径去动那些文件不值得。
+ */
+export { isTauri } from '@/lib/runtime';
+import { isTauri } from '@/lib/runtime';
 
 interface RawEntry {
   name: string;
@@ -71,12 +75,20 @@ export interface PickedChatFile {
   base64: string;
 }
 
+/**
+ * 客户端原生「选一个聊天文件」；网页版和 Android 客户端返回 null，
+ * 由调用方回退到隐藏 <input type=file>。
+ *
+ * TODO(capacitor): Android 上隐藏 input 其实能用（系统文件选择器会弹），
+ * 所以这条回退是通的，不必急着接 @capacitor/filesystem。真要改的是导入之后往哪写
+ * ——那部分卡在库后端上，见 vault/bootstrap.ts 的 TODO。
+ */
 export async function pickChatFile(): Promise<PickedChatFile | null> {
   if (!isTauri()) return null;
   return (await invoke<{ name: string; base64: string } | null>('pick_chat_file')) ?? null;
 }
 
-/** 客户端原生文件选择器；网页版返回 null，由调用方回退隐藏 input。 */
+/** 客户端原生文件选择器；网页版和 Android 客户端返回 null，由调用方回退隐藏 input。 */
 export async function pickFile(filters: { name: string; extensions: string[] }[]): Promise<string | null> {
   if (!isTauri()) return null;
   const { open } = await import('@tauri-apps/plugin-dialog');

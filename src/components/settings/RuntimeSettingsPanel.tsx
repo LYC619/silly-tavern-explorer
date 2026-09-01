@@ -27,6 +27,7 @@ import {
   pickDirectory,
   setAppConfig,
 } from '@/lib/vault/tauri-fs';
+import { detectRuntime, RUNTIME_LABEL } from '@/lib/runtime';
 import { scanSTUserDir, type STScanResult } from '@/lib/vault/st-import';
 import { STAIConfigDialog } from '@/components/tools/STAIConfigDialog';
 import { STImportCard } from '@/components/tools/STImportCard';
@@ -117,6 +118,8 @@ export function DisplaySettingsPanel() {
 export function DirectorySettingsPanel() {
   const { toast } = useToast();
   const client = isTauri();
+  // 「不是桌面端」有两种：网页版和 Android 客户端。文案得分清，否则手机上会说自己是网页版
+  const runtime = detectRuntime();
   const [stRoot, setStRoot] = useState<string | null>(null);
   const [vaultRoot, setVaultRootState] = useState<string | null>(null);
   const [vaultRegistry, setVaultRegistry] = useState<VaultRegistry | null>(null);
@@ -269,7 +272,7 @@ export function DirectorySettingsPanel() {
               查看 ST 配置
             </Button>
           )}
-          {!client && <span className="text-xs text-muted-foreground self-center">网页版无法读取本机 ST 目录</span>}
+          {!client && <span className="text-xs text-muted-foreground self-center">{RUNTIME_LABEL[runtime]}无法读取本机 ST 目录</span>}
         </div>
       </section>
 
@@ -289,7 +292,7 @@ export function DirectorySettingsPanel() {
             {busy === 'vault' ? <Loader2 className="w-4 h-4 mr-1.5 animate-spin" /> : <RefreshCw className="w-4 h-4 mr-1.5" />}
             更换库目录
           </Button>
-          {!client && <span className="text-xs text-muted-foreground">网页版使用浏览器本地存储</span>}
+          {!client && <span className="text-xs text-muted-foreground">{RUNTIME_LABEL[runtime]}使用浏览器本地存储</span>}
         </div>
       </section>
 
