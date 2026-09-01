@@ -101,6 +101,16 @@ export function writeAbsText(path: string, content: string): Promise<void> {
   return invoke('vault_write_abs_text', { path, content });
 }
 
+/** 按绝对路径写二进制（阅读包导出用）。载荷走 base64——zip 塞不进 String。 */
+export function writeAbsBytes(path: string, bytes: Uint8Array): Promise<void> {
+  let bin = '';
+  const CHUNK = 8192;
+  for (let i = 0; i < bytes.length; i += CHUNK) {
+    bin += String.fromCharCode(...bytes.subarray(i, i + CHUNK));
+  }
+  return invoke('vault_write_abs_binary', { path, base64: btoa(bin) });
+}
+
 // ---- 应用配置（系统配置目录 config.json，不进库；API Key 后续同通道）----
 
 export async function getAppConfig<T>(key: string): Promise<T | null> {

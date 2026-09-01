@@ -796,6 +796,18 @@ fn vault_write_abs_text(
     )
 }
 
+/// 按绝对路径写二进制（阅读包导出用）。
+/// 与 vault_write_abs_text 同一条授权路径，只是载荷走 base64——
+/// 阅读包是 zip，塞不进 String。
+#[tauri::command]
+fn vault_write_abs_binary(
+    roots: tauri::State<'_, AuthorizedRoots>,
+    path: String,
+    base64: String,
+) -> Result<(), String> {
+    write_binary_impl(&authorized_write_absolute_path(&roots, &path)?, &base64)
+}
+
 #[tauri::command]
 async fn vault_pick_authorized_directory(
     app: tauri::AppHandle,
@@ -879,6 +891,7 @@ pub fn run() {
             vault_read_abs_text,
             pick_chat_file,
             vault_write_abs_text,
+            vault_write_abs_binary,
             vault_pick_authorized_directory,
             config_get,
             config_set,

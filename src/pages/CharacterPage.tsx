@@ -7,7 +7,7 @@
  */
 import { useState, useEffect, useMemo, useCallback, useLayoutEffect, useRef } from 'react';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
-import { ArrowLeft, ChevronRight, BookOpen, Download } from 'lucide-react';
+import { ArrowLeft, ChevronRight, BookOpen, Download, Package } from 'lucide-react';
 import { AppLayout } from '@/components/AppLayout';
 import { Button } from '@/components/ui/button';
 import { Skeleton, StoryListSkeleton } from '@/components/ui/skeleton';
@@ -55,6 +55,7 @@ import { NotesSection } from '@/components/character/NotesSection';
 import { PortraitSection } from '@/components/character/PortraitSection';
 import { CharacterImportDialog } from '@/components/character/CharacterImportDialog';
 import { StoryListSection } from '@/components/character/StoryListSection';
+import { ReadingPackExportDialog } from '@/components/character/ReadingPackExportDialog';
 import { InlineStoryReader } from '@/components/character/InlineStoryReader';
 import { StoryRecordsView, type RecordViewKind } from '@/components/character/StoryRecordsView';
 import { CharacterCardEditSection } from '@/components/character/CharacterCardEditSection';
@@ -82,7 +83,7 @@ const CharacterPage = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { toast } = useToast();
-  const { isMobile } = useViewport();
+  const { isMobile, isCompact } = useViewport();
   const [searchParams, setSearchParams] = useSearchParams();
   const [character, setCharacter] = useState<ArchiveCharacter | null>(null);
   const [stories, setStories] = useState<ArchiveStory[]>([]);
@@ -96,6 +97,7 @@ const CharacterPage = () => {
   // 统一导入弹窗（10.3c）：按当前 tab 预选类型
   const [activeTab, setActiveTab] = useState('stories');
   const [importOpen, setImportOpen] = useState(false);
+  const [packExportOpen, setPackExportOpen] = useState(false);
   const [cardEdits, setCardEdits] = useState<CardEdits | null>(null);
   const [displayNameDraft, setDisplayNameDraft] = useState('');
   const [cardSaving, setCardSaving] = useState(false);
@@ -480,8 +482,27 @@ const CharacterPage = () => {
                  <TabsTrigger value="card-edit">角色卡编辑</TabsTrigger>
                  <TabsTrigger value="greetings">开场白</TabsTrigger>
                </TabsList>
+               {/* 导出阅读包：只在故事 tab 且有故事时给——包的主体就是故事正文，
+                   空卡导出一个只有卡面的包没有意义 */}
+               {activeTab === 'stories' && stories.length > 0 && (
+                 <Button
+                   variant="outline"
+                   size="sm"
+                   className="ml-auto"
+                   onClick={() => setPackExportOpen(true)}
+                   title="打包这张卡和选中的故事，在手机上导入阅读"
+                 >
+                   <Package className="w-3.5 h-3.5 mr-1" />
+                   {isCompact ? '阅读包' : '导出阅读包'}
+                 </Button>
+               )}
                {TAB_IMPORT_KIND[activeTab] && (
-                 <Button variant="outline" size="sm" className="ml-auto" onClick={() => setImportOpen(true)}>
+                 <Button
+                   variant="outline"
+                   size="sm"
+                   className={activeTab === 'stories' && stories.length > 0 ? '' : 'ml-auto'}
+                   onClick={() => setImportOpen(true)}
+                 >
                    <Download className="w-3.5 h-3.5 mr-1" />
                    导入
                  </Button>
@@ -655,6 +676,13 @@ const CharacterPage = () => {
         initialKind={TAB_IMPORT_KIND[activeTab] ?? 'story'}
         onImport={handleImport}
         onPasteQuote={handlePasteQuote}
+      />
+
+      <ReadingPackExportDialog
+        open={packExportOpen}
+        onOpenChange={setPackExportOpen}
+        character={character}
+        stories={sortedStories}
       />
 
       <AlertDialog open={!!storyToDelete} onOpenChange={(open) => !open && setStoryToDelete(null)}>

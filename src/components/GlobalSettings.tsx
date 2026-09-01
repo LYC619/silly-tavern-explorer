@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
-import { HardDrive, Download, Upload, Trash2, AlertCircle, RotateCcw, Info, ExternalLink, Eraser } from 'lucide-react';
+import { HardDrive, Download, Upload, Trash2, AlertCircle, RotateCcw, Info, ExternalLink, Eraser, Package } from 'lucide-react';
+import { ReadingPackImportDialog } from '@/components/settings/ReadingPackImportDialog';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
 import {
@@ -49,6 +50,7 @@ export function DataSettingsPanel({ onDataChanged }: DataSettingsPanelProps) {
   const { toast } = useToast();
   const [clearDialogOpen, setClearDialogOpen] = useState(false);
   const [pendingImport, setPendingImport] = useState<{ parsed: ParsedBackup; preview: BackupPreview } | null>(null);
+  const [packImportOpen, setPackImportOpen] = useState(false);
   const [storage, setStorage] = useState({ used: 0, quota: 0, percentage: 0 });
   const [details, setDetails] = useState<StorageDetail[]>([]);
   const [loading, setLoading] = useState(false);
@@ -302,6 +304,20 @@ export function DataSettingsPanel({ onDataChanged }: DataSettingsPanelProps) {
                   </Button>
                 </label>
 
+                {/* 阅读包与整库备份是两件事：备份是「同一个库的存档还原」，
+                    阅读包是「把选中的故事搬到另一台设备上读」。放在一起是因为
+                    用户找「数据怎么进来」时会先翻这一页。 */}
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="w-full justify-start gap-2"
+                  onClick={() => setPackImportOpen(true)}
+                  disabled={loading}
+                >
+                  <Package className="w-4 h-4" />
+                  导入阅读包
+                </Button>
+
                 <Button
                   variant="outline"
                   size="sm"
@@ -401,6 +417,15 @@ export function DataSettingsPanel({ onDataChanged }: DataSettingsPanelProps) {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      <ReadingPackImportDialog
+        open={packImportOpen}
+        onOpenChange={setPackImportOpen}
+        onImported={() => {
+          void refreshStorage();
+          onDataChanged?.();
+        }}
+      />
     </>
   );
 }
