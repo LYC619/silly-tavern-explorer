@@ -53,6 +53,28 @@ describe('工作台工具条', () => {
   });
 });
 
+describe('小说视图滚动模式', () => {
+  const src = read('src/components/reader/NovelView.tsx');
+
+  /**
+   * 容量算法要求盒子定高（理由见 novel-view.test.ts 那条塌到下限的用例）。
+   * 滚动模式必须量滚动容器，别再把 pageBoxRef 挂回第 0 段的 <article>。
+   */
+  it('量的是滚动容器而不是内容高度的 article', () => {
+    expect(src).toContain('scrolling ? scrollRef.current : pageBoxRef.current');
+    // 正文限宽在 max-w-2xl 里，按视口宽算会高估每行字数
+    expect(src).toContain('Math.min(clientWidth, SCROLL_TEXT_MAX_WIDTH)');
+  });
+
+  it('段落走虚拟化，进度回读问虚拟器而不是 DOM', () => {
+    expect(src).toContain('useVirtualizer');
+    expect(src).toContain('pageVirtualizer.getTotalSize()');
+    // 绝对定位之后 offsetTop 全是 0，问 DOM 会永远算出第 0 段
+    expect(src).not.toContain("querySelectorAll<HTMLElement>('[data-novel-scroll-page]')");
+    expect(src).toContain('pageVirtualizer.scrollToIndex');
+  });
+});
+
 describe('搜索框宽度', () => {
   it('窄屏收窄——整条搜索栏原本占掉 390px 的三分之二', () => {
     expect(read('src/components/chat/MessageSearchBar.tsx'))

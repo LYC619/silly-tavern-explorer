@@ -68,11 +68,23 @@ function presetOptions(readingMode: 'page' | 'scroll') {
   localStorage.setItem('novel-view-zone-hint-seen', '1');
 }
 
-async function renderNovel(options: { embedded?: boolean } = {}) {
+/** 段数远多于一屏的长正文，用来看虚拟化到底有没有生效 */
+const longSession: ChatSession = {
+  ...session,
+  id: 'novel-mobile-long',
+  messages: Array.from({ length: 40 }, (_, i) => ({
+    id: `long-${i}`,
+    role: (i % 2 === 0 ? 'assistant' : 'user') as 'assistant' | 'user',
+    content: `第${i}段。这是用于分页的完整句子。`.repeat(40),
+    rawData: {},
+  })),
+};
+
+async function renderNovel(options: { embedded?: boolean; session?: ChatSession } = {}) {
   await act(async () => {
     root.render(
       <NovelView
-        session={session}
+        session={options.session ?? session}
         markers={[]}
         regexRules={[]}
         onClose={vi.fn()}
@@ -81,6 +93,31 @@ async function renderNovel(options: { embedded?: boolean } = {}) {
       />,
     );
   });
+}
+
+/**
+ * 给 jsdom 补 offsetWidth/offsetHeight。
+ * jsdom 不排版，这两个属性恒为 0，而 react-virtual 正是靠它们量视口和行高——
+ * 量到 0 就一段都不渲染。返回还原函数，别留给后面的用例。
+ */
+function stubOffsetGeometry(height: (el: HTMLElement) => number) {
+  const proto = HTMLElement.prototype as unknown as Record<string, unknown>;
+  const original = {
+    offsetHeight: Object.getOwnPropertyDescriptor(proto, 'offsetHeight'),
+    offsetWidth: Object.getOwnPropertyDescriptor(proto, 'offsetWidth'),
+  };
+  Object.defineProperty(proto, 'offsetHeight', {
+    configurable: true,
+    get(this: HTMLElement) { return height(this); },
+  });
+  Object.defineProperty(proto, 'offsetWidth', {
+    configurable: true,
+    get() { return MOBILE_WIDTH; },
+  });
+  return () => {
+    if (original.offsetHeight) Object.defineProperty(proto, 'offsetHeight', original.offsetHeight);
+    if (original.offsetWidth) Object.defineProperty(proto, 'offsetWidth', original.offsetWidth);
+  };
 }
 
 /** 三分区按面板自己的宽度算，jsdom 没有布局，得把矩形喂进去 */
@@ -169,8 +206,35 @@ describe('小说视图移动端 · 滚动模式', () => {
   it('正文连续渲染，不再分成书页', async () => {
     await renderNovel();
     expect(container.querySelector('[data-novel-scroll]')).not.toBeNull();
-    expect(container.querySelectorAll('[data-novel-scroll-page]').length).toBeGreaterThan(1);
     expect(container.querySelector('[data-novel-spread]')).toBeNull();
+  });
+
+  /**
+   * 虚拟化的两条：段落只渲染可视区附近的一小撮，且滚动容器有总高度撑着滚动条。
+   *
+   * jsdom 没有布局，react-virtual 在 outerSize=0 时 range 直接返回 null、一段都不渲染，
+   * 所以这里得把矩形喂进去（同 chat-scroll-anchoring 的做法）。
+   */
+  it('段落虚拟化：几十段只渲染可视区附近的几段', async () => {
+    // react-virtual 量的是 offsetWidth/offsetHeight（不是 getBoundingClientRect），
+    // 而 jsdom 把这两个恒定写死成 0，spy 矩形没用，得改这两个属性本身。
+    const restoreGeometry = stubOffsetGeometry((el) => (
+      el.hasAttribute('data-novel-scroll') ? 700 : 300
+    ));
+    // 长一点的正文，保证分出的段数远多于一屏能放的
+    await renderNovel({ session: longSession });
+
+    const rendered = container.querySelectorAll('[data-novel-scroll-page]').length;
+    expect(rendered).toBeGreaterThan(0);
+    // 可视区 700px、每段估 480px 上下，加 overscan 也就几段；上限给宽松些，
+    // 这条要拦的是「把几十段全铺进 DOM」那种回退。
+    expect(rendered).toBeLessThan(12);
+
+    const spacer = container.querySelector<HTMLElement>('[data-novel-scroll] > div > div');
+    expect(spacer, '缺少撑滚动条的总高度容器').not.toBeNull();
+    expect(parseFloat(spacer!.style.height)).toBeGreaterThan(0);
+
+    restoreGeometry();
   });
 
   it('滚动模式下点左右两侧也只开关工具栏，不跳页', async () => {

@@ -7,7 +7,7 @@
  *    成果存为该故事的自定义记录（整理与记录里可见可编辑）。
  * 2026-07 整理确认：与 ReaderView（沉浸分页阅读）双轨保留，有进一步发展空间。
  */
-import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
+import { useState, useEffect, useLayoutEffect, useMemo, useRef, useCallback } from 'react';
 import {
   X, Settings, List, Sparkles, Loader2, Square, EyeOff, Eye, Feather, BookOpenCheck,
   ChevronLeft, ChevronRight, Bookmark, BookmarkCheck, Trash2, ArrowLeft,
@@ -19,6 +19,7 @@ import { Label } from '@/components/ui/label';
 import { Slider } from '@/components/ui/slider';
 import { Checkbox } from '@/components/ui/checkbox';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { useVirtualizer } from '@tanstack/react-virtual';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import {
@@ -54,6 +55,8 @@ const PROGRESS_STORAGE_KEY = 'novel-view-progress';
 const ZONE_HINT_STORAGE_KEY = 'novel-view-zone-hint-seen';
 /** 工具栏出现后多久自动收起（jm-mobile 阅读器同款手感） */
 const TOOLBAR_AUTO_HIDE_MS = 3000;
+/** 滚动模式正文栏宽上限，等于容器的 max-w-2xl（42rem × 16px）。 */
+const SCROLL_TEXT_MAX_WIDTH = 672;
 
 interface NovelViewProps {
   session: ChatSession;
@@ -189,8 +192,16 @@ const NovelView = ({
   );
   // 一页能放多少字按书页实测尺寸算，不用常数（0830 反馈 9：拆得特别碎）。
   // 书页是定高的（h-full + max-h-[720px]），量到的尺寸不随内容变，不会和分页互相拉扯。
+  //
+  // 「不随内容变」是这套算法的前提。滚动模式一度把这个 ref 挂在第 0 段的
+  // <article> 上，而那个 article 是内容高度——量到的高度就等于上一次排版的结果，
+  // 于是形成负反馈：段落越短 → 量到越矮 → 容量算得越小 → 段落更短。实测从任何
+  // 起点出发都收敛到 90 字的下限（655 → 476 → … → 90），千楼故事被切成三千多段，
+  // 手机上就是这么卡的。所以滚动模式改量滚动视口：它是定高的，满足同一个前提。
   const [pageBox, setPageBox] = useState({ width: 0, height: 0 });
   const pageBoxRef = useRef<HTMLElement | null>(null);
+  /** 滚动模式的滚动容器。声明在这儿是因为上面那个测量 effect 要用它。 */
+  const scrollRef = useRef<HTMLDivElement | null>(null);
   const pageWeight = useMemo(() => novelPageCapacity(pageBox, fontSize), [pageBox, fontSize]);
   const pages = useMemo(() => paginateNovelDocument(chapters, pageWeight), [chapters, pageWeight]);
   const hiddenUserFloors = useMemo(
@@ -205,18 +216,23 @@ const NovelView = ({
   // 书页尺寸：首帧用常数档排一次版把书页画出来，量到真实尺寸后重排一次即收敛。
   // 窗口缩放、字号档位、嵌入/全屏切换都会改尺寸，所以挂 ResizeObserver。
   useEffect(() => {
-    const el = pageBoxRef.current;
+    // 滚动模式量滚动视口（定高），翻页模式量书页本身。见 pageBox 声明处的说明。
+    const el = scrolling ? scrollRef.current : pageBoxRef.current;
     if (!el) return;
     const measure = () => {
-      const { clientWidth: width, clientHeight: height } = el;
-      setPageBox((prev) => (prev.width === width && prev.height === height ? prev : { width, height }));
+      const { clientWidth, clientHeight } = el;
+      // 滚动视口比书页宽：正文限在 max-w-2xl(42rem) 里，按视口宽算会高估每行字数。
+      const width = scrolling ? Math.min(clientWidth, SCROLL_TEXT_MAX_WIDTH) : clientWidth;
+      setPageBox((prev) => (prev.width === width && prev.height === clientHeight
+        ? prev
+        : { width, height: clientHeight }));
     };
     measure();
     if (typeof ResizeObserver === 'undefined') return;
     const observer = new ResizeObserver(measure);
     observer.observe(el);
     return () => observer.disconnect();
-  }, [pages.length, embedded]);
+  }, [pages.length, embedded, scrolling]);
 
   const readStoredFloor = useCallback((): number | undefined => {
     if (!progressKey) return undefined;
@@ -481,19 +497,55 @@ const NovelView = ({
   })).filter((item) => item.index >= 0);
 
   // ---- 滚动模式的进度 ⇄ 滚动位置同步 ----
-  const scrollRef = useRef<HTMLDivElement | null>(null);
   /** 程序化滚动期间忽略 scroll 事件，否则「跳过去」会被自己的回读打回来 */
   const scrollSyncRef = useRef(false);
   const scrollFrameRef = useRef<number | null>(null);
 
-  const scrollToPage = useCallback((pageIndex: number) => {
-    const host = scrollRef.current;
-    const target = host?.querySelector<HTMLElement>(`[data-novel-scroll-page="${pageIndex}"]`);
-    if (!host || !target) return;
-    scrollSyncRef.current = true;
-    host.scrollTo({ top: target.offsetTop });
-    window.requestAnimationFrame(() => { scrollSyncRef.current = false; });
+  /**
+   * 滚动模式的虚拟化：只渲染可视区 ±overscan 的段落。
+   *
+   * 每段现在约等于一屏正文（见 pageBox 的说明），所以 estimateSize 拿视口高度当
+   * 估值就已经很准，滚动条不会明显跳动。scrollMargin 是内层容器相对滚动容器的
+   * 偏移（顶部那圈 padding + 安全区），不给它虚拟坐标就会整体错位，「跳到某章」
+   * 会差出一个 padding。
+   */
+  const [scrollHost, setScrollHost] = useState<HTMLDivElement | null>(null);
+  const attachScrollHost = useCallback((node: HTMLDivElement | null) => {
+    scrollRef.current = node;
+    setScrollHost(node);
   }, []);
+  const [scrollMargin, setScrollMargin] = useState(0);
+  const scrollInnerRef = useRef<HTMLDivElement | null>(null);
+
+  useLayoutEffect(() => {
+    if (!scrolling) return;
+    const host = scrollRef.current;
+    const inner = scrollInnerRef.current;
+    if (!host || !inner) return;
+    const measure = () => setScrollMargin(inner.offsetTop);
+    measure();
+    if (typeof ResizeObserver === 'undefined') return;
+    const observer = new ResizeObserver(measure);
+    observer.observe(inner);
+    return () => observer.disconnect();
+  }, [scrolling, scrollHost]);
+
+  const pageVirtualizer = useVirtualizer({
+    count: scrolling ? pages.length : 0,
+    getScrollElement: () => scrollHost,
+    estimateSize: () => Math.max(240, pageBox.height || 480),
+    overscan: 2,
+    scrollMargin,
+  });
+
+  const scrollToPage = useCallback((pageIndex: number) => {
+    if (!scrollRef.current || pages.length === 0) return;
+    scrollSyncRef.current = true;
+    pageVirtualizer.scrollToIndex(clampNovelPageIndex(pageIndex, pages.length), { align: 'start' });
+    // 动态测量下 scrollToIndex 会分几帧收敛（先按估值跳，量完再补），
+    // 一帧就解锁的话补位那次滚动会被当成用户在读，把进度冲掉。
+    window.setTimeout(() => { scrollSyncRef.current = false; }, 120);
+  }, [pageVirtualizer, pages.length]);
 
   // 目录/书签/进度条改页码后把正文滚过去；切进滚动模式、重排版（改字号）时也要重新对位。
   useEffect(() => {
@@ -525,15 +577,19 @@ const NovelView = ({
       scrollFrameRef.current = null;
       const host = scrollRef.current;
       if (!host) return;
-      // 顶边往下 8px 处落在哪一页就算读到哪一页
-      const probe = host.scrollTop + 8;
-      let index = 0;
-      host.querySelectorAll<HTMLElement>('[data-novel-scroll-page]').forEach((section) => {
-        if (section.offsetTop <= probe) index = Number(section.dataset.novelScrollPage ?? 0);
-      });
+      // 顶边往下 8px 处落在哪一段就算读到哪一段。
+      // 虚拟化之后不能再问 DOM：段落是绝对定位的，offsetTop 全是 0，而且没渲染的
+      // 段根本不在 DOM 里。改问虚拟器自己的几何——它的 start 已经含 scrollMargin，
+      // 所以探针也要加上，两边同一套坐标。
+      const probe = host.scrollTop + scrollMargin + 8;
+      const items = pageVirtualizer.getVirtualItems();
+      let index = items[0]?.index ?? 0;
+      for (const item of items) {
+        if (item.start <= probe) index = item.index;
+      }
       syncScrollProgress(index);
     });
-  }, [syncScrollProgress]);
+  }, [syncScrollProgress, pageVirtualizer, scrollMargin]);
 
   const handleSurfaceClick = (event: React.MouseEvent<HTMLDivElement>) => {
     if ((event.target as HTMLElement).closest('button, input, [role="slider"], [role="dialog"]')) return;
@@ -847,37 +903,54 @@ const NovelView = ({
             没有可显示的内容（可能全部楼层被隐藏或清洗）。
           </p>
         ) : scrolling ? (
-          /* 滚动模式：一路往下读，章节之间插分隔。
-             ponytail: 没做虚拟滚动——分页已经把正文切成 ~400 字的段，几百楼的故事
-             也就是上千个 <p>，手机能扛；真上到几千楼再说，虚拟化要自己写一套
-             （不加依赖）且会和「滚动位置 ⇄ 楼层进度」互相拉扯。 */
+          /* 滚动模式：一路往下读，章节之间插分隔。段落虚拟化，只渲染可视区附近。 */
           <div
-            ref={scrollRef}
+            ref={attachScrollHost}
             data-novel-scroll
             onScroll={handleBodyScroll}
             className="relative h-full overflow-y-auto overscroll-y-contain scrollbar-thin"
           >
-            <div className="mx-auto max-w-2xl px-5 pb-24 pt-[calc(env(safe-area-inset-top)+2.75rem)]">
-              {pages.map((page, pageIndex) => (
-                <section key={pageIndex} data-novel-scroll-page={pageIndex}>
-                  {page.title && (
-                    <div className={cn('text-center', pageIndex === 0 ? 'mb-4' : 'mb-4 mt-8 border-t border-border pt-8')}>
-                      <h2 className="font-display text-lg font-semibold text-primary/90">{page.title}</h2>
-                      <div className="mx-auto mt-2 h-px w-14 bg-primary/30" />
-                    </div>
-                  )}
-                  <article
-                    ref={pageIndex === 0 ? pageBoxRef : undefined}
-                    className="font-serif text-foreground/90"
-                    style={{ fontSize: `${fontSize}px`, lineHeight: 1.75 }}
-                  >
-                    {renderBlocks(page.blocks)}
-                    {pageIndex === pages.length - 1 && (
-                      <p className="pt-3 text-center text-xs text-muted-foreground/60">—— 完 ——</p>
-                    )}
-                  </article>
-                </section>
-              ))}
+            <div
+              ref={scrollInnerRef}
+              className="mx-auto max-w-2xl px-5 pb-24 pt-[calc(env(safe-area-inset-top)+2.75rem)]"
+            >
+              <div className="relative w-full" style={{ height: pageVirtualizer.getTotalSize() }}>
+                {pageVirtualizer.getVirtualItems().map((item) => {
+                  const page = pages[item.index];
+                  if (!page) return null;
+                  return (
+                    <section
+                      key={item.key}
+                      data-index={item.index}
+                      data-novel-scroll-page={item.index}
+                      ref={pageVirtualizer.measureElement}
+                      className="absolute left-0 top-0 w-full"
+                      style={{
+                        // flow-root 建立 BFC，让内部 margin 算进本段的测量高度
+                        // （否则量短了，段与段会叠在一起）。同 ChatPreview。
+                        display: 'flow-root',
+                        transform: `translateY(${item.start - pageVirtualizer.options.scrollMargin}px)`,
+                      }}
+                    >
+                      {page.title && (
+                        <div className={cn('text-center', item.index === 0 ? 'mb-4' : 'mb-4 mt-8 border-t border-border pt-8')}>
+                          <h2 className="font-display text-lg font-semibold text-primary/90">{page.title}</h2>
+                          <div className="mx-auto mt-2 h-px w-14 bg-primary/30" />
+                        </div>
+                      )}
+                      <article
+                        className="font-serif text-foreground/90"
+                        style={{ fontSize: `${fontSize}px`, lineHeight: 1.75 }}
+                      >
+                        {renderBlocks(page.blocks)}
+                        {item.index === pages.length - 1 && (
+                          <p className="pt-3 text-center text-xs text-muted-foreground/60">—— 完 ——</p>
+                        )}
+                      </article>
+                    </section>
+                  );
+                })}
+              </div>
             </div>
           </div>
         ) : isMobile ? (

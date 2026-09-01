@@ -293,6 +293,31 @@ describe('novelPageCapacity', () => {
     // 极窄极矮也至少保底 90 字，否则会切出无数张空页
     expect(novelPageCapacity({ width: 20, height: 20 }, 18)).toBeGreaterThanOrEqual(90);
   });
+
+  /**
+   * 这个函数只有在「量到的盒子不随内容变」时才成立——调用方必须喂定高的盒子
+   * （翻页模式的书页、滚动模式的滚动视口），不能喂内容高度的元素。
+   *
+   * 喂内容高度会形成负反馈：段落短 → 量到矮 → 容量更小 → 段落更短。下面把这个环
+   * 迭代出来，无论从多大起点出发都塌到 90 字的下限。滚动模式一度就是这样，
+   * 千楼故事被切成三千多段（见 NovelView 里 pageBox 的说明）。
+   */
+  it('喂内容高度会塌到下限——所以调用方必须喂定高的盒子', () => {
+    const fontSize = 18;
+    const width = 632;
+    const charsPerLine = Math.floor(width / fontSize);
+    let capacity = 800;
+    for (let i = 0; i < 20; i++) {
+      const height = Math.ceil(capacity / charsPerLine) * fontSize * 1.75;
+      const next = novelPageCapacity({ width, height }, fontSize);
+      if (next === capacity) break;
+      capacity = next;
+    }
+    expect(capacity).toBe(90);
+
+    // 同样宽度、但盒子定高（一屏滚动视口）时容量是它的好几倍
+    expect(novelPageCapacity({ width, height: 780 }, fontSize)).toBeGreaterThan(500);
+  });
 });
 
 describe('章节层 AI', () => {
