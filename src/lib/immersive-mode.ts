@@ -6,6 +6,7 @@
  * 再逐层传下来。计数是为了两层覆盖层（小说视图开在沉浸阅读之上）退出时不早退。
  */
 import { useEffect, useState } from 'react';
+import { registerBackHandler } from '@/lib/back-button';
 
 const IMMERSIVE_CHANGE_EVENT = 'ste-immersive-change';
 
@@ -29,13 +30,26 @@ export function popImmersive(): void {
   notify();
 }
 
-/** 覆盖层挂载期间占用沉浸态；active 为假时不占用（嵌入模式的小说视图不算沉浸）。 */
-export function useImmersiveLock(active: boolean): void {
+/**
+ * 覆盖层挂载期间占用沉浸态；active 为假时不占用（嵌入模式的小说视图不算沉浸）。
+ *
+ * onBack 是这一层的关闭动作，接 Android 返回键用：沉浸阅读中按返回应该退沉浸，
+ * 而不是把整个页面退掉。传了就自动挂到返回键处理栈上，和 Escape 走同一个 onClose，
+ * 两条路径不会各自漂移。
+ */
+export function useImmersiveLock(active: boolean, onBack?: () => void): void {
   useEffect(() => {
     if (!active) return;
     pushImmersive();
     return () => popImmersive();
   }, [active]);
+
+  // 单独一个 effect：onBack 每次渲染都是新函数，混在上面会让沉浸态计数
+  // 反复 push/pop（外壳跟着闪）。
+  useEffect(() => {
+    if (!active || !onBack) return;
+    return registerBackHandler(() => { onBack(); return true; });
+  }, [active, onBack]);
 }
 
 /** 外壳侧订阅：有覆盖层在时隐藏自己的导航层。 */

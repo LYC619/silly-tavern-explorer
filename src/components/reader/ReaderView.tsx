@@ -23,6 +23,7 @@ import { cn } from '@/lib/utils';
 import type { ChatMessage, ChapterMarker, RegexRule } from '@/types/chat';
 import { applyRegexRules } from '@/lib/regex-processor';
 import { shouldIgnoreGlobalShortcut } from '@/lib/keyboard-shortcuts';
+import { registerBackHandler } from '@/lib/back-button';
 
 const FONT_OPTIONS = [
   { value: 'sans-serif', label: '系统默认' },
@@ -163,6 +164,10 @@ const ReaderView = ({
       goToPage(currentPage - 1, 'right');
     }
   }, [currentPage, goToPage]);
+
+  // Android 返回键：退出阅读器，而不是把承载它的页面退掉。
+  // 与 Escape 同一个 onClose，两条路径不会各自漂移。
+  useEffect(() => registerBackHandler(() => { onClose(); return true; }), [onClose]);
 
   // Keyboard navigation
   useEffect(() => {

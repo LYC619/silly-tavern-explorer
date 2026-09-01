@@ -28,6 +28,7 @@
   },
   "dependencies": {
     "@capacitor/android": "7.4.3",
+    "@capacitor/app": "7.1.0",
     "@capacitor/core": "7.4.3",
     "@capacitor/filesystem": "7.1.5",
     "@capacitor/share": "7.0.3",

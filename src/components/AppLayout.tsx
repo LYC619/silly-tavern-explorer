@@ -43,6 +43,8 @@ import { shouldAutoCollapse, useSidenavState } from '@/hooks/use-sidenav-state';
 import { useViewport } from '@/hooks/use-viewport';
 import { useImmersive } from '@/lib/immersive-mode';
 import { activeAreaIndex, isDrawerOpenSwipe, slideDirection } from '@/lib/mobile-nav';
+import { registerBackHandler } from '@/lib/back-button';
+import { useAndroidBackButton } from '@/hooks/use-android-back';
 import { APP_VERSION } from '@/components/GlobalSettings';
 import { detectRuntime, isTauri, RUNTIME_LABEL } from '@/lib/runtime';
 import { cn } from '@/lib/utils';
@@ -244,6 +246,16 @@ function PersistentAppLayout({ children, titleBarContent, actions, leftActions, 
     setDrawerOpen(false);
     setContextDrawerOpen(false);
   }, [location.key]);
+
+  // Android 返回键：抽屉开着就先关抽屉，不要直接退页面。
+  // 两个抽屉共一个处理器：同时开着不可能（都是全屏遮罩），关掉开着的那个就行。
+  useEffect(() => registerBackHandler(() => {
+    if (contextDrawerOpen) { setContextDrawerOpen(false); return true; }
+    if (drawerOpen) { setDrawerOpen(false); return true; }
+    return false;
+  }), [drawerOpen, contextDrawerOpen]);
+
+  useAndroidBackButton();
 
   const activeChrome = registration?.routeKey === location.key
     ? registration

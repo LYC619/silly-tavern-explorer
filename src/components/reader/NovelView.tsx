@@ -154,8 +154,7 @@ const NovelView = ({
   const [zoneHintOpen, setZoneHintOpen] = useState(false);
   const hideTimerRef = useRef<number | null>(null);
 
-  // 全屏阅读时让外壳收掉窗口栏和底部标签栏；嵌入模式不算沉浸。
-  useImmersiveLock(isMobile && !embedded);
+  // 沉浸态与返回键的接线在 exitReader 定义之后（搜 useImmersiveLock）。
 
   const clearHideTimer = useCallback(() => {
     if (hideTimerRef.current !== null) {
@@ -271,6 +270,21 @@ const NovelView = ({
     onFloorChange?.(floor);
     saveProgress(floor);
   }, [normalizePage, onFloorChange, pages, saveProgress]);
+
+  /**
+   * 退出小说视图。Esc 和 Android 返回键共用这一个：先把当前页存下来再关，
+   * 否则下次进来回到的是上一次保存的位置。两条路径分别写一遍迟早会漂。
+   */
+  const exitReader = useCallback(() => {
+    goToPage(currentPageRef.current);
+    onClose();
+  }, [goToPage, onClose]);
+
+  // 全屏阅读时让外壳收掉窗口栏和底部标签栏；嵌入模式不算沉浸。
+  // 第二个参数接 Android 返回键，复用 exitReader——沉浸阅读中按返回该退沉浸，
+  // 而不是把整个角色页退掉（回来还得重新找位置）。
+  // 放在这里而不是组件开头：exitReader 是 const，提前引用会踩 TDZ。
+  useImmersiveLock(isMobile && !embedded, exitReader);
 
   /**
    * 翻页动作（点分区、滑动、方向键）；进度条拖动不走这里——
@@ -477,8 +491,7 @@ const NovelView = ({
     const handler = (e: KeyboardEvent) => {
       if (shouldIgnoreGlobalShortcut(e) || chapterDialogOpen || polishChapter) return;
       if (e.key === 'Escape') {
-        goToPage(currentPageRef.current);
-        onClose();
+        exitReader();
       } else if (e.key === 'ArrowLeft' || e.key === 'ArrowUp' || e.key === 'PageUp') {
         e.preventDefault();
         turnPage(currentPageRef.current - step);
@@ -489,7 +502,8 @@ const NovelView = ({
     };
     window.addEventListener('keydown', handler);
     return () => window.removeEventListener('keydown', handler);
-  }, [chapterDialogOpen, polishChapter, onClose, goToPage, turnPage, step]);
+    // exitReader 取代了原来的 goToPage+onClose 两步，依赖跟着换掉
+  }, [chapterDialogOpen, polishChapter, exitReader, turnPage, step]);
 
   const chapterNav = chapters.map((c, i) => ({
     title: c.title ?? '（开篇）',
