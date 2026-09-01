@@ -88,13 +88,21 @@ const PALETTE = {
   quoteBar: '#d8c9ac',
 };
 
+/** 文字宽度测量器。注入而不是收 ctx，折行逻辑就能脱离 canvas 单测。 */
+export type MeasureText = (text: string) => number;
+
+/** 从 ctx 取测量器（当前字体生效，所以每次换 font 后取的结果不同） */
+export function measureWith(ctx: CanvasRenderingContext2D): MeasureText {
+  return (text) => ctx.measureText(text).width;
+}
+
 /** 按像素宽度折行（逐字测量，中英混排安全） */
-function wrapLine(ctx: CanvasRenderingContext2D, text: string, maxWidth: number): string[] {
+export function wrapText(measure: MeasureText, text: string, maxWidth: number): string[] {
   const lines: string[] = [];
   let cur = '';
   for (const ch of text) {
     const test = cur + ch;
-    if (ctx.measureText(test).width > maxWidth && cur) {
+    if (measure(test) > maxWidth && cur) {
       lines.push(cur);
       cur = ch === ' ' ? '' : ch;
     } else {
@@ -169,7 +177,7 @@ export async function renderShareImage(
     const st = styleFor(line.kind);
     mctx.font = st.font;
     const indent = line.kind === 'li' ? 22 : line.kind === 'quote' ? 20 : 0;
-    const rows = wrapLine(mctx, line.text, contentW - indent);
+    const rows = wrapText(measureWith(mctx), line.text, contentW - indent);
     const lineH = Math.round(st.size * 1.75);
     bodyH += st.gapBefore + rows.length * lineH + st.gapAfter;
     wrapped.push({ line, rows });
@@ -229,7 +237,7 @@ export async function renderShareImage(
   }
   ctx.font = `600 28px ${FONT_UI}`;
   ctx.fillStyle = PALETTE.ink;
-  for (const row of wrapLine(ctx, input.recordTitle, headTextW).slice(0, 3)) {
+  for (const row of wrapText(measureWith(ctx), input.recordTitle, headTextW).slice(0, 3)) {
     ctx.fillText(row, headTextX, ty + 28);
     ty += 40;
   }
@@ -237,7 +245,7 @@ export async function renderShareImage(
   ctx.font = `15px ${FONT_UI}`;
   ctx.fillStyle = PALETTE.sub;
   const subParts = [input.storyTitle, input.characterName].filter(Boolean);
-  for (const row of wrapLine(ctx, subParts.join(' · '), headTextW).slice(0, 2)) {
+  for (const row of wrapText(measureWith(ctx), subParts.join(' · '), headTextW).slice(0, 2)) {
     ctx.fillText(row, headTextX, ty + 15);
     ty += 24;
   }
@@ -317,4 +325,68 @@ export function downloadCanvasPng(canvas: HTMLCanvasElement, filename: string): 
     a.click();
     URL.revokeObjectURL(url);
   }, 'image/png');
+}
+
+/**
+ * canvas → PNG blob，Promise 形态。
+ *
+ * `toBlob` 是回调式且立即返回，直接在回调里写 async 逻辑的话，外层 try/catch
+ * 和 finally 都会先跑完——回调里抛的错变成 unhandled rejection，用户只看到
+ * 按钮恢复可点、什么都没发生。包一层让 await 能接住。
+ */
+export function canvasToPngBlob(canvas: HTMLCanvasElement): Promise<Blob> {
+  return new Promise((resolve, reject) => {
+    canvas.toBlob(
+      (blob) => (blob ? resolve(blob) : reject(new Error('Canvas 导出失败'))),
+      'image/png',
+    );
+  });
+}
+
+// ---------- 主题取色 ----------
+
+/**
+ * 读主题的 HSL 三元组变量，包成 `hsl(...)`。
+ *
+ * themes.css 里存的是裸三元组（`25.6 70.8% 58.4%`）而不是完整颜色——那是为了让
+ * Tailwind 的 `/90` 透明度修饰符能work，见该文件头部注释。canvas 要的是能直接
+ * 进 fillStyle 的颜色，所以这里补上 `hsl()`。
+ *
+ * 变量名必须是 themes.css 真实定义的那套（`--brand-hsl` / `--canvas-hsl` /
+ * `--text-*-hsl`）。取不到就回退——`getPropertyValue` 对未定义变量返回空串，
+ * 不补回退的话 fillStyle 会拿到 `hsl()` 这种非法值，canvas 静默忽略后画出黑色。
+ */
+export function themeHsl(varName: string, fallback: string): string {
+  if (typeof document === 'undefined') return fallback;
+  const raw = getComputedStyle(document.documentElement).getPropertyValue(varName).trim();
+  return raw ? `hsl(${raw})` : fallback;
+}
+
+/**
+ * 估一个颜色的明度（0~1）。只认两种形态：`hsl(h s% l%)` 三元组（themeHsl 的产物）
+ * 和 `#rgb` / `#rrggbb`（写死的回退色）。认不出来当中等明度，宁可偏深不偏浅。
+ */
+export function colorLightness(css: string): number {
+  const hsl = /^hsl\(\s*[\d.]+(?:deg)?[\s,]+[\d.]+%[\s,]+([\d.]+)%/i.exec(css);
+  if (hsl) return Number(hsl[1]) / 100;
+
+  const hex = /^#([0-9a-f]{3}|[0-9a-f]{6})$/i.exec(css);
+  if (hex) {
+    const h = hex[1].length === 3 ? [...hex[1]].map((c) => c + c).join('') : hex[1];
+    const [r, g, b] = [0, 2, 4].map((i) => parseInt(h.slice(i, i + 2), 16) / 255);
+    // 感知亮度近似，别用简单平均——纯蓝和纯黄的平均值一样但看起来差得远
+    return 0.299 * r + 0.587 * g + 0.114 * b;
+  }
+  return 0.5;
+}
+
+/**
+ * 渐变上的水印墨色。浅色渐变上写白字看不见——cream 主题的三元组明度 90%+，
+ * 内置的「中性浅色」也是一样的问题。按渐变两端的平均明度翻转黑白。
+ */
+export function watermarkInk(start: string, end: string): { title: string; meta: string } {
+  const light = (colorLightness(start) + colorLightness(end)) / 2 > 0.6;
+  return light
+    ? { title: 'rgba(0, 0, 0, 0.75)', meta: 'rgba(0, 0, 0, 0.55)' }
+    : { title: 'rgba(255, 255, 255, 0.9)', meta: 'rgba(255, 255, 255, 0.7)' };
 }

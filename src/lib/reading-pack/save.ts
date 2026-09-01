@@ -8,6 +8,7 @@
  * - web        浏览器下载
  */
 import { isCapacitor, isTauri } from '@/lib/runtime';
+import { bytesToBase64 } from '@/lib/utils';
 
 export type SavePackOutcome = 'saved' | 'shared' | 'downloaded' | 'cancelled';
 
@@ -24,15 +25,6 @@ function browserDownload(bytes: Uint8Array, fileName: string): void {
   anchor.click();
   anchor.remove();
   URL.revokeObjectURL(url);
-}
-
-function bytesToBase64(bytes: Uint8Array): string {
-  let bin = '';
-  const CHUNK = 8192;
-  for (let i = 0; i < bytes.length; i += CHUNK) {
-    bin += String.fromCharCode(...bytes.subarray(i, i + CHUNK));
-  }
-  return btoa(bin);
 }
 
 export async function savePackBytes(bytes: Uint8Array, fileName: string): Promise<SavePackOutcome> {

@@ -1067,6 +1067,7 @@ const NovelView = ({
             currentFloor={pages[currentPage]?.startFloor ?? 1}
             currentText={pages[currentPage]?.blocks.map(b => b.text).join('\n') ?? ''}
             triggerLabel="生成分享图"
+            onOpenChange={setShareImageOpen}
           />
         </div>
       </div>

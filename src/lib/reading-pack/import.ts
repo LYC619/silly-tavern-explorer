@@ -20,22 +20,13 @@ import {
   PACK_STORY_DIR, PACK_SUMMARY_DIR, READING_PACK_FORMAT,
   type PackCharacter, type PackStory, type ParsedReadingPack, type ReadingPackManifest,
 } from '@/types/reading-pack';
+import { bytesToBase64 } from '@/lib/utils';
 
 export class ReadingPackError extends Error {
   constructor(message: string) {
     super(message);
     this.name = 'ReadingPackError';
   }
-}
-
-function bytesToBase64(bytes: Uint8Array): string {
-  let bin = '';
-  // 分块避免 apply 的参数个数上限（大图会超）
-  const CHUNK = 8192;
-  for (let i = 0; i < bytes.length; i += CHUNK) {
-    bin += String.fromCharCode(...bytes.subarray(i, i + CHUNK));
-  }
-  return btoa(bin);
 }
 
 function parseJsonEntry<T>(bytes: Uint8Array, path: string): T {

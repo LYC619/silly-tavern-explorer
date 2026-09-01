@@ -24,6 +24,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { useToast } from '@/hooks/use-toast';
 import { isCapacitor } from '@/lib/runtime';
 import { bytesToBase64 } from '@/lib/utils';
+import {
+  canvasToPngBlob, measureWith, themeHsl, watermarkInk, wrapText,
+} from '@/lib/share-image';
 
 interface ShareImageProps {
   /** 故事标题 */
@@ -36,26 +39,48 @@ interface ShareImageProps {
   currentText: string;
   /** 触发按钮的无障碍标签 */
   triggerLabel?: string;
+  /**
+   * 对话框开合。调用方要据此暂停沉浸工具栏的自动收起计时器——
+   * 弹层开着时把工具栏收走，用户关掉弹层就找不到返回键了。
+   */
+  onOpenChange?: (open: boolean) => void;
 }
 
-/** 渐变方案：从主题色派生，需运行时解析 CSS 变量；回退到中性渐变 */
+/**
+ * 渐变方案。前两套从当前主题派生，换主题跟着变；后两套固定，供不想跟主题的场合。
+ *
+ * 变量名取自 themes.css 实打实定义的那套（每套主题都给了 `--canvas-hsl` /
+ * `--elevated-hsl` / `--text-muted-hsl`，品牌色 `--brand-hsl` 在 :root 全局）。
+ * 别改回 `--primary-hsl` / `--accent-hsl` 那种——项目里没有这些名字，
+ * 取不到就会静默落回退色，四个选项看起来只有三种效果。
+ */
 const GRADIENTS = [
-  { id: 'theme-warm', label: '主题暖调', resolve: () => {
-    const primary = getComputedStyle(document.documentElement).getPropertyValue('--primary-hsl').trim();
-    const accent = getComputedStyle(document.documentElement).getPropertyValue('--accent-hsl').trim();
-    return { start: primary ? `hsl(${primary})` : '#667eea', end: accent ? `hsl(${accent})` : '#764ba2' };
-  }},
-  { id: 'theme-cool', label: '主题冷调', resolve: () => {
-    const muted = getComputedStyle(document.documentElement).getPropertyValue('--muted-hsl').trim();
-    const primary = getComputedStyle(document.documentElement).getPropertyValue('--primary-hsl').trim();
-    return { start: muted ? `hsl(${muted})` : '#1a1a2e', end: primary ? `hsl(${primary})` : '#16213e' };
-  }},
+  {
+    id: 'theme-warm',
+    label: '主题暖调',
+    resolve: () => ({
+      start: themeHsl('--brand-hsl', '#e08a4a'),
+      end: themeHsl('--elevated-strong-hsl', '#764ba2'),
+    }),
+  },
+  {
+    id: 'theme-cool',
+    label: '主题冷调',
+    resolve: () => ({
+      start: themeHsl('--chrome-hsl', '#1a1a2e'),
+      end: themeHsl('--canvas-hsl', '#16213e'),
+    }),
+  },
   { id: 'neutral-dark', label: '中性深色', resolve: () => ({ start: '#1a1a2e', end: '#16213e' }) },
   { id: 'neutral-light', label: '中性浅色', resolve: () => ({ start: '#e0e7ff', end: '#c7d2fe' }) },
 ];
 
+/** 正文区最多画几行，超出省略。卡片是 3:4 固定尺寸，画满就溢出了。 */
+const MAX_BODY_LINES = 14;
+
 export function ShareImage({
   storyTitle, characterName, currentFloor, currentText, triggerLabel = '生成分享图',
+  onOpenChange,
 }: ShareImageProps) {
   const { toast } = useToast();
   const [open, setOpen] = useState(false);
@@ -67,6 +92,11 @@ export function ShareImage({
   useEffect(() => {
     if (open) setText(currentText);
   }, [open, currentText]);
+
+  const changeOpen = (next: boolean) => {
+    setOpen(next);
+    onOpenChange?.(next);
+  };
 
   const handleGenerate = async () => {
     const canvas = canvasRef.current;
@@ -96,77 +126,66 @@ export function ShareImage({
       ctx.fillStyle = 'rgba(255, 255, 255, 0.95)';
       ctx.fillRect(40, 40, width - 80, height * 0.7 - 60);
 
-      // 正文文本：自动折行
+      // 正文文本：折行走 lib/share-image 那套逐字测量（中英混排安全）
       ctx.fillStyle = '#1a1a1a';
       ctx.font = '28px system-ui, sans-serif';
       ctx.textBaseline = 'top';
-      const lines: string[] = [];
-      const maxWidth = width - 120;
-      const words = text.split('');
-      let line = '';
-      for (const char of words) {
-        const testLine = line + char;
-        const metrics = ctx.measureText(testLine);
-        if (metrics.width > maxWidth && line.length > 0) {
-          lines.push(line);
-          line = char;
-        } else {
-          line = testLine;
-        }
-      }
-      if (line) lines.push(line);
+      const lines = wrapText(measureWith(ctx), text, width - 120);
 
       const lineHeight = 40;
       const textStartY = 70;
-      lines.slice(0, 14).forEach((ln, i) => {
+      lines.slice(0, MAX_BODY_LINES).forEach((ln, i) => {
         ctx.fillText(ln, 60, textStartY + i * lineHeight);
       });
-      if (lines.length > 14) {
-        ctx.fillText('…', 60, textStartY + 14 * lineHeight);
+      if (lines.length > MAX_BODY_LINES) {
+        ctx.fillText('…', 60, textStartY + MAX_BODY_LINES * lineHeight);
       }
 
-      // 水印区域（下方 30%）
+      // 水印区域（下方 30%）。墨色跟着渐变明度翻转——浅色渐变上白字看不见
       const watermarkY = height * 0.7 + 20;
-      ctx.fillStyle = 'rgba(255, 255, 255, 0.9)';
+      const ink = watermarkInk(colors.start, colors.end);
+      ctx.fillStyle = ink.title;
       ctx.font = 'bold 24px system-ui, sans-serif';
       ctx.fillText(storyTitle, 60, watermarkY);
 
-      ctx.fillStyle = 'rgba(255, 255, 255, 0.7)';
+      ctx.fillStyle = ink.meta;
       ctx.font = '18px system-ui, sans-serif';
       const meta = characterName ? `${characterName} · 第 ${currentFloor} 楼` : `第 ${currentFloor} 楼`;
       ctx.fillText(meta, 60, watermarkY + 40);
 
-      // 导出
-      canvas.toBlob(async (blob) => {
-        if (!blob) throw new Error('Canvas export failed');
+      // 导出。await 到底，别在 toBlob 回调里写 async——那样 catch 和 finally
+      // 会先跑完，回调里的报错变成 unhandled rejection，用户只看到按钮恢复可点。
+      const blob = await canvasToPngBlob(canvas);
+
+      if (isCapacitor()) {
         const bytes = new Uint8Array(await blob.arrayBuffer());
+        const { Filesystem, Directory } = await import('@capacitor/filesystem');
+        const { Share } = await import('@capacitor/share');
+        const fileName = `share-${currentFloor}.png`;
+        const { uri } = await Filesystem.writeFile({
+          path: fileName,
+          data: bytesToBase64(bytes),
+          directory: Directory.Cache,
+        });
+        await Share.share({ title: '分享阅读卡片', url: uri, dialogTitle: '分享到' });
+        toast({ description: '已调起分享面板' });
+      } else {
+        // 网页端降级：直接下载
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `${storyTitle}-${currentFloor}.png`;
+        a.click();
+        URL.revokeObjectURL(url);
+        toast({ description: '图片已下载' });
+      }
 
-        if (isCapacitor()) {
-          const { Filesystem, Directory } = await import('@capacitor/filesystem');
-          const { Share } = await import('@capacitor/share');
-          const fileName = `share-${Date.now()}.png`;
-          const { uri } = await Filesystem.writeFile({
-            path: fileName,
-            data: bytesToBase64(bytes),
-            directory: Directory.Cache,
-          });
-          await Share.share({ title: '分享阅读卡片', url: uri, dialogTitle: '分享到' });
-          toast({ description: '已调起分享面板' });
-        } else {
-          // 网页端降级：直接下载
-          const url = URL.createObjectURL(blob);
-          const a = document.createElement('a');
-          a.href = url;
-          a.download = `${storyTitle}-${currentFloor}.png`;
-          a.click();
-          URL.revokeObjectURL(url);
-          toast({ description: '图片已下载' });
-        }
-
-        setOpen(false);
-      }, 'image/png');
+      changeOpen(false);
     } catch (err) {
-      toast({ variant: 'destructive', description: `生成失败：${err}` });
+      toast({
+        variant: 'destructive',
+        description: `生成失败：${err instanceof Error ? err.message : String(err)}`,
+      });
     } finally {
       setGenerating(false);
     }
@@ -175,7 +194,7 @@ export function ShareImage({
   if (!isCapacitor()) return null;
 
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
+    <Dialog open={open} onOpenChange={changeOpen}>
       <DialogTrigger asChild>
         <Button variant="ghost" size="sm" aria-label={triggerLabel}>
           <ShareIcon className="h-4 w-4" />

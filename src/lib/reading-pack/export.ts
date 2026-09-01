@@ -14,6 +14,7 @@ import {
   type ReadingPackManifest,
 } from '@/types/reading-pack';
 import { detectRuntime } from '@/lib/runtime';
+import { base64ToBytes } from '@/lib/utils';
 
 export interface BuildReadingPackInput {
   characters: ArchiveCharacter[];
@@ -29,14 +30,6 @@ export interface BuildReadingPackInput {
 export interface BuiltReadingPack {
   bytes: Uint8Array;
   manifest: ReadingPackManifest;
-}
-
-/** base64（纯数据无前缀）→ 字节。库里的图片都是这个形态。 */
-function base64ToBytes(b64: string): Uint8Array {
-  const bin = atob(b64);
-  const out = new Uint8Array(bin.length);
-  for (let i = 0; i < bin.length; i++) out[i] = bin.charCodeAt(i);
-  return out;
 }
 
 /** 从 mime 猜扩展名；猜不出按 png（立绘导入时限过图片类型） */
