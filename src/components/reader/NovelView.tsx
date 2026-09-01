@@ -10,7 +10,7 @@
 import { useState, useEffect, useLayoutEffect, useMemo, useRef, useCallback } from 'react';
 import {
   X, Settings, List, Sparkles, Loader2, Square, EyeOff, Eye, Feather, BookOpenCheck,
-  ChevronLeft, ChevronRight, Bookmark, BookmarkCheck, Trash2, ArrowLeft,
+  ChevronLeft, ChevronRight, Bookmark, BookmarkCheck, Trash2, ArrowLeft, Share as ShareIcon,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -42,6 +42,7 @@ import {
 import { useViewport } from '@/hooks/use-viewport';
 import { useImmersiveLock } from '@/lib/immersive-mode';
 import { MobileReaderSettings, ReaderZoneHint, type ReadingMode } from './MobileReaderSettings';
+import { ShareImage } from './ShareImage';
 import { buildSummaryMessages } from '@/lib/summary-engine';
 import { listTemplatesForKind, type AnySummaryTemplate } from '@/lib/summary-templates';
 import { saveSummary, pruneAutoSavedSummaries, getAllSummaries, deleteSummary } from '@/lib/summary-db';
@@ -152,6 +153,7 @@ const NovelView = ({
   const [chromeVisible, setChromeVisible] = useState(true);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [zoneHintOpen, setZoneHintOpen] = useState(false);
+  const [shareImageOpen, setShareImageOpen] = useState(false);
   const hideTimerRef = useRef<number | null>(null);
 
   // 沉浸态与返回键的接线在 exitReader 定义之后（搜 useImmersiveLock）。
@@ -165,13 +167,13 @@ const NovelView = ({
 
   // 工具栏出现 3 秒后自己收起；设置弹层或首次提示挡在上面时暂停计时，关掉再续。
   useEffect(() => {
-    if (!isMobile || !chromeVisible || settingsOpen || zoneHintOpen) {
+    if (!isMobile || !chromeVisible || settingsOpen || zoneHintOpen || shareImageOpen) {
       clearHideTimer();
       return;
     }
     hideTimerRef.current = window.setTimeout(() => setChromeVisible(false), TOOLBAR_AUTO_HIDE_MS);
     return clearHideTimer;
-  }, [isMobile, chromeVisible, settingsOpen, zoneHintOpen, clearHideTimer]);
+  }, [isMobile, chromeVisible, settingsOpen, zoneHintOpen, shareImageOpen, clearHideTimer]);
 
   useEffect(() => {
     if (!isMobile) return;
@@ -1059,6 +1061,13 @@ const NovelView = ({
               ? `${currentPage + 1}${facing ? `–${currentPage + 2}` : ''} / ${pages.length}`
               : '0 / 0'}
           </span>
+          <ShareImage
+            storyTitle={session.title || session.character.name || '未命名故事'}
+            characterName={session.character.name}
+            currentFloor={pages[currentPage]?.startFloor ?? 1}
+            currentText={pages[currentPage]?.blocks.map(b => b.text).join('\n') ?? ''}
+            triggerLabel="生成分享图"
+          />
         </div>
       </div>
 

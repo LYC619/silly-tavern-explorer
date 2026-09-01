@@ -24,6 +24,7 @@ import type { ChatMessage, ChapterMarker, RegexRule } from '@/types/chat';
 import { applyRegexRules } from '@/lib/regex-processor';
 import { shouldIgnoreGlobalShortcut } from '@/lib/keyboard-shortcuts';
 import { registerBackHandler } from '@/lib/back-button';
+import { ShareImage } from './ShareImage';
 
 const FONT_OPTIONS = [
   { value: 'sans-serif', label: '系统默认' },
@@ -321,6 +322,14 @@ const ReaderView = ({
                 </PopoverContent>
               </Popover>
             )}
+
+            <ShareImage
+              storyTitle={characterName}
+              characterName={characterName}
+              currentFloor={pages[currentPage]?.messageIndex ?? 1}
+              currentText={pages[currentPage]?.content ?? ''}
+              triggerLabel="生成分享图"
+            />
 
             <Popover>
             <PopoverTrigger asChild>
