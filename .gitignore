@@ -54,7 +54,9 @@ scripts/*
 !scripts/smoke/
 !scripts/smoke/**
 .superpowers/
-.worktrees/
+# worktree 挂载点：里面是另一个分支的完整源码，不能进本分支的提交。
+# 只忽略 worktrees 子目录而不是整个 .claude/——settings.json 这类项目配置是该入库的。
+.claude/worktrees/
 *测试清单*.md
 *复测清单*.md
 *.tsbuildinfo
