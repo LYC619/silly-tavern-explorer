@@ -69,7 +69,7 @@ export function NotesSection({ notes, onChange }: NotesSectionProps) {
                 <span className="text-xs text-muted-foreground" title={formatFullTime(n.at)}>
                   {formatFullTime(n.at)} · {formatListTime(n.at)}
                 </span>
-                <div className="ml-auto flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                <div className="hover-reveal ml-auto flex gap-1">
                   <Button
                     variant="ghost" size="icon" aria-label="编辑备注"
                     onClick={() => setEditor({ id: n.id, body: n.body })}

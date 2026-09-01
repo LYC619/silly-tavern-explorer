@@ -462,6 +462,11 @@ export const ChatWorkbench = forwardRef<ChatWorkbenchHandle, ChatWorkbenchProps>
             ? 'flex-nowrap overflow-x-auto scrollbar-thin [scrollbar-width:none] [&::-webkit-scrollbar]:hidden'
             : 'justify-between flex-wrap',
         )}>
+          {/* 窄屏把父页追加项提到最前面。三个调用方（工作区/聊天处理页/就地阅读）传的
+              第一项都是「小说视图」，那是手机上这条通道的终点；排在外观+搜索后面的话
+              它会被挤到屏幕外，要横滑才能找到。桌面档不动：那边靠 justify-between
+              左右分组，extras 仍跟在右组末尾。 */}
+          {isCompact && toolbarExtras}
           {/* 左侧常驻：外观 + 搜索（popover 从左展开不遮正文） */}
           <div className={cn('flex items-center gap-2 min-w-0', isCompact ? 'flex-nowrap' : 'flex-wrap')}>
             <SettingsPanel settings={settings} onSettingsChange={onSettingsChange} />
@@ -492,7 +497,7 @@ export const ChatWorkbench = forwardRef<ChatWorkbenchHandle, ChatWorkbenchProps>
               onToggleRegex={() => setRegexSidebarOpen(!regexSidebarOpen)}
               hideChapterMark={readerMode}
             />
-            {toolbarExtras}
+            {!isCompact && toolbarExtras}
           </div>
         </div>
       </div>

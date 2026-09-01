@@ -194,6 +194,37 @@
 }
 
 @layer utilities {
+  /* 悬停才显形的次要操作（列表行的删除/编辑、卡面的菜单钮）。
+   *
+   * 原写法是 Tailwind 的 `opacity-0 group-hover:opacity-100`：触屏没有 hover，
+   * 那些按钮就永远是全透明的——但它们照样占位、照样可点、照样能被读屏念到，
+   * 于是「看不见的删除键」蹲在列表行里。这比直接显示出来危险。
+   *
+   * 用 `(hover: hover)` 而不是视口宽度来判定：问的正是「这台设备有没有真悬停」。
+   * 顺带兜住了有触屏的大屏（Windows 平板在 1200px 下仍然没有 hover），
+   * 而这类设备按视口分档会被判成桌面。同一条 toast 关闭钮的教训见
+   * src/test/toast-close.test.tsx。
+   *
+   * 用法：把 `opacity-0 group-hover:opacity-100` 换成 `hover-reveal`，
+   * 父元素保留 `group`。
+   */
+  .hover-reveal {
+    transition: opacity 150ms ease;
+  }
+
+  @media (hover: hover) {
+    .hover-reveal {
+      opacity: 0;
+    }
+
+    .group:hover .hover-reveal,
+    .hover-reveal:focus-visible,
+    .hover-reveal:focus-within,
+    .hover-reveal[data-state='open'] {
+      opacity: 1;
+    }
+  }
+
   .scrollbar-thin {
     scrollbar-width: thin;
     scrollbar-color: hsl(var(--text-muted-hsl) / 0.3) transparent;

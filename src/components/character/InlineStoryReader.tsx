@@ -22,6 +22,8 @@ import {
 import { getDefaultExportSettings, normalizeAppearanceSettings } from '@/lib/session-storage';
 import { StoryDraftSaver, flushBeforeStoryTransition } from '@/lib/story-draft-save';
 import { useToast } from '@/hooks/use-toast';
+import { useViewport } from '@/hooks/use-viewport';
+import { cn } from '@/lib/utils';
 import { LOADING_LABEL } from '@/lib/ui-copy';
 
 interface InlineStoryReaderProps {
@@ -38,6 +40,7 @@ interface InlineStoryReaderProps {
 
 export function InlineStoryReader({ storyId, stories, onSwitchStory, onBack, onOpenEditor, initialBranchId }: InlineStoryReaderProps) {
   const { toast } = useToast();
+  const { isCompact } = useViewport();
   const [story, setStory] = useState<ArchiveStory | null>(null);
   const [loading, setLoading] = useState(true);
   const [branchId, setBranchId] = useState<string | null>(null);
@@ -183,14 +186,29 @@ export function InlineStoryReader({ storyId, stories, onSwitchStory, onBack, onO
   return (
     <div className="flex flex-col">
       {/* ===== 阅读顶栏：返回 + 故事名下拉（含分支）+ 状态 + 在编辑器中打开 ===== */}
-      <div ref={readerHeaderRef} data-reader-header className="sticky top-0 z-50 flex items-center gap-2 flex-wrap border-b border-border bg-background/95 py-1.5 backdrop-blur-sm">
-        <Button variant="ghost" size="sm" className="px-1.5 text-muted-foreground" onClick={() => void transitionAfterFlush(onBack)}>
-          <ArrowLeft className="w-4 h-4 mr-1" />
-          故事列表
+      {/* 窄屏这条必须单行：它的实测高度会喂给 ChatWorkbench 的 readerStickyTop，
+          换行一次就等于正文永久少一行。所以窄屏把「故事列表」和「在编辑器中打开」
+          缩成纯图标，标题让 flex-1 吃掉剩下的宽度。 */}
+      <div ref={readerHeaderRef} data-reader-header className={cn(
+        'sticky top-0 z-50 flex items-center gap-2 border-b border-border bg-background/95 py-1.5 backdrop-blur-sm',
+        isCompact ? 'flex-nowrap' : 'flex-wrap',
+      )}>
+        <Button
+          variant="ghost"
+          size="sm"
+          className="px-1.5 shrink-0 text-muted-foreground"
+          onClick={() => void transitionAfterFlush(onBack)}
+          aria-label="返回故事列表"
+        >
+          <ArrowLeft className={cn('w-4 h-4', !isCompact && 'mr-1')} />
+          {!isCompact && '故事列表'}
         </Button>
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <Button variant="ghost" size="sm" className="font-display font-semibold max-w-72">
+            <Button variant="ghost" size="sm" className={cn(
+              'font-display font-semibold',
+              isCompact ? 'min-w-0 flex-1 justify-start px-1.5' : 'max-w-72',
+            )}>
               <span className="truncate" title={story.title}>
                 {story.title}
                 {currentBranchName ? ` · ${currentBranchName}` : ''}
@@ -227,13 +245,24 @@ export function InlineStoryReader({ storyId, stories, onSwitchStory, onBack, onO
             ))}
           </DropdownMenuContent>
         </DropdownMenu>
-        <Badge variant="outline" className="h-5 px-1.5 text-[11px] font-normal">
-          {story.status ?? '未开始'}
-        </Badge>
-        <div className="flex-1" />
-        <Button variant="outline" size="sm" onClick={() => void transitionAfterFlush(() => onOpenEditor(story.id))} title="进入故事工作区（编辑器）：分支/整理与记录/导入导出">
-          <ExternalLink className="w-4 h-4 mr-1.5" />
-          在编辑器中打开
+        {/* 状态 chip 在窄屏收掉：这里它是只读的，同一份状态在故事列表卡片上就有，
+            而它要占的 40px 是从标题身上拿的——标题被截断更影响判断「我在读哪篇」。 */}
+        {!isCompact && (
+          <Badge variant="outline" className="h-5 px-1.5 text-[11px] font-normal">
+            {story.status ?? '未开始'}
+          </Badge>
+        )}
+        {!isCompact && <div className="flex-1" />}
+        <Button
+          variant="outline"
+          size="sm"
+          className="shrink-0"
+          onClick={() => void transitionAfterFlush(() => onOpenEditor(story.id))}
+          title="进入故事工作区（编辑器）：分支/整理与记录/导入导出"
+          aria-label="在编辑器中打开"
+        >
+          <ExternalLink className={cn('w-4 h-4', !isCompact && 'mr-1.5')} />
+          {!isCompact && '在编辑器中打开'}
         </Button>
       </div>
 

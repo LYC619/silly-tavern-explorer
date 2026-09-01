@@ -200,7 +200,7 @@ export function StoryListSection({
                   <Button
                     variant="ghost"
                     size="icon"
-                    className="opacity-0 group-hover:opacity-100 text-destructive"
+                    className="hover-reveal text-destructive"
                     onClick={() => onDelete(story)}
                     aria-label="删除故事"
                   >

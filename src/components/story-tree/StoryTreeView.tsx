@@ -103,7 +103,7 @@ export function StoryTreeView({
           {node.hint && <span className="text-xs text-muted-foreground truncate max-w-[30%] hidden sm:inline" title={node.hint}>{node.hint}</span>}
           <button
             onClick={(e) => { e.stopPropagation(); onAddChild(node.id); }}
-            className="shrink-0 opacity-0 group-hover:opacity-100 text-muted-foreground hover:text-foreground"
+            className="hover-reveal tap-target shrink-0 text-muted-foreground hover:text-foreground"
             title="添加子节点"
           >
             <Plus className="w-3.5 h-3.5" />

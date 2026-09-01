@@ -639,7 +639,7 @@ const Library = () => {
                               onActivate={activate(c)}
                               actions={menuFor(
                                 c,
-                                'w-6 h-6 rounded-full bg-[rgba(0,0,0,0.65)] backdrop-blur-sm text-white/80 flex items-center justify-center opacity-0 group-hover:opacity-100 data-[state=open]:opacity-100 transition-opacity',
+                                'hover-reveal tap-target w-6 h-6 rounded-full bg-[rgba(0,0,0,0.65)] backdrop-blur-sm text-white/80 flex items-center justify-center',
                               )}
                             />
                           ))}
