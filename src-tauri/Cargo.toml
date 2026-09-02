@@ -1,6 +1,6 @@
 [package]
 name = "ste-explorer"
-version = "0.9.0"
+version = "0.9.1"
 description = "ST Explorer - SillyTavern 聊天记录、世界书、预设与资产管理工具"
 authors = ["LYC619"]
 license = "AGPL-3.0-only"
